@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using SpaceSnoop.Extensions;
+using SpaceSnoop.Services;
 
 namespace SpaceSnoop;
 
@@ -10,11 +11,17 @@ public partial class MainForm : Form
     private readonly IDiskSpaceCalculator _diskSpaceCalculator;
     private readonly ILogger<MainForm> _logger;
 
-    public MainForm(ILogger<MainForm> logger, IAdministratorChecker administratorChecker, IDiskSpaceCalculator spaceCalculator, BackgroundWorker worker)
+    public MainForm(
+        ILogger<MainForm> logger,
+        IAdministratorChecker administratorChecker,
+        IDiskSpaceCalculator spaceCalculator,
+        BackgroundWorker worker,
+        ColorService colorService)
     {
         _logger = logger;
         _administratorChecker = administratorChecker;
         _diskSpaceCalculator = spaceCalculator;
+        _colorService = colorService;
         _backgroundWorker = worker;
 
         InitializeComponent();
@@ -37,7 +44,7 @@ public partial class MainForm : Form
     {
         InitializeWorker();
         InitializeSorting();
-        InitializeColor();
+        InitializeColorService();
 
         FillDrives();
 
@@ -48,7 +55,7 @@ public partial class MainForm : Form
     {
         FinalizeWorker();
         FinalizeSorting();
-        FinalizeColor();
+        FinalizeColorService();
 
         base.OnFormClosing(args);
     }
@@ -92,7 +99,7 @@ public partial class MainForm : Form
             }
 
             node.FillParentNode(diskSpace);
-            UpdateNodeColors(node);
+            _colorService.UpdateAssignedNodesColor(node);
         }
     }
 
@@ -188,4 +195,28 @@ public partial class MainForm : Form
     {
         _calculateProgressBar.Invoke(() => _calculateProgressBar.Style = ProgressBarStyle.Blocks);
     }
+
+    #region ColorService
+
+    private readonly ColorService _colorService;
+
+    private void InitializeColorService()
+    {
+        _colorService.Initialize(_intensityBar);
+        _colorService.IntensityChanged += OnIntensityChanged;
+    }
+
+    private void FinalizeColorService()
+    {
+        _colorService.IntensityChanged -= OnIntensityChanged;
+        _colorService.Dispose();
+    }
+
+    private void OnIntensityChanged(object? sender, int intensity)
+    {
+        _intensityGroupBox.Text = $"Интенсивность: {intensity}";
+        _colorService.UpdateNodesColor(_directoriesTreeView.Nodes);
+    }
+
+    #endregion
 }

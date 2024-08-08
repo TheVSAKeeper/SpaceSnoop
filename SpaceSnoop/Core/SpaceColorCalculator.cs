@@ -3,7 +3,7 @@
 /// <summary>
 ///     Калькулятор для вычисления цвета на основе размера файла или директории.
 /// </summary>
-public class SpaceColorCalculator
+public class SpaceColorCalculator : ISpaceColorCalculator
 {
     /// <summary>
     ///     Максимальное значение компонента цвета.
@@ -25,12 +25,10 @@ public class SpaceColorCalculator
     /// </summary>
     public const int DefaultIntensity = 10;
 
-    /// <summary>
-    ///     Текущая интенсивность цвета (насколько выражен цвет в зависимости от размера).
-    /// </summary>
+    /// <inheritdoc cref="Intensity" />
     private int _intensity = DefaultIntensity;
 
-    /// <inheritdoc cref="_intensity" />
+    /// <inheritdoc />
     public int Intensity
     {
         get => _intensity;

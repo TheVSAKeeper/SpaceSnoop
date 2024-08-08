@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using NLog;
 using NLog.Extensions.Logging;
 using NLog.Windows.Forms;
+using SpaceSnoop.Services;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace SpaceSnoop;
@@ -65,6 +66,8 @@ internal static class Program
         return services
                 .AddSingleton<MainForm>()
                 .AddTransient<BackgroundWorker>()
+                .AddTransient<ColorService>()
+                .AddTransient<ISpaceColorCalculator, SpaceColorCalculator>()
                 .AddTransient<IDiskSpaceCalculator, DiskSpaceCalculator>()
                 .AddSingleton<IAdministratorChecker, AdministratorChecker>()
             ;
