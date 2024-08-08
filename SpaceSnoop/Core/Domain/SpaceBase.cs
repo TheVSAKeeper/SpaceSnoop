@@ -1,4 +1,4 @@
-﻿namespace SpaceSnoop.Core;
+﻿namespace SpaceSnoop.Core.Domain;
 
 public abstract class SpaceBase(string name, string path, DateTime creationDate, DateTime lastAccessTime)
 {
