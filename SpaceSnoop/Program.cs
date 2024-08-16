@@ -67,6 +67,7 @@ internal static class Program
                 .AddSingleton<MainForm>()
                 .AddTransient<BackgroundWorker>()
                 .AddTransient<ColorService>()
+                .AddTransient<WorkerService>()
                 .AddTransient<ISpaceColorCalculator, SpaceColorCalculator>()
                 .AddTransient<IDiskSpaceCalculator, DiskSpaceCalculator>()
                 .AddSingleton<IAdministratorChecker, AdministratorChecker>()

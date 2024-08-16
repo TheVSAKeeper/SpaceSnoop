@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using SpaceSnoop.Extensions;
 using SpaceSnoop.Services;
@@ -8,21 +7,15 @@ namespace SpaceSnoop;
 public partial class MainForm : Form
 {
     private readonly IAdministratorChecker _administratorChecker;
-    private readonly IDiskSpaceCalculator _diskSpaceCalculator;
-    private readonly ILogger<MainForm> _logger;
 
     public MainForm(
-        ILogger<MainForm> logger,
         IAdministratorChecker administratorChecker,
-        IDiskSpaceCalculator spaceCalculator,
-        BackgroundWorker worker,
+        WorkerService workerService,
         ColorService colorService)
     {
-        _logger = logger;
         _administratorChecker = administratorChecker;
-        _diskSpaceCalculator = spaceCalculator;
+        _workerService = workerService;
         _colorService = colorService;
-        _backgroundWorker = worker;
 
         InitializeComponent();
 
@@ -162,11 +155,8 @@ public partial class MainForm : Form
     private void StartScanning(string disk)
     {
         StartProgressBar();
-
         RemovePathNode(disk);
-
-        _cancellationTokenSource = new CancellationTokenSource();
-        _backgroundWorker.RunWorkerAsync(new WorkerRequest(disk, _cancellationTokenSource.Token));
+        StartWorker(disk);
     }
 
     private void RemovePathNode(string path)
@@ -216,6 +206,42 @@ public partial class MainForm : Form
     {
         _intensityGroupBox.Text = $"Интенсивность: {intensity}";
         _colorService.UpdateNodesColor(_directoriesTreeView.Nodes);
+    }
+
+    #endregion
+
+    #region WorkerService
+
+    private readonly WorkerService _workerService;
+    private CancellationTokenSource? _cancellationTokenSource;
+
+    private void InitializeWorker()
+    {
+        _workerService.WorkCompleted += OnWorkCompleted;
+    }
+
+    private void FinalizeWorker()
+    {
+        _workerService.WorkCompleted -= OnWorkCompleted;
+    }
+
+    private void OnWorkCompleted(object? sender, DirectorySpace directorySpace)
+    {
+        TreeNode addedParent = _directoriesTreeView.Nodes.AddSpaceNode(directorySpace).FillParentNode(directorySpace);
+        _colorService.UpdateAssignedNodesColor(addedParent);
+        SortNodes();
+        StopProgressBar();
+    }
+
+    private void StartWorker(string disk)
+    {
+        _cancellationTokenSource = new CancellationTokenSource();
+        _workerService.StartWorker(disk, _cancellationTokenSource.Token);
+    }
+
+    public void StopWorker()
+    {
+        _cancellationTokenSource?.Cancel();
     }
 
     #endregion

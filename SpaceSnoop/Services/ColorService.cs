@@ -9,6 +9,7 @@ public class ColorService(ISpaceColorCalculator spaceColorCalculator) : IDisposa
         if (_intensityBar != null)
         {
             _intensityBar.ValueChanged -= OnIntensityChanged;
+            _intensityBar.Dispose();
         }
 
         GC.SuppressFinalize(this);
@@ -27,15 +28,6 @@ public class ColorService(ISpaceColorCalculator spaceColorCalculator) : IDisposa
         _intensityBar.Value = SpaceColorCalculator.DefaultIntensity;
     }
 
-    private void OnIntensityChanged(object? sender, EventArgs e)
-    {
-        if (_intensityBar != null)
-        {
-            IntensityChanged?.Invoke(this, _intensityBar.Value);
-            spaceColorCalculator.Intensity = _intensityBar.Value;
-        }
-    }
-
     public void UpdateNodesColor(TreeNodeCollection nodes)
     {
         foreach (TreeNode node in nodes)
@@ -52,6 +44,15 @@ public class ColorService(ISpaceColorCalculator spaceColorCalculator) : IDisposa
             {
                 UpdateSpaceNodeColor(node, directorySpace);
             }
+        }
+    }
+
+    private void OnIntensityChanged(object? sender, EventArgs e)
+    {
+        if (_intensityBar != null)
+        {
+            IntensityChanged?.Invoke(this, _intensityBar.Value);
+            spaceColorCalculator.Intensity = _intensityBar.Value;
         }
     }
 
