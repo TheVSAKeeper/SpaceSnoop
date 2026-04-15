@@ -16,6 +16,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+      <!-- Общая доменная логика и сканер вынесены в отдельную библиотеку без WinForms-зависимостей. -->
+      <ProjectReference Include="..\SpaceSnoop.Core\SpaceSnoop.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="SonarAnalyzer.CSharp" Version="10.22.0.136894">
         <PrivateAssets>all</PrivateAssets>
         <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
