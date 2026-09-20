@@ -88,7 +88,9 @@ public sealed partial class DiagnosticsRedactor(string? userName = null, string?
 
     private static string ReplaceWord(string text, string word, string mask)
     {
-        return Regex.Replace(text, Regex.Escape(word), mask, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
+        var pattern = $@"(?<![\p{{L}}\p{{N}}_]){Regex.Escape(word)}(?![\p{{L}}\p{{N}}_])";
+
+        return Regex.Replace(text, pattern, mask, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(5));
     }
 
     [GeneratedRegex(

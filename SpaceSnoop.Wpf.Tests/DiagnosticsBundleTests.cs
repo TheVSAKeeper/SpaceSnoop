@@ -154,6 +154,37 @@ public class DiagnosticsBundleTests
         Assert.That(Text(entries, "logs/wpf-20260831.log"), Does.Not.Contain("abcdef123456"));
     }
 
+    [TestCaseSource(nameof(Секреты))]
+    public void Пара_ключ_значение_глушится_в_любом_месте_строки(string text, string expected)
+    {
+        Assert.That(DiagnosticsSecrets.Redact(text), Is.EqualTo(expected));
+    }
+
+    [TestCase("\r\n", TestName = "Перевод строки CRLF")]
+    [TestCase("\n", TestName = "Перевод строки LF")]
+    public void Маска_секрета_не_переходит_на_соседние_строки(string newLine)
+    {
+        var text = string.Join(newLine,
+            @"скан C:\Users\admin\Музыка",
+            "token = \"s3cr3t-live-token\"",
+            "steps = 3");
+
+        var expected = string.Join(newLine,
+            @"скан C:\Users\admin\Музыка",
+            $"token = \"{DiagnosticsSecrets.Mask}\"",
+            "steps = 3");
+
+        Assert.That(DiagnosticsSecrets.Redact(text), Is.EqualTo(expected));
+    }
+
+    [TestCase("пользователь adminushka вошёл", "пользователь adminushka вошёл", TestName = "Имя подстрокой чужого слова цело")]
+    [TestCase("файл admin-2026.log", "файл " + DiagnosticsRedactor.UserMask + "-2026.log", TestName = "Имя за дефисом маскируется")]
+    [TestCase("вошёл admin", "вошёл " + DiagnosticsRedactor.UserMask, TestName = "Имя целым словом маскируется")]
+    public void Имя_пользователя_маскируется_только_целым_словом(string text, string expected)
+    {
+        Assert.That(new DiagnosticsRedactor("admin").Apply(text), Is.EqualTo(expected));
+    }
+
     [Test]
     public void Пропавшие_настройки_названы_в_составе_пакета()
     {
@@ -186,6 +217,48 @@ public class DiagnosticsBundleTests
                 Directory.Delete(directory, true);
             }
         }
+    }
+
+    private static IEnumerable<TestCaseData> Секреты()
+    {
+        var mask = '"' + DiagnosticsSecrets.Mask + '"';
+
+        yield return new TestCaseData("token = \"s3cr3t-live-token\"", $"token = {mask}")
+            .SetName("TOML в начале строки");
+
+        yield return new TestCaseData(
+                "2026-09-20 18:00:11.234 +03:00 [INF] Запрос token=eyJhbGciOiJIUzI1 завершился за 12 мс",
+                $"2026-09-20 18:00:11.234 +03:00 [INF] Запрос token={DiagnosticsSecrets.Mask} завершился за 12 мс")
+            .SetName("Строка Serilog с префиксом");
+
+        yield return new TestCaseData(
+                """{"auth":{"token":"s3cr3t"},"user":"admin"}""",
+                """{"auth":{"token":""" + mask + """},"user":"admin"}""")
+            .SetName("Компактный JSON посреди строки");
+
+        yield return new TestCaseData(
+                "повтор с token=abc123 через 5 с",
+                $"повтор с token={DiagnosticsSecrets.Mask} через 5 с")
+            .SetName("Свободный текст");
+
+        yield return new TestCaseData(
+                "https://api.example.com/oauth?client_secret=s3cr3t&code=1",
+                $"https://api.example.com/oauth?client_secret={DiagnosticsSecrets.Mask}&code=1")
+            .SetName("Хвост запроса после секрета цел");
+
+        yield return new TestCaseData("token = 's3cr3t'", $"token = '{DiagnosticsSecrets.Mask}'")
+            .SetName("Одинарные кавычки TOML");
+
+        yield return new TestCaseData("password=hunter2 api-key=abc123", $"password={DiagnosticsSecrets.Mask} api-key={DiagnosticsSecrets.Mask}")
+            .SetName("Две пары в одной строке");
+
+        yield return new TestCaseData("X-Api-Key: abcdef123456", $"X-Api-Key: {DiagnosticsSecrets.Mask}")
+            .SetName("Заголовок с дефисами");
+
+        yield return new TestCaseData(
+                """{"name":"admin","steps":3,"path":"C:\\Users"}""",
+                """{"name":"admin","steps":3,"path":"C:\\Users"}""")
+            .SetName("Строка без ключа-секрета не трогается");
     }
 
     private static DiagnosticsPayload Payload()
