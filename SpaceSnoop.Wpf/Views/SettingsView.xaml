@@ -28,12 +28,15 @@
 
         <keepshell:SettingsRail Sections="{Binding Sections}" />
 
-        <ScrollViewer Grid.Column="1"
+        <ScrollViewer x:Name="Cards"
+                      Grid.Column="1"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Margin="16,0,0,0"
-                      Padding="0,0,12,0">
-            <Grid RequestBringIntoView="SuppressAutoScroll">
+                      Padding="0,0,12,0"
+                      ScrollChanged="OnCardsScrolled">
+            <Grid x:Name="CardHost"
+                  RequestBringIntoView="SuppressAutoScroll">
                 <settings:SettingsAppearanceCard />
                 <settings:SettingsStartupCard />
                 <settings:SettingsScanCard />

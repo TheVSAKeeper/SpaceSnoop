@@ -1,5 +1,6 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Services.Platform;
+using KeepShell.ViewModels;
 using KeepShell.Testing;
 using KeepShell.Views.Controls;
 using Microsoft.Extensions.DependencyInjection;
@@ -17,6 +18,7 @@ using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using SpaceSnoop.Wpf.Views;
+using SpaceSnoop.Wpf.Views.Settings;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
@@ -31,6 +33,8 @@ namespace SpaceSnoop.Wpf.Tests;
 [NonParallelizable]
 public class BindingSmokeTests
 {
+    private const double SettingsCardsProbeHeight = 240;
+
     private BindingErrorSink _sink = null!;
     private ServiceProvider _services = null!;
     private KeepShellLogging _logging = null!;
@@ -415,6 +419,79 @@ public class BindingSmokeTests
     }
 
     [Test]
+    public void Каждый_подпункт_настроек_находит_свой_блок_в_карточке()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var restore = sections.SelectedPath;
+        var missing = new List<string>();
+
+        foreach (var section in sections.Items.Where(section => section.Children.Count > 0))
+        {
+            sections.SelectCommand.Execute(section);
+            Settle();
+
+            var anchors = Descendants<FrameworkElement>(_window)
+                .Where(element => element.IsVisible)
+                .Select(SettingsBlock.GetKey)
+                .Where(key => key is { Length: > 0 })
+                .ToHashSet(StringComparer.Ordinal);
+
+            missing.AddRange(section.Children
+                .Where(child => !anchors.Contains(child.Key))
+                .Select(child => $"{section.Title} – {child.Title}"));
+        }
+
+        sections.Restore(restore);
+        Settle();
+
+        Assert.That(missing, Is.Empty, $"Подпункт рейла не нашёл своего блока в карточке, поэтому нажатие на него никуда не прокрутит: {string.Join(", ", missing)}. Пометьте блок через SettingsBlock.Key или уберите подпункт.");
+    }
+
+    [Test]
+    public void Прокрутка_настроек_держит_подсветку_на_краях_карточки()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var restore = sections.SelectedPath;
+        var cards = Descendants<ScrollViewer>(_window).FirstOrDefault(viewer => viewer.Name == "Cards");
+
+        Assert.That(cards, Is.Not.Null, "Прокручиваемая карточка настроек не найдена.");
+
+        try
+        {
+            cards.MaxHeight = SettingsCardsProbeHeight;
+
+            var section = sections.Items.FirstOrDefault(item => item.Children.Count > 1 && Scrollable(sections, item, cards));
+
+            Assert.That(section, Is.Not.Null, "Ни одна карточка с подпунктами не прокручивается на этом окне – сценарий краёв невыразим.");
+
+            var last = section.Children[^1];
+            sections.SelectChildCommand.Execute(last);
+            Settle();
+
+            Assert.That(sections.SelectedChild, Is.SameAs(last),
+                $"Клик по последнему подпункту «{last.Title}» подсветил «{sections.SelectedChild?.Title}»: прокрутку зажало по ScrollableHeight.");
+
+            cards.ScrollToTop();
+            Settle();
+
+            Assert.That(sections.SelectedChild, Is.SameAs(section.Children[0]),
+                $"Прокрутка в самый верх оставила подсвеченным «{sections.SelectedChild?.Title}» вместо первого подпункта.");
+        }
+        finally
+        {
+            cards.MaxHeight = double.PositiveInfinity;
+            sections.Restore(restore);
+            Settle();
+        }
+    }
+
+    [Test]
     public void Кнопка_строки_настроек_сбрасывает_свою_настройку_а_не_соседнюю()
     {
         Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
@@ -480,6 +557,14 @@ public class BindingSmokeTests
             store.SetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault);
             (_window.DataContext as ShellViewModel)?.ToString();
         }
+    }
+
+    private bool Scrollable(SettingsSectionList sections, SettingsSection section, ScrollViewer cards)
+    {
+        sections.SelectCommand.Execute(section);
+        Settle();
+
+        return cards.ScrollableHeight > 0;
     }
 
     private static bool CanReset(Button button)

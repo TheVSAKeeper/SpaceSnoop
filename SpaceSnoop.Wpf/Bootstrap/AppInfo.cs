@@ -20,19 +20,17 @@ public static class AppInfo
     public const string DeletionLogFileName = "deleted.txt";
     public const string SyncLogFileName = "sync-log.txt";
 
-    public static string Version { get; } = ResolveVersion();
+    public static string InformationalVersion { get; } = ResolveInformationalVersion();
 
-    private static string ResolveVersion()
+    public static string Version { get; } = BuildStamp.Trim(InformationalVersion);
+
+    private static string ResolveInformationalVersion()
     {
         var assembly = typeof(AppInfo).Assembly;
         var informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
-        if (string.IsNullOrWhiteSpace(informational))
-        {
-            return assembly.GetName().Version?.ToString() ?? "–";
-        }
-
-        var plusIndex = informational.IndexOf('+');
-        return plusIndex >= 0 ? informational[..plusIndex] : informational;
+        return string.IsNullOrWhiteSpace(informational)
+            ? assembly.GetName().Version?.ToString() ?? "–"
+            : informational;
     }
 }

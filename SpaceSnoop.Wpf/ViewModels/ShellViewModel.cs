@@ -72,7 +72,7 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         AppUpdate = appUpdate;
 
         var scanItem = new NavigationItem("Сканирование", PackIconLucideKind.HardDrive, scan, key: SectionKey.Scan);
-        var syncItem = new NavigationItem("Синхронизация", PackIconLucideKind.FolderSync, sync, key: SectionKey.Sync);
+        var syncItem = new NavigationItem("Синхронизация", PackIconLucideKind.FolderSync, sync, key: SectionKey.Sync) { KeepAlive = true };
         var overviewItem = new NavigationItem("Обзор", PackIconLucideKind.LayoutGrid, overview, key: SectionKey.Overview);
         var scheduleItem = new NavigationItem("Расписание", PackIconLucideKind.CalendarClock, schedule, key: SectionKey.Schedule);
         var cleanupItem = new NavigationItem("Очистка", PackIconLucideKind.Trash2, cleanup, key: SectionKey.Cleanup);

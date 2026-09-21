@@ -12,9 +12,19 @@ public sealed partial class AboutViewModel(
     ILogger<AboutViewModel> logger)
     : ObservableObject, IPageHeader
 {
+    private static readonly BuildBadge Badge = BuildBadge.Build(
+        BuildStamp.Read(Environment.ProcessPath, AppInfo.InformationalVersion),
+        AppInfo.InformationalVersion,
+        AppContext.BaseDirectory,
+        "отметки сборки рядом нет, поэтому коммит и дата неизвестны");
+
     public string AppName => AppInfo.Name;
 
     public string Version => AppInfo.Version;
+
+    public string BuildInfo => Badge.Value;
+
+    public string BuildInfoTooltip => Badge.Tooltip;
 
     public string RepoSlug => AppInfo.RepoSlug;
 
@@ -88,6 +98,7 @@ public sealed partial class AboutViewModel(
     {
         var text = new StringBuilder()
             .AppendLine($"{AppName} {Version}")
+            .AppendLine($"Сборка: {BuildInfoTooltip}")
             .AppendLine($".NET: {DotNetVersion}")
             .AppendLine($"ОС: {OperatingSystem}")
             .AppendLine($"Архитектура: {Architecture}")

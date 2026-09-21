@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Settings"
              xmlns:bootstrap="clr-namespace:SpaceSnoop.Wpf.Bootstrap"
+             xmlns:settings="clr-namespace:SpaceSnoop.Wpf.Views.Settings"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -25,7 +26,7 @@
                             keepshell:Form.ResetCommandParameter="scan"
                             keepshell:Form.ResetHint="{Binding ResetPlans[scan].Hint}">
         <StackPanel>
-            <Grid>
+            <Grid settings:SettingsBlock.Key="parallel">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -103,7 +104,8 @@
                            Text="У вращающегося диска параллельный обход заставляет головку метаться между каталогами и отнимает больше, чем даёт. Тип носителя спрашивается у драйвера один раз на том, поэтому внешний диск, подменённый под той же буквой, до перезапуска отвечает прежним типом. Сетевые пути и носители, о которых драйвер молчит, считаются неизвестными, и для них настройка ничего не меняет." />
             </Expander>
 
-            <Grid Margin="0,16,0,0">
+            <Grid Margin="0,16,0,0"
+                  settings:SettingsBlock.Key="mft">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
@@ -156,7 +158,8 @@
                            Text="На подкаталоге чтение тома целиком стоит дороже обхода, а числа неполноты в полосе итогов всё равно считаются по всему тому, а не по выбранной ветке. Выключите, если счёт жёстких ссылок один раз нужен и внутри каталога – например, в папке Windows, которая почти целиком из них состоит." />
             </Expander>
 
-            <Grid Margin="0,16,0,0">
+            <Grid Margin="0,16,0,0"
+                  settings:SettingsBlock.Key="view">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />

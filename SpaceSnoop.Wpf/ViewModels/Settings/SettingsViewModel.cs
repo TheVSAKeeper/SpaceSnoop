@@ -99,8 +99,18 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
         return new(
             new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, "тема оформления светлая тёмная tarkov масштаб шрифта размер текста заголовок страницы уведомления тосты производительность отклик память диагностика"),
             new SettingsSection("startup", "Запуск", PackIconLucideKind.Power, "стартовая страница навигационный рейл свернуть права администратора предупреждение"),
-            new SettingsSection("scan", "Сканирование", PackIconLucideKind.HardDrive, "многопоточный обход потоки параллелизм тепловая подсветка интенсивность проводник открытие файлов тип носителя ssd hdd mft таблица ntfs жёсткие ссылки движок администратор подкаталог диск целиком"),
-            new SettingsSection("sync", "Синхронизация", PackIconLucideKind.FolderSync, "исключения glob паттерны автодополнение путей git репозиторий группировка служебных каталогов плоский вид перезапись затираемый файл корзина"),
+            new SettingsSection("scan", "Сканирование", PackIconLucideKind.HardDrive, "многопоточный обход потоки параллелизм тепловая подсветка интенсивность проводник открытие файлов тип носителя ssd hdd mft таблица ntfs жёсткие ссылки движок администратор подкаталог диск целиком",
+            [
+                new SettingsSubsection("parallel", "Многопоточность"),
+                new SettingsSubsection("mft", "Таблица NTFS"),
+                new SettingsSubsection("view", "Подсветка и проводник"),
+            ]),
+            new SettingsSection("sync", "Синхронизация", PackIconLucideKind.FolderSync, "исключения glob паттерны автодополнение путей git репозиторий группировка служебных каталогов плоский вид перезапись затираемый файл корзина",
+            [
+                new SettingsSubsection("paths", "Ввод путей"),
+                new SettingsSubsection("recycle", "Корзина"),
+                new SettingsSubsection("exclusions", "Исключения и группировка"),
+            ]),
             new SettingsSection("delete", "Удаление", PackIconLucideKind.Trash2, "корзина безвозвратно подтверждение помеченные элементы"),
             new SettingsSection("archive", "Архивация", PackIconLucideKind.FileArchive, "zip сжатие уровень упаковать оригинал корзина"),
             new SettingsSection("update", "Обновления", PackIconLucideKind.Download, "github релизы репозиторий версия проверка скачивание изменения changelog"),
@@ -277,9 +287,9 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
 
     private void OnSectionsPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(SettingsSectionList.Selected) && Sections.Selected is not null)
+        if (e.PropertyName is nameof(SettingsSectionList.SelectedPath) && Sections.SelectedPath is { Length: > 0 } path)
         {
-            _settings.SetValue(SettingsKeys.SettingsSection, Sections.Selected.Key);
+            _settings.SetValue(SettingsKeys.SettingsSection, path);
         }
     }
 
