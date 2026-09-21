@@ -46,7 +46,7 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         CleanupPageViewModel cleanup,
         ChatViewModel chat,
         LogsViewModel logs,
-        PerformanceViewModel performance,
+        DiagnosticsViewModel diagnostics,
         AboutViewModel about,
         SettingsViewModel settingsPage,
         ModalHostViewModel modal,
@@ -77,7 +77,7 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         var scheduleItem = new NavigationItem("Расписание", PackIconLucideKind.CalendarClock, schedule, key: SectionKey.Schedule);
         var cleanupItem = new NavigationItem("Очистка", PackIconLucideKind.Trash2, cleanup, key: SectionKey.Cleanup);
         var logsItem = new NavigationItem("Логи", PackIconLucideKind.ScrollText, logs, key: SectionKey.Logs) { StartsGroup = true };
-        var performanceItem = new NavigationItem("Диагностика", PackIconLucideKind.Gauge, performance, key: SectionKey.Performance);
+        var performanceItem = new NavigationItem("Диагностика", PackIconLucideKind.Gauge, diagnostics, key: SectionKey.Performance);
         var aboutItem = new NavigationItem("О программе", PackIconLucideKind.Info, about, key: SectionKey.About);
 
         _chatItem = new("Чат", PackIconLucideKind.MessageCircle, chat, key: SectionKey.Chat);

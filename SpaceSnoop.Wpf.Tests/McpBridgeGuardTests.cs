@@ -1,4 +1,5 @@
-﻿using KeepShell.Testing;
+﻿using KeepShell.Diagnostics;
+using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol;
 using SpaceSnoop.Core;
@@ -46,7 +47,7 @@ public class McpBridgeGuardTests
         _scan = new();
         _sync = new();
         _cleanup = new();
-        _monitor = new(NullLogger<PerformanceMonitor>.Instance);
+        _monitor = TestDiagnostics.Monitor();
         _operations = new(_monitor);
 
         var scanPreferences = new ScanPreferences(settings);

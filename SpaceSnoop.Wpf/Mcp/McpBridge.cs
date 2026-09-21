@@ -1,4 +1,5 @@
-﻿namespace SpaceSnoop.Wpf.Mcp;
+﻿using KeepShell.Diagnostics;
+namespace SpaceSnoop.Wpf.Mcp;
 
 public sealed class McpBridge
 {

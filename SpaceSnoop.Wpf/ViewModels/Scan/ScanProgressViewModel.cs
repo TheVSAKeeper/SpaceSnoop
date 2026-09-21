@@ -168,7 +168,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         ScanDirCountText = "0";
         ScanFileCountText = "0";
         ScanBytesText = SizeFormatter.Format(0);
-        ScanElapsedText = PerformanceFormat.Elapsed(TimeSpan.Zero);
+        ScanElapsedText = PerformanceText.Elapsed(TimeSpan.Zero);
         ScanThroughputText = "–";
         ScanRemainingText = string.Empty;
         ScanHasRemaining = false;
@@ -195,7 +195,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         ScanDirCountText = snapshot.DirectoriesScanned.ToString("N0");
         ScanFileCountText = snapshot.FilesScanned.ToString("N0");
         ScanBytesText = SizeFormatter.Format(snapshot.BytesScanned);
-        ScanElapsedText = PerformanceFormat.Elapsed(elapsed);
+        ScanElapsedText = PerformanceText.Elapsed(elapsed);
 
         ScanHasBranches = snapshot.TopLevelTotal > 0;
         ScanTopLevelText = ScanHasBranches
@@ -219,8 +219,8 @@ public sealed partial class ScanProgressViewModel : ObservableObject
             Traversal: Describe(snapshot),
             LogicalBytes: true);
 
-        ScanThroughputText = PerformanceFormat.Rate(operation) ?? "–";
-        ScanRemainingText = PerformanceFormat.Remaining(operation) ?? string.Empty;
+        ScanThroughputText = PerformanceText.Rate(operation) ?? "–";
+        ScanRemainingText = PerformanceText.Remaining(operation) ?? string.Empty;
         ScanHasRemaining = ScanRemainingText.Length > 0;
 
         if (_operations.TryReport(operation, _reported))

@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using KeepShell.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 
 namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
@@ -104,14 +105,14 @@ internal sealed class DeleteOperationDiagnostics
         var parts = new List<string>(5)
         {
             snapshot.SampleCount > 0
-                ? PerformanceFormat.Delay(snapshot.UiDelayMs, snapshot.UiPeakMs)
+                ? PerformanceText.Delay(snapshot.UiDelayMs, snapshot.UiPeakMs)
                 : "отклик ещё не измерен",
-            PerformanceFormat.Rate(operation) ?? "скорость считается",
+            PerformanceText.Rate(operation) ?? "скорость считается",
         };
 
         if (operation.Remaining() is { } remaining)
         {
-            parts.Add($"осталось {PerformanceFormat.Duration(remaining)}");
+            parts.Add($"осталось {PerformanceText.Duration(remaining)}");
         }
 
         var deleteCalls = Volatile.Read(ref _deleteCalls);

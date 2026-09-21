@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using KeepShell.Diagnostics;
+using System.IO;
 using System.Security;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -46,7 +47,7 @@ internal static class McpFormat
                 point.Gen0Collections,
                 point.Gen1Collections,
                 point.Gen2Collections,
-                point.Operation))
+                point.Phase))
             .ToList();
 
         return new(history.CapturedAtUtc,
@@ -76,7 +77,7 @@ internal static class McpFormat
             operation.ItemsPerSecond is { } items ? Math.Round(items, 1) : null,
             !operation.LogicalBytes && operation.BytesPerSecond is { } bytes ? Math.Round(bytes, 1) : null,
             operation.Remaining() is { } remaining ? Math.Round(remaining.TotalSeconds, 1) : null,
-            PerformanceFormat.Operation(operation) ?? operation.Name);
+            PerformanceText.Operation(operation) ?? operation.Name);
     }
 
     public static McpDrive DescribeDrive(DriveInfo drive)
@@ -137,7 +138,7 @@ internal static class McpFormat
             SectionKey.Docker => "Очистка (Docker)",
             SectionKey.Chat => "Чат",
             SectionKey.Logs => "Логи",
-            SectionKey.Performance => "Производительность",
+            SectionKey.Performance => "Диагностика",
             SectionKey.About => "О программе",
             SectionKey.Settings => "Настройки",
             _ => "неизвестно",

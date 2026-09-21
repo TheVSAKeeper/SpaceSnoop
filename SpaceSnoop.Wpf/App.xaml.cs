@@ -1,4 +1,5 @@
-﻿using KeepShell.Services;
+﻿using KeepShell.Diagnostics;
+using KeepShell.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using SpaceSnoop.Wpf.Views;
@@ -205,10 +206,40 @@ public partial class App : Application
 
         services.AddSingleton<ErrorReportService>();
 
-        services.AddSingleton<PerformanceMonitor>();
-        services.AddSingleton<DiagnosticsCollector>();
+        services.AddKeepShellDiagnostics(new()
+        {
+            AppName = AppInfo.Name,
+            AppVersion = AppInfo.Version,
+            DataDirectory = AppStorage.DataDirectory,
+            PortableStorage = !AppStorage.UseAppData,
+            SampleInterval = TimeSpan.FromMilliseconds(AppDefaults.PerformanceSampleIntervalMs),
+            WindowSamples = AppDefaults.PerformanceWindowSamples,
+            HistorySamples = AppDefaults.PerformanceHistorySamples,
+            HistoryPointsMax = AppDefaults.PerformanceHistoryPointsMax,
+            HitchThresholdMs = AppDefaults.PerformanceHitchMs,
+            HitchLogInterval = TimeSpan.FromSeconds(AppDefaults.PerformanceHitchLogIntervalSeconds),
+            HitchRowsMax = AppDefaults.PerformanceHitchRowsMax,
+            BundleHitchRows = AppDefaults.DiagnosticsHitchRows,
+            FrameSlowMs = AppDefaults.PerformanceFrameSlowMs,
+            FrameGapMs = AppDefaults.PerformanceFrameGapMs,
+            ChartRefresh = TimeSpan.FromMilliseconds(AppDefaults.PerformanceChartRefreshMs),
+            ChartWindow = AppDefaults.PerformanceChartWindowDefault,
+            ChartHeight = AppDefaults.PerformanceChartPageHeight,
+            ChartDotLimit = AppDefaults.PerformanceChartDotLimit,
+            BundleLogFiles = AppDefaults.DiagnosticsLogFiles,
+            BundleLogTailLines = AppDefaults.DiagnosticsLogTailLines,
+            BundleNameAttempts = AppDefaults.DiagnosticsNameAttempts,
+        });
+
         services.AddSingleton<PerformanceOperations>();
         services.AddSingleton<PerformanceHudViewModel>();
+        services.AddSingleton<ScanOperationsCard>();
+        services.AddSingleton<IDiagnosticsCard>(static provider => provider.GetRequiredService<ScanOperationsCard>());
+        services.AddSingleton<IDiagnosticsBundleSource>(static provider => new SpaceSnoopBundleSource(
+            provider.GetRequiredService<ISettingsStore>(),
+            provider.GetRequiredService<PerformanceOperations>(),
+            Path.Combine(AppStorage.DataDirectory, TomlSettingsFile.PrimaryFileName)));
+        services.AddSingleton<IDiagnosticsSecretSource, SpaceSnoopSecretSource>();
 
         services.AddSingleton<ScanInspectorViewModel>();
         services.AddSingleton<ScanNodeFactory>();
@@ -233,9 +264,6 @@ public partial class App : Application
         services.AddSingleton<ICleanupAutomation>(static provider => provider.GetRequiredService<CleanupViewModel>());
         services.AddSingleton<CleanupPageViewModel>();
         services.AddSingleton<ChatViewModel>();
-        services.AddTransient<PerformanceChartViewModel>();
-        services.AddSingleton<ILogsPanel>(static provider => provider.GetRequiredService<PerformanceChartViewModel>());
-        services.AddSingleton<PerformanceViewModel>();
         services.AddSingleton<LogsViewModel>();
         services.AddSingleton<AboutViewModel>();
         services.AddSingleton<SettingsViewModel>();

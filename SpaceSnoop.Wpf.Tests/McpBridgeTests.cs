@@ -1,4 +1,5 @@
-﻿using ModelContextProtocol;
+﻿using KeepShell.Diagnostics;
+using ModelContextProtocol;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Core.Export;
@@ -357,8 +358,8 @@ public class McpBridgeTests
             0,
             3,
             [
-                new(3000.56, 12.34, 100, 200, 1, 0, 0, "Сканирование"),
-                new(500.44, 0, 150, 250, 5, 1, 0, null),
+                new(3000.56, 12.34, 100, 200, 180, 1, 0, 0, "Сканирование"),
+                new(500.44, 0, 150, 250, 230, 5, 1, 0, null),
             ]);
     }
 }

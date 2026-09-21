@@ -1,277 +1,181 @@
-﻿using SpaceSnoop.Wpf.Diagnostics;
+﻿using KeepShell.Bootstrap;
+using KeepShell.Diagnostics;
+using KeepShell.Testing;
+using SpaceSnoop.Wpf.Bootstrap.Storage;
+using SpaceSnoop.Wpf.Diagnostics;
 using System.IO;
-using System.IO.Compression;
-using System.Globalization;
-using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
 public class DiagnosticsBundleTests
 {
-    [TestCase(@"C:\Users\admin\Downloads\отчёт.txt", @"C:\…\отчёт.txt")]
-    [TestCase(@"D:\Проекты", @"D:\Проекты")]
-    [TestCase(@"D:\Проекты\Сайт", @"D:\…\Сайт")]
-    [TestCase(@"\\сервер\общая\папка\файл.log", @"\\сервер\общая\…\файл.log")]
-    [TestCase(@"\\?\UNC\finance-nas\private\alice\report.xlsx", @"\\?\UNC\finance-nas\private\…\report.xlsx")]
-    [TestCase(@"\\?\C:\Users\admin\отчёт.txt", @"\\?\C:\…\отчёт.txt")]
-    public void Из_пути_остаются_корень_и_имя(string path, string expected)
+    private const string Token = "s3cr3t-live-token";
+
+    private string _root = string.Empty;
+
+    [SetUp]
+    public void SetUp()
     {
-        Assert.That(new DiagnosticsRedactor().Apply(path), Is.EqualTo(expected));
+        _root = Path.Combine(Path.GetTempPath(), "spacesnoop-diagnostics-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_root);
     }
 
-    [Test]
-    public void Путь_внутри_JSON_обезличивается_вместе_с_экранированием()
+    [TearDown]
+    public void TearDown()
     {
-        var json = JsonSerializer.Serialize(new { path = @"C:\Users\admin\AppData\Local\SpaceSnoop\logs\wpf.log" });
-
-        var redacted = new DiagnosticsRedactor().Apply(json);
-
-        Assert.That(redacted, Does.Not.Contain("admin"));
-        Assert.That(redacted, Does.Contain(@"C:\\…\\wpf.log"));
-    }
-
-    [Test]
-    public void Имя_пользователя_и_имя_машины_заменяются_масками()
-    {
-        var redacted = new DiagnosticsRedactor("admin", "HOMEPC").Apply("Пользователь admin на машине homepc");
-
-        Assert.That(redacted, Is.EqualTo($"Пользователь {DiagnosticsRedactor.UserMask} на машине {DiagnosticsRedactor.MachineMask}"));
-    }
-
-    [Test]
-    public void Без_обезличивания_текст_едет_как_есть()
-    {
-        var entries = DiagnosticsBundle.Build(Payload(), null);
-
-        Assert.That(Text(entries, "logs/wpf-20260831.log"), Is.EqualTo(@"скан C:\Users\admin\Музыка"));
-    }
-
-    [Test]
-    public void Пакет_несёт_профиль_замеры_сводку_настройки_и_журналы()
-    {
-        var entries = DiagnosticsBundle.Build(Payload(), DiagnosticsRedactor.ForCurrentUser());
-
-        Assert.That(entries.Select(entry => entry.Name), Is.EqualTo(new[]
+        if (Directory.Exists(_root))
         {
-            DiagnosticsBundle.MachineEntry,
-            DiagnosticsBundle.PerformanceEntry,
-            DiagnosticsBundle.SummaryEntry,
-            DiagnosticsBundle.SettingsEntry,
-            "logs/wpf-20260831.log",
-        }));
-    }
-
-    [Test]
-    public void Обезличивание_доходит_до_каждой_записи_пакета()
-    {
-        var entries = DiagnosticsBundle.Build(Payload(), new DiagnosticsRedactor("admin"));
-
-        Assert.That(entries.All(entry => !entry.Text.Contains("admin", StringComparison.OrdinalIgnoreCase)), Is.True);
-        Assert.That(Text(entries, DiagnosticsBundle.SettingsEntry), Does.Not.Contain("Users"));
-    }
-
-    [Test]
-    public void Сохранённый_архив_читается_записями_пакета()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "spacesnoop-diagnostics-tests", Guid.NewGuid().ToString("N"));
-
-        try
-        {
-            var entries = DiagnosticsBundle.Build(Payload(), null);
-            var path = DiagnosticsBundle.Save(directory, entries, new DateTime(2026, 8, 31, 19, 5, 0, DateTimeKind.Local));
-
-            Assert.That(Path.GetFileName(path), Is.EqualTo("spacesnoop-diagnostics-20260831-190500.zip"));
-
-            using var archive = ZipFile.OpenRead(path);
-
-            Assert.That(archive.Entries.Select(entry => entry.FullName), Is.EqualTo(entries.Select(entry => entry.Name)));
-
-            using var reader = new StreamReader(archive.GetEntry(DiagnosticsBundle.SummaryEntry)!.Open());
-
-            Assert.That(reader.ReadToEnd(), Does.Contain("Процессор:"));
-        }
-        finally
-        {
-            if (Directory.Exists(directory))
-            {
-                Directory.Delete(directory, true);
-            }
+            Directory.Delete(_root, true);
         }
     }
 
     [Test]
-    public void Расширенный_UNC_внутри_JSON_обезличивается()
+    public void Живой_токен_вымарывается_из_строки_журнала_Serilog()
     {
-        var json = JsonSerializer.Serialize(new { path = @"\\?\UNC\finance-nas\private\alice\report.xlsx" });
+        var line = $"2026-09-20 18:00:11.234 +03:00 [INF] Агент подключился по Bearer {Token} за 12 мс";
 
-        var redacted = new DiagnosticsRedactor().Apply(json);
+        var entries = Build(Secrets(Token), [new("wpf-20260920.log", line)]);
 
-        Assert.That(redacted, Does.Not.Contain("alice"));
-        Assert.That(redacted, Does.Contain(DiagnosticsRedactor.Ellipsis));
-    }
-
-    [Test]
-    public void Имя_маскируется_и_под_турецкой_культурой()
-    {
-        var culture = CultureInfo.CurrentCulture;
-
-        try
+        using (Assert.EnterMultipleScope())
         {
-            CultureInfo.CurrentCulture = new("tr-TR");
-
-            var redacted = new DiagnosticsRedactor("FILE", "HOMEPC").Apply("пользователь file");
-
-            Assert.That(redacted, Is.EqualTo($"пользователь {DiagnosticsRedactor.UserMask}"));
-        }
-        finally
-        {
-            CultureInfo.CurrentCulture = culture;
+            Assert.That(Text(entries, "logs/wpf-20260920.log"), Does.Not.Contain(Token));
+            Assert.That(Text(entries, "logs/wpf-20260920.log"), Does.Contain(DiagnosticsSecrets.Mask));
+            Assert.That(Text(entries, "logs/wpf-20260920.log"), Does.Contain("за 12 мс"));
         }
     }
 
     [Test]
-    public void Токен_вырезается_в_обоих_режимах()
+    public void Пара_имя_значение_глушится_и_без_объявленного_токена()
     {
-        var payload = Payload() with { Settings = "[wpf.mcp]" + Environment.NewLine + "token = " + '"' + "s3cr3t-live-token" + '"' };
+        var entries = Build(Secrets(null), [new("wpf-20260920.log", "2026-09-20 18:00:11.234 +03:00 [INF] Запрос token=eyJhbGciOiJIUzI1 завершился")]);
 
-        foreach (var redactor in new DiagnosticsRedactor?[] { null, DiagnosticsRedactor.ForCurrentUser() })
+        Assert.That(Text(entries, "logs/wpf-20260920.log"),
+            Is.EqualTo($"2026-09-20 18:00:11.234 +03:00 [INF] Запрос token={DiagnosticsSecrets.Mask} завершился"));
+    }
+
+    [Test]
+    public void Источник_секретов_объявляет_живой_токен_только_когда_он_задан()
+    {
+        var settings = new MemorySettings();
+        var source = new SpaceSnoopSecretSource(settings);
+
+        var empty = source.Collect();
+
+        settings.SetValue(SettingsKeys.McpToken, "  " + Token + "  ");
+
+        var filled = source.Collect();
+
+        using (Assert.EnterMultipleScope())
         {
-            var entries = DiagnosticsBundle.Build(payload, redactor);
-
-            Assert.That(Text(entries, DiagnosticsBundle.SettingsEntry), Does.Not.Contain("s3cr3t-live-token"));
-            Assert.That(Text(entries, DiagnosticsBundle.SettingsEntry), Does.Contain(DiagnosticsSecrets.Mask));
+            Assert.That(empty.Values, Is.Empty);
+            Assert.That(empty.KeyNames, Does.Contain("token"));
+            Assert.That(filled.Values, Is.EqualTo(new[] { Token }));
         }
     }
 
     [Test]
-    public void Токен_вырезается_и_из_журнала()
+    public void Прикладной_вклад_несёт_настройки_и_прогон()
     {
-        var payload = Payload() with { Logs = [new("wpf-20260831.log", "api_key: abcdef123456")] };
+        var settings = new MemorySettings();
+        var path = Path.Combine(_root, TomlSettingsFile.PrimaryFileName);
+        File.WriteAllText(path, $"[wpf.mcp]{Environment.NewLine}token = \"{Token}\"");
 
-        var entries = DiagnosticsBundle.Build(payload, null);
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        operations.ReportRun(new("Сканирование", 120, 4096, TimeSpan.FromSeconds(3)));
 
-        Assert.That(Text(entries, "logs/wpf-20260831.log"), Does.Not.Contain("abcdef123456"));
-    }
+        var entries = Build(Secrets(Token), [], new SpaceSnoopBundleSource(settings, operations, path).Collect().ToList());
 
-    [TestCaseSource(nameof(Секреты))]
-    public void Пара_ключ_значение_глушится_в_любом_месте_строки(string text, string expected)
-    {
-        Assert.That(DiagnosticsSecrets.Redact(text), Is.EqualTo(expected));
-    }
-
-    [TestCase("\r\n", TestName = "Перевод строки CRLF")]
-    [TestCase("\n", TestName = "Перевод строки LF")]
-    public void Маска_секрета_не_переходит_на_соседние_строки(string newLine)
-    {
-        var text = string.Join(newLine,
-            @"скан C:\Users\admin\Музыка",
-            "token = \"s3cr3t-live-token\"",
-            "steps = 3");
-
-        var expected = string.Join(newLine,
-            @"скан C:\Users\admin\Музыка",
-            $"token = \"{DiagnosticsSecrets.Mask}\"",
-            "steps = 3");
-
-        Assert.That(DiagnosticsSecrets.Redact(text), Is.EqualTo(expected));
-    }
-
-    [TestCase("пользователь adminushka вошёл", "пользователь adminushka вошёл", TestName = "Имя подстрокой чужого слова цело")]
-    [TestCase("файл admin-2026.log", "файл " + DiagnosticsRedactor.UserMask + "-2026.log", TestName = "Имя за дефисом маскируется")]
-    [TestCase("вошёл admin", "вошёл " + DiagnosticsRedactor.UserMask, TestName = "Имя целым словом маскируется")]
-    public void Имя_пользователя_маскируется_только_целым_словом(string text, string expected)
-    {
-        Assert.That(new DiagnosticsRedactor("admin").Apply(text), Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void Пропавшие_настройки_названы_в_составе_пакета()
-    {
-        var entries = DiagnosticsBundle.Build(Payload() with { Settings = null }, null);
-
-        Assert.That(DiagnosticsBundle.Describe(entries, true), Does.Contain("Настройки в пакет не попали"));
-    }
-
-    [Test]
-    public void Второй_пакет_в_ту_же_секунду_не_затирает_первый()
-    {
-        var directory = Path.Combine(Path.GetTempPath(), "spacesnoop-diagnostics-tests", Guid.NewGuid().ToString("N"));
-
-        try
+        using (Assert.EnterMultipleScope())
         {
-            var entries = DiagnosticsBundle.Build(Payload(), null);
-            var now = new DateTime(2026, 8, 31, 19, 5, 0, DateTimeKind.Local);
-
-            var first = DiagnosticsBundle.Save(directory, entries, now);
-            var second = DiagnosticsBundle.Save(directory, entries, now);
-
-            Assert.That(second, Is.Not.EqualTo(first));
-            Assert.That(File.Exists(first), Is.True);
-            Assert.That(File.Exists(second), Is.True);
-        }
-        finally
-        {
-            if (Directory.Exists(directory))
-            {
-                Directory.Delete(directory, true);
-            }
+            Assert.That(entries.Select(static entry => entry.Name),
+                Does.Contain(SpaceSnoopBundleSource.SettingsEntry).And.Contain(SpaceSnoopBundleSource.OperationsEntry));
+            Assert.That(Text(entries, SpaceSnoopBundleSource.SettingsEntry), Does.Not.Contain(Token));
+            Assert.That(Text(entries, SpaceSnoopBundleSource.OperationsEntry), Does.Contain("Сканирование"));
         }
     }
 
-    private static IEnumerable<TestCaseData> Секреты()
+    [Test]
+    public void Непрочитанные_настройки_не_роняют_вклад_и_называются_человеку()
     {
-        var mask = '"' + DiagnosticsSecrets.Mask + '"';
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, Path.Combine(_root, "нет-такого.toml"));
 
-        yield return new TestCaseData("token = \"s3cr3t-live-token\"", $"token = {mask}")
-            .SetName("TOML в начале строки");
+        var bundle = Bundle(Secrets(null), source.Collect().ToList());
 
-        yield return new TestCaseData(
-                "2026-09-20 18:00:11.234 +03:00 [INF] Запрос token=eyJhbGciOiJIUzI1 завершился за 12 мс",
-                $"2026-09-20 18:00:11.234 +03:00 [INF] Запрос token={DiagnosticsSecrets.Mask} завершился за 12 мс")
-            .SetName("Строка Serilog с префиксом");
-
-        yield return new TestCaseData(
-                """{"auth":{"token":"s3cr3t"},"user":"admin"}""",
-                """{"auth":{"token":""" + mask + """},"user":"admin"}""")
-            .SetName("Компактный JSON посреди строки");
-
-        yield return new TestCaseData(
-                "повтор с token=abc123 через 5 с",
-                $"повтор с token={DiagnosticsSecrets.Mask} через 5 с")
-            .SetName("Свободный текст");
-
-        yield return new TestCaseData(
-                "https://api.example.com/oauth?client_secret=s3cr3t&code=1",
-                $"https://api.example.com/oauth?client_secret={DiagnosticsSecrets.Mask}&code=1")
-            .SetName("Хвост запроса после секрета цел");
-
-        yield return new TestCaseData("token = 's3cr3t'", $"token = '{DiagnosticsSecrets.Mask}'")
-            .SetName("Одинарные кавычки TOML");
-
-        yield return new TestCaseData("password=hunter2 api-key=abc123", $"password={DiagnosticsSecrets.Mask} api-key={DiagnosticsSecrets.Mask}")
-            .SetName("Две пары в одной строке");
-
-        yield return new TestCaseData("X-Api-Key: abcdef123456", $"X-Api-Key: {DiagnosticsSecrets.Mask}")
-            .SetName("Заголовок с дефисами");
-
-        yield return new TestCaseData(
-                """{"name":"admin","steps":3,"path":"C:\\Users"}""",
-                """{"name":"admin","steps":3,"path":"C:\\Users"}""")
-            .SetName("Строка без ключа-секрета не трогается");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Not.Contain(SpaceSnoopBundleSource.SettingsEntry));
+            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Contain(SpaceSnoopBundleSource.OperationsEntry));
+            Assert.That(Text(bundle.Entries, SpaceSnoopBundleSource.SettingsFailureEntry),
+                Does.Contain("Настройки приложения в пакет не попали").And.Contain("Файла настроек ещё нет"));
+            Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
+        }
     }
 
-    private static DiagnosticsPayload Payload()
+    [Test]
+    public void Занятый_файл_настроек_доезжает_до_человека_строкой_об_отказе_чтения()
     {
-        return new(
-            MachineProfile.Capture(),
+        var path = Path.Combine(_root, TomlSettingsFile.PrimaryFileName);
+        File.WriteAllText(path, "[wpf]");
+
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, path);
+
+        using var holder = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var bundle = Bundle(Secrets(null), source.Collect().ToList());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Not.Contain(SpaceSnoopBundleSource.SettingsEntry));
+            Assert.That(Text(bundle.Entries, SpaceSnoopBundleSource.SettingsFailureEntry),
+                Does.Contain("занят другой программой"));
+            Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
+        }
+    }
+
+    private static DiagnosticsSecrets Secrets(string? token)
+    {
+        var settings = new MemorySettings();
+
+        if (token is not null)
+        {
+            settings.SetValue(SettingsKeys.McpToken, token);
+        }
+
+        return new(DiagnosticsSecretRules.Merge([DiagnosticsSecretRules.Common, new SpaceSnoopSecretSource(settings).Collect()]));
+    }
+
+    private static IReadOnlyList<DiagnosticsEntry> Build(
+        DiagnosticsSecrets secrets,
+        IReadOnlyList<DiagnosticsEntry> logs,
+        IReadOnlyList<DiagnosticsEntry>? contributed = null)
+    {
+        var payload = new DiagnosticsPayload(
+            MachineProfile.Capture(new()),
             PerformanceSnapshot.Empty,
             PerformanceHistory.Empty,
             PerformanceHitches.Empty,
-            null,
-            null,
-            @"exclusions = ""C:\Users\admin\Музыка""",
-            [new("wpf-20260831.log", @"скан C:\Users\admin\Музыка")]);
+            "сводка",
+            logs,
+            contributed ?? []);
+
+        return DiagnosticsBundle.Build(payload, secrets, null).Entries;
+    }
+
+    private static DiagnosticsBundle Bundle(DiagnosticsSecrets secrets, IReadOnlyList<DiagnosticsEntry> contributed)
+    {
+        var payload = new DiagnosticsPayload(
+            MachineProfile.Capture(new()),
+            PerformanceSnapshot.Empty,
+            PerformanceHistory.Empty,
+            PerformanceHitches.Empty,
+            "сводка",
+            [],
+            contributed);
+
+        return DiagnosticsBundle.Build(payload, secrets, null);
     }
 
     private static string Text(IReadOnlyList<DiagnosticsEntry> entries, string name)

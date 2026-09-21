@@ -47,7 +47,7 @@ public class SyncPathCaseTests
             new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
             new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
             new ToastNotifier(new ToastHostViewModel(), shell),
-            new PerformanceOperations(new(NullLogger<PerformanceMonitor>.Instance)),
+            new PerformanceOperations(TestDiagnostics.Monitor()),
             new FakeFilePicker(),
             new FakeUiDispatcher(),
             new FakeAppNavigator());

@@ -14,9 +14,6 @@ public sealed partial class ShellPreferences : ShellPreferencesBase
     [ObservableProperty]
     private bool _showPerformanceHud = AppDefaults.PerformanceHudDefault;
 
-    [ObservableProperty]
-    private bool _diagnosticsRawPaths;
-
     public ShellPreferences(ISettingsStore settings)
         : base(settings, new(SettingsKeys.ShowPageHeader, SettingsKeys.EnableToastNotifications, SettingsKeys.FontScale))
     {
@@ -25,7 +22,6 @@ public sealed partial class ShellPreferences : ShellPreferencesBase
         NavCollapsed = Settings.GetBool(SettingsKeys.NavCollapsed);
         WarnIfNotAdministrator = Settings.GetBool(SettingsKeys.WarnIfNotAdmin, AppDefaults.WarnIfNotAdminDefault);
         ShowPerformanceHud = Settings.GetBool(SettingsKeys.PerformanceHud, AppDefaults.PerformanceHudDefault);
-        DiagnosticsRawPaths = Settings.GetBool(SettingsKeys.PerformanceDiagnosticsRawPaths);
         SuppressPersist = false;
     }
 
@@ -56,10 +52,5 @@ public sealed partial class ShellPreferences : ShellPreferencesBase
     partial void OnShowPerformanceHudChanged(bool value)
     {
         PersistBool(SettingsKeys.PerformanceHud, value);
-    }
-
-    partial void OnDiagnosticsRawPathsChanged(bool value)
-    {
-        PersistBool(SettingsKeys.PerformanceDiagnosticsRawPaths, value);
     }
 }

@@ -468,20 +468,8 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 2205, Level = LogLevel.Information, Message = "Галерея: состояние «{State}» не снимается для {Cases} кейсов")]
     public static partial void GalleryStateSkipped(this ILogger logger, string state, int cases);
 
-    [LoggerMessage(EventId = 2300, Level = LogLevel.Warning, Message = "Интерфейс не отвечал {DelayMs} мс ({Operation})")]
-    public static partial void PerformanceHitch(this ILogger logger, long delayMs, string operation);
-
-    [LoggerMessage(EventId = 2301, Level = LogLevel.Warning, Message = "Подписчик на замер производительности бросил исключение")]
-    public static partial void PerformanceListenerFailed(this ILogger logger, Exception exception);
-
     [LoggerMessage(EventId = 2302, Level = LogLevel.Information, Message = "Машина: {Profile}")]
     public static partial void MachineProfileCaptured(this ILogger logger, string profile);
-
-    [LoggerMessage(EventId = 2303, Level = LogLevel.Information, Message = "Пакет диагностики собран: {Path}, записей {Entries}, пути {Paths}")]
-    public static partial void DiagnosticsBundleSaved(this ILogger logger, string path, int entries, string paths);
-
-    [LoggerMessage(EventId = 2304, Level = LogLevel.Warning, Message = "Пакет диагностики не собран")]
-    public static partial void DiagnosticsBundleFailed(this ILogger logger, Exception exception);
 
     [LoggerMessage(EventId = 2400, Level = LogLevel.Information, Message = "Очистка: запуск, целей {Targets}, ожидается {PlannedBytes} Б")]
     public static partial void CleanupRunStarted(this ILogger logger, int targets, long plannedBytes);

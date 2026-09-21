@@ -1,4 +1,5 @@
-﻿using KeepShell.ViewModels;
+﻿using KeepShell.Diagnostics;
+using KeepShell.ViewModels;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -229,7 +230,7 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
         return elapsed.TotalSeconds < 60
             ? $"идёт {(int)elapsed.TotalSeconds} с"
-            : $"идёт {PerformanceFormat.Duration(elapsed)}";
+            : $"идёт {PerformanceText.Duration(elapsed)}";
     }
 
     internal static int FirstUnfinished(IReadOnlyList<DeleteRowViewModel> rows, int firstIndex, int lastIndex)

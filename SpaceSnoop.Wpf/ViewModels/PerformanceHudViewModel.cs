@@ -1,4 +1,5 @@
-﻿using System.ComponentModel;
+﻿using KeepShell.Diagnostics;
+using System.ComponentModel;
 
 namespace SpaceSnoop.Wpf.ViewModels;
 
@@ -75,11 +76,11 @@ public sealed partial class PerformanceHudViewModel : ObservableObject
     {
         var current = _operations.Current;
 
-        SummaryText = PerformanceFormat.Summary(snapshot, current);
-        DelayText = PerformanceFormat.Delay(snapshot.UiDelayMs, snapshot.UiPeakMs);
-        MemoryText = PerformanceFormat.Memory(snapshot.ManagedBytes, snapshot.WorkingSetBytes);
-        CollectionsText = PerformanceFormat.Collections(snapshot.Gen0Collections, snapshot.Gen1Collections, snapshot.Gen2Collections);
-        OperationText = PerformanceFormat.Operation(current);
+        SummaryText = PerformanceText.Summary(snapshot, current);
+        DelayText = PerformanceText.Delay(snapshot.UiDelayMs, snapshot.UiPeakMs);
+        MemoryText = PerformanceText.Memory(snapshot.ManagedBytes, snapshot.WorkingSetBytes);
+        CollectionsText = PerformanceText.Collections(snapshot.Gen0Collections, snapshot.Gen1Collections, snapshot.Gen2Collections);
+        OperationText = PerformanceText.Operation(current);
         IsHitch = snapshot.UiPeakMs >= AppDefaults.PerformanceHitchMs;
     }
 }

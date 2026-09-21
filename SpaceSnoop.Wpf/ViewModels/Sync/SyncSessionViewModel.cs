@@ -90,7 +90,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
             report.CopiedBytes,
             elapsed);
 
-        return PerformanceFormat.Rate(finished) is { } rate ? $" Скорость: {rate}." : string.Empty;
+        return PerformanceText.Rate(finished) is { } rate ? $" Скорость: {rate}." : string.Empty;
     }
 
     internal bool LastOperationCancelled { get; private set; }
@@ -274,8 +274,8 @@ public sealed partial class SyncSessionViewModel : ObservableObject
             shape.HasBytes ? shape.TotalBytes : null,
             shape.HasBytes ? EtaBasis.Bytes : EtaBasis.Items);
 
-        ProgressRateText = PerformanceFormat.Rate(current) ?? string.Empty;
-        ProgressRemainingText = PerformanceFormat.Remaining(current) ?? string.Empty;
+        ProgressRateText = PerformanceText.Rate(current) ?? string.Empty;
+        ProgressRemainingText = PerformanceText.Remaining(current) ?? string.Empty;
         HasProgressRate = ProgressRateText.Length > 0 || ProgressRemainingText.Length > 0;
 
         return current;

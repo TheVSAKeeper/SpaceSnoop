@@ -1,4 +1,5 @@
-﻿using System.Windows.Threading;
+﻿using KeepShell.Diagnostics;
+using System.Windows.Threading;
 
 namespace SpaceSnoop.Wpf.Diagnostics;
 

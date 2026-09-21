@@ -1,4 +1,5 @@
-﻿using System.IO.Compression;
+﻿using KeepShell.Diagnostics;
+using System.IO.Compression;
 using Serilog.Events;
 
 namespace SpaceSnoop.Wpf.Bootstrap;
@@ -133,14 +134,11 @@ public static class AppDefaults
     public const int PerformanceHitchRowsMax = 20;
     public const double PerformanceFrameSlowMs = 50;
     public const double PerformanceFrameGapMs = 2000;
-    public const bool PerformanceChartExpandedDefault = false;
     public const PerformanceChartWindow PerformanceChartWindowDefault = PerformanceChartWindow.Seconds300;
     public const int PerformanceChartRefreshMs = 1000;
-    public const double PerformanceChartPanelHeight = 160;
+    public const int PerformanceOperationRefreshMs = 1000;
     public const double PerformanceChartPageHeight = 300;
     public const int PerformanceChartDotLimit = 40;
-    public const double PerformanceTileMinWidth = 200;
-    public const int PerformanceTileColumnsMax = 3;
     public const double ShellBaseFontSize = 14;
 
     public const int DiagnosticsLogFiles = 2;

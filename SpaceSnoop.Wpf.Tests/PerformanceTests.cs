@@ -1,11 +1,9 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using KeepShell.Diagnostics;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
-using SpaceSnoop.Wpf.Converters;
 using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels.Sync;
-using System.Diagnostics;
 using System.Globalization;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -26,53 +24,6 @@ public class PerformanceTests
     public void TearDown()
     {
         CultureInfo.CurrentCulture = _culture;
-    }
-
-    [Test]
-    public void Пустой_буфер_не_даёт_ни_пика_ни_среднего()
-    {
-        var samples = new PerformanceSamples(4);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(samples.Count, Is.Zero);
-            Assert.That(samples.Peak(), Is.Zero);
-            Assert.That(samples.Average(), Is.Zero);
-        });
-    }
-
-    [Test]
-    public void Буфер_вытесняет_старые_значения_и_забывает_ушедший_пик()
-    {
-        var samples = new PerformanceSamples(3);
-
-        samples.Add(900);
-        samples.Add(10);
-        samples.Add(20);
-        samples.Add(30);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(samples.Count, Is.EqualTo(3));
-            Assert.That(samples.Peak(), Is.EqualTo(30));
-            Assert.That(samples.Last, Is.EqualTo(30));
-            Assert.That(samples.Average(), Is.EqualTo(20));
-        });
-    }
-
-    [Test]
-    public void Очистка_возвращает_буфер_в_исходное_состояние()
-    {
-        var samples = new PerformanceSamples(2);
-        samples.Add(500);
-        samples.Clear();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(samples.Count, Is.Zero);
-            Assert.That(samples.Peak(), Is.Zero);
-            Assert.That(samples.Last, Is.Zero);
-        });
     }
 
     [Test]
@@ -179,9 +130,9 @@ public class PerformanceTests
     {
         Assert.Multiple(() =>
         {
-            Assert.That(PerformanceFormat.Operation(null), Is.Null);
-            Assert.That(PerformanceFormat.Rate(null), Is.Null);
-            Assert.That(PerformanceFormat.Remaining(null), Is.Null);
+            Assert.That(PerformanceText.Operation(null), Is.Null);
+            Assert.That(PerformanceText.Rate(null), Is.Null);
+            Assert.That(PerformanceText.Remaining(null), Is.Null);
         });
     }
 
@@ -190,7 +141,7 @@ public class PerformanceTests
     {
         var operation = new PerformanceOperation("Синхронизация", 100, 2048, TimeSpan.FromSeconds(2));
 
-        Assert.That(PerformanceFormat.Rate(operation), Is.EqualTo($"50 файлов/с · {SizeFormatter.Format(1024)}/с"));
+        Assert.That(PerformanceText.Rate(operation), Is.EqualTo($"50 файлов/с · {SizeFormatter.Format(1024)}/с"));
     }
 
     [Test]
@@ -200,7 +151,7 @@ public class PerformanceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(PerformanceFormat.Rate(scan), Is.EqualTo("50 файлов/с"));
+            Assert.That(PerformanceText.Rate(scan), Is.EqualTo("50 файлов/с"));
             Assert.That(scan.BytesPerSecond, Is.EqualTo(1024).Within(1));
         });
     }
@@ -210,7 +161,7 @@ public class PerformanceTests
     {
         var operation = new PerformanceOperation("Сравнение", 5, 500, TimeSpan.FromMilliseconds(50));
 
-        Assert.That(PerformanceFormat.Rate(operation), Is.Null);
+        Assert.That(PerformanceText.Rate(operation), Is.Null);
     }
 
     [Test]
@@ -218,7 +169,7 @@ public class PerformanceTests
     {
         var operation = new PerformanceOperation("Синхронизация", 100, 0, TimeSpan.FromSeconds(10), TotalItems: 300);
 
-        Assert.That(PerformanceFormat.Remaining(operation), Is.EqualTo("≈ 0:20"));
+        Assert.That(PerformanceText.Remaining(operation), Is.EqualTo("≈ 0:20"));
     }
 
     [Test]
@@ -226,7 +177,7 @@ public class PerformanceTests
     {
         var operation = new PerformanceOperation("Сканирование", 100, 2048, TimeSpan.FromSeconds(10));
 
-        Assert.That(PerformanceFormat.Remaining(operation), Is.Null);
+        Assert.That(PerformanceText.Remaining(operation), Is.Null);
     }
 
     [Test]
@@ -234,7 +185,7 @@ public class PerformanceTests
     {
         var operation = new PerformanceOperation("Синхронизация", 100, 1024, TimeSpan.FromSeconds(10), TotalItems: 300);
 
-        var text = PerformanceFormat.Operation(operation);
+        var text = PerformanceText.Operation(operation);
 
         Assert.Multiple(() =>
         {
@@ -250,7 +201,7 @@ public class PerformanceTests
     {
         var operation = new PerformanceOperation("Сравнение", 5, 0, TimeSpan.FromMilliseconds(50));
 
-        Assert.That(PerformanceFormat.Operation(operation), Is.EqualTo("Сравнение"));
+        Assert.That(PerformanceText.Operation(operation), Is.EqualTo("Сравнение"));
     }
 
     [Test]
@@ -258,7 +209,7 @@ public class PerformanceTests
     {
         var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 12.4, ManagedBytes = 1024 };
 
-        Assert.That(PerformanceFormat.Summary(snapshot, null), Is.EqualTo($"12 мс · {SizeFormatter.Format(1024)}"));
+        Assert.That(PerformanceText.Summary(snapshot, null), Is.EqualTo($"12 мс · {SizeFormatter.Format(1024)}"));
     }
 
     [Test]
@@ -267,7 +218,7 @@ public class PerformanceTests
         var operation = new PerformanceOperation("Сканирование", 1000, 0, TimeSpan.FromSeconds(2));
         var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, ManagedBytes = 2048 };
 
-        Assert.That(PerformanceFormat.Summary(snapshot, operation), Does.EndWith("Сканирование · 500 файлов/с"));
+        Assert.That(PerformanceText.Summary(snapshot, operation), Does.EndWith("Сканирование · 500 файлов/с"));
     }
 
     [Test]
@@ -284,73 +235,6 @@ public class PerformanceTests
             Assert.That(interrupted, Does.Contain("проверка прервана"));
             Assert.That(SyncPlanNarrative.DescribeVerify(SyncPlanNarrative.ResolveVerify(true, report), report.Mismatches.Count), Is.EqualTo(", расхождений: 0"));
             Assert.That(SyncPlanNarrative.DescribeVerify(SyncPlanNarrative.ResolveVerify(false, report), report.Mismatches.Count), Is.Empty);
-        });
-    }
-
-    [Test]
-    public void Сводка_для_буфера_обмена_несёт_замеры_и_операцию()
-    {
-        var snapshot = PerformanceSnapshot.Empty with
-        {
-            CapturedAtUtc = new(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc),
-            UiDelayMs = 12.4,
-            UiPeakMs = 640,
-            SampleCount = 20,
-            ObservedSpanSeconds = 10,
-            ManagedBytes = 1024,
-            StartupSeconds = 1.25,
-        };
-
-        var text = PerformanceReport.Build(snapshot, "2.8.42", new("Сканирование", 1000, 0, TimeSpan.FromSeconds(2)));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("2.8.42"));
-            Assert.That(text, Does.Contain("пик 640 мс"));
-            Assert.That(text, Does.Contain("20 замеров за 10,0 с"));
-            Assert.That(text, Does.Contain("Сейчас идёт: Сканирование – 2,0 с"));
-            Assert.That(text, Does.Not.Contain("Замеров ещё нет"));
-        });
-    }
-
-    [Test]
-    public void Сводка_разводит_неизмеренные_кадры_и_измеренные_без_просадок()
-    {
-        var noFrames = PerformanceSnapshot.Empty with { CapturedAtUtc = DateTime.UtcNow, SampleCount = 20 };
-
-        var drawn = noFrames with
-        {
-            FrameLastMs = 16.7,
-            FramePeakMs = 21.5,
-            FrameAverageMs = 17,
-            FrameCount = 31,
-        };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceReport.Build(noFrames, "2.8.42"), Does.Contain("Кадры окна: не измерялись"));
-            Assert.That(PerformanceReport.Build(drawn, "2.8.42"), Does.Contain("Кадры окна: пик 21,5 мс, среднее 17,0 мс за 31 кадр, дольше 50 мс – 0"));
-        });
-    }
-
-    [Test]
-    public void Сводка_сразу_после_сброса_не_выдаёт_ноль_за_измеренный_отклик()
-    {
-        var justStarted = PerformanceSnapshot.Empty with
-        {
-            CapturedAtUtc = DateTime.UtcNow,
-            ManagedBytes = 4096,
-            StartupSeconds = 1.25,
-        };
-
-        var text = PerformanceReport.Build(justStarted, "2.8.42");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("Замеров ещё нет"));
-            Assert.That(text, Does.Not.Contain("Отклик UI"));
-            Assert.That(text, Does.Contain(SizeFormatter.Format(4096)));
-            Assert.That(text, Does.Contain("Последний прогон – нет прогонов"));
         });
     }
 
@@ -392,154 +276,6 @@ public class PerformanceTests
         Assert.That(SyncSessionViewModel.DescribeRate("Синхронизация", report, TimeSpan.FromMilliseconds(80)), Is.Empty);
     }
 
-    [Test]
-    public void Плитка_отклика_не_выдаёт_ноль_за_измеренный()
-    {
-        var justReset = PerformanceSnapshot.Empty with { CapturedAtUtc = DateTime.UtcNow };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.TileDelay(justReset), Is.EqualTo("нет замеров"));
-            Assert.That(PerformanceFormat.TileDelayHint(justReset), Does.Not.Contain("пик"));
-            Assert.That(PerformanceFormat.TileWindow(justReset), Is.EqualTo("пик и среднее – замеров ещё нет"));
-        });
-    }
-
-    [Test]
-    public void Признак_просадки_стоит_на_пике_а_не_на_мгновенной_задержке()
-    {
-        var snapshot = PerformanceSnapshot.Empty with
-        {
-            CapturedAtUtc = DateTime.UtcNow,
-            UiDelayMs = 2,
-            UiPeakMs = 640,
-            UiAverageMs = 35,
-            SampleCount = 20,
-            ObservedSpanSeconds = 10.4,
-        };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.TileDelay(snapshot), Is.EqualTo("640 мс"));
-            Assert.That(PerformanceFormat.TileDelayHint(snapshot), Is.EqualTo("сейчас 2 мс · среднее 35 мс"));
-            Assert.That(PerformanceFormat.TileWindow(snapshot), Is.EqualTo("пик и среднее – по 20 замерам за 10,4 с"));
-        });
-    }
-
-    [Test]
-    public void Плитка_памяти_ведёт_рабочим_набором_и_несёт_пик_за_сеанс()
-    {
-        var snapshot = PerformanceSnapshot.Empty with
-        {
-            ManagedBytes = 40 * 1024 * 1024,
-            WorkingSetBytes = 580 * 1024 * 1024,
-            WorkingSetPeakBytes = 612 * 1024 * 1024,
-        };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.TileMemory(snapshot), Is.EqualTo(SizeFormatter.Format(580 * 1024 * 1024)));
-            Assert.That(PerformanceFormat.TileMemoryHint(snapshot), Does.Contain(SizeFormatter.Format(40 * 1024 * 1024)));
-            Assert.That(PerformanceFormat.TileMemoryPeak(snapshot), Is.EqualTo($"пик за сеанс {SizeFormatter.Format(612 * 1024 * 1024)}"));
-            Assert.That(PerformanceFormat.TileMemoryPeak(PerformanceSnapshot.Empty), Does.Contain("замеров ещё нет"));
-        });
-    }
-
-    [Test]
-    public void Сборки_за_окно_не_путаются_с_суммой_от_старта()
-    {
-        var snapshot = PerformanceSnapshot.Empty with
-        {
-            Gen0Collections = 22,
-            Gen1Collections = 10,
-            Gen2Collections = 5,
-            History = new(75, 150, 3, 1, 0),
-        };
-
-        var single = snapshot with { History = new(0, 1, 0, 0, 0) };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.TileCollections(snapshot), Is.EqualTo("22 / 10 / 5"));
-            Assert.That(PerformanceFormat.TileCollectionsWindow(snapshot), Is.EqualTo("за последние 1:15: 3 / 1 / 0"));
-            Assert.That(PerformanceFormat.TileCollectionsWindow(single), Does.Contain("мерить не по чему"));
-        });
-    }
-
-    [Test]
-    public void Плитка_кадров_ведёт_пиком_и_отделяет_долгие_кадры_от_спокойных()
-    {
-        var quiet = PerformanceSnapshot.Empty with
-        {
-            FrameLastMs = 16.7,
-            FramePeakMs = 18.2,
-            FrameAverageMs = 16.7,
-            FrameCount = 620,
-        };
-
-        var slow = quiet with
-        {
-            FramePeakMs = 214.8,
-            FrameAverageMs = 17.2,
-            FrameCount = 420,
-            SlowFrameCount = 3,
-        };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.TileFrame(slow), Is.EqualTo("214,8 мс"));
-            Assert.That(PerformanceFormat.TileFrameHint(slow), Is.EqualTo("3 долгих кадра из 420 · среднее 17,2 мс"));
-            Assert.That(PerformanceFormat.TileFrameHint(quiet), Is.EqualTo("дольше 50 мс не было · среднее 16,7 мс"));
-            Assert.That(PerformanceFormat.TileFrame(PerformanceSnapshot.Empty), Is.EqualTo("кадров ещё нет"));
-            Assert.That(PerformanceFormat.TileFrameHint(PerformanceSnapshot.Empty), Does.Contain("на этой странице"));
-        });
-    }
-
-    [Test]
-    public void Окно_равное_всему_сбору_не_повторяет_счётчики_второй_строкой()
-    {
-        var snapshot = PerformanceSnapshot.Empty with
-        {
-            Gen0Collections = 19,
-            Gen1Collections = 18,
-            Gen2Collections = 2,
-            History = new(192, 358, 19, 18, 2),
-        };
-
-        Assert.That(PerformanceFormat.TileCollectionsWindow(snapshot), Is.EqualTo("сбор идёт 3:12, окно покрывает его целиком"));
-    }
-
-    [Test]
-    public void Недоложенный_старт_отличается_от_мгновенного()
-    {
-        var missing = PerformanceSnapshot.Empty with { CapturedAtUtc = DateTime.UtcNow };
-        var measured = missing with { StartupSeconds = 1.25 };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.TileStartup(missing), Is.EqualTo("не измерялся"));
-            Assert.That(PerformanceFormat.TileStartupHint(missing), Does.Contain("не доложен"));
-            Assert.That(PerformanceFormat.TileStartup(measured), Is.EqualTo("1,25 с"));
-            Assert.That(PerformanceFormat.TileStartupHint(measured), Does.Contain("первого кадра"));
-        });
-    }
-
-    [Test]
-    public void Возраст_снимка_объявляется_только_после_двух_интервалов_съёма()
-    {
-        var now = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
-
-        var fresh = PerformanceSnapshot.Empty with { CapturedAtUtc = now.AddMilliseconds(-AppDefaults.PerformanceSampleIntervalMs) };
-        var stale = PerformanceSnapshot.Empty with { CapturedAtUtc = now.AddSeconds(-30) };
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(PerformanceFormat.StaleWarning(PerformanceSnapshot.Empty, now), Is.Null);
-            Assert.That(PerformanceFormat.StaleWarning(fresh, now), Is.Null);
-            Assert.That(PerformanceFormat.StaleWarning(stale, now), Does.Contain("30 с назад"));
-        });
-    }
-
     [TestCase(0, 0, "0:00")]
     [TestCase(0, 75, "1:15")]
     [TestCase(1, 5, "1:00:05")]
@@ -547,13 +283,13 @@ public class PerformanceTests
     {
         var value = TimeSpan.FromHours(hours) + TimeSpan.FromSeconds(seconds);
 
-        Assert.That(PerformanceFormat.Duration(value), Is.EqualTo(expected));
+        Assert.That(PerformanceText.Duration(value), Is.EqualTo(expected));
     }
 
     [Test]
     public void Отрицательная_длительность_показывается_нулём()
     {
-        Assert.That(PerformanceFormat.Duration(TimeSpan.FromSeconds(-5)), Is.EqualTo("0:00"));
+        Assert.That(PerformanceText.Duration(TimeSpan.FromSeconds(-5)), Is.EqualTo("0:00"));
     }
 
     [Test]
@@ -577,7 +313,7 @@ public class PerformanceTests
     {
         var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, UiPeakMs = 800 };
 
-        Assert.That(PerformanceFormat.Summary(snapshot, null), Does.Contain("пик 800 мс"));
+        Assert.That(PerformanceText.Summary(snapshot, null), Does.Contain("пик 800 мс"));
     }
 
     [TestCase(0, "0,0 с")]
@@ -590,7 +326,7 @@ public class PerformanceTests
     [TestCase(3661, "61:01")]
     public void Длительность_прогона_держит_секунды_до_минуты_и_минуты_дальше(double seconds, string expected)
     {
-        Assert.That(PerformanceFormat.Elapsed(TimeSpan.FromSeconds(seconds)), Is.EqualTo(expected));
+        Assert.That(PerformanceText.Elapsed(TimeSpan.FromSeconds(seconds)), Is.EqualTo(expected));
     }
 
     [Test]
@@ -598,7 +334,7 @@ public class PerformanceTests
     {
         var last = new PerformanceOperation("Синхронизация", 4200, 4_500_000_000, TimeSpan.FromSeconds(12));
 
-        var tile = PerformanceFormat.TileOperation(null, last);
+        var tile = PerformanceText.TileOperation(null, last);
 
         Assert.Multiple(() =>
         {
@@ -615,7 +351,7 @@ public class PerformanceTests
         var current = new PerformanceOperation("Сканирование", 1000, 2000, TimeSpan.FromSeconds(2), TotalItems: 2000, Basis: EtaBasis.Items);
         var last = new PerformanceOperation("Синхронизация", 10, 20, TimeSpan.FromSeconds(30));
 
-        var tile = PerformanceFormat.TileOperation(current, last);
+        var tile = PerformanceText.TileOperation(current, last);
 
         Assert.Multiple(() =>
         {
@@ -633,10 +369,10 @@ public class PerformanceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(PerformanceFormat.TileOperation(null, scan).Traversal, Is.EqualTo("обход: 120 каталогов · 30 каталогов/с"));
-            Assert.That(PerformanceFormat.TileOperation(null, scan).TraversalDetail, Is.EqualTo("8 потоков · 3 каталога без доступа"));
-            Assert.That(PerformanceFormat.TileOperation(null, sync).Traversal, Is.Null);
-            Assert.That(PerformanceFormat.TileOperation(null, sync).TraversalDetail, Is.Null);
+            Assert.That(PerformanceText.TileOperation(null, scan).Traversal, Is.EqualTo("обход: 120 каталогов · 30 каталогов/с"));
+            Assert.That(PerformanceText.TileOperation(null, scan).TraversalDetail, Is.EqualTo("8 потоков · 3 каталога без доступа"));
+            Assert.That(PerformanceText.TileOperation(null, sync).Traversal, Is.Null);
+            Assert.That(PerformanceText.TileOperation(null, sync).TraversalDetail, Is.Null);
         });
     }
 
@@ -645,7 +381,7 @@ public class PerformanceTests
     {
         var scan = new PerformanceOperation("Сканирование", 900, 1000, TimeSpan.FromSeconds(4), Traversal: new(120, 0, 1));
 
-        Assert.That(PerformanceFormat.TraversalDetail(scan), Is.EqualTo("1 поток · пропусков нет"));
+        Assert.That(PerformanceText.TraversalDetail(scan), Is.EqualTo("1 поток · пропусков нет"));
     }
 
     [Test]
@@ -656,14 +392,14 @@ public class PerformanceTests
         Assert.Multiple(() =>
         {
             Assert.That(scan.DirectoriesPerSecond, Is.Null);
-            Assert.That(PerformanceFormat.Traversal(scan), Is.EqualTo("обход: 120 каталогов"));
+            Assert.That(PerformanceText.Traversal(scan), Is.EqualTo("обход: 120 каталогов"));
         });
     }
 
     [Test]
     public void До_первого_прогона_плитка_операции_не_выдаёт_нули_за_замеры()
     {
-        var tile = PerformanceFormat.TileOperation(null, null);
+        var tile = PerformanceText.TileOperation(null, null);
 
         Assert.Multiple(() =>
         {
@@ -677,7 +413,7 @@ public class PerformanceTests
     [Test]
     public void В_плитке_стоит_последний_завершившийся_прогон_а_сброс_её_обнуляет()
     {
-        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+        using var monitor = TestDiagnostics.Monitor();
 
         var operations = new PerformanceOperations(monitor);
         var changes = 0;
@@ -706,7 +442,7 @@ public class PerformanceTests
     [Test]
     public void Слот_операции_гасит_только_тот_кто_его_занял()
     {
-        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+        using var monitor = TestDiagnostics.Monitor();
 
         var operations = new PerformanceOperations(monitor);
         var page = new PerformanceOperation("Сканирование", 10, 20, TimeSpan.FromSeconds(1));
@@ -738,7 +474,7 @@ public class PerformanceTests
     [Test]
     public void Имя_операции_доезжает_до_монитора_меткой_фазы()
     {
-        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+        using var monitor = TestDiagnostics.Monitor();
 
         var operations = new PerformanceOperations(monitor);
         var page = Page();
@@ -770,14 +506,14 @@ public class PerformanceTests
             Assert.That(live.Items, Is.EqualTo(48_000));
             Assert.That(live.Traversal, Is.EqualTo(new PerformanceTraversal(1200, 7, 16)));
             Assert.That(live.Remaining(), Is.EqualTo(TimeSpan.FromSeconds(4)));
-            Assert.That(PerformanceFormat.TraversalDetail(live), Does.Contain("7 каталогов без доступа"));
+            Assert.That(PerformanceText.TraversalDetail(live), Does.Contain("7 каталогов без доступа"));
         });
     }
 
     [Test]
     public void Итог_агентского_скана_доходит_до_плитки_и_освобождает_слот()
     {
-        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+        using var monitor = TestDiagnostics.Monitor();
         var operations = new PerformanceOperations(monitor);
 
         PerformanceOperation run;
@@ -809,7 +545,7 @@ public class PerformanceTests
     [Test]
     public void Зонд_агентского_скана_не_вытесняет_операцию_окна()
     {
-        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+        using var monitor = TestDiagnostics.Monitor();
         var operations = new PerformanceOperations(monitor);
         var page = Page();
 
@@ -833,7 +569,7 @@ public class PerformanceTests
     [Test]
     public void Прерванный_обход_агента_не_попадает_в_плитку_и_освобождает_слот()
     {
-        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+        using var monitor = TestDiagnostics.Monitor();
         var operations = new PerformanceOperations(monitor);
 
         using (var probe = new BackgroundScanProbe(operations, null, 2))
@@ -849,117 +585,115 @@ public class PerformanceTests
         });
     }
 
-    [TestCase(1030d, 14d, 3)]
-    [TestCase(1030d, 22.4d, 3)]
-    [TestCase(590d, 14d, 2)]
-    [TestCase(590d, 22.4d, 2)]
-    [TestCase(430d, 22.4d, 1)]
-    [TestCase(0d, 14d, 3)]
-    public void Плитки_раскладываются_по_ширине_с_оглядкой_на_масштаб_шрифта(double width, double fontSize, int expected)
-    {
-        var columns = TileColumnsConverter.Columns(width, fontSize, AppDefaults.PerformanceTileMinWidth, AppDefaults.PerformanceTileColumnsMax);
-
-        Assert.That(columns, Is.EqualTo(expected));
-    }
-
     [Test]
-    public void Подпись_просадок_называет_окно_и_обрезку_списка()
+    public void Карточка_диагностики_считает_только_на_открытой_странице()
     {
-        var moment = new DateTime(2026, 8, 1, 10, 0, 0, DateTimeKind.Utc);
-        var quiet = new PerformanceHitches([], 0, 75);
-        var trimmed = new PerformanceHitches([new(moment, 900, "Сканирование"), new(moment, 700, null)], 37, 300);
-        var whole = new PerformanceHitches([new(moment, 900, "Сканирование")], 1, 75);
+        var dispatcher = new FakeUiDispatcher();
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var card = new ScanOperationsCard(operations, dispatcher);
+
+        var timer = dispatcher.Timers[0];
+        var idle = card.State;
+
+        card.SetActive(true);
+        var started = timer.IsRunning;
+
+        operations.TryReport(new("Сканирование", 1000, 2048, TimeSpan.FromSeconds(2)), null);
+        timer.Tick();
+
+        var title = card.Title;
+        var rows = card.Rows;
+
+        card.SetActive(false);
 
         Assert.Multiple(() =>
         {
-            Assert.That(PerformanceFormat.HitchesCaption(PerformanceHitches.Empty), Does.Contain("сбор только запущен"));
-            Assert.That(PerformanceFormat.HitchesCaption(quiet), Is.EqualTo($"Просадок от {AppDefaults.PerformanceHitchMs} мс за 1:15 наблюдения не было"));
-            Assert.That(PerformanceFormat.HitchesCaption(trimmed), Is.EqualTo("37 просадок за 5:00 наблюдения, ниже последние 2"));
-            Assert.That(PerformanceFormat.HitchesCaption(whole), Is.EqualTo("1 просадка за 1:15 наблюдения"));
+            Assert.That(idle, Is.EqualTo(DiagnosticsCardState.Unknown));
+            Assert.That(started, Is.True);
+            Assert.That(title, Is.EqualTo("Сейчас идёт: Сканирование"));
+            Assert.That(card.State, Is.EqualTo(DiagnosticsCardState.Ok));
+            Assert.That(rows.Select(static row => row.Key), Is.EqualTo(new[] { "Длительность", "Объём", "Скорость" }));
+            Assert.That(timer.IsRunning, Is.False);
         });
     }
 
     [Test]
-    public void Подпись_просадок_не_умалчивает_о_кольце_и_сбросе()
+    public void Карточка_диагностики_забывает_прогон_своей_командой()
     {
-        Assert.That(PerformanceFormat.HitchesHint,
-            Does.Contain($"{AppDefaults.PerformanceHistorySecondsMax / 60} мин").And.Contain("Сбросить"));
-    }
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var card = new ScanOperationsCard(operations, new FakeUiDispatcher());
 
-    [Test]
-    public void Строка_просадки_несёт_время_задержку_и_операцию()
-    {
-        var moment = new DateTime(2026, 8, 1, 10, 30, 5, DateTimeKind.Utc);
+        var idle = card.Command!.CanExecute(null);
 
-        var named = PerformanceFormat.HitchText(new(moment, 812.4, "Сравнение"));
-        var idle = PerformanceFormat.HitchText(new(moment, 500, null));
+        operations.ReportRun(new("Синхронизация", 5, 6, TimeSpan.FromSeconds(1)));
+
+        var armed = card.Command.CanExecute(null);
+
+        card.Command.Execute(null);
 
         Assert.Multiple(() =>
         {
-            Assert.That(named.Time, Is.EqualTo(moment.ToLocalTime().ToString("HH:mm:ss")));
-            Assert.That(named.Delay, Is.EqualTo("812 мс"));
-            Assert.That(named.Operation, Is.EqualTo("Сравнение"));
-            Assert.That(idle.Operation, Is.EqualTo("вне операций"));
+            Assert.That(idle, Is.False);
+            Assert.That(armed, Is.True);
+            Assert.That(operations.Last, Is.Null);
+            Assert.That(card.CommandCaption, Is.Not.Null.And.Not.Empty);
+            Assert.That(card.State, Is.EqualTo(DiagnosticsCardState.Unknown));
         });
     }
 
     [Test]
-    public void Кадры_считаются_по_промежуткам_а_первая_отметка_только_заводит_отсчёт()
+    public void Время_старта_переживает_первую_публикацию_снимка()
     {
-        var frames = new PerformanceFrames(50, 2000);
-        var start = Stopwatch.GetTimestamp();
+        using var monitor = TestDiagnostics.Monitor();
 
-        frames.Mark(start);
-        frames.Mark(start + (Stopwatch.Frequency / 100));
-        frames.Mark(start + (Stopwatch.Frequency / 5));
+        monitor.ReportStartup(TimeSpan.FromSeconds(1.25));
+        monitor.Start();
+        monitor.Stop();
+
+        Assert.That(monitor.Snapshot.StartupSeconds, Is.EqualTo(1.25));
+    }
+
+    [Test]
+    public void Остановка_не_оставляет_наблюдение_прежним()
+    {
+        using var monitor = TestDiagnostics.Monitor();
+
+        monitor.ReportStartup(TimeSpan.FromSeconds(2));
+        monitor.Start();
+        monitor.Stop();
 
         Assert.Multiple(() =>
         {
-            Assert.That(frames.Count, Is.EqualTo(2));
-            Assert.That(frames.SlowCount, Is.EqualTo(1));
-            Assert.That(frames.PeakMs, Is.EqualTo(190).Within(1));
-            Assert.That(frames.LastMs, Is.EqualTo(190).Within(1));
-            Assert.That(frames.AverageMs, Is.EqualTo(100).Within(1));
+            Assert.That(monitor.IsRunning, Is.False);
+            Assert.That(monitor.Snapshot.SampleCount, Is.Zero);
+            Assert.That(monitor.Snapshot.CapturedAtUtc, Is.EqualTo(DateTime.MinValue));
+            Assert.That(monitor.Snapshot.StartupSeconds, Is.EqualTo(2));
         });
     }
 
     [Test]
-    public void Пауза_зонда_не_записывает_простой_как_один_гигантский_кадр()
+    public void Остановка_монитора_не_освобождает_занятый_слот_операции()
     {
-        var frames = new PerformanceFrames(50, 2000);
-        var start = Stopwatch.GetTimestamp();
+        using var monitor = TestDiagnostics.Monitor();
 
-        frames.Mark(start);
-        frames.Mark(start + (Stopwatch.Frequency / 100));
-        frames.Pause();
-        frames.Mark(start + (Stopwatch.Frequency * 60));
-        frames.Mark(start + (Stopwatch.Frequency * 60) + (Stopwatch.Frequency / 100));
+        var operations = new PerformanceOperations(monitor);
+        var page = Page();
+
+        operations.TryReport(page, null);
+        monitor.Start();
+        monitor.Stop();
+
+        var afterStop = operations.Current;
+        var stillBusy = !operations.TryReport(Page(), null);
+
+        operations.Release(page);
+        monitor.Start();
 
         Assert.Multiple(() =>
         {
-            Assert.That(frames.Count, Is.EqualTo(2));
-            Assert.That(frames.SlowCount, Is.Zero);
-            Assert.That(frames.PeakMs, Is.EqualTo(10).Within(1));
-        });
-    }
-
-    [Test]
-    public void Свёрнутое_окно_не_превращается_в_кадр_длиной_в_свой_простой()
-    {
-        var frames = new PerformanceFrames(50, 2000);
-        var start = Stopwatch.GetTimestamp();
-
-        frames.Mark(start);
-        frames.Mark(start + (Stopwatch.Frequency / 100));
-        frames.Mark(start + (Stopwatch.Frequency * 90));
-        frames.Mark(start + (Stopwatch.Frequency * 90) + (Stopwatch.Frequency / 100));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(frames.Count, Is.EqualTo(2));
-            Assert.That(frames.GapCount, Is.EqualTo(1));
-            Assert.That(frames.SlowCount, Is.Zero);
-            Assert.That(frames.PeakMs, Is.EqualTo(10).Within(1));
+            Assert.That(afterStop, Is.SameAs(page));
+            Assert.That(stillBusy, Is.True);
+            Assert.That(monitor.Snapshot.Phase, Is.Null);
         });
     }
 

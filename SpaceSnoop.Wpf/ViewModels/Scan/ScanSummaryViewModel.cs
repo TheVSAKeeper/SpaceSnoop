@@ -71,10 +71,10 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
         _drive = drive;
         _notes = notes;
         Refresh(result);
-        ResultElapsedText = PerformanceFormat.Elapsed(elapsed);
+        ResultElapsedText = PerformanceText.Elapsed(elapsed);
 
         var run = new PerformanceOperation("Сканирование", result.TotalFileCount, result.TotalSize, elapsed, Traversal: traversal, LogicalBytes: true);
-        ResultRateText = PerformanceFormat.Rate(run) ?? NoValue;
+        ResultRateText = PerformanceText.Rate(run) ?? NoValue;
 
         return run;
     }

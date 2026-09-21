@@ -1,4 +1,5 @@
-﻿using System.IO;
+﻿using KeepShell.Diagnostics;
+using System.IO;
 
 namespace SpaceSnoop.Wpf.Mcp;
 
