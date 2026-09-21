@@ -369,7 +369,7 @@ public class PerformanceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(PerformanceText.TileOperation(null, scan).Traversal, Is.EqualTo("обход: 120 каталогов · 30 каталогов/с"));
+            Assert.That(PerformanceText.TileOperation(null, scan).Traversal, Is.EqualTo("120 каталогов · 30 каталогов/с"));
             Assert.That(PerformanceText.TileOperation(null, scan).TraversalDetail, Is.EqualTo("8 потоков · 3 каталога без доступа"));
             Assert.That(PerformanceText.TileOperation(null, sync).Traversal, Is.Null);
             Assert.That(PerformanceText.TileOperation(null, sync).TraversalDetail, Is.Null);
@@ -392,7 +392,7 @@ public class PerformanceTests
         Assert.Multiple(() =>
         {
             Assert.That(scan.DirectoriesPerSecond, Is.Null);
-            Assert.That(PerformanceText.Traversal(scan), Is.EqualTo("обход: 120 каталогов"));
+            Assert.That(PerformanceText.Traversal(scan), Is.EqualTo("120 каталогов"));
         });
     }
 

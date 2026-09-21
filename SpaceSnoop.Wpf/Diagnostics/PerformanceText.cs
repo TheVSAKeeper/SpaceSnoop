@@ -116,7 +116,7 @@ public static class PerformanceText
             return null;
         }
 
-        var parts = new List<string>(2) { $"обход: {Directories(traversal.Directories)}" };
+        var parts = new List<string>(2) { Directories(traversal.Directories) };
 
         if (operation.DirectoriesPerSecond is { } rate)
         {
@@ -183,7 +183,7 @@ public static class PerformanceText
             parts.Add(SizeFormatter.Format(operation.Bytes));
         }
 
-        return parts.Count > 0 ? string.Join(" · ", parts) : "объём не докладывался";
+        return parts.Count > 0 ? string.Join(" · ", parts) : "не докладывался";
     }
 
     private static string RunningRate(PerformanceOperation operation)
@@ -200,6 +200,6 @@ public static class PerformanceText
             parts.Add($"осталось {remaining}");
         }
 
-        return parts.Count > 0 ? string.Join(" · ", parts) : "скорость: рано мерить";
+        return parts.Count > 0 ? string.Join(" · ", parts) : "рано мерить";
     }
 }
