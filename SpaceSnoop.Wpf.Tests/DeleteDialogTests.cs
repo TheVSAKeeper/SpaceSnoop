@@ -865,11 +865,13 @@ public class DeleteDialogTests
         bool permanent = true,
         ILogger? logger = null)
     {
+        var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+
         return new(
             items,
             permanent,
-            new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance),
-            new PerformanceRunTracker(),
+            monitor,
+            new PerformanceOperations(monitor),
             new ShellPreferences(new MemorySettings()),
             dispatcher,
             logger ?? NullLogger.Instance);

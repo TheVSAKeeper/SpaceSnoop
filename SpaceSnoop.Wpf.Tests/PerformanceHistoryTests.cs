@@ -331,14 +331,16 @@ public class PerformanceHistoryTests
     {
         using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
 
-        monitor.TryReportOperation(new("Сканирование", 10, 20, TimeSpan.FromSeconds(1)), null);
+        monitor.ReportStartup(TimeSpan.FromSeconds(2));
         monitor.Start();
         monitor.Stop();
 
         Assert.Multiple(() =>
         {
             Assert.That(monitor.IsRunning, Is.False);
-            Assert.That(monitor.Snapshot.Operation, Is.Null);
+            Assert.That(monitor.Snapshot.SampleCount, Is.Zero);
+            Assert.That(monitor.Snapshot.CapturedAtUtc, Is.EqualTo(DateTime.MinValue));
+            Assert.That(monitor.Snapshot.StartupSeconds, Is.EqualTo(2));
         });
     }
 

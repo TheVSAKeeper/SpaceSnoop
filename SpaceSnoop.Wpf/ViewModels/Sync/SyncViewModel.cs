@@ -21,8 +21,7 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
         CompareDirectoriesUseCase compare,
         ExecuteSyncUseCase sync,
         ToastNotifier notifier,
-        PerformanceMonitor performance,
-        PerformanceRunTracker runs,
+        PerformanceOperations performance,
         IFilePicker filePicker,
         IUiDispatcher uiDispatcher,
         IAppNavigator navigator)
@@ -30,7 +29,7 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
         _settings = settings;
         _navigator = navigator;
 
-        Session = new(dialogs, logger, notifier, performance, runs, uiDispatcher, summary => SummaryText = summary);
+        Session = new(dialogs, logger, notifier, performance, uiDispatcher, summary => SummaryText = summary);
         Session.PropertyChanged += OnSessionPropertyChanged;
 
         Git = new(settings, dialogs, logger);

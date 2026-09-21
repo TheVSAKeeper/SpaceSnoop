@@ -114,7 +114,7 @@ public sealed partial class ScanViewModel : IScanAutomation
 
         LastScanElapsed = elapsed;
         LastScanParallelism = Math.Max(1, notes.Parallelism);
-        _runs.Report(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
+        _performance.ReportRun(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
         HasResult = true;
         Duplicates.Clear();
         Marks.RecountMarked();

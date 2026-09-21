@@ -32,7 +32,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
 
     private long _workingSetPeak;
 
-    private PerformanceOperation? _operation;
+    private string? _phase;
 
     private TimeSpan _startup;
 
@@ -87,7 +87,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
             _baseCollections[generation] = GC.CollectionCount(generation);
         }
 
-        var operation = Volatile.Read(ref _operation);
+        var phase = Volatile.Read(ref _phase);
 
         lock (_lock)
         {
@@ -104,7 +104,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
                 _running = true;
             }
 
-            Publish(Sample(_lastTick, 0, operation), operation);
+            Publish(Sample(_lastTick, 0, phase));
         }
     }
 
@@ -113,7 +113,6 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
         _running = false;
         _timer?.Stop();
 
-        Volatile.Write(ref _operation, null);
         Volatile.Write(ref _snapshot, PerformanceSnapshot.Empty with { StartupSeconds = _startup.TotalSeconds });
 
         SyncFrameProbe();
@@ -124,33 +123,9 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
         _startup = elapsed;
     }
 
-    public bool TryReportOperation(PerformanceOperation operation, PerformanceOperation? own)
+    public void SetPhase(string? phase)
     {
-        var current = Volatile.Read(ref _operation);
-
-        if (current is not null && !ReferenceEquals(current, own))
-        {
-            return false;
-        }
-
-        if (!ReferenceEquals(Interlocked.CompareExchange(ref _operation, operation, current), current))
-        {
-            return false;
-        }
-
-        SyncFrameProbe();
-
-        return true;
-    }
-
-    public void ClearOperation(PerformanceOperation? own)
-    {
-        if (own is null || !ReferenceEquals(Interlocked.CompareExchange(ref _operation, null, own), own))
-        {
-            return;
-        }
-
-        SyncFrameProbe();
+        Volatile.Write(ref _phase, string.IsNullOrWhiteSpace(phase) ? null : phase);
     }
 
     public IDisposable WatchFrames()
@@ -203,7 +178,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
 
     private bool FrameProbeWanted()
     {
-        return _running && !_disposed && (Volatile.Read(ref _frameLeases) > 0 || Volatile.Read(ref _operation) is not null);
+        return _running && !_disposed && Volatile.Read(ref _frameLeases) > 0;
     }
 
     private void SyncFrameProbe()
@@ -267,7 +242,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
     private void OnTick(object? sender, EventArgs e)
     {
         var now = Stopwatch.GetTimestamp();
-        var operation = Volatile.Read(ref _operation);
+        var phase = Volatile.Read(ref _phase);
         double delay;
 
         lock (_lock)
@@ -276,12 +251,12 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
             _lastTick = now;
             _delays.Add(delay);
 
-            var sample = Sample(now, delay, operation);
+            var sample = Sample(now, delay, phase);
             _history.Add(sample);
-            Publish(sample, operation);
+            Publish(sample);
         }
 
-        LogHitch(delay, operation, now);
+        LogHitch(delay, phase, now);
         Notify();
     }
 
@@ -297,7 +272,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
         }
     }
 
-    private PerformanceSample Sample(long now, double delay, PerformanceOperation? operation)
+    private PerformanceSample Sample(long now, double delay, string? phase)
     {
         return new(now,
             delay,
@@ -306,10 +281,10 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
             GC.CollectionCount(0) - _baseCollections[0],
             GC.CollectionCount(1) - _baseCollections[1],
             GC.CollectionCount(2) - _baseCollections[2],
-            operation?.Name);
+            phase);
     }
 
-    private void Publish(PerformanceSample sample, PerformanceOperation? operation)
+    private void Publish(PerformanceSample sample)
     {
         _workingSetPeak = Math.Max(_workingSetPeak, sample.WorkingSetBytes);
 
@@ -332,10 +307,10 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
             _frames.AverageMs,
             _frames.Count,
             _frames.SlowCount,
-            operation));
+            sample.Operation));
     }
 
-    private void LogHitch(double delay, PerformanceOperation? operation, long now)
+    private void LogHitch(double delay, string? phase, long now)
     {
         if (delay < AppDefaults.PerformanceHitchMs)
         {
@@ -348,7 +323,7 @@ public sealed class PerformanceMonitor(ILogger<PerformanceMonitor> logger) : IDi
         }
 
         _lastHitchLog = now;
-        logger.PerformanceHitch((long)delay, operation?.Name ?? "нет операции");
+        logger.PerformanceHitch((long)delay, phase ?? "нет операции");
     }
 
     private sealed class FrameLease(PerformanceMonitor monitor) : IDisposable

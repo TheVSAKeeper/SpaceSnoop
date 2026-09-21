@@ -7,6 +7,7 @@ internal sealed class McpInsightTools(
     McpPreferences preferences,
     DockerService docker,
     PerformanceMonitor performance,
+    PerformanceOperations operations,
     McpNavigator navigator,
     McpStateReader state,
     ILogger logger)
@@ -86,7 +87,7 @@ internal sealed class McpInsightTools(
             Math.Round(snapshot.FrameAverageMs, 1),
             snapshot.FrameCount,
             snapshot.SlowFrameCount,
-            McpFormat.DescribeOperation(snapshot.Operation),
+            McpFormat.DescribeOperation(operations.Current),
             ReadHistory(historySeconds, historyPoints)));
     }
 

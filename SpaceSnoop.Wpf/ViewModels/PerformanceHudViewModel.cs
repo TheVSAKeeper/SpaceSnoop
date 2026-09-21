@@ -6,6 +6,8 @@ public sealed partial class PerformanceHudViewModel : ObservableObject
 {
     private readonly PerformanceMonitor _monitor;
 
+    private readonly PerformanceOperations _operations;
+
     private readonly ShellPreferences _preferences;
 
     [ObservableProperty]
@@ -29,9 +31,10 @@ public sealed partial class PerformanceHudViewModel : ObservableObject
     [ObservableProperty]
     private bool _isHitch;
 
-    public PerformanceHudViewModel(PerformanceMonitor monitor, ShellPreferences preferences)
+    public PerformanceHudViewModel(PerformanceMonitor monitor, PerformanceOperations operations, ShellPreferences preferences)
     {
         _monitor = monitor;
+        _operations = operations;
         _preferences = preferences;
         _preferences.PropertyChanged += OnPreferencesChanged;
         _monitor.Updated += OnMonitorUpdated;
@@ -70,11 +73,13 @@ public sealed partial class PerformanceHudViewModel : ObservableObject
 
     private void Apply(PerformanceSnapshot snapshot)
     {
-        SummaryText = PerformanceFormat.Summary(snapshot);
+        var current = _operations.Current;
+
+        SummaryText = PerformanceFormat.Summary(snapshot, current);
         DelayText = PerformanceFormat.Delay(snapshot.UiDelayMs, snapshot.UiPeakMs);
         MemoryText = PerformanceFormat.Memory(snapshot.ManagedBytes, snapshot.WorkingSetBytes);
         CollectionsText = PerformanceFormat.Collections(snapshot.Gen0Collections, snapshot.Gen1Collections, snapshot.Gen2Collections);
-        OperationText = PerformanceFormat.Operation(snapshot.Operation);
+        OperationText = PerformanceFormat.Operation(current);
         IsHitch = snapshot.UiPeakMs >= AppDefaults.PerformanceHitchMs;
     }
 }

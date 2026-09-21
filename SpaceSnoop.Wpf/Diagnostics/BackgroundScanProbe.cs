@@ -9,8 +9,7 @@ internal sealed class BackgroundScanProbe : IDisposable
 
     private static readonly TimeSpan ReportInterval = TimeSpan.FromMilliseconds(AppDefaults.PerformanceSampleIntervalMs);
 
-    private readonly PerformanceMonitor _performance;
-    private readonly PerformanceRunTracker _runs;
+    private readonly PerformanceOperations _operations;
     private readonly Stopwatch _stopwatch = Stopwatch.StartNew();
     private readonly Lock _gate = new();
     private readonly long? _totalBytes;
@@ -20,10 +19,9 @@ internal sealed class BackgroundScanProbe : IDisposable
     private PerformanceOperation? _reported;
     private bool _stopped;
 
-    public BackgroundScanProbe(PerformanceMonitor performance, PerformanceRunTracker runs, long? totalBytes, int parallelism)
+    public BackgroundScanProbe(PerformanceOperations operations, long? totalBytes, int parallelism)
     {
-        _performance = performance;
-        _runs = runs;
+        _operations = operations;
         _totalBytes = totalBytes;
         _parallelism = Math.Max(1, parallelism);
         _timer = new(_ => Publish(), null, ReportInterval, ReportInterval);
@@ -48,7 +46,7 @@ internal sealed class BackgroundScanProbe : IDisposable
         Stop();
 
         var run = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, _parallelism);
-        _runs.Report(run);
+        _operations.ReportRun(run);
 
         return run;
     }
@@ -70,7 +68,7 @@ internal sealed class BackgroundScanProbe : IDisposable
 
             var operation = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, _totalBytes, _parallelism);
 
-            if (!_performance.TryReportOperation(operation, _reported))
+            if (!_operations.TryReport(operation, _reported))
             {
                 return false;
             }
@@ -88,7 +86,7 @@ internal sealed class BackgroundScanProbe : IDisposable
             _stopped = true;
             _stopwatch.Stop();
             _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            _performance.ClearOperation(_reported);
+            _operations.Release(_reported);
             _reported = null;
         }
     }

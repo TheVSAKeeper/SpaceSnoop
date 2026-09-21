@@ -71,15 +71,16 @@ public class PlatformGatewayTests
         var clipboard = new FakeClipboard { Succeeds = succeeds };
         var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
         var chart = new PerformanceChartViewModel(monitor, settings, new FakeUiDispatcher(), new FakeApplicationLifetime());
+        var operations = new PerformanceOperations(monitor);
 
         var performance = new PerformanceViewModel(
             monitor,
-            new(),
+            operations,
             chart,
             shellPreferences,
             new(toasts, shellPreferences),
             clipboard,
-            new(monitor, new(), settings),
+            new(monitor, operations, settings),
             new NoopDialogs(),
             new FakeShellLauncher(),
             NullLogger<PerformanceViewModel>.Instance);

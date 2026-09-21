@@ -56,8 +56,8 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
     public DeleteProgressDialogViewModel(
         IReadOnlyList<SpaceBase> items,
         bool permanent,
-        PerformanceMonitor performance,
-        PerformanceRunTracker runs,
+        PerformanceMonitor monitor,
+        PerformanceOperations operations,
         ShellPreferences preferences,
         IUiDispatcher uiDispatcher,
         ILogger logger)
@@ -67,7 +67,7 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         _logger = logger;
         Items = new(items.Select(static item => new DeleteRowViewModel(item)));
         _totalBytes = items.Sum(static item => item.TotalSize);
-        _diagnostics = new(permanent, Items.Count, _totalBytes, performance, runs, preferences);
+        _diagnostics = new(permanent, Items.Count, _totalBytes, monitor, operations, preferences);
 
         ActionVerb = permanent ? "удалены безвозвратно" : "перемещены в корзину";
         IntroText = $"Будут {ActionVerb}: {Plural.Format(Items.Count, "объект", "объекта", "объектов")} · {SizeFormatter.Format(_totalBytes)}";

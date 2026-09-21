@@ -20,7 +20,7 @@ public sealed record PerformanceSnapshot(
     double FrameAverageMs,
     int FrameCount,
     int SlowFrameCount,
-    PerformanceOperation? Operation)
+    string? Phase)
 {
     public static PerformanceSnapshot Empty { get; } = new(DateTime.MinValue, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, default, 0, 0, 0, 0, 0, 0, null);
 }

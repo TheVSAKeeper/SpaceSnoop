@@ -212,8 +212,7 @@ public class SyncQuickProfileTests
             new(NullLogger<DirectoryComparer>.Instance),
             new(NullLogger<SyncEngine>.Instance),
             notifier,
-            new(NullLogger<PerformanceMonitor>.Instance),
-            new(),
+            new PerformanceOperations(new(NullLogger<PerformanceMonitor>.Instance)),
             new FakeFilePicker(),
             new FakeUiDispatcher(),
             new FakeAppNavigator());

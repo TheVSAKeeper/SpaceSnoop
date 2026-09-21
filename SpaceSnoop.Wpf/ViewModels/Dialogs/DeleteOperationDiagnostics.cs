@@ -8,8 +8,8 @@ internal sealed class DeleteOperationDiagnostics
     private readonly bool _permanent;
     private readonly int _totalItems;
     private readonly long _totalBytes;
-    private readonly PerformanceMonitor _performance;
-    private readonly PerformanceRunTracker _runs;
+    private readonly PerformanceMonitor _monitor;
+    private readonly PerformanceOperations _operations;
     private readonly ShellPreferences _preferences;
 
     private PerformanceOperation? _reported;
@@ -26,21 +26,21 @@ internal sealed class DeleteOperationDiagnostics
         bool permanent,
         int totalItems,
         long totalBytes,
-        PerformanceMonitor performance,
-        PerformanceRunTracker runs,
+        PerformanceMonitor monitor,
+        PerformanceOperations operations,
         ShellPreferences preferences)
     {
         _permanent = permanent;
         _totalItems = totalItems;
         _totalBytes = totalBytes;
-        _performance = performance;
-        _runs = runs;
+        _monitor = monitor;
+        _operations = operations;
         _preferences = preferences;
     }
 
     public void Start()
     {
-        _performance.Start();
+        _monitor.Start();
         _started = Stopwatch.GetTimestamp();
     }
 
@@ -53,10 +53,10 @@ internal sealed class DeleteOperationDiagnostics
 
         if (succeeded)
         {
-            _runs.Report(DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), includeTotals: false));
+            _operations.ReportRun(DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), includeTotals: false));
         }
 
-        _performance.ClearOperation(_reported);
+        _operations.Release(_reported);
         _reported = null;
         _started = 0;
     }
@@ -70,7 +70,7 @@ internal sealed class DeleteOperationDiagnostics
 
         var operation = DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), includeTotals: true);
 
-        if (_performance.TryReportOperation(operation, _reported))
+        if (_operations.TryReport(operation, _reported))
         {
             _reported = operation;
         }
@@ -100,7 +100,7 @@ internal sealed class DeleteOperationDiagnostics
 
     private string Describe(PerformanceOperation operation)
     {
-        var snapshot = _performance.Snapshot;
+        var snapshot = _monitor.Snapshot;
         var parts = new List<string>(5)
         {
             snapshot.SampleCount > 0

@@ -258,16 +258,16 @@ public class PerformanceTests
     {
         var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 12.4, ManagedBytes = 1024 };
 
-        Assert.That(PerformanceFormat.Summary(snapshot), Is.EqualTo($"12 мс · {SizeFormatter.Format(1024)}"));
+        Assert.That(PerformanceFormat.Summary(snapshot, null), Is.EqualTo($"12 мс · {SizeFormatter.Format(1024)}"));
     }
 
     [Test]
     public void Сводка_с_операцией_дописывает_её_в_конец()
     {
         var operation = new PerformanceOperation("Сканирование", 1000, 0, TimeSpan.FromSeconds(2));
-        var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, ManagedBytes = 2048, Operation = operation };
+        var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, ManagedBytes = 2048 };
 
-        Assert.That(PerformanceFormat.Summary(snapshot), Does.EndWith("Сканирование · 500 файлов/с"));
+        Assert.That(PerformanceFormat.Summary(snapshot, operation), Does.EndWith("Сканирование · 500 файлов/с"));
     }
 
     [Test]
@@ -299,10 +299,9 @@ public class PerformanceTests
             ObservedSpanSeconds = 10,
             ManagedBytes = 1024,
             StartupSeconds = 1.25,
-            Operation = new("Сканирование", 1000, 0, TimeSpan.FromSeconds(2)),
         };
 
-        var text = PerformanceReport.Build(snapshot, "2.8.42");
+        var text = PerformanceReport.Build(snapshot, "2.8.42", new("Сканирование", 1000, 0, TimeSpan.FromSeconds(2)));
 
         Assert.Multiple(() =>
         {
@@ -578,7 +577,7 @@ public class PerformanceTests
     {
         var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, UiPeakMs = 800 };
 
-        Assert.That(PerformanceFormat.Summary(snapshot), Does.Contain("пик 800 мс"));
+        Assert.That(PerformanceFormat.Summary(snapshot, null), Does.Contain("пик 800 мс"));
     }
 
     [TestCase(0, "0,0 с")]
@@ -678,21 +677,23 @@ public class PerformanceTests
     [Test]
     public void В_плитке_стоит_последний_завершившийся_прогон_а_сброс_её_обнуляет()
     {
-        var tracker = new PerformanceRunTracker();
+        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+
+        var operations = new PerformanceOperations(monitor);
         var changes = 0;
 
-        tracker.Changed += (_, _) => changes++;
+        operations.Changed += (_, _) => changes++;
 
-        tracker.Report(new("Сканирование", 10, 20, TimeSpan.FromSeconds(3)));
-        tracker.Report(new("Синхронизация", 5, 6, TimeSpan.FromSeconds(1)));
+        operations.ReportRun(new("Сканирование", 10, 20, TimeSpan.FromSeconds(3)));
+        operations.ReportRun(new("Синхронизация", 5, 6, TimeSpan.FromSeconds(1)));
 
-        var afterRuns = tracker.Last;
+        var afterRuns = operations.Last;
 
-        tracker.Clear();
+        operations.ClearRun();
 
-        var afterClear = tracker.Last;
+        var afterClear = operations.Last;
 
-        tracker.Clear();
+        operations.ClearRun();
 
         Assert.Multiple(() =>
         {
@@ -707,26 +708,53 @@ public class PerformanceTests
     {
         using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
 
+        var operations = new PerformanceOperations(monitor);
         var page = new PerformanceOperation("Сканирование", 10, 20, TimeSpan.FromSeconds(1));
         var agent = new PerformanceOperation(BackgroundScanProbe.OperationName, 3, 4, TimeSpan.FromSeconds(1));
 
-        monitor.TryReportOperation(page, null);
+        operations.TryReport(page, null);
 
-        var agentBlocked = monitor.TryReportOperation(agent, null);
+        var agentBlocked = operations.TryReport(agent, null);
 
-        monitor.ClearOperation(agent);
+        operations.Release(agent);
 
-        var stillBusy = !monitor.TryReportOperation(agent, null);
+        var stillBusy = !operations.TryReport(agent, null);
+        var heldByPage = operations.Current;
 
-        monitor.ClearOperation(page);
+        operations.Release(page);
 
-        var freed = monitor.TryReportOperation(agent, null);
+        var freed = operations.TryReport(agent, null);
 
         Assert.Multiple(() =>
         {
             Assert.That(agentBlocked, Is.False);
             Assert.That(stillBusy, Is.True);
+            Assert.That(heldByPage, Is.SameAs(page));
             Assert.That(freed, Is.True);
+            Assert.That(operations.Current, Is.SameAs(agent));
+        });
+    }
+
+    [Test]
+    public void Имя_операции_доезжает_до_монитора_меткой_фазы()
+    {
+        using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
+
+        var operations = new PerformanceOperations(monitor);
+        var page = Page();
+
+        operations.TryReport(page, null);
+        monitor.Start();
+
+        var busy = monitor.Snapshot.Phase;
+
+        operations.Release(page);
+        monitor.Reset();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(busy, Is.EqualTo(page.Name));
+            Assert.That(monitor.Snapshot.Phase, Is.Null);
         });
     }
 
@@ -750,19 +778,19 @@ public class PerformanceTests
     public void Итог_агентского_скана_доходит_до_плитки_и_освобождает_слот()
     {
         using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
-        var tracker = new PerformanceRunTracker();
+        var operations = new PerformanceOperations(monitor);
 
         PerformanceOperation run;
         bool published, heldWhileWalking;
 
-        using (var probe = new BackgroundScanProbe(monitor, tracker, null, 8))
+        using (var probe = new BackgroundScanProbe(operations, null, 8))
         {
             probe.Progress.EnterDirectory(@"C:\Sources");
             probe.Progress.AddFiles(120, 4096);
             probe.Progress.FailDirectory();
 
             published = probe.Publish();
-            heldWhileWalking = !monitor.TryReportOperation(Page(), null);
+            heldWhileWalking = !operations.TryReport(Page(), null);
 
             run = probe.Finish();
         }
@@ -771,10 +799,10 @@ public class PerformanceTests
         {
             Assert.That(published, Is.True);
             Assert.That(heldWhileWalking, Is.True);
-            Assert.That(tracker.Last?.Name, Is.EqualTo("Сканирование (агент)"));
-            Assert.That(tracker.Last?.Items, Is.EqualTo(120));
+            Assert.That(operations.Last?.Name, Is.EqualTo("Сканирование (агент)"));
+            Assert.That(operations.Last?.Items, Is.EqualTo(120));
             Assert.That(run.Traversal, Is.EqualTo(new PerformanceTraversal(1, 1, 8)));
-            Assert.That(monitor.TryReportOperation(Page(), null), Is.True);
+            Assert.That(operations.TryReport(Page(), null), Is.True);
         });
     }
 
@@ -782,12 +810,12 @@ public class PerformanceTests
     public void Зонд_агентского_скана_не_вытесняет_операцию_окна()
     {
         using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
-        var tracker = new PerformanceRunTracker();
+        var operations = new PerformanceOperations(monitor);
         var page = Page();
 
-        monitor.TryReportOperation(page, null);
+        operations.TryReport(page, null);
 
-        using var probe = new BackgroundScanProbe(monitor, tracker, null, 4);
+        using var probe = new BackgroundScanProbe(operations, null, 4);
         probe.Progress.AddFiles(5, 500);
 
         var published = probe.Publish();
@@ -797,8 +825,8 @@ public class PerformanceTests
         Assert.Multiple(() =>
         {
             Assert.That(published, Is.False);
-            Assert.That(tracker.Last?.Name, Is.EqualTo("Сканирование (агент)"));
-            Assert.That(monitor.TryReportOperation(Page(), page), Is.True);
+            Assert.That(operations.Last?.Name, Is.EqualTo("Сканирование (агент)"));
+            Assert.That(operations.TryReport(Page(), page), Is.True);
         });
     }
 
@@ -806,9 +834,9 @@ public class PerformanceTests
     public void Прерванный_обход_агента_не_попадает_в_плитку_и_освобождает_слот()
     {
         using var monitor = new PerformanceMonitor(NullLogger<PerformanceMonitor>.Instance);
-        var tracker = new PerformanceRunTracker();
+        var operations = new PerformanceOperations(monitor);
 
-        using (var probe = new BackgroundScanProbe(monitor, tracker, null, 2))
+        using (var probe = new BackgroundScanProbe(operations, null, 2))
         {
             probe.Progress.AddFiles(9, 900);
             probe.Publish();
@@ -816,8 +844,8 @@ public class PerformanceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(tracker.Last, Is.Null);
-            Assert.That(monitor.TryReportOperation(Page(), null), Is.True);
+            Assert.That(operations.Last, Is.Null);
+            Assert.That(operations.TryReport(Page(), null), Is.True);
         });
     }
 

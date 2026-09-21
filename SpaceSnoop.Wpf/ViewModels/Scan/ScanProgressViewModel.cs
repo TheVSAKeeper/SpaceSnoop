@@ -7,7 +7,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 {
     private static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(120);
 
-    private readonly PerformanceMonitor _performance;
+    private readonly PerformanceOperations _operations;
     private readonly IUiTimer _progressTimer;
 
     private ScanProgress? _progress;
@@ -57,9 +57,9 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     [ObservableProperty]
     private string _scanPercentText = string.Empty;
 
-    public ScanProgressViewModel(PerformanceMonitor performance, IUiDispatcher uiDispatcher)
+    public ScanProgressViewModel(PerformanceOperations operations, IUiDispatcher uiDispatcher)
     {
-        _performance = performance;
+        _operations = operations;
 
         _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
     }
@@ -128,7 +128,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         _progressTimer.Stop();
         _scanElapsed = Elapsed();
         _scanStarted = null;
-        _performance.ClearOperation(_reported);
+        _operations.Release(_reported);
         _reported = null;
 
         if (_progress is { } progress)
@@ -223,7 +223,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         ScanRemainingText = PerformanceFormat.Remaining(operation) ?? string.Empty;
         ScanHasRemaining = ScanRemainingText.Length > 0;
 
-        if (_performance.TryReportOperation(operation, _reported))
+        if (_operations.TryReport(operation, _reported))
         {
             _reported = operation;
         }

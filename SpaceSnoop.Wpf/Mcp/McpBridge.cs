@@ -18,7 +18,7 @@ public sealed class McpBridge
         ICleanupAutomation cleanupAutomation,
         ToastNotifier notifier,
         PerformanceMonitor performance,
-        PerformanceRunTracker runs,
+        PerformanceOperations operations,
         CompareDirectoriesUseCase compare,
         IAppNavigator navigator,
         ILogger<McpBridge> logger)
@@ -26,9 +26,9 @@ public sealed class McpBridge
         _navigator = new(navigator);
         _state = new(scan, sync, _navigator);
 
-        Scan = new(scan, scanPreferences, runner, duplicates, preferences, notifier, _navigator, _state, performance, runs, logger);
+        Scan = new(scan, scanPreferences, runner, duplicates, preferences, notifier, _navigator, _state, operations, logger);
         Sync = new(sync, compare, preferences, notifier, _navigator, _state, logger);
-        Insight = new(settings, preferences, docker, performance, _navigator, _state, logger);
+        Insight = new(settings, preferences, docker, performance, operations, _navigator, _state, logger);
         Cleanup = new(settings, cleanup, static age => CleanupCatalog.BuildDefault(age), preferences, cleanupAutomation, _navigator, notifier, logger);
         Capture = new(_navigator, logger);
     }

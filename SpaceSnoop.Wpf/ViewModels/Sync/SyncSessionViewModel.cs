@@ -13,8 +13,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     private readonly IDialogService _dialogs;
     private readonly ILogger _logger;
     private readonly ToastNotifier _notifier;
-    private readonly PerformanceMonitor _performance;
-    private readonly PerformanceRunTracker _runs;
+    private readonly PerformanceOperations _performance;
     private readonly Action<string> _reportSummary;
     private readonly OperationProgressState _progress = new();
     private readonly IUiTimer _progressTimer;
@@ -52,8 +51,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
         IDialogService dialogs,
         ILogger logger,
         ToastNotifier notifier,
-        PerformanceMonitor performance,
-        PerformanceRunTracker runs,
+        PerformanceOperations performance,
         IUiDispatcher uiDispatcher,
         Action<string> reportSummary)
     {
@@ -61,7 +59,6 @@ public sealed partial class SyncSessionViewModel : ObservableObject
         _logger = logger;
         _notifier = notifier;
         _performance = performance;
-        _runs = runs;
         _reportSummary = reportSummary;
         _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
     }
@@ -197,7 +194,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
             }
 
             LastOperationCancelled = token.IsCancellationRequested;
-            _runs.Report(Finished(operation, _measured, _clock.Elapsed));
+            _performance.ReportRun(Finished(operation, _measured, _clock.Elapsed));
 
             return result;
         }
@@ -222,7 +219,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
             IsBusy = false;
             IsIndeterminate = true;
             ProgressValue = 0;
-            _performance.ClearOperation(_reported);
+            _performance.Release(_reported);
             _cts?.Dispose();
             _cts = null;
         }
@@ -239,7 +236,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
 
         _measured = current;
 
-        if (_performance.TryReportOperation(current, _reported))
+        if (_performance.TryReport(current, _reported))
         {
             _reported = current;
         }

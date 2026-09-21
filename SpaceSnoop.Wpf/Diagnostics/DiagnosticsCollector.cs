@@ -3,7 +3,7 @@ using System.Windows.Media;
 
 namespace SpaceSnoop.Wpf.Diagnostics;
 
-public sealed class DiagnosticsCollector(PerformanceMonitor monitor, PerformanceRunTracker runs, ISettingsStore settings)
+public sealed class DiagnosticsCollector(PerformanceMonitor monitor, PerformanceOperations operations, ISettingsStore settings)
 {
     public MachineProfile Machine { get; private set; } = MachineProfile.Capture();
 
@@ -19,7 +19,8 @@ public sealed class DiagnosticsCollector(PerformanceMonitor monitor, Performance
             monitor.Snapshot,
             monitor.CaptureHistory(TimeSpan.FromSeconds(AppDefaults.PerformanceHistorySecondsMax), AppDefaults.PerformanceHistorySamples),
             monitor.CaptureHitches(AppDefaults.PerformanceHitchMs, AppDefaults.DiagnosticsHitchRows),
-            runs.Last,
+            operations.Current,
+            operations.Last,
             ReadSettings(),
             ReadLogs());
 

@@ -8,7 +8,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
 {
     private readonly PerformanceMonitor _monitor;
 
-    private readonly PerformanceRunTracker _runs;
+    private readonly PerformanceOperations _operations;
 
     private readonly ToastNotifier _notifier;
 
@@ -98,7 +98,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
 
     public PerformanceViewModel(
         PerformanceMonitor monitor,
-        PerformanceRunTracker runs,
+        PerformanceOperations operations,
         PerformanceChartViewModel chart,
         ShellPreferences preferences,
         ToastNotifier notifier,
@@ -109,7 +109,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
         ILogger<PerformanceViewModel> logger)
     {
         _monitor = monitor;
-        _runs = runs;
+        _operations = operations;
         _notifier = notifier;
         _clipboard = clipboard;
         _diagnostics = diagnostics;
@@ -123,7 +123,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
         Preferences = preferences;
 
         _monitor.Updated += OnMonitorUpdated;
-        _runs.Changed += OnRunsChanged;
+        _operations.Changed += OnRunsChanged;
         Apply(_monitor.Snapshot);
         ApplyHitches();
     }
@@ -162,7 +162,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
     private void Reset()
     {
         _monitor.Reset();
-        _runs.Clear();
+        _operations.ClearRun();
         Apply(_monitor.Snapshot);
         Chart.Refresh();
         _notifier.Notify("Замеры производительности сброшены");
@@ -171,7 +171,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
     [RelayCommand]
     private void CopySummary()
     {
-        if (_clipboard.TrySetText(PerformanceReport.Build(_monitor.Snapshot, AppInfo.Version, _runs.Last)))
+        if (_clipboard.TrySetText(PerformanceReport.Build(_monitor.Snapshot, AppInfo.Version, _operations.Current, _operations.Last)))
         {
             _notifier.Notify("Сводка скопирована в буфер обмена");
         }
@@ -236,7 +236,7 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
 
     private void OnRunsChanged(object? sender, EventArgs e)
     {
-        ApplyOperation(_monitor.Snapshot.Operation);
+        ApplyOperation();
     }
 
     private void Apply(PerformanceSnapshot snapshot)
@@ -260,12 +260,12 @@ public sealed partial class PerformanceViewModel : ObservableObject, IPageHeader
         WindowText = PerformanceFormat.TileWindow(snapshot);
         StaleText = PerformanceFormat.StaleWarning(snapshot, DateTime.UtcNow);
 
-        ApplyOperation(snapshot.Operation);
+        ApplyOperation();
     }
 
-    private void ApplyOperation(PerformanceOperation? current)
+    private void ApplyOperation()
     {
-        var tile = PerformanceFormat.TileOperation(current, _runs.Last);
+        var tile = PerformanceFormat.TileOperation(_operations.Current, _operations.Last);
 
         OperationCaption = tile.Caption;
         OperationText = tile.Value;

@@ -14,8 +14,7 @@ internal sealed class McpScanTools(
     ToastNotifier notifier,
     McpNavigator navigator,
     McpStateReader state,
-    PerformanceMonitor performance,
-    PerformanceRunTracker runs,
+    PerformanceOperations operations,
     ILogger logger)
 {
     private const string BusyReason = "страница занята операцией";
@@ -53,8 +52,7 @@ internal sealed class McpScanTools(
 
         var (tree, model, run, notes) = await Task.Run(() =>
                 {
-                    using var probe = new BackgroundScanProbe(performance,
-                        runs,
+                    using var probe = new BackgroundScanProbe(operations,
                         ScanProgressViewModel.EstimateTotalBytes(directory),
                         parallelism);
 

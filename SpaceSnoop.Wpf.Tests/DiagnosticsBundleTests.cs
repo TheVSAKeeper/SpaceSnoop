@@ -269,6 +269,7 @@ public class DiagnosticsBundleTests
             PerformanceHistory.Empty,
             PerformanceHitches.Empty,
             null,
+            null,
             @"exclusions = ""C:\Users\admin\Музыка""",
             [new("wpf-20260831.log", @"скан C:\Users\admin\Музыка")]);
     }

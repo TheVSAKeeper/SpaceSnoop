@@ -2,7 +2,7 @@
 
 public static class PerformanceFormat
 {
-    public static string Summary(PerformanceSnapshot snapshot)
+    public static string Summary(PerformanceSnapshot snapshot, PerformanceOperation? current)
     {
         var parts = new List<string>(3)
         {
@@ -12,7 +12,7 @@ public static class PerformanceFormat
             SizeFormatter.Format(snapshot.ManagedBytes),
         };
 
-        if (Operation(snapshot.Operation) is { } operation)
+        if (Operation(current) is { } operation)
         {
             parts.Add(operation);
         }

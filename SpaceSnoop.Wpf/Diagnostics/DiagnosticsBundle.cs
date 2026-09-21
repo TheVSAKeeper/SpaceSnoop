@@ -15,6 +15,7 @@ public sealed record DiagnosticsPayload(
     PerformanceSnapshot Snapshot,
     PerformanceHistory History,
     PerformanceHitches Hitches,
+    PerformanceOperation? Operation,
     PerformanceOperation? LastRun,
     string? Settings,
     IReadOnlyList<DiagnosticsEntry> Logs);
@@ -53,6 +54,7 @@ public static class DiagnosticsBundle
                     payload.Snapshot,
                     payload.History,
                     payload.Hitches,
+                    payload.Operation,
                     payload.LastRun,
                 },
                 Json)),
@@ -152,7 +154,7 @@ public static class DiagnosticsBundle
         }
 
         text.AppendLine();
-        text.Append(PerformanceReport.Build(payload.Snapshot, payload.Machine.AppVersion, payload.LastRun));
+        text.Append(PerformanceReport.Build(payload.Snapshot, payload.Machine.AppVersion, payload.Operation, payload.LastRun));
 
         return text.ToString();
     }

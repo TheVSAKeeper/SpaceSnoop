@@ -15,6 +15,7 @@ using SpaceSnoop.Wpf.ViewModels;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
+using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -30,6 +31,7 @@ public class McpBridgeGuardTests
     private SyncAutomationDouble _sync = null!;
     private CleanupAutomationDouble _cleanup = null!;
     private PerformanceMonitor _monitor = null!;
+    private PerformanceOperations _operations = null!;
     private McpBridge _bridge = null!;
 
     [SetUp]
@@ -45,6 +47,7 @@ public class McpBridgeGuardTests
         _sync = new();
         _cleanup = new();
         _monitor = new(NullLogger<PerformanceMonitor>.Instance);
+        _operations = new(_monitor);
 
         var scanPreferences = new ScanPreferences(settings);
 
@@ -60,7 +63,7 @@ public class McpBridgeGuardTests
             _cleanup,
             new ToastNotifier(new(), new ShellPreferences(settings)),
             _monitor,
-            new PerformanceRunTracker(),
+            _operations,
             new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
             new FakeAppNavigator(),
             NullLogger<McpBridge>.Instance);
@@ -75,6 +78,31 @@ public class McpBridgeGuardTests
         {
             Directory.Delete(_root, true);
         }
+    }
+
+    [Test]
+    public void Текущая_операция_доезжает_до_get_performance_и_гаснет_вместе_со_слотом()
+    {
+        var operation = new PerformanceOperation("Сканирование", 1000, 2048, TimeSpan.FromSeconds(2));
+
+        _operations.TryReport(operation, null);
+
+        using var busy = JsonDocument.Parse(_bridge.Insight.GetPerformance(0, 0));
+
+        _operations.Release(operation);
+
+        using var idle = JsonDocument.Parse(_bridge.Insight.GetPerformance(0, 0));
+
+        var reported = busy.RootElement.GetProperty("operation");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(reported.GetProperty("name").GetString(), Is.EqualTo("Сканирование"));
+            Assert.That(reported.GetProperty("items").GetInt64(), Is.EqualTo(1000));
+            Assert.That(reported.GetProperty("elapsedSeconds").GetDouble(), Is.EqualTo(2));
+            Assert.That(reported.GetProperty("summary").GetString(), Does.StartWith("Сканирование"));
+            Assert.That(idle.RootElement.TryGetProperty("operation", out _), Is.False);
+        });
     }
 
     [Test]
