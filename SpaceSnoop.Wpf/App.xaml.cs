@@ -198,7 +198,7 @@ public partial class App : Application
 
         services.AddSingleton(new ErrorReportOptions
         {
-            IssueRepo = AppInfo.RepoSlug,
+            IssueRepo = () => AppInfo.RepoSlug,
             LogFileGlobs = [AppInfo.LogFileGlob],
             SessionStartMarker = AppInfo.SessionStartMarker,
         });
