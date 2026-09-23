@@ -33,7 +33,21 @@ public class GalleryStatesTests
     public void Состояние_готово_у_страниц_не_снимается()
     {
         Assert.That(GalleryStates.All.Where(state => GalleryStates.SupportsPage(SectionKey.Scan, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy }));
+            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker }));
+    }
+
+    [TestCase(SectionKey.Sync)]
+    [TestCase(SectionKey.Cleanup)]
+    [TestCase(SectionKey.Settings)]
+    public void Выбор_цели_при_пометках_снимается_только_у_скана(string page)
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GalleryStates.SupportsPage(SectionKey.Scan, GalleryStates.Picker), Is.True);
+            Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Picker), Is.False);
+            Assert.That(GalleryStates.SupportsTip(GalleryStates.Picker), Is.False);
+            Assert.That(GalleryDialogs.All.Any(dialog => GalleryStates.SupportsDialog(dialog, GalleryStates.Picker)), Is.False);
+        });
     }
 
     [TestCase(GalleryDialogs.Delete)]
@@ -41,7 +55,7 @@ public class GalleryStatesTests
     public void Диалог_операции_снимается_во_всех_трёх_состояниях(string dialog)
     {
         Assert.That(GalleryStates.All.Where(state => GalleryStates.SupportsDialog(dialog, state)),
-            Is.EqualTo(GalleryStates.All));
+            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Done }));
     }
 
     [TestCase(GalleryDialogs.Confirm)]

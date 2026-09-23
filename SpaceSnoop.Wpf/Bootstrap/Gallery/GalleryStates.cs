@@ -11,6 +11,7 @@ public static class GalleryStates
     public const string Idle = "idle";
     public const string Busy = "busy";
     public const string Done = "done";
+    public const string Picker = "picker";
 
     private const int ScanParallelism = 8;
     private const int ScanBranchTotal = 18;
@@ -51,7 +52,7 @@ public static class GalleryStates
 
     private static readonly string[] OperationDialogs = [GalleryDialogs.Delete, GalleryDialogs.Archive];
 
-    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done];
+    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker];
 
     public static string? Match(string state)
     {
@@ -69,13 +70,19 @@ public static class GalleryStates
         {
             Busy => BusyPages.Contains(page, StringComparer.Ordinal),
             Done => false,
+            Picker => string.Equals(page, SectionKey.Scan, StringComparison.Ordinal),
             _ => true,
         };
     }
 
     public static bool SupportsDialog(string dialog, string state)
     {
-        return IsIdle(state) || OperationDialogs.Contains(dialog, StringComparer.Ordinal);
+        return state switch
+        {
+            Picker => false,
+            Idle => true,
+            _ => OperationDialogs.Contains(dialog, StringComparer.Ordinal),
+        };
     }
 
     public static bool SupportsTip(string state)
@@ -106,6 +113,10 @@ public static class GalleryStates
 
         switch (page)
         {
+            case SectionKey.Scan when state == Picker:
+                ApplyPicker(services);
+                break;
+
             case SectionKey.Scan:
                 ApplyScan(services, fixture);
                 break;
@@ -140,6 +151,10 @@ public static class GalleryStates
 
         switch (page)
         {
+            case SectionKey.Scan when state == Picker:
+                ResetPicker(services);
+                break;
+
             case SectionKey.Scan:
                 ResetScan(services);
                 break;
@@ -256,6 +271,36 @@ public static class GalleryStates
         scan.IsScanning = false;
         scan.HasResult = scan.Roots.Count > 0;
         scan.SelectedNode = scan.Roots.FirstOrDefault();
+    }
+
+    private static void ApplyPicker(IServiceProvider services)
+    {
+        var scan = services.GetRequiredService<ScanViewModel>();
+
+        var root = scan.Roots.FirstOrDefault()
+            ?? throw new InvalidOperationException("Дерево сканирования пусто – помечать нечего.");
+
+        root.EnsureLoaded();
+        root.MarkContentsDeletedCommand.Execute(null);
+
+        if (!scan.OpenPickerCommand.CanExecute(null))
+        {
+            throw new InvalidOperationException("Выбор цели не открывается – у скана нет результата.");
+        }
+
+        scan.OpenPickerCommand.Execute(null);
+    }
+
+    private static void ResetPicker(IServiceProvider services)
+    {
+        var scan = services.GetRequiredService<ScanViewModel>();
+
+        if (scan.ClosePickerCommand.CanExecute(null))
+        {
+            scan.ClosePickerCommand.Execute(null);
+        }
+
+        scan.Roots.FirstOrDefault()?.UnmarkContentsCommand.Execute(null);
     }
 
     private static void ApplySync(IServiceProvider services)
