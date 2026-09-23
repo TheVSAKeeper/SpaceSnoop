@@ -209,7 +209,7 @@ public class PerformanceTests
     {
         var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 12.4, ManagedBytes = 1024 };
 
-        Assert.That(PerformanceText.Summary(snapshot, null), Is.EqualTo($"12 мс · {SizeFormatter.Format(1024)}"));
+        Assert.That(PerformanceText.Summary(snapshot, null), Is.EqualTo($"Отклик 12 мс · Память {SizeFormatter.Format(1024)}"));
     }
 
     [Test]

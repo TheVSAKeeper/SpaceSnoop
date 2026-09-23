@@ -82,29 +82,17 @@
                         Margin="10,0,0,0">
                 <Button Style="{StaticResource Button.Destructive}"
                         Command="{Binding Marks.DeleteMarkedCommand}"
-                        ToolTip="{Binding Marks.DeleteHint}">
+                        ToolTip="{Binding Marks.DeleteHint}"
+                        AutomationProperties.Name="{Binding Marks.MarkedCount, StringFormat='Удалить помеченное: {0}'}"
+                        Visibility="{Binding Marks.HasMarked, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
                                                   Width="14"
                                                   Height="14"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0" />
-                        <TextBlock Text="Удалить"
+                        <TextBlock Text="{Binding Marks.MarkedCount, StringFormat='Удалить ({0:N0})'}"
                                    VerticalAlignment="Center" />
-                        <Border Margin="8,0,0,0"
-                                Padding="6,0"
-                                MinWidth="20"
-                                Height="18"
-                                VerticalAlignment="Center"
-                                CornerRadius="{DynamicResource Radius.Pill}"
-                                Background="#40FFFFFF"
-                                Visibility="{Binding Marks.HasMarked, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                            <TextBlock Text="{Binding Marks.MarkedCount}"
-                                       VerticalAlignment="Center"
-                                       HorizontalAlignment="Center"
-                                       FontWeight="SemiBold"
-                                       FontSize="{DynamicResource Font.Size.XS}" />
-                        </Border>
                     </StackPanel>
                 </Button>
             </StackPanel>

@@ -225,15 +225,15 @@ public class BindingSmokeTests
 
         Settle();
 
-        var volumes = ViewCapture.Find(_window, "Volumes") as ListBox;
+        var targets = ViewCapture.Find(_window, "Targets") as ItemsControl;
 
         try
         {
             Assert.Multiple(() =>
             {
                 Assert.That(page.ShowTargetPicker, Is.True, "Открытый чипом выбор цели не показан.");
-                Assert.That(volumes?.IsVisible, Is.True, "Плитки дисков не показаны.");
-                Assert.That(volumes?.Items, Is.Not.Empty, "Ни один том не попал в плитки.");
+                Assert.That(targets?.IsVisible, Is.True, "Плитки дисков не показаны.");
+                Assert.That(targets?.Items.OfType<DriveItem>(), Is.Not.Empty, "Ни один том не попал в плитки.");
                 Assert.That(page.Drives.RecentDirectories, Is.Not.Empty, "Каталог не попал в недавние.");
                 Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
             });

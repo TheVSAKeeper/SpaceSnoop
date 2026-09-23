@@ -21,7 +21,8 @@
         </Grid.RowDefinitions>
 
         <controls:ScanToolbar Grid.Row="0"
-                              Margin="0,0,0,12" />
+                              Margin="0,0,0,12"
+                              Visibility="{Binding ShowScanResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}" />
 
         <controls:ScanProgressPanel Grid.Row="1"
                                     DataContext="{Binding Progress}" />
@@ -56,9 +57,9 @@
                       HorizontalScrollBarVisibility="Disabled"
                       Visibility="{Binding ShowTargetPicker, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
             <controls:ScanTargetPicker HorizontalAlignment="Center"
-                                       VerticalAlignment="Center"
-                                       MaxWidth="760"
-                                       Margin="0,20" />
+                                       VerticalAlignment="Top"
+                                       MaxWidth="1316"
+                                       Margin="24,96,24,24" />
         </ScrollViewer>
 
         <Grid Grid.Row="4"

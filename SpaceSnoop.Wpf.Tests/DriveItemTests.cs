@@ -53,7 +53,7 @@ public class DriveItemTests
             Assert.That(item.Caption, Is.Null);
             Assert.That(item.IsMissingMedia, Is.False);
             Assert.That(item.TypeHint, Is.Null);
-            Assert.That(item.Title, Is.EqualTo($"…{Path.DirectorySeparatorChar}spacesnoop{Path.DirectorySeparatorChar}недавний"));
+            Assert.That(item.Title, Is.EqualTo($"{Path.GetPathRoot(path)!.TrimEnd(Path.DirectorySeparatorChar)}{Path.DirectorySeparatorChar}…{Path.DirectorySeparatorChar}недавний"));
         });
     }
 
@@ -166,6 +166,63 @@ public class DriveItemTests
             Assert.That(catalog.RecentDirectories, Is.Empty);
             Assert.That(catalog.FallbackPath, Is.EqualTo(catalog.Volumes[0].Path));
             Assert.That(catalog.RemoveDrive(recent), Is.False);
+        });
+    }
+
+    [TestCase(@"C:\Users\admin\AppData", @"C:\…\AppData")]
+    [TestCase(@"C:\Users\admin\AppData\", @"C:\…\AppData")]
+    [TestCase(@"C:\Users\admin", @"C:\Users\admin")]
+    [TestCase(@"D:\Фото", @"D:\Фото")]
+    [TestCase(@"\\nas\share\backup\2026\photos", @"\\nas\share\…\photos")]
+    [TestCase(@"\\nas\share\backup", @"\\nas\share\backup")]
+    public void Каталог_сокращается_в_середине_и_сохраняет_корень(string path, string expected)
+    {
+        Assert.That(new DriveItem(path).Title, Is.EqualTo(expected));
+    }
+
+    [TestCase(@"C:\", "C:")]
+    [TestCase(@"C:\Users\admin\AppData", "AppData")]
+    [TestCase(@"C:\Users\admin\AppData\", "AppData")]
+    [TestCase(@"\\nas\share\backup", "backup")]
+    public void Короткое_имя_цели_для_кнопки_скана_берёт_том_или_последний_каталог(string path, string expected)
+    {
+        Assert.That(DriveItem.ShortName(path), Is.EqualTo(expected));
+    }
+
+    [TestCase(0.0, DriveUsageLevel.Normal)]
+    [TestCase(0.7499, DriveUsageLevel.Normal)]
+    [TestCase(0.75, DriveUsageLevel.Warning)]
+    [TestCase(0.8999, DriveUsageLevel.Warning)]
+    [TestCase(0.90, DriveUsageLevel.Critical)]
+    [TestCase(1.0, DriveUsageLevel.Critical)]
+    public void Уровень_занятости_меняется_на_порогах_75_и_90_процентов(double ratio, DriveUsageLevel expected)
+    {
+        Assert.That(DriveItem.LevelFor(ratio), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Выбранная_цель_помечена_и_среди_томов_и_среди_недавних_включая_добавленные_позже()
+    {
+        var catalog = new DriveCatalog(NullLogger.Instance);
+        var first = Path.Combine(Path.GetTempPath(), "spacesnoop-выбор-первый");
+        var second = Path.Combine(Path.GetTempPath(), "spacesnoop-выбор-второй");
+
+        catalog.AddDrive(first);
+        catalog.Select(second);
+        catalog.AddDrive(second);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(catalog.Items.Where(item => item.IsSelected).Select(item => item.Path), Is.EqualTo(new[] { second }));
+            Assert.That(catalog.Volumes.Any(item => item.IsSelected), Is.False);
+        });
+
+        catalog.Select(catalog.Volumes[0].Path);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(catalog.Volumes[0].IsSelected, Is.True);
+            Assert.That(catalog.RecentDirectories.Any(item => item.IsSelected), Is.False);
         });
     }
 }

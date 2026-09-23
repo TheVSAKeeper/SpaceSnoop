@@ -10,6 +10,7 @@ public sealed class DriveCatalog
     private const int RecentLimit = 8;
 
     private readonly ILogger _logger;
+    private string? _selectedPath;
 
     public DriveCatalog(ILogger logger)
     {
@@ -37,9 +38,22 @@ public sealed class DriveCatalog
         }
     }
 
+    internal void Select(string? path)
+    {
+        _selectedPath = path;
+
+        foreach (var item in Items)
+        {
+            item.IsSelected = IsSelectedPath(item.Path);
+        }
+    }
+
     internal void AddDrive(string path)
     {
-        var item = new DriveItem(path);
+        var item = new DriveItem(path)
+        {
+            IsSelected = IsSelectedPath(path),
+        };
 
         if (!item.IsDirectory)
         {
@@ -89,6 +103,11 @@ public sealed class DriveCatalog
         Volumes.Remove(item);
 
         return true;
+    }
+
+    private bool IsSelectedPath(string path)
+    {
+        return string.Equals(path, _selectedPath, StringComparison.OrdinalIgnoreCase);
     }
 
     internal bool HasDrive(string path)

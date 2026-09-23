@@ -27,6 +27,9 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     private ScanNodeViewModel? _highlighted;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasTarget))]
+    [NotifyPropertyChangedFor(nameof(StartCaption))]
+    [NotifyCanExecuteChangedFor(nameof(StartCommand))]
     private string _selectedDrive = string.Empty;
 
     [ObservableProperty]
@@ -218,6 +221,12 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     public bool ShowScanningState => !HasResult && IsScanning;
 
+    public bool HasTarget => !string.IsNullOrWhiteSpace(SelectedDrive);
+
+    public string StartCaption => HasTarget
+        ? $"Сканировать {DriveItem.ShortName(SelectedDrive)}"
+        : "Выберите диск или каталог";
+
     public bool IsIndeterminate => Progress.IsIndeterminate;
 
     public double ProgressValue => Progress.ProgressValue;
@@ -282,6 +291,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     partial void OnSelectedDriveChanged(string value)
     {
+        Drives.Select(value);
         Persist(() => _settings.SetValue(SettingsKeys.ScanLastDrive, value));
     }
 
@@ -375,7 +385,12 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         return !IsScanning;
     }
 
-    [RelayCommand(CanExecute = nameof(CanStart))]
+    private bool CanStartTarget()
+    {
+        return CanStart() && HasTarget;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanStartTarget))]
     private async Task StartAsync()
     {
         await ScanAsync(SelectedDrive?.Trim() ?? string.Empty, CancellationToken.None);

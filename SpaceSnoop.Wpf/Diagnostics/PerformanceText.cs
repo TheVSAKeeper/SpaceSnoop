@@ -9,9 +9,9 @@ public static class PerformanceText
         var parts = new List<string>(3)
         {
             snapshot.UiPeakMs >= AppDefaults.PerformanceHitchMs
-                ? $"{Math.Round(snapshot.UiDelayMs):N0} мс · пик {Math.Round(snapshot.UiPeakMs):N0} мс"
-                : $"{Math.Round(snapshot.UiDelayMs):N0} мс",
-            SizeFormatter.Format(snapshot.ManagedBytes),
+                ? $"Отклик {Math.Round(snapshot.UiDelayMs):N0} мс, пик {Math.Round(snapshot.UiPeakMs):N0} мс"
+                : $"Отклик {Math.Round(snapshot.UiDelayMs):N0} мс",
+            $"Память {SizeFormatter.Format(snapshot.ManagedBytes)}",
         };
 
         if (Operation(current) is { } operation)

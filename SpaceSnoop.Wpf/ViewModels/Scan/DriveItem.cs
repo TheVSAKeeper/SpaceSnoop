@@ -19,6 +19,7 @@ public sealed class DriveItem : ObservableObject
 
     private Task? _loading;
     private int _generation;
+    private bool _isSelected;
 
     public DriveItem(string path)
     {
@@ -32,6 +33,12 @@ public sealed class DriveItem : ObservableObject
     public bool IsDirectory { get; }
 
     public string Title { get; }
+
+    public bool IsSelected
+    {
+        get => _isSelected;
+        internal set => SetProperty(ref _isSelected, value);
+    }
 
     public string? VolumeLabel { get; private set; }
 
@@ -90,9 +97,29 @@ public sealed class DriveItem : ObservableObject
         _loading = null;
     }
 
-    private static DriveUsageLevel LevelFor(double ratio)
+    internal static string ShortName(string path)
     {
-        if (ratio > CriticalRatio)
+        var candidate = path.Trim();
+        var trimmed = candidate.TrimEnd(Separators);
+
+        if (trimmed.Length == 0)
+        {
+            return candidate;
+        }
+
+        if (IsVolumeRoot(candidate))
+        {
+            return trimmed;
+        }
+
+        var parts = trimmed.Split(Separators, StringSplitOptions.RemoveEmptyEntries);
+
+        return parts.Length > 0 ? parts[^1] : trimmed;
+    }
+
+    internal static DriveUsageLevel LevelFor(double ratio)
+    {
+        if (ratio >= CriticalRatio)
         {
             return DriveUsageLevel.Critical;
         }
@@ -163,11 +190,20 @@ public sealed class DriveItem : ObservableObject
             return trimmed;
         }
 
-        var parts = trimmed.Split(Separators, StringSplitOptions.RemoveEmptyEntries);
+        var root = System.IO.Path.GetPathRoot(trimmed) ?? string.Empty;
+        var parts = trimmed[root.Length..].Split(Separators, StringSplitOptions.RemoveEmptyEntries);
 
-        return parts.Length <= TitleSegments
-            ? trimmed
-            : $"…{System.IO.Path.DirectorySeparatorChar}{string.Join(System.IO.Path.DirectorySeparatorChar, parts[^TitleSegments..])}";
+        if (parts.Length <= TitleSegments)
+        {
+            return trimmed;
+        }
+
+        var separator = System.IO.Path.DirectorySeparatorChar;
+        var head = root.TrimEnd(Separators);
+
+        return head.Length > 0
+            ? $"{head}{separator}…{separator}{parts[^1]}"
+            : $"…{separator}{parts[^1]}";
     }
 
     private static DriveProbe Probe(string path, bool isDirectory)
