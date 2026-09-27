@@ -406,11 +406,6 @@ internal readonly record struct MftListEntry(uint Type, long Vcn, int Record)
 
 internal sealed class MftMemoryVolume(byte[] image) : IMftVolume
 {
-    public IMftVolume Reopen()
-    {
-        return new MftMemoryVolume(image);
-    }
-
     public void ReadAt(long offset, Span<byte> buffer)
     {
         if (offset < 0 || offset + buffer.Length > image.Length)
@@ -426,57 +421,35 @@ internal sealed class MftMemoryVolume(byte[] image) : IMftVolume
     }
 }
 
-internal sealed class MftCountingVolume(byte[] image, Action<int>? onRead = null, int failReopenAt = 0) : IMftVolume
+internal sealed class MftImageFile : IDisposable
+{
+    public string Path { get; } = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"SpaceSnoopMft_{Guid.NewGuid():N}.img");
+
+    public MftImageFile(byte[] image)
+    {
+        var padded = new byte[(image.Length + 4095) / 4096 * 4096];
+        image.CopyTo(padded, 0);
+        File.WriteAllBytes(Path, padded);
+    }
+
+    public void Dispose()
+    {
+        File.Delete(Path);
+    }
+}
+
+internal sealed class MftCountingVolume(byte[] image, Action<int>? onRead = null) : IMftVolume
 {
     private readonly MftMemoryVolume _image = new(image);
-    private readonly Action<int>? _onRead = onRead;
-    private int _reopened;
-    private int _closed;
     private int _reads;
-    private int _attempts;
-
-    public int Reopened => Volatile.Read(ref _reopened);
-
-    public int Closed => Volatile.Read(ref _closed);
-
-    public int Attempts => Volatile.Read(ref _attempts);
-
-    public IMftVolume Reopen()
-    {
-        if (Interlocked.Increment(ref _attempts) == failReopenAt)
-        {
-            throw new IOException("Том не открылся");
-        }
-
-        Interlocked.Increment(ref _reopened);
-        return new Replica(this);
-    }
 
     public void ReadAt(long offset, Span<byte> buffer)
     {
+        onRead?.Invoke(Interlocked.Increment(ref _reads));
         _image.ReadAt(offset, buffer);
     }
 
     public void Dispose()
     {
-    }
-
-    private sealed class Replica(MftCountingVolume owner) : IMftVolume
-    {
-        public IMftVolume Reopen()
-        {
-            return owner.Reopen();
-        }
-
-        public void ReadAt(long offset, Span<byte> buffer)
-        {
-            owner._onRead?.Invoke(Interlocked.Increment(ref owner._reads));
-            owner._image.ReadAt(offset, buffer);
-        }
-
-        public void Dispose()
-        {
-            Interlocked.Increment(ref owner._closed);
-        }
     }
 }

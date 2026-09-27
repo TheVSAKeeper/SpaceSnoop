@@ -182,7 +182,7 @@ internal static class MftReader
                 0,
                 blocks,
                 options,
-                () => workers.TryPop(out var idle) ? idle : MftWorker.Open(volume, blockRecords * recordSize, alignment),
+                () => workers.TryPop(out var idle) ? idle : new MftWorker(blockRecords * recordSize, alignment),
                 (block, _, worker) =>
                 {
                     var start = block * blockRecords;
@@ -190,7 +190,7 @@ internal static class MftReader
                     var part = new MftPart();
                     var buffer = worker.Buffer(count * recordSize);
 
-                    map.Read(worker.Volume, (long)start * recordSize, buffer);
+                    map.Read(volume, (long)start * recordSize, buffer);
 
                     for (var offset = 0; offset < count; offset++)
                     {
@@ -986,29 +986,11 @@ internal sealed class MftWorker : IDisposable
     private readonly GCHandle _pin;
     private readonly int _offset;
 
-    public IMftVolume Volume { get; }
-
-    public MftWorker(IMftVolume volume, int bytes, int alignment)
+    public MftWorker(int bytes, int alignment)
     {
-        Volume = volume;
         _data = new byte[bytes + alignment];
         _pin = GCHandle.Alloc(_data, GCHandleType.Pinned);
         _offset = (int)((alignment - _pin.AddrOfPinnedObject().ToInt64() % alignment) % alignment);
-    }
-
-    public static MftWorker Open(IMftVolume volume, int bytes, int alignment)
-    {
-        var replica = volume.Reopen();
-
-        try
-        {
-            return new(replica, bytes, alignment);
-        }
-        catch
-        {
-            replica.Dispose();
-            throw;
-        }
     }
 
     public Span<byte> Buffer(int bytes)
@@ -1019,7 +1001,6 @@ internal sealed class MftWorker : IDisposable
     public void Dispose()
     {
         _pin.Free();
-        Volume.Dispose();
     }
 }
 

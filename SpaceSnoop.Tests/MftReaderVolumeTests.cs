@@ -207,25 +207,9 @@ public class MftReaderVolumeTests
             () => MftReader.Read(new MftMemoryVolume(image), Letter, 4, 1024, null, cancel.Token));
     }
 
-    [Test]
-    public void Том_открывается_не_больше_раза_на_поток_за_чтение()
-    {
-        const int threads = 4;
-        var volume = new MftCountingVolume(new MftVolumeBuilder().Build(256), _ => Thread.Sleep(2));
-
-        var table = MftReader.Read(volume, Letter, threads, 1024, null, CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(table.Statistics.RecordsScanned, Is.EqualTo(256));
-            Assert.That(volume.Reopened, Is.InRange(1, threads));
-            Assert.That(volume.Closed, Is.EqualTo(volume.Reopened));
-        }
-    }
-
-    [TestCase(1, TestName = "Сбой чтения в один поток закрывает все дескрипторы тома")]
-    [TestCase(4, TestName = "Сбой чтения в четыре потока закрывает все дескрипторы тома")]
-    public void Сбой_чтения_закрывает_все_дескрипторы_тома(int threads)
+    [TestCase(1, TestName = "Сбой чтения в один поток выходит исходным исключением")]
+    [TestCase(4, TestName = "Сбой чтения в четыре потока выходит исходным исключением")]
+    public void Сбой_чтения_выходит_исходным_исключением(int threads)
     {
         var volume = new MftCountingVolume(new MftVolumeBuilder().Build(Records), read =>
         {
@@ -236,12 +220,11 @@ public class MftReaderVolumeTests
         });
 
         Assert.Throws<IOException>(() => MftReader.Read(volume, Letter, threads, 1024, null, CancellationToken.None));
-        Assert.That(volume.Closed, Is.EqualTo(volume.Reopened));
     }
 
-    [TestCase(1, TestName = "Отмена посреди чтения в один поток закрывает все дескрипторы тома")]
-    [TestCase(4, TestName = "Отмена посреди чтения в четыре потока закрывает все дескрипторы тома")]
-    public void Отмена_посреди_чтения_закрывает_все_дескрипторы_тома(int threads)
+    [TestCase(1, TestName = "Отмена посреди чтения в один поток выходит отменой")]
+    [TestCase(4, TestName = "Отмена посреди чтения в четыре потока выходит отменой")]
+    public void Отмена_посреди_чтения_выходит_отменой(int threads)
     {
         using var cancel = new CancellationTokenSource();
         var volume = new MftCountingVolume(new MftVolumeBuilder().Build(Records), read =>
@@ -253,21 +236,55 @@ public class MftReaderVolumeTests
         });
 
         Assert.Catch<OperationCanceledException>(() => MftReader.Read(volume, Letter, threads, 1024, null, cancel.Token));
-        Assert.That(volume.Closed, Is.EqualTo(volume.Reopened));
     }
 
-    [Test]
-    public void Отказ_открытия_тома_закрывает_уже_открытые_дескрипторы()
+    [TestCase(8, 4, 4, 1, TestName = "Том из файла с кластером 4 КБ читается в один поток как образ в памяти")]
+    [TestCase(8, 4, 4, 4, TestName = "Том из файла с кластером 4 КБ читается в четыре потока как образ в памяти")]
+    [TestCase(1, 33, 31, 4, TestName = "Том из файла с кластером 512 Б читается в четыре потока как образ в памяти")]
+    public void Том_из_файла_читается_как_образ_в_памяти(int sectorsPerCluster, int first, int second, int threads)
     {
-        MftCountingVolume volume = null!;
-        volume = new(new MftVolumeBuilder().Build(Records), _ => SpinWait.SpinUntil(() => volume.Attempts >= 2, 2000), failReopenAt: 2);
+        var image = new MftVolumeBuilder(sectorsPerCluster: sectorsPerCluster)
+            .Fragment(first)
+            .Fragment(second)
+            .SplitSelf(1, 15, listOutside: true)
+            .Record(20, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, "во-втором-экстенте.bin").ResidentData(48))
+            .Record(Records - 1, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, "последняя.bin").ResidentData(64))
+            .Build(Records);
 
-        Assert.Throws<IOException>(() => MftReader.Read(volume, Letter, 4, 1024, null, CancellationToken.None));
+        var expected = Read(image);
+        using var file = new MftImageFile(image);
+        using var volume = MftFileVolume.Open(file.Path, "T:");
+
+        var table = MftReader.Read(volume, Letter, threads, 4096, null, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(volume.Reopened, Is.GreaterThanOrEqualTo(1));
-            Assert.That(volume.Closed, Is.EqualTo(volume.Reopened));
+            Assert.That(table.Entries, Is.EqualTo(expected.Entries));
+            Assert.That(table.Entries[20].Name, Is.EqualTo("во-втором-экстенте.bin"));
+            Assert.That(table.Statistics.RecordsScanned, Is.EqualTo(Records));
+            Assert.That(table.Statistics.Damaged, Is.Zero);
+            Assert.That(volume.Downgraded, Is.False);
+        }
+    }
+
+    [TestCase(0, 512, TestName = "Том из файла отдаёт загрузочный сектор короче страницы")]
+    [TestCase(513, 100, TestName = "Том из файла отдаёт кусок с невыровненными смещением и длиной")]
+    [TestCase(4095, 2, TestName = "Том из файла отдаёт кусок через границу страницы")]
+    [TestCase(8192, 8192, TestName = "Том из файла отдаёт выровненный кусок")]
+    public void Том_из_файла_отдаёт_кусок_как_есть(int offset, int length)
+    {
+        var image = new MftVolumeBuilder().Build(Records);
+        Random.Shared.NextBytes(image.AsSpan(0, 16384));
+        using var file = new MftImageFile(image);
+        using var volume = MftFileVolume.Open(file.Path, "T:");
+        var buffer = new byte[length];
+
+        volume.ReadAt(offset, buffer);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(buffer, Is.EqualTo(image.AsSpan(offset, length).ToArray()));
+            Assert.That(volume.Downgraded, Is.False);
         }
     }
 
