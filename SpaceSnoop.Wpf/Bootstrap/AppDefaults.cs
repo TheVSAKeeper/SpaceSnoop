@@ -18,7 +18,7 @@ public static class AppDefaults
     public const bool ScanTreemapDefault = false;
     public const bool ScanRevealFilesDefault = false;
     public const bool ScanReleaseBeforeRescanDefault = true;
-    public const bool ScanReturnMemoryAfterScanDefault = true;
+    public const bool ScanReturnMemoryAfterScanDefault = false;
     public const long ScanMemoryReturnMinNodes = 200_000;
     public const int ScanMemoryReturnDelayMs = 500;
 

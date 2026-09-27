@@ -82,7 +82,7 @@ public class SettingsResetTests
                 store.SetBool(SettingsKeys.ScanMftEnabled, true);
                 store.SetBool(SettingsKeys.ScanMftRootOnly, false);
                 store.SetBool(SettingsKeys.ScanReleaseBeforeRescan, false);
-                store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, false);
+                store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, true);
             },
             (bench, store) =>
             {
@@ -481,7 +481,7 @@ public class SettingsResetTests
         store.SetBool(SettingsKeys.ScanMftEnabled, true);
         store.SetBool(SettingsKeys.ScanMftRootOnly, false);
         store.SetBool(SettingsKeys.ScanReleaseBeforeRescan, false);
-        store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, false);
+        store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, true);
 
         store.SetBool(SettingsKeys.SyncPathSuggest, false);
         store.SetBool(SettingsKeys.SyncRecycleOverwritten, false);

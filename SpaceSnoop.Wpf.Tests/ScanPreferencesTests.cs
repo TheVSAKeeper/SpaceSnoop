@@ -64,10 +64,10 @@ public class ScanPreferencesTests
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, null, true)]
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, "false", false)]
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, "true", true)]
-    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, null, true)]
+    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, null, false)]
     [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, "false", false)]
     [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, "true", true)]
-    public void Настройка_памяти_читается_из_настроек_и_по_умолчанию_включена(string key, string? stored, bool expected)
+    public void Настройка_памяти_читается_из_настроек_с_умолчанием(string key, string? stored, bool expected)
     {
         var settings = new MemorySettings();
 
@@ -81,9 +81,9 @@ public class ScanPreferencesTests
         Assert.That(ReadMemoryFlag(preferences, key), Is.EqualTo(expected));
     }
 
-    [TestCase(SettingsKeys.ScanReleaseBeforeRescan)]
-    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan)]
-    public void Выключенная_настройка_памяти_сохраняется(string key)
+    [TestCase(SettingsKeys.ScanReleaseBeforeRescan, false)]
+    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, true)]
+    public void Настройка_памяти_не_по_умолчанию_сохраняется(string key, bool value)
     {
         var settings = new MemorySettings();
         var preferences = new ScanPreferences(settings);
@@ -91,14 +91,14 @@ public class ScanPreferencesTests
         switch (key)
         {
             case SettingsKeys.ScanReleaseBeforeRescan:
-                preferences.ReleaseBeforeRescan = false;
+                preferences.ReleaseBeforeRescan = value;
                 break;
             case SettingsKeys.ScanReturnMemoryAfterScan:
-                preferences.ReturnMemoryAfterScan = false;
+                preferences.ReturnMemoryAfterScan = value;
                 break;
         }
 
-        Assert.That(ReadMemoryFlag(new ScanPreferences(settings), key), Is.False);
+        Assert.That(ReadMemoryFlag(new ScanPreferences(settings), key), Is.EqualTo(value));
     }
 
     private static bool ReadMemoryFlag(ScanPreferences preferences, string key)
