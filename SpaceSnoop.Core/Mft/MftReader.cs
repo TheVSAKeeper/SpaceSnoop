@@ -1,4 +1,5 @@
 ﻿using System.Buffers.Binary;
+using System.Collections.Concurrent;
 using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 
@@ -166,6 +167,8 @@ internal static class MftReader
         var blocks = (records + blockRecords - 1) / blockRecords;
         var parts = new MftPart[blocks];
         var completed = 0;
+        var alignment = Math.Max((int)bytesPerSector, BufferAlignment);
+        var workers = new ConcurrentStack<MftWorker>();
 
         var options = new ParallelOptions
         {
@@ -179,7 +182,7 @@ internal static class MftReader
                 0,
                 blocks,
                 options,
-                () => new MftWorker(volume.Reopen(), blockRecords * recordSize, Math.Max((int)bytesPerSector, BufferAlignment)),
+                () => workers.TryPop(out var idle) ? idle : MftWorker.Open(volume, blockRecords * recordSize, alignment),
                 (block, _, worker) =>
                 {
                     var start = block * blockRecords;
@@ -205,11 +208,18 @@ internal static class MftReader
 
                     return worker;
                 },
-                x => x.Dispose());
+                workers.Push);
         }
         catch (AggregateException exception)
         {
             ExceptionDispatchInfo.Capture(exception.Flatten().InnerExceptions[0]).Throw();
+        }
+        finally
+        {
+            foreach (var worker in workers)
+            {
+                worker.Dispose();
+            }
         }
 
         var pending = new MftPending();
@@ -984,6 +994,21 @@ internal sealed class MftWorker : IDisposable
         _data = new byte[bytes + alignment];
         _pin = GCHandle.Alloc(_data, GCHandleType.Pinned);
         _offset = (int)((alignment - _pin.AddrOfPinnedObject().ToInt64() % alignment) % alignment);
+    }
+
+    public static MftWorker Open(IMftVolume volume, int bytes, int alignment)
+    {
+        var replica = volume.Reopen();
+
+        try
+        {
+            return new(replica, bytes, alignment);
+        }
+        catch
+        {
+            replica.Dispose();
+            throw;
+        }
     }
 
     public Span<byte> Buffer(int bytes)

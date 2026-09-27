@@ -137,7 +137,7 @@ internal static class MftLayout
 
         try
         {
-            return DateTime.FromFileTimeUtc(fileTime).ToLocalTime();
+            return MftLocalTime.Local.FromFileTime(fileTime);
         }
         catch (ArgumentOutOfRangeException)
         {

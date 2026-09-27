@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using System.Runtime.InteropServices;
 
 namespace SpaceSnoop.Core.Mft;
 
@@ -153,8 +154,9 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
 
         progress?.SetTopLevelTotal(branches);
 
-        var stack = new Stack<(int Record, DirectorySpace Node, string Path)>();
-        var roots = FillDirectory(table, links, start, root, directory.FullName, totals, progress);
+        var stack = new Stack<(int Record, DirectorySpace Node)>();
+        var paths = new MftProgressPath(root, directory.FullName);
+        var roots = FillDirectory(table, links, start, root, paths, totals, progress);
 
         foreach (var branch in roots)
         {
@@ -164,9 +166,9 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
             {
                 cancel.ThrowIfCancellationRequested();
 
-                var (record, node, path) = stack.Pop();
+                var (record, node) = stack.Pop();
 
-                foreach (var child in FillDirectory(table, links, record, node, path, totals, progress))
+                foreach (var child in FillDirectory(table, links, record, node, paths, totals, progress))
                 {
                     stack.Push(child);
                 }
@@ -178,19 +180,19 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
         return root;
     }
 
-    private static List<(int Record, DirectorySpace Node, string Path)> FillDirectory(
+    private static List<(int Record, DirectorySpace Node)> FillDirectory(
         MftTable table,
         MftLinks links,
         int record,
         DirectorySpace node,
-        string path,
+        MftProgressPath paths,
         MftSubtreeTotals totals,
         ScanProgress? progress)
     {
-        progress?.EnterDirectory(path);
+        progress?.EnterDirectory(paths.For(node));
 
         var entries = table.Entries;
-        var children = new List<(int, DirectorySpace, string)>();
+        var children = new List<(int, DirectorySpace)>();
         var files = 0;
 
         for (var child = links.FirstChild[record]; child >= 0; child = links.NextSibling[child])
@@ -208,7 +210,7 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
             {
                 var subDirectory = new DirectorySpace(entry.Name!, node, entry.CreationTime, entry.LastAccessTime);
                 node.AddScannedDirectory(subDirectory);
-                children.Add((child, subDirectory, Path.Join(path, entry.Name)));
+                children.Add((child, subDirectory));
                 continue;
             }
 
@@ -225,6 +227,49 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
         progress?.AddFiles(files, node.Size);
 
         return children;
+    }
+}
+
+internal sealed class MftProgressPath(DirectorySpace root, string rootPath)
+{
+    private const long RefreshMilliseconds = 50;
+
+    private readonly List<string?> _segments = [];
+    private string _current = rootPath;
+    private long _due;
+
+    public string For(DirectorySpace node)
+    {
+        var now = Environment.TickCount64;
+
+        if (now < _due)
+        {
+            return _current;
+        }
+
+        _due = now + RefreshMilliseconds;
+        _current = Build(node);
+        return _current;
+    }
+
+    private string Build(DirectorySpace node)
+    {
+        _segments.Clear();
+
+        for (SpaceBase? current = node; current is not null && !ReferenceEquals(current, root); current = current.Parent)
+        {
+            _segments.Add(current.Name);
+        }
+
+        if (_segments.Count == 0)
+        {
+            return rootPath;
+        }
+
+        _segments.Add(rootPath);
+        _segments.Reverse();
+
+        return Path.Join(CollectionsMarshal.AsSpan(_segments));
     }
 }
 
