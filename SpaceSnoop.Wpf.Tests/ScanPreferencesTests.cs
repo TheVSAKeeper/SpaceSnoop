@@ -61,6 +61,56 @@ public class ScanPreferencesTests
         Assert.That(preferences.MftRootOnly, Is.EqualTo(expected));
     }
 
+    [TestCase(SettingsKeys.ScanReleaseBeforeRescan, null, true)]
+    [TestCase(SettingsKeys.ScanReleaseBeforeRescan, "false", false)]
+    [TestCase(SettingsKeys.ScanReleaseBeforeRescan, "true", true)]
+    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, null, true)]
+    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, "false", false)]
+    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, "true", true)]
+    public void Настройка_памяти_читается_из_настроек_и_по_умолчанию_включена(string key, string? stored, bool expected)
+    {
+        var settings = new MemorySettings();
+
+        if (stored is not null)
+        {
+            settings.SetValue(key, stored);
+        }
+
+        var preferences = new ScanPreferences(settings);
+
+        Assert.That(ReadMemoryFlag(preferences, key), Is.EqualTo(expected));
+    }
+
+    [TestCase(SettingsKeys.ScanReleaseBeforeRescan)]
+    [TestCase(SettingsKeys.ScanReturnMemoryAfterScan)]
+    public void Выключенная_настройка_памяти_сохраняется(string key)
+    {
+        var settings = new MemorySettings();
+        var preferences = new ScanPreferences(settings);
+
+        switch (key)
+        {
+            case SettingsKeys.ScanReleaseBeforeRescan:
+                preferences.ReleaseBeforeRescan = false;
+                break;
+            case SettingsKeys.ScanReturnMemoryAfterScan:
+                preferences.ReturnMemoryAfterScan = false;
+                break;
+        }
+
+        Assert.That(ReadMemoryFlag(new ScanPreferences(settings), key), Is.False);
+    }
+
+    private static bool ReadMemoryFlag(ScanPreferences preferences, string key)
+    {
+        return key switch
+        {
+            SettingsKeys.ScanReleaseBeforeRescan => preferences.ReleaseBeforeRescan,
+            SettingsKeys.ScanReturnMemoryAfterScan => preferences.ReturnMemoryAfterScan,
+            _ => throw new ArgumentOutOfRangeException(nameof(key), key, null),
+        };
+    }
+
     [Test]
     public void Число_потоков_выше_потолка_урезается()
     {

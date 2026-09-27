@@ -74,6 +74,18 @@ internal static partial class AppLog
         Message = "Обход по $MFT настройкой разрешён только для диска целиком, «{Path}» идёт каталогами")]
     public static partial void MftSkippedForSubdirectory(this ILogger logger, string path);
 
+    [LoggerMessage(EventId = 1014, Level = LogLevel.Information,
+        Message = "Прежний результат «{Path}» снят до повторного скана, сборка {CollectMs} мс")]
+    public static partial void ScanPreviousReleased(this ILogger logger, string path, long collectMs);
+
+    [LoggerMessage(EventId = 1015, Level = LogLevel.Information,
+        Message = "Прежний результат «{Path}» оставлен до конца скана: в нём есть пометки на удаление")]
+    public static partial void ScanPreviousKeptForMarks(this ILogger logger, string path);
+
+    [LoggerMessage(EventId = 1016, Level = LogLevel.Debug,
+        Message = "Память после скана возвращена системе за {ElapsedMs} мс: куча {HeapBytes} Б, занято у ОС {CommittedBytes} Б")]
+    public static partial void ScanMemoryReturned(this ILogger logger, long elapsedMs, long heapBytes, long committedBytes);
+
     [LoggerMessage(EventId = 1100, Level = LogLevel.Information,
         Message = "Старт удаления {Run}: {Count} элемент(ов), {BytesText} (безвозвратно: {Permanent})")]
     public static partial void DeletionStarted(this ILogger logger, string run, int count, string bytesText, bool permanent);

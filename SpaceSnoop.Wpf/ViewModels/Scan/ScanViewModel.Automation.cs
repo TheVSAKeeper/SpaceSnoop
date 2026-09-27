@@ -133,6 +133,8 @@ public sealed partial class ScanViewModel : IScanAutomation
                 + ScanDropNote.Explain(notes.DroppedObjects, notes.DroppedBytes, notes.UnknownSizeFiles, notes.PartialRecords),
                 StatusSeverity.Warning);
         }
+
+        ReturnScanMemory(result);
     }
 
     internal SpaceBase? FindForAutomation(string path)

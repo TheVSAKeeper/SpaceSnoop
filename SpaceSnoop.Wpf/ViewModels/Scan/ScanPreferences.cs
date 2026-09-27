@@ -27,6 +27,12 @@ public sealed partial class ScanPreferences : ObservableObject
     [ObservableProperty]
     private bool _mftRootOnly = AppDefaults.ScanMftRootOnlyDefault;
 
+    [ObservableProperty]
+    private bool _releaseBeforeRescan = AppDefaults.ScanReleaseBeforeRescanDefault;
+
+    [ObservableProperty]
+    private bool _returnMemoryAfterScan = AppDefaults.ScanReturnMemoryAfterScanDefault;
+
     public ScanPreferences(ISettingsStore settings)
     {
         _settings = settings;
@@ -42,6 +48,8 @@ public sealed partial class ScanPreferences : ObservableObject
         RevealFiles = _settings.GetBool(SettingsKeys.ScanRevealFiles, AppDefaults.ScanRevealFilesDefault);
         MftEnabled = _settings.GetBool(SettingsKeys.ScanMftEnabled, AppDefaults.ScanMftEnabledDefault);
         MftRootOnly = _settings.GetBool(SettingsKeys.ScanMftRootOnly, AppDefaults.ScanMftRootOnlyDefault);
+        ReleaseBeforeRescan = _settings.GetBool(SettingsKeys.ScanReleaseBeforeRescan, AppDefaults.ScanReleaseBeforeRescanDefault);
+        ReturnMemoryAfterScan = _settings.GetBool(SettingsKeys.ScanReturnMemoryAfterScan, AppDefaults.ScanReturnMemoryAfterScanDefault);
         _suppressPersist = false;
 
         if (storedParallelism != MaxParallelism)
@@ -137,6 +145,22 @@ public sealed partial class ScanPreferences : ObservableObject
         if (!_suppressPersist)
         {
             _settings.SetBool(SettingsKeys.ScanMftRootOnly, value);
+        }
+    }
+
+    partial void OnReleaseBeforeRescanChanged(bool value)
+    {
+        if (!_suppressPersist)
+        {
+            _settings.SetBool(SettingsKeys.ScanReleaseBeforeRescan, value);
+        }
+    }
+
+    partial void OnReturnMemoryAfterScanChanged(bool value)
+    {
+        if (!_suppressPersist)
+        {
+            _settings.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, value);
         }
     }
 }

@@ -141,10 +141,47 @@ internal static class ScanTreeEditor
 
         for (var i = roots.Count - 1; i >= 0; i--)
         {
-            if (string.Equals(NormalizePath(roots[i].AbsolutePath), normalized, StringComparison.OrdinalIgnoreCase))
+            if (IsRootOf(roots[i], normalized))
             {
                 roots.RemoveAt(i);
             }
         }
+    }
+
+    internal static List<ScanNodeViewModel> ReleaseUnmarkedRoot(
+        ObservableCollection<ScanNodeViewModel> roots,
+        string path,
+        bool marksPresent,
+        out bool keptMarked)
+    {
+        var normalized = NormalizePath(path);
+        var released = new List<ScanNodeViewModel>();
+        keptMarked = false;
+
+        for (var i = roots.Count - 1; i >= 0; i--)
+        {
+            var root = roots[i];
+
+            if (!IsRootOf(root, normalized))
+            {
+                continue;
+            }
+
+            if (marksPresent && root.Space is { } space && HasMarkedSelfOrChild(space))
+            {
+                keptMarked = true;
+                continue;
+            }
+
+            roots.RemoveAt(i);
+            released.Add(root);
+        }
+
+        return released;
+    }
+
+    private static bool IsRootOf(ScanNodeViewModel root, string normalizedPath)
+    {
+        return string.Equals(NormalizePath(root.AbsolutePath), normalizedPath, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -159,6 +159,53 @@
             </Expander>
 
             <Grid Margin="0,16,0,0"
+                  settings:SettingsBlock.Key="memory">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Content="Освобождать прежний результат перед повторным сканом"
+                          IsChecked="{Binding Scan.ReleaseBeforeRescan, Mode=TwoWay}"
+                          VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Style="{StaticResource Form.RowReset}"
+                        DataContext="{Binding ResetFields[wpf.scan.release_before_rescan]}"
+                        Command="{Binding ResetCommand}"
+                        ToolTip="{Binding Hint}"
+                        AutomationProperties.Name="{Binding AutomationName}" />
+            </Grid>
+            <TextBlock Style="{StaticResource Form.CheckHint}"
+                       Text="Два дерева одной папки в памяти не держатся, но на время скана результат пропадает с экрана." />
+            <Expander Style="{StaticResource Setting.Details}"
+                      Header="Что будет при отмене и с пометками">
+                <TextBlock Style="{StaticResource Setting.DetailsBody}"
+                           Text="Прежнее дерево той же папки снимается в начале скана, а не в конце, поэтому пик памяти меньше на целое дерево – на диске целиком это сотни мегабайт. Отменили скан или он упал – результата у папки не будет, пока не просканируете её снова. Дерево с пометками на удаление не снимается никогда: оно остаётся на экране до конца скана, как при выключенной настройке." />
+            </Expander>
+
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Content="Возвращать память системе после скана"
+                          IsChecked="{Binding Scan.ReturnMemoryAfterScan, Mode=TwoWay}"
+                          VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Style="{StaticResource Form.RowReset}"
+                        DataContext="{Binding ResetFields[wpf.scan.return_memory_after_scan]}"
+                        Command="{Binding ResetCommand}"
+                        ToolTip="{Binding Hint}"
+                        AutomationProperties.Name="{Binding AutomationName}" />
+            </Grid>
+            <TextBlock Style="{StaticResource Form.CheckHint}"
+                       Text="Другим программам достанется больше памяти, но после скана большого диска окно может на секунду замереть." />
+            <Expander Style="{StaticResource Setting.Details}"
+                      Header="Когда галку стоит снять">
+                <TextBlock Style="{StaticResource Setting.DetailsBody}"
+                           Text="После скана диска целиком приложение отдаёт системе память, которую занимал сам обход, – в простое оно занимает на сотни мегабайт меньше. На это уходит от половины секунды до секунды, и всё это время окно не отвечает. Если замирание мешает, а памяти на компьютере хватает, выключите: результат скана от этого не меняется. Небольшие папки настройка не затрагивает." />
+            </Expander>
+
+            <Grid Margin="0,16,0,0"
                   settings:SettingsBlock.Key="view">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

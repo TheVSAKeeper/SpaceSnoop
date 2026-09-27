@@ -81,6 +81,8 @@ public class SettingsResetTests
                 store.SetBool(SettingsKeys.ScanRevealFiles, true);
                 store.SetBool(SettingsKeys.ScanMftEnabled, true);
                 store.SetBool(SettingsKeys.ScanMftRootOnly, false);
+                store.SetBool(SettingsKeys.ScanReleaseBeforeRescan, false);
+                store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, false);
             },
             (bench, store) =>
             {
@@ -93,6 +95,8 @@ public class SettingsResetTests
                 Assert.That(scan.RevealFiles, Is.EqualTo(AppDefaults.ScanRevealFilesDefault));
                 Assert.That(scan.MftEnabled, Is.EqualTo(AppDefaults.ScanMftEnabledDefault));
                 Assert.That(scan.MftRootOnly, Is.EqualTo(AppDefaults.ScanMftRootOnlyDefault));
+                Assert.That(scan.ReleaseBeforeRescan, Is.EqualTo(AppDefaults.ScanReleaseBeforeRescanDefault));
+                Assert.That(scan.ReturnMemoryAfterScan, Is.EqualTo(AppDefaults.ScanReturnMemoryAfterScanDefault));
 
                 Assert.That(store.GetBool(SettingsKeys.ScanMultithreading), Is.EqualTo(AppDefaults.ScanMultithreadingDefault));
                 Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 1), Is.EqualTo(scan.ParallelismCeiling));
@@ -101,6 +105,8 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.ScanRevealFiles), Is.EqualTo(AppDefaults.ScanRevealFilesDefault));
                 Assert.That(store.GetBool(SettingsKeys.ScanMftEnabled), Is.EqualTo(AppDefaults.ScanMftEnabledDefault));
                 Assert.That(store.GetBool(SettingsKeys.ScanMftRootOnly), Is.EqualTo(AppDefaults.ScanMftRootOnlyDefault));
+                Assert.That(store.GetBool(SettingsKeys.ScanReleaseBeforeRescan), Is.EqualTo(AppDefaults.ScanReleaseBeforeRescanDefault));
+                Assert.That(store.GetBool(SettingsKeys.ScanReturnMemoryAfterScan), Is.EqualTo(AppDefaults.ScanReturnMemoryAfterScanDefault));
             }),
 
         new("sync",
@@ -474,6 +480,8 @@ public class SettingsResetTests
         store.SetBool(SettingsKeys.ScanRevealFiles, true);
         store.SetBool(SettingsKeys.ScanMftEnabled, true);
         store.SetBool(SettingsKeys.ScanMftRootOnly, false);
+        store.SetBool(SettingsKeys.ScanReleaseBeforeRescan, false);
+        store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, false);
 
         store.SetBool(SettingsKeys.SyncPathSuggest, false);
         store.SetBool(SettingsKeys.SyncRecycleOverwritten, false);
