@@ -209,9 +209,9 @@ public sealed partial class ScanProgressViewModel : ObservableObject
             {
                 ScanCurrentPath = snapshot.CurrentPath;
             }
-
-            ScanShowsStage = snapshot.IsStage;
         }
+
+        ScanShowsStage = snapshot.IsStage;
 
         ScanDirCountText = snapshot.DirectoriesScanned.ToString("N0");
         ScanFileCountText = snapshot.FilesScanned.ToString("N0");
