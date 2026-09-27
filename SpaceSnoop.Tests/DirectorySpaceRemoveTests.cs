@@ -148,6 +148,33 @@ public class DirectorySpaceRemoveTests
             "После удаления всех файлов TotalSize == 0");
     }
 
+    [TestCase(0)]
+    [TestCase(1)]
+    [TestCase(2)]
+    public void Remove_FileAtAnyPosition_KeepsOtherFilesInOrder(int index)
+    {
+        var parentDir = new DirectoryInfo(_tempDir);
+        var parent = new DirectorySpace(parentDir.Name, null, parentDir.CreationTime, parentDir.LastAccessTime);
+        var files = new[] { "a.bin", "b.bin", "c.bin" }.Select(x =>
+        {
+            var path = Path.Combine(_tempDir, x);
+            File.WriteAllBytes(path, new byte[10]);
+            return new FileInfo(path);
+        }).ToArray();
+
+        parent.AddFiles(files.AsSpan());
+        var expected = parent.Files.Where((_, i) => i != index).ToArray();
+
+        parent.Remove(parent.Files[index]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parent.Files, Is.EqualTo(expected));
+            Assert.That(parent.TotalFileCount, Is.EqualTo(2));
+            Assert.That(parent.TotalSize, Is.EqualTo(20));
+        }
+    }
+
     [Test]
     public void Remove_StopsAtSyntheticParent_CreatedByFixAbsolutePath()
     {

@@ -34,7 +34,9 @@ public sealed class ScanProgress
     /// <summary>
     /// Отмечает вход в каталог: увеличивает счётчик пройденных каталогов и запоминает текущий путь.
     /// </summary>
-    /// <param name="fullName">Полный путь обрабатываемого каталога.</param>
+    /// <param name="fullName">
+    /// Полный путь обрабатываемого каталога; префикс <c>\\?\</c> обхода срез <see cref="CreateSnapshot" /> отрезает.
+    /// </param>
     public void EnterDirectory(string fullName)
     {
         Interlocked.Increment(ref _directoriesScanned);
@@ -121,7 +123,7 @@ public sealed class ScanProgress
             Interlocked.Read(ref _bytesScanned),
             Volatile.Read(ref _topLevelTotal),
             Volatile.Read(ref _topLevelCompleted),
-            current as string ?? ((Stage)current).Text,
+            current is string path ? DiskSpaceCalculator.FromEnumerationPath(path) : ((Stage)current).Text,
             current is Stage);
     }
 

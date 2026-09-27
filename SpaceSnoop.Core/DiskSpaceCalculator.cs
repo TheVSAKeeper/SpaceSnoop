@@ -45,13 +45,14 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     {
         var root = CreateRoot(directory);
         var children = new List<ScanChild>();
+        var files = new List<FileSpace>();
 
-        ReadDirectory(directory.FullName, root, progress, cancel, children);
+        ReadDirectory(ToEnumerationPath(directory.FullName), root, progress, cancel, children, files);
         progress?.SetTopLevelTotal(children.Count);
 
         foreach (var child in children)
         {
-            ScanRecursive(child, progress, cancel);
+            ScanRecursive(child, files, progress, cancel);
             progress?.CompleteTopLevel();
         }
 
@@ -105,7 +106,7 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     {
         var root = CreateRoot(directory);
 
-        ScanParallel(directory.FullName, root, Math.Max(1, maxDegreeOfParallelism), progress, cancel);
+        ScanParallel(ToEnumerationPath(directory.FullName), root, Math.Max(1, maxDegreeOfParallelism), progress, cancel);
 
         root.AggregateTotals();
         root.FixAbsolutePath(directory);
@@ -133,9 +134,21 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
             : string.Concat(@"\\?\", path);
     }
 
+    internal static string FromEnumerationPath(string path)
+    {
+        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
+        {
+            return string.Concat(@"\\", path.AsSpan(8));
+        }
+
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) && Path.IsPathFullyQualified(path.AsSpan(4))
+            ? path[4..]
+            : path;
+    }
+
     private static FileSystemEnumerable<ScanEntry> Enumerate(string path)
     {
-        return new(ToEnumerationPath(path),
+        return new(path,
             static (ref FileSystemEntry entry) => new ScanEntry(entry.FileName.ToString(),
                 entry.Length,
                 entry.CreationTimeUtc.LocalDateTime,
@@ -150,15 +163,15 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         return exception is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or NotSupportedException;
     }
 
-    private void ScanRecursive(ScanChild item, ScanProgress? progress, CancellationToken cancel)
+    private void ScanRecursive(ScanChild item, List<FileSpace> files, ScanProgress? progress, CancellationToken cancel)
     {
         var children = new List<ScanChild>();
 
-        ReadDirectory(item.Path, item.Node, progress, cancel, children);
+        ReadDirectory(item.Path, item.Node, progress, cancel, children, files);
 
         foreach (var child in children)
         {
-            ScanRecursive(child, progress, cancel);
+            ScanRecursive(child, files, progress, cancel);
         }
     }
 
@@ -201,13 +214,14 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     private void Work(ScanRun run, ScanProgress? progress, CancellationToken cancel)
     {
         var children = new List<ScanChild>();
+        var files = new List<FileSpace>();
 
         try
         {
             foreach (var item in run.Queue.GetConsumingEnumerable(run.Token))
             {
                 children.Clear();
-                ReadDirectory(item.Path, item.Node, progress, cancel, children);
+                ReadDirectory(item.Path, item.Node, progress, cancel, children, files);
 
                 run.Expect(children.Count);
 
@@ -239,12 +253,19 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         }
     }
 
-    private void ReadDirectory(string path, DirectorySpace node, ScanProgress? progress, CancellationToken cancel, List<ScanChild> children)
+    private void ReadDirectory(
+        string path,
+        DirectorySpace node,
+        ScanProgress? progress,
+        CancellationToken cancel,
+        List<ScanChild> children,
+        List<FileSpace> files)
     {
         cancel.ThrowIfCancellationRequested();
         progress?.EnterDirectory(path);
 
-        var files = 0;
+        var first = children.Count;
+        files.Clear();
 
         try
         {
@@ -258,32 +279,37 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
 
                     if (ReparsePoint.IsLink(linkPath, whenUnknown: entry.IsDirectory))
                     {
-                        _log.ScanReparsePointSkipped(linkPath);
+                        _log.ScanReparsePointSkipped(FromEnumerationPath(linkPath));
                         continue;
                     }
                 }
 
                 if (!entry.IsDirectory)
                 {
-                    node.AddScannedFile(entry);
-                    files++;
+                    files.Add(FileSpace.Create(entry, node));
                     continue;
                 }
 
                 var child = new DirectorySpace(entry.Name, node, entry.CreationTime, entry.LastAccessTime);
-                node.AddScannedDirectory(child);
                 children.Add(new(Path.Join(path, entry.Name), child));
             }
         }
         catch (Exception exception) when (IsTraversalError(exception))
         {
-            _log.ScanDirectorySkipped(exception, path);
+            _log.ScanDirectorySkipped(exception, FromEnumerationPath(path));
             node.Error();
             progress?.FailDirectory();
         }
 
-        node.SealFiles();
-        progress?.AddFiles(files, node.Size);
+        var subDirectories = children.Count == first ? [] : new DirectorySpace[children.Count - first];
+
+        for (var i = 0; i < subDirectories.Length; i++)
+        {
+            subDirectories[i] = children[first + i].Node;
+        }
+
+        node.SetScanned(files, subDirectories);
+        progress?.AddFiles(files.Count, node.Size);
     }
 
     private readonly record struct ScanChild(string Path, DirectorySpace Node, ScanBranch? Branch = null);

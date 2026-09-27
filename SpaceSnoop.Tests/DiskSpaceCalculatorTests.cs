@@ -373,6 +373,24 @@ public class DiskSpaceCalculatorTests
         Assert.That(DiskSpaceCalculator.ToEnumerationPath(path), Is.EqualTo(expected));
     }
 
+    [TestCase(@"C:\")]
+    [TestCase(@"C:\Windows\servicing\Package~31bf3856ad364e35~amd64")]
+    [TestCase(@"\\server\share\dir")]
+    [TestCase(@"dir\sub")]
+    [TestCase(@"C:/dir/sub")]
+    public void FromEnumerationPath_RestoresPathGivenToEnumeration(string path)
+    {
+        Assert.That(DiskSpaceCalculator.FromEnumerationPath(DiskSpaceCalculator.ToEnumerationPath(path)), Is.EqualTo(path));
+    }
+
+    [TestCase(@"\\?\Volume{0b1c2d3e-0000-0000-0000-100000000000}\dir")]
+    [TestCase(@"\\.\C:\dir")]
+    [TestCase(@"\??\C:\dir")]
+    public void FromEnumerationPath_KeepsDevicePaths(string path)
+    {
+        Assert.That(DiskSpaceCalculator.FromEnumerationPath(path), Is.EqualTo(path));
+    }
+
     [TestCase(true)]
     [TestCase(false)]
     public void Calculate_KeepsTildePathsInTreeAndProgress(bool multithreaded)

@@ -156,7 +156,8 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
 
         var stack = new Stack<(int Record, DirectorySpace Node)>();
         var paths = new MftProgressPath(root, directory.FullName);
-        var roots = FillDirectory(table, links, start, root, paths, totals, progress);
+        var files = new List<FileSpace>();
+        var roots = FillDirectory(table, links, start, root, paths, totals, files, progress);
 
         foreach (var branch in roots)
         {
@@ -168,7 +169,7 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
 
                 var (record, node) = stack.Pop();
 
-                foreach (var child in FillDirectory(table, links, record, node, paths, totals, progress))
+                foreach (var child in FillDirectory(table, links, record, node, paths, totals, files, progress))
                 {
                     stack.Push(child);
                 }
@@ -187,13 +188,14 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
         DirectorySpace node,
         MftProgressPath paths,
         MftSubtreeTotals totals,
+        List<FileSpace> files,
         ScanProgress? progress)
     {
         progress?.EnterDirectory(paths.For(node));
 
         var entries = table.Entries;
         var children = new List<(int, DirectorySpace)>();
-        var files = 0;
+        files.Clear();
 
         for (var child = links.FirstChild[record]; child >= 0; child = links.NextSibling[child])
         {
@@ -208,9 +210,7 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
 
             if (entry.IsDirectory)
             {
-                var subDirectory = new DirectorySpace(entry.Name!, node, entry.CreationTime, entry.LastAccessTime);
-                node.AddScannedDirectory(subDirectory);
-                children.Add((child, subDirectory));
+                children.Add((child, new DirectorySpace(entry.Name!, node, entry.CreationTime, entry.LastAccessTime)));
                 continue;
             }
 
@@ -219,12 +219,18 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
                 totals.UnknownSizeFiles++;
             }
 
-            node.AddScannedFile(new(entry.Name!, entry.Size, entry.CreationTime, entry.LastAccessTime, FileAttributes.Normal, false));
-            files++;
+            files.Add(FileSpace.Create(new ScanEntry(entry.Name!, entry.Size, entry.CreationTime, entry.LastAccessTime, FileAttributes.Normal, false), node));
         }
 
-        node.SealFiles();
-        progress?.AddFiles(files, node.Size);
+        var subDirectories = children.Count == 0 ? [] : new DirectorySpace[children.Count];
+
+        for (var i = 0; i < subDirectories.Length; i++)
+        {
+            subDirectories[i] = children[i].Item2;
+        }
+
+        node.SetScanned(files, subDirectories);
+        progress?.AddFiles(files.Count, node.Size);
 
         return children;
     }
