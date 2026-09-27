@@ -117,9 +117,25 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         return new(directory.Name, null, directory.CreationTime, directory.LastAccessTime);
     }
 
+    internal static string ToEnumerationPath(string path)
+    {
+        if (!Path.IsPathFullyQualified(path)
+            || path.Contains('/')
+            || path.StartsWith(@"\\?\", StringComparison.Ordinal)
+            || path.StartsWith(@"\\.\", StringComparison.Ordinal)
+            || path.StartsWith(@"\??\", StringComparison.Ordinal))
+        {
+            return path;
+        }
+
+        return path.StartsWith(@"\\", StringComparison.Ordinal)
+            ? string.Concat(@"\\?\UNC\", path.AsSpan(2))
+            : string.Concat(@"\\?\", path);
+    }
+
     private static FileSystemEnumerable<ScanEntry> Enumerate(string path)
     {
-        return new(path,
+        return new(ToEnumerationPath(path),
             static (ref FileSystemEntry entry) => new ScanEntry(entry.FileName.ToString(),
                 entry.Length,
                 entry.CreationTimeUtc.LocalDateTime,

@@ -333,6 +333,127 @@ public class DiskSpaceCalculatorTests
         }
     }
 
+    [TestCase(@"C:\", @"\\?\C:\")]
+    [TestCase(@"C:\Windows\servicing\Package~31bf3856ad364e35~amd64", @"\\?\C:\Windows\servicing\Package~31bf3856ad364e35~amd64")]
+    [TestCase(@"\\server\share\dir", @"\\?\UNC\server\share\dir")]
+    [TestCase(@"\\?\C:\dir", @"\\?\C:\dir")]
+    [TestCase(@"\\?\UNC\server\share\dir", @"\\?\UNC\server\share\dir")]
+    [TestCase(@"\\.\C:\dir", @"\\.\C:\dir")]
+    [TestCase(@"\??\C:\dir", @"\??\C:\dir")]
+    [TestCase(@"dir\sub", @"dir\sub")]
+    [TestCase(@"C:dir", @"C:dir")]
+    [TestCase(@"C:/dir/sub", @"C:/dir/sub")]
+    public void ToEnumerationPath_PrefixesOnlyNormalizedFullPaths(string path, string expected)
+    {
+        Assert.That(DiskSpaceCalculator.ToEnumerationPath(path), Is.EqualTo(expected));
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Calculate_KeepsTildePathsInTreeAndProgress(bool multithreaded)
+    {
+        var root = Path.Combine(_tempDir, "servicing");
+        var package = Path.Combine(root, "Package~31bf3856ad364e35~amd64~~10.0.1");
+        Directory.CreateDirectory(package);
+        File.WriteAllText(Path.Combine(package, "update~1.mum"), new string('u', 800));
+
+        var calculator = new DiskSpaceCalculator();
+        var progress = new ScanProgress();
+
+        var result = multithreaded
+            ? calculator.CalculateMultithreaded(new(root), 4, progress, CancellationToken.None)
+            : calculator.Calculate(new(root), progress, CancellationToken.None);
+
+        var directory = result.SubDirectories.Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.TotalSize, Is.EqualTo(800));
+            Assert.That(directory.AbsolutePath, Is.EqualTo(package));
+            Assert.That(directory.Files.Single().AbsolutePath, Is.EqualTo(Path.Combine(package, "update~1.mum")));
+            Assert.That(progress.CreateSnapshot().CurrentPath, Is.EqualTo(package));
+        }
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Calculate_KeepsUncPathsInTree(bool multithreaded)
+    {
+        var unc = $@"\\localhost\{_tempDir[0]}${_tempDir[2..]}";
+        Assume.That(Directory.Exists(unc), Is.True, "Административная шара localhost недоступна");
+
+        var calculator = new DiskSpaceCalculator();
+
+        var result = multithreaded
+            ? calculator.CalculateMultithreaded(new(unc), 4, CancellationToken.None)
+            : calculator.Calculate(new(unc), CancellationToken.None);
+
+        var file = result.SubDirectories.Single(x => x.Name == "sub").Files.Single(x => x.Name == "d.txt");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.TotalSize, Is.EqualTo(1500));
+            Assert.That(result.TotalFileCount, Is.EqualTo(5));
+            Assert.That(result.AbsolutePath, Is.EqualTo(unc));
+            Assert.That(file.AbsolutePath, Is.EqualTo(Path.Combine(unc, "sub", "d.txt")));
+        }
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Calculate_KeepsCallerExtendedPrefix(bool multithreaded)
+    {
+        var extended = @"\\?\" + _tempDir;
+        var calculator = new DiskSpaceCalculator();
+
+        var result = multithreaded
+            ? calculator.CalculateMultithreaded(new(extended), 4, CancellationToken.None)
+            : calculator.Calculate(new(extended), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.TotalSize, Is.EqualTo(1500));
+            Assert.That(result.TotalFileCount, Is.EqualTo(5));
+            Assert.That(result.AbsolutePath, Is.EqualTo(extended));
+        }
+    }
+
+    [TestCase(true, "dotted.")]
+    [TestCase(false, "dotted.")]
+    [TestCase(true, "spaced ")]
+    [TestCase(false, "spaced ")]
+    public void Calculate_ReadsDirectoryWithTrailingDotOrSpace(bool multithreaded, string name)
+    {
+        var odd = @"\\?\" + Path.Combine(_tempDir, name);
+        var file = Path.Combine(odd, "g.txt");
+        Directory.CreateDirectory(odd);
+        File.WriteAllText(file, new string('g', 900));
+
+        try
+        {
+            var calculator = new DiskSpaceCalculator();
+
+            var result = multithreaded
+                ? calculator.CalculateMultithreaded(new(_tempDir), 4, CancellationToken.None)
+                : calculator.Calculate(new(_tempDir), CancellationToken.None);
+
+            var node = result.SubDirectories.Single(x => x.Name == name);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(node.State, Is.Not.EqualTo(SpaceState.Error));
+                Assert.That(node.TotalSize, Is.EqualTo(900));
+                Assert.That(result.TotalSize, Is.EqualTo(2400));
+                Assert.That(result.TotalFileCount, Is.EqualTo(6));
+            }
+        }
+        finally
+        {
+            File.Delete(file);
+            Directory.Delete(odd);
+        }
+    }
+
     [Test]
     public void ScanProgressSnapshot_FractionIsNull_WhenTopLevelUnknown()
     {
