@@ -53,4 +53,45 @@ public class ScanProgressTests
 
         Assert.That(ScanProgressViewModel.EstimateTotalBytes(new($@"{free}:\")), Is.Null);
     }
+
+    [Test]
+    public void Строка_фазы_идёт_мимо_пути_и_не_переприсваивается_на_каждом_тике()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var viewModel = new ScanProgressViewModel(new(TestDiagnostics.Monitor()), dispatcher);
+        var timer = dispatcher.Timers.Single();
+        var progress = viewModel.Begin(new(Path.GetTempPath()), @"C:\", 1);
+        var stageNotifications = 0;
+
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScanProgressViewModel.ScanStageText))
+            {
+                stageNotifications++;
+            }
+        };
+
+        progress.Announce("Чтение $MFT тома C: 40 %");
+        timer.Tick();
+        timer.Tick();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(viewModel.ScanShowsStage, Is.True);
+            Assert.That(viewModel.ScanStageText, Is.EqualTo("Чтение $MFT тома C: 40 %"));
+            Assert.That(viewModel.ScanCurrentPath, Is.EqualTo(@"C:\"));
+            Assert.That(stageNotifications, Is.EqualTo(1));
+        }
+
+        progress.EnterDirectory(@"C:\Windows");
+        timer.Tick();
+        progress.Reset();
+        timer.Tick();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(viewModel.ScanShowsStage, Is.False);
+            Assert.That(viewModel.ScanCurrentPath, Is.EqualTo(@"C:\Windows"));
+        }
+    }
 }

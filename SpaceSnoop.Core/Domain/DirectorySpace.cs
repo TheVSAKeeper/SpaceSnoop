@@ -163,16 +163,20 @@ public class DirectorySpace : SpaceBase
             if (ascending)
             {
                 var total = node.Size;
+                var fileCount = node._files.Count;
+                var directoryCount = node._subDirectories.Count;
 
                 foreach (var subDirectory in node._subDirectories)
                 {
                     total += subDirectory._totalSize;
+                    fileCount += subDirectory.TotalFileCount;
+                    directoryCount += subDirectory.TotalDirectoryCount;
                 }
 
                 node._totalSize = total;
                 node._maxTotalSize = null;
-                node._totalFileCount = null;
-                node._totalDirectoryCount = null;
+                node._totalFileCount = fileCount;
+                node._totalDirectoryCount = directoryCount;
                 continue;
             }
 

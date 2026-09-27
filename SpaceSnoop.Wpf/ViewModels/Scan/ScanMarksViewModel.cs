@@ -69,8 +69,16 @@ public sealed partial class ScanMarksViewModel : ObservableObject
 
     internal void RecountMarked()
     {
-        var marked = ScanTreeEditor.CollectMarked(_roots);
+        Recount(ScanTreeEditor.CollectMarked(_roots));
+    }
 
+    internal void RecountMarkedAfterScan(ScanNodeViewModel freshRoot)
+    {
+        Recount(ScanTreeEditor.CollectMarked(_roots, freshRoot));
+    }
+
+    private void Recount(List<SpaceBase> marked)
+    {
         _nodeFactory.MarksPresent = marked.Count > 0;
         MarkedCount = marked.Count;
         MarkedSizeText = marked.Count > 0 ? SizeFormatter.Format(marked.Sum(item => item.TotalSize)) : string.Empty;

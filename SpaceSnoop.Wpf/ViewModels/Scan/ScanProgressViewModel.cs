@@ -25,6 +25,12 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     private string _scanCurrentPath = string.Empty;
 
     [ObservableProperty]
+    private string _scanStageText = string.Empty;
+
+    [ObservableProperty]
+    private bool _scanShowsStage;
+
+    [ObservableProperty]
     private string _scanDirCountText = "0";
 
     [ObservableProperty]
@@ -165,6 +171,8 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     {
         _progressFraction = null;
         ScanCurrentPath = path;
+        ScanStageText = string.Empty;
+        ScanShowsStage = false;
         ScanDirCountText = "0";
         ScanFileCountText = "0";
         ScanBytesText = SizeFormatter.Format(0);
@@ -191,7 +199,20 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         var snapshot = _progress.CreateSnapshot();
         var elapsed = Elapsed();
 
-        ScanCurrentPath = string.IsNullOrEmpty(snapshot.CurrentPath) ? ScanCurrentPath : snapshot.CurrentPath;
+        if (!string.IsNullOrEmpty(snapshot.CurrentPath))
+        {
+            if (snapshot.IsStage)
+            {
+                ScanStageText = snapshot.CurrentPath;
+            }
+            else
+            {
+                ScanCurrentPath = snapshot.CurrentPath;
+            }
+
+            ScanShowsStage = snapshot.IsStage;
+        }
+
         ScanDirCountText = snapshot.DirectoriesScanned.ToString("N0");
         ScanFileCountText = snapshot.FilesScanned.ToString("N0");
         ScanBytesText = SizeFormatter.Format(snapshot.BytesScanned);
@@ -206,6 +227,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
             ? Math.Clamp((double)snapshot.BytesScanned / _estimatedTotalBytes.Value, 0d, 1d)
             : null;
 
+        var fractionChanged = !EqualityComparer<double?>.Default.Equals(_progressFraction, fraction);
         _progressFraction = fraction;
         ScanHasDeterminateProgress = fraction.HasValue;
         ScanPercentText = fraction.HasValue ? $"{fraction.Value * 100:F0} %" : string.Empty;
@@ -228,7 +250,10 @@ public sealed partial class ScanProgressViewModel : ObservableObject
             _reported = operation;
         }
 
-        OnPropertyChanged(nameof(IsIndeterminate));
-        OnPropertyChanged(nameof(ProgressValue));
+        if (fractionChanged)
+        {
+            OnPropertyChanged(nameof(IsIndeterminate));
+            OnPropertyChanged(nameof(ProgressValue));
+        }
     }
 }

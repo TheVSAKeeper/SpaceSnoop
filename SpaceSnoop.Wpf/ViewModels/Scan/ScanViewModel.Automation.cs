@@ -117,7 +117,7 @@ public sealed partial class ScanViewModel : IScanAutomation
         _performance.ReportRun(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
         HasResult = true;
         Duplicates.Clear();
-        Marks.RecountMarked();
+        Marks.RecountMarkedAfterScan(node);
         Drives.ReloadLabels(SelectedDrive);
 
         _logger.ScanCompleted(result.AbsolutePath,

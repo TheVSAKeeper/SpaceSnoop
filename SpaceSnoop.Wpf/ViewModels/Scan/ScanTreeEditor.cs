@@ -20,13 +20,13 @@ internal static class ScanTreeEditor
         return dir.SubDirectories.Cast<SpaceBase>().Concat(dir.Files).Any(HasMarkedSelfOrChild);
     }
 
-    internal static List<SpaceBase> CollectMarked(IEnumerable<ScanNodeViewModel> roots)
+    internal static List<SpaceBase> CollectMarked(IEnumerable<ScanNodeViewModel> roots, ScanNodeViewModel? unmarkedRoot = null)
     {
         var list = new List<SpaceBase>();
 
         foreach (var root in roots)
         {
-            if (root.Space is not DirectorySpace dir)
+            if (ReferenceEquals(root, unmarkedRoot) || root.Space is not DirectorySpace dir)
             {
                 continue;
             }

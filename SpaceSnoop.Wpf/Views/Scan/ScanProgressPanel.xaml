@@ -72,7 +72,19 @@
                            FontFamily="{DynamicResource Font.Mono}"
                            FontSize="{DynamicResource Font.Size.S}"
                            Foreground="{DynamicResource Fg.Secondary}"
-                           ToolTip="{Binding ScanCurrentPath}" />
+                           ToolTip="{Binding ScanCurrentPath}"
+                           Visibility="{Binding ScanShowsStage, Converter={StaticResource InverseBoolToVisibility}}" />
+
+                <TextBlock Grid.Column="1"
+                           Text="{Binding ScanStageText}"
+                           VerticalAlignment="Center"
+                           Margin="14,0,14,0"
+                           TextWrapping="NoWrap"
+                           TextTrimming="CharacterEllipsis"
+                           FontFamily="{DynamicResource Font.Mono}"
+                           FontSize="{DynamicResource Font.Size.S}"
+                           Foreground="{DynamicResource Fg.Secondary}"
+                           Visibility="{Binding ScanShowsStage, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
 
                 <TextBlock Grid.Column="2"
                            Text="{Binding ScanElapsedText}"

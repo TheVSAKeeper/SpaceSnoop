@@ -82,6 +82,25 @@ public class ScanNodeMarksTests
         }
     }
 
+    [Test]
+    public void Пересчёт_после_скана_находит_пометки_других_корней_без_обхода_свежего()
+    {
+        var older = Arrange();
+        older.MarkContentsDeletedCommand.Execute(null);
+
+        var freshSpace = new DirectorySpace(Path.Combine(_tempDir, "fresh"), null, DateTime.Now, DateTime.Now);
+        var freshBranch = new DirectorySpace("fresh-branch", freshSpace, DateTime.Now, DateTime.Now);
+        freshSpace.Add(freshBranch);
+        freshBranch.Delete();
+
+        var fresh = _factory.CreateRoot(freshSpace, new());
+        ScanNodeViewModel[] roots = [fresh, older];
+
+        var marked = ScanTreeEditor.CollectMarked(roots, fresh);
+
+        Assert.That(marked, Is.EqualTo(ScanTreeEditor.CollectMarked([older])).And.Not.Empty);
+    }
+
     private ScanNodeViewModel Arrange()
     {
         var space = new DirectorySpace(_tempDir, null, DateTime.Now, DateTime.Now);

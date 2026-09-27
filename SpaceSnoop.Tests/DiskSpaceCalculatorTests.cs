@@ -55,6 +55,31 @@ public class DiskSpaceCalculatorTests
         }
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Calculate_CountsStayCorrectAfterRemoval(bool multithreaded)
+    {
+        var calculator = new DiskSpaceCalculator();
+        var result = multithreaded
+            ? calculator.CalculateMultithreaded(new(_tempDir), 4, CancellationToken.None)
+            : calculator.Calculate(new(_tempDir), CancellationToken.None);
+
+        var sub = result.SubDirectories.Single(directory => directory.Name == "sub");
+        var empty = result.SubDirectories.Single(directory => directory.Name == "empty");
+        var subCountBefore = sub.TotalFileCount;
+
+        sub.Remove(sub.Files[0]);
+        result.Remove(empty);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(subCountBefore, Is.EqualTo(2));
+            Assert.That(sub.TotalFileCount, Is.EqualTo(1));
+            Assert.That(result.TotalFileCount, Is.EqualTo(4));
+            Assert.That(result.TotalDirectoryCount, Is.EqualTo(1));
+        }
+    }
+
     [TestCase(1)]
     [TestCase(2)]
     [TestCase(8)]
@@ -460,6 +485,26 @@ public class DiskSpaceCalculatorTests
         var progress = new ScanProgress();
 
         Assert.That(progress.CreateSnapshot().Fraction, Is.Null);
+    }
+
+    [Test]
+    public void ScanProgressSnapshot_TellsStageFromPath()
+    {
+        var progress = new ScanProgress();
+
+        progress.Announce("Чтение $MFT тома C: 40 %");
+        var stage = progress.CreateSnapshot();
+
+        progress.EnterDirectory(@"C:\Windows");
+        var path = progress.CreateSnapshot();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stage.CurrentPath, Is.EqualTo("Чтение $MFT тома C: 40 %"));
+            Assert.That(stage.IsStage, Is.True);
+            Assert.That(path.CurrentPath, Is.EqualTo(@"C:\Windows"));
+            Assert.That(path.IsStage, Is.False);
+        }
     }
 
     private static void RemoveTree(string path)
