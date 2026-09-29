@@ -36,6 +36,9 @@ public class BindingSmokeTests
     private const double SettingsCardsProbeHeight = 240;
     private const double SmallWindowWidth = 880;
     private const double SmallWindowHeight = 584;
+    private const double FirstScreenWidth = 900;
+    private const double FirstScreenHeight = 600;
+    private const int RecentProbeCount = 6;
     private const int NarrowTextMinLength = 12;
     private const double NarrowTextWidth = 120;
 
@@ -248,6 +251,70 @@ public class BindingSmokeTests
         {
             page.IsPickerOpen = false;
             page.Drives.RemoveDrive(recent);
+            Settle();
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Кнопка_скана_в_окне_900_на_600_видна_без_прокрутки(bool firstRun)
+    {
+        var page = _services.GetRequiredService<ScanViewModel>();
+        var recents = Directory.GetDirectories(_fixture.Root, "*", SearchOption.AllDirectories)
+            .Prepend(_fixture.Root)
+            .Where(path => !page.Drives.HasDrive(path))
+            .Take(RecentProbeCount)
+            .ToArray();
+        var (width, height, welcome, elevated) = (_window.Width, _window.Height, page.FirstRun.IsVisible, page.FirstRun.IsElevated);
+
+        try
+        {
+            _window.Width = FirstScreenWidth;
+            _window.Height = FirstScreenHeight;
+
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+
+            foreach (var path in recents)
+            {
+                page.Drives.AddDrive(path);
+            }
+
+            if (firstRun)
+            {
+                page.FirstRun.ShowForAutomation(isElevated: false);
+            }
+
+            page.IsPickerOpen = true;
+            Settle();
+
+            var view = Descendant<ScanView>(_window) ?? throw new InvalidOperationException("Страница скана не найдена.");
+            var start = (Button)(ViewCapture.Find(_window, "StartButton") ?? throw new InvalidOperationException("Кнопка «Сканировать» не найдена."));
+            var scroll = (ScrollViewer)(ViewCapture.Find(_window, "PickerScroll") ?? throw new InvalidOperationException("Прокрутка выбора цели не найдена."));
+            var button = start.TransformToAncestor(_window).TransformBounds(new(start.RenderSize));
+            var area = view.TransformToAncestor(_window).TransformBounds(new(view.RenderSize));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(scroll.ScrollableHeight, Is.GreaterThan(0), "Выбор цели влез целиком – кейс ничего не проверяет.");
+                Assert.That(area.Bottom, Is.LessThanOrEqualTo(_window.ActualHeight + 0.5), "Страница скана выше окна – край страницы не край видимой области.");
+                Assert.That(start.IsVisible, Is.True, "Кнопка «Сканировать» не показана.");
+                Assert.That(button.Top, Is.GreaterThanOrEqualTo(area.Top), "Кнопка «Сканировать» выше страницы.");
+                Assert.That(button.Bottom, Is.LessThanOrEqualTo(area.Bottom + 0.5), $"Кнопка «Сканировать» уходит за нижний край страницы на {button.Bottom - area.Bottom:F0} px.");
+            }
+        }
+        finally
+        {
+            page.IsPickerOpen = false;
+            page.FirstRun.ShowForAutomation(elevated);
+            page.FirstRun.IsVisible = welcome;
+
+            foreach (var path in recents)
+            {
+                page.Drives.RemoveDrive(path);
+            }
+
+            _window.Width = width;
+            _window.Height = height;
             Settle();
         }
     }
