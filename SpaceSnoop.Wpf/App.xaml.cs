@@ -68,8 +68,7 @@ public partial class App : Application
             }
 
             AppThemes.Register();
-            var themeKey = settings.GetStringValue(SettingsKeys.Theme);
-            ThemeManager.Apply(string.IsNullOrWhiteSpace(themeKey) ? AppThemes.LightKey : themeKey);
+            ThemeManager.Apply(AppThemes.StartupKey(settings, freshProfile));
             FontScaleManager.Initialize(settings.GetDouble(SettingsKeys.FontScale, FontScaleManager.DefaultScale));
 
             ViewLocator.InstallIntoApplication();
@@ -102,6 +101,7 @@ public partial class App : Application
             _logging.CreateLogger<MachineProfile>().MachineProfileCaptured(string.Join(" · ", diagnostics.Machine.Describe()));
 
             _services.GetRequiredService<McpServerHost>().Apply();
+            _services.GetRequiredService<SystemTheme>().Watch();
             monitor.Start();
 
             _ = Task.Run(() => ScheduleReconciler.Reconcile(settings, _logging.CreateLogger<ScheduleViewModel>()));
@@ -205,6 +205,7 @@ public partial class App : Application
         services.AddSingleton<ScanPreferences>();
         services.AddSingleton<UpdatePreferences>();
         services.AddSingleton<ThemeViewModel>();
+        services.AddSingleton<SystemTheme>();
 
         services.AddSingleton(new ErrorReportOptions
         {

@@ -130,7 +130,8 @@ public sealed partial class FirstRunViewModel : ObservableObject
             AppTheme.Light => PackIconLucideKind.Sun,
             AppTheme.Dark => PackIconLucideKind.Moon,
             AppTheme.Tarkov => PackIconLucideKind.Target,
-            _ => PackIconLucideKind.Monitor,
+            AppTheme.System => PackIconLucideKind.Monitor,
+            _ => PackIconLucideKind.Palette,
         };
     }
 

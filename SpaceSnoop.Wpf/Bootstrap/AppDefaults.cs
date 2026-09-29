@@ -60,7 +60,7 @@ public static class AppDefaults
     public const StartupPage StartupPageDefault = StartupPage.Scan;
     public const bool NavCollapsedDefault = false;
 
-    public const AppTheme ThemeDefault = AppTheme.Light;
+    public const AppTheme ThemeDefault = AppTheme.System;
     public const bool ShowPageHeaderDefault = true;
     public const bool ToastNotificationsDefault = true;
 

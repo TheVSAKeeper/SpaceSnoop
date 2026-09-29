@@ -35,7 +35,7 @@ public static class SettingsResetCatalog
         SettingsResetPlan[] plans =
         [
             new("appearance",
-                "Вернуть раздел к заводским значениям: светлая тема, масштаб 100 %, заголовок страницы и уведомления включены, строка производительности скрыта.",
+                "Вернуть раздел к заводским значениям: тема как в системе, масштаб 100 %, заголовок страницы и уведомления включены, строка производительности скрыта.",
                 [
                     Field(SettingsKeys.Theme, "тема оформления", SettingsOptions.LabelOf(SettingsOptions.Themes, AppDefaults.ThemeDefault),
                         () => theme.Current == AppDefaults.ThemeDefault,

@@ -38,7 +38,7 @@ public class SettingsResetTests
             {
                 var shell = bench.Shell;
 
-                Assert.That(store.GetStringValue(SettingsKeys.Theme), Is.EqualTo(AppThemes.LightKey), "Тема осталась прежней: без окна ThemeManager.Apply ничего не делает, и единственный след сброса – ключ в хранилище.");
+                Assert.That(store.GetStringValue(SettingsKeys.Theme), Is.EqualTo(AppThemes.SystemKey), "Тема осталась прежней: без окна ThemeManager.Apply ничего не делает, и единственный след сброса – ключ в хранилище.");
 
                 Assert.That(shell.ShowPageHeader, Is.EqualTo(AppDefaults.ShowPageHeaderDefault));
                 Assert.That(shell.EnableToastNotifications, Is.EqualTo(AppDefaults.ToastNotificationsDefault));

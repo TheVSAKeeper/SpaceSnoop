@@ -7,6 +7,7 @@ public static class SettingsOptions
 {
     public static IReadOnlyList<EnumOption<AppTheme>> Themes { get; } =
     [
+        new(AppTheme.System, "Как в системе"),
         new(AppTheme.Light, "Светлая"),
         new(AppTheme.Dark, "Тёмная"),
         new(AppTheme.Tarkov, "Tarkov"),

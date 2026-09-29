@@ -5,6 +5,7 @@ public sealed class ThemeViewModel(ISettingsStore store) : ThemeViewModelBase<Ap
     public bool IsLight => Current == AppTheme.Light;
     public bool IsDark => Current == AppTheme.Dark;
     public bool IsTarkov => Current == AppTheme.Tarkov;
+    public bool IsSystem => Current == AppTheme.System;
 
     protected override string ToKey(AppTheme theme)
     {
@@ -13,7 +14,7 @@ public sealed class ThemeViewModel(ISettingsStore store) : ThemeViewModelBase<Ap
 
     protected override AppTheme FromKey(string? key)
     {
-        return AppThemes.FromKey(key);
+        return string.IsNullOrWhiteSpace(key) ? AppDefaults.ThemeDefault : AppThemes.FromKey(key);
     }
 
     protected override void OnThemeFlavorChanged(AppTheme value)
@@ -21,5 +22,6 @@ public sealed class ThemeViewModel(ISettingsStore store) : ThemeViewModelBase<Ap
         OnPropertyChanged(nameof(IsLight));
         OnPropertyChanged(nameof(IsDark));
         OnPropertyChanged(nameof(IsTarkov));
+        OnPropertyChanged(nameof(IsSystem));
     }
 }

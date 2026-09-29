@@ -7,4 +7,6 @@ public enum AppTheme
     Dark = 1,
 
     Tarkov = 2,
+
+    System = 3,
 }
