@@ -46,13 +46,14 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         var root = CreateRoot(directory);
         var children = new List<ScanChild>();
         var files = new List<FileSpace>();
+        var skips = new SkipJournal();
 
-        ReadDirectory(ToEnumerationPath(directory.FullName), root, progress, cancel, children, files);
+        ReadDirectory(ToEnumerationPath(directory.FullName), root, progress, skips, cancel, children, files);
         progress?.SetTopLevelTotal(children.Count);
 
         foreach (var child in children)
         {
-            ScanRecursive(child, files, progress, cancel);
+            ScanRecursive(child, files, progress, skips, cancel);
             progress?.CompleteTopLevel();
         }
 
@@ -163,15 +164,15 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         return exception is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or NotSupportedException;
     }
 
-    private void ScanRecursive(ScanChild item, List<FileSpace> files, ScanProgress? progress, CancellationToken cancel)
+    private void ScanRecursive(ScanChild item, List<FileSpace> files, ScanProgress? progress, SkipJournal skips, CancellationToken cancel)
     {
         var children = new List<ScanChild>();
 
-        ReadDirectory(item.Path, item.Node, progress, cancel, children, files);
+        ReadDirectory(item.Path, item.Node, progress, skips, cancel, children, files);
 
         foreach (var child in children)
         {
-            ScanRecursive(child, files, progress, cancel);
+            ScanRecursive(child, files, progress, skips, cancel);
         }
     }
 
@@ -221,7 +222,7 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
             foreach (var item in run.Queue.GetConsumingEnumerable(run.Token))
             {
                 children.Clear();
-                ReadDirectory(item.Path, item.Node, progress, cancel, children, files);
+                ReadDirectory(item.Path, item.Node, progress, run.Skips, cancel, children, files);
 
                 run.Expect(children.Count);
 
@@ -257,6 +258,7 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         string path,
         DirectorySpace node,
         ScanProgress? progress,
+        SkipJournal skips,
         CancellationToken cancel,
         List<ScanChild> children,
         List<FileSpace> files)
@@ -296,7 +298,15 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         }
         catch (Exception exception) when (IsTraversalError(exception))
         {
-            _log.ScanDirectorySkipped(exception, FromEnumerationPath(path));
+            if (skips.TakeFirst())
+            {
+                _log.ScanDirectorySkipped(exception, FromEnumerationPath(path));
+            }
+            else
+            {
+                _log.ScanDirectorySkippedAgain(FromEnumerationPath(path), exception.GetType().Name, exception.Message);
+            }
+
             node.Error();
             progress?.FailDirectory();
         }
@@ -313,6 +323,16 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     }
 
     private readonly record struct ScanChild(string Path, DirectorySpace Node, ScanBranch? Branch = null);
+
+    private sealed class SkipJournal
+    {
+        private int _taken;
+
+        public bool TakeFirst()
+        {
+            return Interlocked.Exchange(ref _taken, 1) == 0;
+        }
+    }
 
     private sealed class ScanBranch
     {
@@ -344,6 +364,8 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         }
 
         public BlockingCollection<ScanChild> Queue { get; } = new(new ConcurrentQueue<ScanChild>());
+
+        public SkipJournal Skips { get; } = new();
 
         public CancellationToken Token => _stop.Token;
 

@@ -95,7 +95,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         PerformanceOperations performance,
         IFilePicker filePicker,
         IUiDispatcher uiDispatcher,
-        IAppNavigator navigator)
+        IAppNavigator navigator,
+        IApplicationLifetime lifetime)
     {
         _navigator = navigator;
         _runner = runner;
@@ -117,7 +118,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         Progress = new(performance, uiDispatcher);
         Progress.PropertyChanged += OnProgressPropertyChanged;
 
-        Summary = new();
+        RestartPrompt = new(dialogs, notifier, () => MarkedCount, () => AdminRestart.Run(lifetime));
+        Summary = new(AdminElevation.IsElevated, RestartPrompt.RunAsync);
 
         Treemap = new(Roots);
         Treemap.DrilledInto += OnTreemapDrilledInto;
@@ -168,6 +170,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     public DriveCatalog Drives { get; }
 
     public ScanMarksViewModel Marks { get; }
+
+    internal AdminRestartPrompt RestartPrompt { get; }
 
     public ObservableCollection<ScanNodeViewModel> Roots { get; } = [];
 
@@ -235,11 +239,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     public ICommand CancelCommand => StopCommand;
 
-    internal DirectorySpace? CurrentRoot => Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
-
-    internal TimeSpan LastScanElapsed { get; private set; }
-
-    internal int LastScanParallelism { get; private set; } = 1;
+    internal DirectorySpace? CurrentRoot =>Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
 
     private void OnProgressPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {

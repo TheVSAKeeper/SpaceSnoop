@@ -4,6 +4,10 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanViewModel : IScanAutomation
 {
+    internal TimeSpan LastScanElapsed { get; private set; }
+
+    internal int LastScanParallelism { get; private set; } = 1;
+
     string IScanAutomation.ResultPath => Summary.ResultPath;
 
     string IScanAutomation.ResultSizeText => Summary.ResultSizeText;
@@ -125,6 +129,11 @@ public sealed partial class ScanViewModel : IScanAutomation
             result.TotalFileCount,
             result.TotalDirectoryCount,
             (long)elapsed.TotalMilliseconds);
+
+        if (traversal is { FailedDirectories: > 0 } unread)
+        {
+            _logger.ScanDirectoriesUnread(result.AbsolutePath, unread.FailedDirectories, AdminElevation.IsElevated);
+        }
 
         if (notes.HasDrops)
         {

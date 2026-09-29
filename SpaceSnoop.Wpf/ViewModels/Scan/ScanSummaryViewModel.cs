@@ -43,8 +43,30 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(DropNoteHint))]
     private string _dropNote = string.Empty;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUnreadNote))]
+    [NotifyPropertyChangedFor(nameof(CanRestartAsAdmin))]
+    private string _unreadNote = string.Empty;
+
+    private readonly bool _isElevated;
+    private readonly Func<Task>? _restartAsAdmin;
     private DriveCapacity? _drive;
     private ScanNotes _notes;
+    private long _unreadDirectories;
+
+    public ScanSummaryViewModel(bool isElevated = false, Func<Task>? restartAsAdmin = null)
+    {
+        _isElevated = isElevated;
+        _restartAsAdmin = restartAsAdmin;
+    }
+
+    public bool HasUnreadNote => UnreadNote.Length > 0;
+
+    public string UnreadNoteHint => ScanUnreadNote.Explain(_isElevated);
+
+    public bool CanRestartAsAdmin => HasUnreadNote && !_isElevated && _restartAsAdmin is not null;
+
+    public string RestartAsAdminHint => ScanUnreadNote.RestartHint;
 
     public bool HasVolumeNote => VolumeNote.Length > 0;
 
@@ -70,6 +92,7 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
         ResultPath = result.AbsolutePath;
         _drive = drive;
         _notes = notes;
+        _unreadDirectories = traversal?.FailedDirectories ?? 0;
         Refresh(result);
         ResultElapsedText = PerformanceText.Elapsed(elapsed);
 
@@ -87,5 +110,12 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
         VolumeNote = ScanVolumeNote.Describe(result.AbsolutePath, result.TotalSize, _drive) ?? string.Empty;
         LinkNote = ScanLinkNote.Describe(_notes.ExtraNameBytes) ?? string.Empty;
         DropNote = ScanDropNote.Describe(_notes.DroppedObjects, _notes.UnknownSizeFiles, _notes.PartialRecords) ?? string.Empty;
+        UnreadNote = ScanUnreadNote.Describe(_unreadDirectories) ?? string.Empty;
+    }
+
+    [RelayCommand]
+    private Task RestartAsAdmin()
+    {
+        return _restartAsAdmin?.Invoke() ?? Task.CompletedTask;
     }
 }

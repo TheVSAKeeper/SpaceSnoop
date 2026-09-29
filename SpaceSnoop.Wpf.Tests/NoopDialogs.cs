@@ -9,8 +9,12 @@ internal sealed class NoopDialogs(bool showResult = false, bool confirmResult = 
 
     public string? LastConfirmMessage { get; private set; }
 
+    public int ShowCount { get; private set; }
+
     public Task<bool> ShowAsync(IDialogViewModel viewModel)
     {
+        ShowCount++;
+
         return Task.FromResult(_showResult);
     }
 

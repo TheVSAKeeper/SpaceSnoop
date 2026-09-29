@@ -18,6 +18,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1213, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}»")]
     public static partial void ScanDirectorySkipped(this ILogger logger, Exception exception, string path);
 
+    [LoggerMessage(EventId = 1218, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}» ({ErrorType}: {Reason}), стек – у первого пропуска скана")]
+    public static partial void ScanDirectorySkippedAgain(this ILogger logger, string path, string errorType, string reason);
+
     [LoggerMessage(EventId = 1214, Level = LogLevel.Debug, Message = "Сканирование: пропущена ссылка (reparse point) «{Path}»")]
     public static partial void ScanReparsePointSkipped(this ILogger logger, string path);
 

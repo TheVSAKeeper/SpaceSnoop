@@ -172,6 +172,33 @@
                                Style="{StaticResource StatValue}"
                                Foreground="{DynamicResource State.ErrorText}" />
                 </StackPanel>
+
+                <StackPanel Style="{StaticResource Metric}"
+                            Visibility="{Binding HasUnreadNote, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel Orientation="Horizontal"
+                                Background="Transparent"
+                                ToolTip="{Binding UnreadNoteHint}">
+                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderLock}"
+                                                  Width="13"
+                                                  Height="13"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,6,0"
+                                                  Foreground="{DynamicResource State.WarningText}" />
+                        <TextBlock Text="{Binding UnreadNote}"
+                                   Style="{StaticResource StatValue}"
+                                   Foreground="{DynamicResource State.WarningText}"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Content="Перезапустить от администратора"
+                            Style="{StaticResource Button.Ghost}"
+                            Command="{Binding RestartAsAdminCommand}"
+                            ToolTip="{Binding RestartAsAdminHint}"
+                            Visibility="{Binding CanRestartAsAdmin, Converter={StaticResource BoolToVisibility}}"
+                            Margin="10,0,0,0"
+                            Padding="6,2"
+                            MinHeight="22"
+                            VerticalAlignment="Center" />
+                </StackPanel>
             </WrapPanel>
         </Grid>
     </Border>

@@ -24,7 +24,7 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 
     private readonly NavigationItem _logsItem;
 
-    private readonly IApplicationLifetime _lifetime;
+    private readonly ScanViewModel _scan;
 
     private readonly CleanupPageViewModel _cleanup;
 
@@ -55,11 +55,10 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         AppUpdateViewModel appUpdate,
         ToastHostViewModel toasts,
         PerformanceHudViewModel hud,
-        AppNavigator navigator,
-        IApplicationLifetime lifetime)
+        AppNavigator navigator)
         : base(modal)
     {
-        _lifetime = lifetime;
+        _scan = scan;
         _cleanup = cleanup;
         _sync = sync;
         _chat = chat;
@@ -246,12 +245,9 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
     }
 
     [RelayCommand]
-    private void RestartAsAdmin()
+    private Task RestartAsAdmin()
     {
-        if (AdminElevation.TryRestartAsAdmin())
-        {
-            _lifetime.Shutdown();
-        }
+        return _scan.RestartPrompt.RunAsync();
     }
 
     private NavigationItem ResolveStartupSection()
