@@ -13,6 +13,7 @@ public static class GalleryStates
     public const string Done = "done";
     public const string Picker = "picker";
     public const string Welcome = "welcome";
+    public const string Advice = "advice";
 
     private const int ScanParallelism = 8;
     private const int ScanBranchTotal = 18;
@@ -53,7 +54,7 @@ public static class GalleryStates
 
     private static readonly string[] OperationDialogs = [GalleryDialogs.Delete, GalleryDialogs.Archive];
 
-    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker, Welcome];
+    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker, Welcome, Advice];
 
     public static string? Match(string state)
     {
@@ -71,7 +72,7 @@ public static class GalleryStates
         {
             Busy => BusyPages.Contains(page, StringComparer.Ordinal),
             Done => false,
-            Picker or Welcome => string.Equals(page, SectionKey.Scan, StringComparison.Ordinal),
+            Picker or Welcome or Advice => string.Equals(page, SectionKey.Scan, StringComparison.Ordinal),
             _ => true,
         };
     }
@@ -80,7 +81,7 @@ public static class GalleryStates
     {
         return state switch
         {
-            Picker or Welcome => false,
+            Picker or Welcome or Advice => false,
             Idle => true,
             _ => OperationDialogs.Contains(dialog, StringComparer.Ordinal),
         };
@@ -120,6 +121,10 @@ public static class GalleryStates
 
             case SectionKey.Scan when state == Welcome:
                 ApplyWelcome(services);
+                break;
+
+            case SectionKey.Scan when state == Advice:
+                services.GetRequiredService<ScanViewModel>().Tips.ShowForAutomation(0);
                 break;
 
             case SectionKey.Scan:
@@ -162,6 +167,10 @@ public static class GalleryStates
 
             case SectionKey.Scan when state == Welcome:
                 ResetWelcome(services);
+                break;
+
+            case SectionKey.Scan when state == Advice:
+                services.GetRequiredService<ScanViewModel>().Tips.DismissCommand.Execute(null);
                 break;
 
             case SectionKey.Scan:

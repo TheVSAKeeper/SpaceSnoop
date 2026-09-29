@@ -122,6 +122,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         RestartPrompt = new(dialogs, notifier, () => MarkedCount, () => AdminRestart.Run(lifetime));
         Summary = new(AdminElevation.IsElevated, RestartPrompt.RunAsync);
         FirstRun = new(settings, preferences, theme, updates, AdminElevation.IsElevated, RestartPrompt.RunAsync);
+        Tips = new(settings, () => FirstRun.IsVisible && ShowTargetPicker);
 
         Treemap = new(Roots);
         Treemap.DrilledInto += OnTreemapDrilledInto;
@@ -182,6 +183,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     public ScanSummaryViewModel Summary { get; }
 
     public FirstRunViewModel FirstRun { get; }
+
+    public ScanTipsViewModel Tips { get; }
 
     public ScanTreemapViewModel Treemap { get; }
 
@@ -409,11 +412,11 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         _cts?.Cancel();
     }
 
-    private async Task ScanAsync(string path, CancellationToken external = default)
+    private async Task<bool> ScanAsync(string path, CancellationToken external = default)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return;
+            return false;
         }
 
         var directory = new DirectoryInfo(path);
@@ -421,7 +424,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         if (!directory.Exists)
         {
             _dialogs.Warning("Сканирование", $"Каталог не найден: {path}");
-            return;
+            return false;
         }
 
         _cts = CancellationTokenSource.CreateLinkedTokenSource(external);
@@ -457,11 +460,13 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             _logger.ScanPhases((long)elapsed.TotalMilliseconds, (long)applied.Elapsed.TotalMilliseconds);
 
             _notifier.Notify($"Сканирование завершено: {outcome.Root.AbsolutePath} · {outcome.Root.TotalSizeText}", StatusSeverity.Success);
+            return true;
         }
         catch (OperationCanceledException)
         {
             ScanWasCancelled = true;
             _logger.ScanCancelled(path);
+            return false;
         }
         catch (Exception exception)
         {
@@ -469,6 +474,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             _logger.ScanFailed(cause, path);
             _notifier.Notify($"Ошибка сканирования: {cause.Message}", StatusSeverity.Error);
             _dialogs.Error("Ошибка сканирования", cause.Message);
+            return false;
         }
         finally
         {

@@ -41,6 +41,7 @@ public static class SettingsKeys
 
     public const string ScanInspectorCollapsed = "wpf.scan.inspector.collapsed";
     public const string ScanInspectorWidth = "wpf.scan.inspector.width";
+    public const string ScanTipsShown = "wpf.scan.tips.shown";
 
     public const string DeleteConfirm = "wpf.delete.confirm";
     public const string DeleteMode = "wpf.delete.mode";

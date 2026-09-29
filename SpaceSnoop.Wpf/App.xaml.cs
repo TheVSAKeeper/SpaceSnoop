@@ -64,6 +64,7 @@ public partial class App : Application
             if (freshProfile)
             {
                 settings.SetBool(SettingsKeys.WelcomePending, true);
+                settings.SetInt(SettingsKeys.ScanTipsShown, 0);
             }
 
             AppThemes.Register();

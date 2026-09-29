@@ -56,6 +56,7 @@ public static class AppDefaults
 
     public const bool WarnIfNotAdminDefault = true;
     public const bool WelcomePendingDefault = false;
+    public const int ScanTipsShownDefault = int.MaxValue;
     public const StartupPage StartupPageDefault = StartupPage.Scan;
     public const bool NavCollapsedDefault = false;
 

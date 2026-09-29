@@ -17,6 +17,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -52,7 +53,12 @@
         <controls:ScanSummaryStrip Grid.Row="3"
                                    DataContext="{Binding Summary}" />
 
-        <ScrollViewer Grid.Row="4"
+        <Grid Grid.Row="4"
+              Visibility="{Binding ShowScanResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+            <controls:ScanTipCard DataContext="{Binding Tips}" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="5"
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Visibility="{Binding ShowTargetPicker, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
@@ -75,7 +81,7 @@
             </controls:ScanTargetPicker>
         </ScrollViewer>
 
-        <Grid Grid.Row="4"
+        <Grid Grid.Row="5"
               x:Name="ContentArea"
               SizeChanged="OnContentAreaSizeChanged"
               Visibility="{Binding ShowScanResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}">

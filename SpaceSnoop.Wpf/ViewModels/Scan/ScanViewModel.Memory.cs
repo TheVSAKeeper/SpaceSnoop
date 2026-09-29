@@ -15,7 +15,10 @@ public sealed partial class ScanViewModel
             return;
         }
 
-        await ScanAsync(path, CancellationToken.None);
+        if (await ScanAsync(path, CancellationToken.None))
+        {
+            Tips.OnScanCompleted();
+        }
     }
 
     private void ReleaseBeforeScan(DirectoryInfo directory)

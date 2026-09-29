@@ -33,13 +33,13 @@ public class GalleryStatesTests
     public void Состояние_готово_у_страниц_не_снимается()
     {
         Assert.That(GalleryStates.All.Where(state => GalleryStates.SupportsPage(SectionKey.Scan, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome }));
+            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice }));
     }
 
     [Test]
     public void Выбор_цели_снимается_только_у_скана(
         [Values(SectionKey.Sync, SectionKey.Cleanup, SectionKey.Settings)] string page,
-        [Values(GalleryStates.Picker, GalleryStates.Welcome)] string state)
+        [Values(GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice)] string state)
     {
         Assert.Multiple(() =>
         {

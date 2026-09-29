@@ -1,0 +1,78 @@
+﻿<UserControl x:Class="SpaceSnoop.Wpf.Views.Scan.ScanTipCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:ScanTipsViewModel}"
+             d:DesignWidth="980"
+             Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+
+    <Border Style="{StaticResource Card.Inset}"
+            Padding="14,10,10,10"
+            Margin="0,0,0,12"
+            BorderBrush="{DynamicResource Accent.Primary}"
+            BorderThickness="0,0,0,2"
+            AutomationProperties.Name="Совет">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <iconPacks:PackIconLucide Grid.Column="0"
+                                      Kind="{x:Static iconPacks:PackIconLucideKind.Lightbulb}"
+                                      Width="16"
+                                      Height="16"
+                                      Margin="0,2,10,0"
+                                      VerticalAlignment="Top"
+                                      Foreground="{DynamicResource Accent.Text}" />
+
+            <Grid Grid.Column="1"
+                  Margin="0,0,12,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="0"
+                           Text="{Binding Title}"
+                           FontSize="{DynamicResource Font.Size.S}"
+                           FontWeight="SemiBold"
+                           Foreground="{DynamicResource Fg.Primary}"
+                           TextWrapping="Wrap" />
+
+                <TextBlock Grid.Row="0"
+                           Grid.Column="1"
+                           Text="{Binding Counter}"
+                           Style="{StaticResource Caption}"
+                           Margin="12,0,0,0" />
+
+                <TextBlock Grid.Row="1"
+                           Grid.Column="0"
+                           Grid.ColumnSpan="2"
+                           Text="{Binding Text}"
+                           Margin="0,3,0,0"
+                           FontSize="{DynamicResource Font.Size.S}"
+                           Foreground="{DynamicResource Fg.Secondary}"
+                           TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite" />
+            </Grid>
+
+            <Button Grid.Column="2"
+                    Style="{StaticResource Button.Secondary}"
+                    Command="{Binding DismissCommand}"
+                    VerticalAlignment="Center"
+                    ToolTip="Скрыть совет – он больше не появится"
+                    Content="Понятно" />
+        </Grid>
+    </Border>
+</UserControl>
