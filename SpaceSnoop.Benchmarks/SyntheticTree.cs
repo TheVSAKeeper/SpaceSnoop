@@ -24,6 +24,58 @@ internal static class SyntheticTree
         return BuildScanDirectory(new(samples), "root", null, files, 1);
     }
 
+    public static DirectorySpace BuildFlatScan(IReadOnlyList<FileInfo> samples, int files)
+    {
+        var state = new ScanState(samples);
+        var directory = new DirectorySpace("root", null, Stamp, Stamp);
+        var batch = new FileInfo[files];
+
+        for (var i = 0; i < files; i++)
+        {
+            batch[i] = state.NextFile();
+        }
+
+        directory.AddFiles(batch.AsSpan());
+
+        return directory;
+    }
+
+    public static List<SpaceBase> CollectFiles(DirectorySpace root)
+    {
+        var files = new List<SpaceBase>();
+        var pending = new Stack<DirectorySpace>();
+        pending.Push(root);
+
+        while (pending.TryPop(out var directory))
+        {
+            files.AddRange(directory.Files);
+
+            for (var i = directory.SubDirectories.Count - 1; i >= 0; i--)
+            {
+                pending.Push(directory.SubDirectories[i]);
+            }
+        }
+
+        return files;
+    }
+
+    public static List<SpaceBase> MarkEvenly(DirectorySpace root, int count)
+    {
+        var files = CollectFiles(root);
+        var take = Math.Min(count, files.Count);
+        var step = files.Count / Math.Max(take, 1);
+        var marked = new List<SpaceBase>(take);
+
+        for (var i = 0; i < take; i++)
+        {
+            var file = files[i * step];
+            file.Delete();
+            marked.Add(file);
+        }
+
+        return marked;
+    }
+
     public static ComparisonResult BuildComparison(int files)
     {
         var root = BuildComparisonDirectory(new(new(Seed)), string.Empty, string.Empty, files, 1);
