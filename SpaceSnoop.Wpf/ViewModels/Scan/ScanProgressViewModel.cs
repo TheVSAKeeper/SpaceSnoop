@@ -40,7 +40,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     private string _scanBytesText = "0 байт";
 
     [ObservableProperty]
-    private string _scanElapsedText = "0,0 с";
+    private string _scanElapsedText = PerformanceText.Elapsed(TimeSpan.Zero);
 
     [ObservableProperty]
     private string _scanThroughputText = "–";
@@ -220,7 +220,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
         ScanHasBranches = snapshot.TopLevelTotal > 0;
         ScanTopLevelText = ScanHasBranches
-            ? $"{snapshot.TopLevelCompleted:N0} / {snapshot.TopLevelTotal:N0}"
+            ? $"{snapshot.TopLevelCompleted:N0} из {snapshot.TopLevelTotal:N0}"
             : string.Empty;
 
         double? fraction = _estimatedTotalBytes is > 0

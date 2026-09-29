@@ -161,7 +161,7 @@
                         Margin="8,0,0,0"
                         VerticalAlignment="Center"
                         AutomationProperties.Name="Выбрать родителя-источник"
-                        ToolTip="Обзор">
+                        ToolTip="Выбрать каталог">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderOpen}"
                                               Width="14"
                                               Height="14" />
@@ -185,7 +185,7 @@
                         Margin="8,16,0,0"
                         VerticalAlignment="Center"
                         AutomationProperties.Name="Выбрать родителя-приёмник"
-                        ToolTip="Обзор">
+                        ToolTip="Выбрать каталог">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderOpen}"
                                               Width="14"
                                               Height="14" />

@@ -53,8 +53,8 @@
                     MinWidth="0"
                     Margin="6,0,0,0"
                     VerticalAlignment="Center"
-                    ToolTip="Обзор"
-                    AutomationProperties.Name="Обзор каталога слева">
+                    ToolTip="Выбрать каталог"
+                    AutomationProperties.Name="Выбрать каталог слева">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderOpen}"
                                           Width="15"
                                           Height="15" />
@@ -144,8 +144,8 @@
                     MinWidth="0"
                     Margin="0,0,6,0"
                     VerticalAlignment="Center"
-                    ToolTip="Обзор"
-                    AutomationProperties.Name="Обзор каталога справа">
+                    ToolTip="Выбрать каталог"
+                    AutomationProperties.Name="Выбрать каталог справа">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderOpen}"
                                           Width="15"
                                           Height="15" />

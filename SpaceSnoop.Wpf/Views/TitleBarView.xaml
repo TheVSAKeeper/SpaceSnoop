@@ -140,7 +140,7 @@
                         <TextBlock Text="{Binding ElevationCaption}"
                                    Style="{StaticResource TextBlock.Subtle}"
                                    VerticalAlignment="Center" />
-                        <Button Content="Перезапустить от админа"
+                        <Button Content="Перезапустить от администратора"
                                 Style="{StaticResource Button.Ghost}"
                                 Command="{Binding RestartAsAdminCommand}"
                                 shell:WindowChrome.IsHitTestVisibleInChrome="True"

@@ -45,34 +45,64 @@
                     </StackPanel>
                 </Button>
 
-                <Button Style="{StaticResource Button.Primary}"
-                        Command="{Binding StartCommand}"
-                        Margin="0,2,0,2"
-                        ToolTip="Посчитать занятое место в выбранном каталоге"
-                        Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVisibility}, FallbackValue=Visible}">
-                    <StackPanel Orientation="Horizontal">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Play}"
-                                                  Width="15"
-                                                  Height="15"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,6,0" />
-                        <TextBlock Text="Сканировать" />
-                    </StackPanel>
-                </Button>
-
-                <Button Style="{StaticResource Button.Primary}"
-                        Command="{Binding StopCommand}"
-                        Margin="0,2,0,2"
-                        ToolTip="Остановить сканирование (ESC)"
-                        Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                    <StackPanel Orientation="Horizontal">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Square}"
-                                                  Width="13"
-                                                  Height="13"
-                                                  VerticalAlignment="Center"
-                                                  Margin="0,0,6,0" />
-                        <TextBlock Text="Остановить" />
-                    </StackPanel>
+                <Button Margin="0,2,0,2">
+                    <Button.Style>
+                        <Style TargetType="Button"
+                               BasedOn="{StaticResource Button.Primary}">
+                            <Setter Property="Command"
+                                    Value="{Binding StartCommand}" />
+                            <Setter Property="AutomationProperties.Name"
+                                    Value="Сканировать" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsScanning}"
+                                             Value="True">
+                                    <Setter Property="Command"
+                                            Value="{Binding StopCommand}" />
+                                    <Setter Property="AutomationProperties.Name"
+                                            Value="Остановить сканирование" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                    <Button.ToolTip>
+                        <ToolTip>
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Text"
+                                                Value="Посчитать занятое место в выбранном каталоге" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsScanning}"
+                                                         Value="True">
+                                                <Setter Property="Text"
+                                                        Value="Остановить сканирование (Esc)" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+                        </ToolTip>
+                    </Button.ToolTip>
+                    <Grid>
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding IsScanning, Converter={StaticResource InverseBoolToVisibility}, FallbackValue=Visible}">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Play}"
+                                                      Width="15"
+                                                      Height="15"
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,6,0" />
+                            <TextBlock Text="Сканировать" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal"
+                                    Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Square}"
+                                                      Width="13"
+                                                      Height="13"
+                                                      VerticalAlignment="Center"
+                                                      Margin="0,0,6,0" />
+                            <TextBlock Text="Остановить" />
+                        </StackPanel>
+                    </Grid>
                 </Button>
             </WrapPanel>
 

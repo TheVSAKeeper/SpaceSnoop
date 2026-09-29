@@ -65,7 +65,7 @@ public sealed partial class ScanMarksViewModel : ObservableObject
 
     public string DeleteHint => HasMarked
         ? $"Переместить в корзину: {MarkedCount} {Plural.Word(MarkedCount, "объект", "объекта", "объектов")}, ≈{MarkedSizeText}"
-        : "Пометьте узлы дерева (Ctrl + правый клик), чтобы удалить их в корзину";
+        : "Пометьте файлы и папки через меню правой кнопки мыши или панель «Детали», чтобы удалить их в корзину";
 
     internal void RecountMarked()
     {

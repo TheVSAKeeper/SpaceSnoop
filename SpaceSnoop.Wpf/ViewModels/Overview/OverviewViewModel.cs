@@ -27,9 +27,9 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageHeader, I
 
     public OverviewBatchViewModel Batch { get; }
 
-    public string PageTitle => "Обзор";
+    public string PageTitle => "Все профили";
 
-    public string PageDescription => "Пакетное сравнение всех профилей синхронизации без записи – что и куда нужно копировать.";
+    public string PageDescription => "Все профили синхронизации разом: где папки разошлись и что куда нужно скопировать. Сравнение ничего не меняет на диске.";
 
     public string? RefreshTooltip => "Перечитать профили";
 

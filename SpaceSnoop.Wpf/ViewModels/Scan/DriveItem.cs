@@ -193,17 +193,18 @@ public sealed class DriveItem : ObservableObject
         var root = System.IO.Path.GetPathRoot(trimmed) ?? string.Empty;
         var parts = trimmed[root.Length..].Split(Separators, StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length <= TitleSegments)
+        if (parts.Length <= TitleSegments + 1)
         {
             return trimmed;
         }
 
         var separator = System.IO.Path.DirectorySeparatorChar;
         var head = root.TrimEnd(Separators);
+        var tail = string.Join(separator, parts[^TitleSegments..]);
 
         return head.Length > 0
-            ? $"{head}{separator}…{separator}{parts[^1]}"
-            : $"…{separator}{parts[^1]}";
+            ? $"{head}{separator}…{separator}{tail}"
+            : $"…{separator}{tail}";
     }
 
     private static DriveProbe Probe(string path, bool isDirectory)

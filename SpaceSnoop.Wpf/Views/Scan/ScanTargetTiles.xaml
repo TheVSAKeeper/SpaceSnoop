@@ -1,6 +1,7 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
+                    xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
                     xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks">
 
     <Style x:Key="TargetTile.Surface"
@@ -217,7 +218,7 @@
     </Style>
 
     <DataTemplate DataType="{x:Type vm:DriveItem}">
-        <RadioButton Style="{StaticResource TargetTile}">
+        <views:CommandRadioButton Style="{StaticResource TargetTile}">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -305,7 +306,7 @@
                            Style="{StaticResource Caption}"
                            TextTrimming="CharacterEllipsis" />
             </Grid>
-        </RadioButton>
+        </views:CommandRadioButton>
     </DataTemplate>
 
     <Style x:Key="RecentChip"
@@ -408,7 +409,7 @@
                   DataType="{x:Type vm:DriveItem}">
         <Border Style="{StaticResource RecentChip}">
             <StackPanel Orientation="Horizontal">
-                <RadioButton Style="{StaticResource RecentChip.Select}">
+                <views:CommandRadioButton Style="{StaticResource RecentChip.Select}">
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Folder}"
                                                   Width="13"
@@ -423,7 +424,7 @@
                                    FontFamily="{DynamicResource Font.Sans}"
                                    FontSize="{DynamicResource Font.Size.S}" />
                     </StackPanel>
-                </RadioButton>
+                </views:CommandRadioButton>
 
                 <Button Style="{StaticResource RecentChip.Remove}"
                         Command="{Binding DataContext.ForgetTargetCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"

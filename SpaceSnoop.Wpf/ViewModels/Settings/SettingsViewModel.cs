@@ -98,7 +98,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
     {
         return new(
             new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, "тема оформления светлая тёмная tarkov как в системе windows масштаб шрифта размер текста заголовок страницы уведомления тосты производительность отклик память диагностика"),
-            new SettingsSection("startup", "Запуск", PackIconLucideKind.Power, "стартовая страница навигационный рейл свернуть права администратора предупреждение"),
+            new SettingsSection("startup", "Запуск", PackIconLucideKind.Power, "стартовая страница боковое меню навигация рейл свернуть права администратора предупреждение"),
             new SettingsSection("scan", "Сканирование", PackIconLucideKind.HardDrive, "многопоточный обход потоки параллелизм тепловая подсветка интенсивность проводник открытие файлов тип носителя ssd hdd mft таблица ntfs жёсткие ссылки движок администратор подкаталог диск целиком память повторный скан прежний результат освободить предупреждать спрашивать вернуть системе замирание",
             [
                 new SettingsSubsection("parallel", "Многопоточность"),
@@ -116,7 +116,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
             new SettingsSection("archive", "Архивация", PackIconLucideKind.FileArchive, "zip сжатие уровень упаковать оригинал корзина"),
             new SettingsSection("update", "Обновления", PackIconLucideKind.Download, "github релизы репозиторий версия проверка скачивание изменения changelog"),
             new SettingsSection("storage", "Файлы и хранение", PackIconLucideKind.Folder, "расположение данных appdata portable settings.toml путь логи журналы"),
-            new SettingsSection("mcp", "MCP-сервер", PackIconLucideKind.Plug, "порт токен подключение json cli адрес изменяющие операции агент"),
+            new SettingsSection("mcp", "Доступ для агентов", PackIconLucideKind.Plug, "mcp сервер порт токен подключение json cli адрес изменяющие операции агент"),
             new SettingsSection("agent", "Агент-чат", PackIconLucideKind.MessageCircle, "шнырь claude codex opencode cli модель глубина рассуждений транскрипт согласие"));
     }
 

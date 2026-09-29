@@ -122,14 +122,14 @@
                     <iconPacks:PackIconLucide Style="{StaticResource Chat.BannerIcon}"
                                               Kind="{x:Static iconPacks:PackIconLucideKind.Unplug}"
                                               Foreground="{DynamicResource State.WarningText}" />
-                    <TextBlock Text="MCP-сервер выключен"
+                    <TextBlock Text="Доступ для агентов выключен"
                                FontWeight="{DynamicResource Font.Weight.SemiBold}"
                                VerticalAlignment="Center" />
                 </StackPanel>
                 <TextBlock Style="{StaticResource Chat.BannerText}"
                            Text="Без него у Шныря нет ни одного инструмента приложения – он не сможет ни просканировать диск, ни посмотреть сравнение." />
                 <Button Style="{StaticResource Button.Primary}"
-                        Content="Включить MCP-сервер"
+                        Content="Включить доступ"
                         Command="{Binding Gates.EnableMcpCommand}"
                         HorizontalAlignment="Left"
                         Margin="0,10,0,0" />

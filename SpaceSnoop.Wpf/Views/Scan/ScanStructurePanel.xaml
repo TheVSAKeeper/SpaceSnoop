@@ -300,10 +300,8 @@
                                   Icon="Radar"
                                   IconSize="40"
                                   Heading="Обходим каталоги"
-                                  Description="{Binding ScanTargetPath, StringFormat='Дерево появится, когда обход {0} закончится – ход виден в панели выше.'}"
+                                  Description="{Binding ScanTargetPath, StringFormat='Дерево появится, когда обход {0} закончится – ход виден в панели выше. Прервать можно кнопкой «Остановить» или клавишей Esc.'}"
                                   DescriptionMaxWidth="440"
-                                  ActionText="Остановить"
-                                  ActionCommand="{Binding StopCommand}"
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Center"
                                   Visibility="{Binding ShowScanningState, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />

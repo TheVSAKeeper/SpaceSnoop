@@ -115,7 +115,10 @@ public partial class App : Application
         {
             splash?.Dispose();
             Log.Fatal(ex, $"{AppInfo.Name}.Wpf не смог запуститься");
-            StyledMessageBox.Show(ex.ToString(), $"{AppInfo.Name} – ошибка запуска", MessageBoxButton.OK, MessageBoxImage.Error);
+            StyledMessageBox.Show(StartupFailureNote.Describe(ex, Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)),
+                $"{AppInfo.Name} – ошибка запуска",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
             Shutdown(1);
         }
     }

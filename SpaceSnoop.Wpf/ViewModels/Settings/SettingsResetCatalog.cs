@@ -56,12 +56,12 @@ public static class SettingsResetCatalog
                 []),
 
             new("startup",
-                "Вернуть раздел к заводским значениям: стартовая страница «Сканирование», рейл развёрнут, предупреждение о правах администратора включено.",
+                "Вернуть раздел к заводским значениям: стартовая страница «Сканирование», боковое меню развёрнуто, предупреждение о правах администратора включено.",
                 [
                     Field(SettingsKeys.StartupPage, "стартовая страница", SettingsOptions.LabelOf(SettingsOptions.StartupPages, AppDefaults.StartupPageDefault),
                         () => shell.StartupPage == AppDefaults.StartupPageDefault,
                         () => shell.StartupPage = AppDefaults.StartupPageDefault),
-                    Field(SettingsKeys.NavCollapsed, "свёрнутый навигационный рейл", Flag(AppDefaults.NavCollapsedDefault),
+                    Field(SettingsKeys.NavCollapsed, "свёрнутое боковое меню", Flag(AppDefaults.NavCollapsedDefault),
                         () => shell.NavCollapsed == AppDefaults.NavCollapsedDefault,
                         () => shell.NavCollapsed = AppDefaults.NavCollapsedDefault),
                     Field(SettingsKeys.WarnIfNotAdmin, "предупреждение о правах администратора", Flag(AppDefaults.WarnIfNotAdminDefault),
@@ -169,7 +169,7 @@ public static class SettingsResetCatalog
             new("mcp",
                 $"Вернуть раздел к заводским значениям. Токен доступа не сбрасывается – новый оборвал бы все уже настроенные клиенты. Порт вернётся к {AppDefaults.McpPortDefault}, поэтому строку подключения придётся раздать заново.",
                 [
-                    Field(SettingsKeys.McpEnabled, "сервер MCP", Flag(AppDefaults.McpEnabledDefault),
+                    Field(SettingsKeys.McpEnabled, "доступ для агентов", Flag(AppDefaults.McpEnabledDefault),
                         () => mcp.Enabled == AppDefaults.McpEnabledDefault,
                         () => mcp.Enabled = AppDefaults.McpEnabledDefault),
                     Field(SettingsKeys.McpAllowMutations, "изменяющие операции", Flag(AppDefaults.McpAllowMutationsDefault),

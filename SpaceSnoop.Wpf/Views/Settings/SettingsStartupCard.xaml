@@ -53,7 +53,7 @@
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <CheckBox Content="Свёрнутый навигационный рейл"
+                <CheckBox Content="Свёрнутое боковое меню"
                           IsChecked="{Binding Shell.NavCollapsed, Mode=TwoWay}"
                           VerticalAlignment="Center" />
                 <Button Grid.Column="1"
@@ -64,7 +64,7 @@
                         AutomationProperties.Name="{Binding AutomationName}" />
             </Grid>
             <TextBlock Style="{StaticResource Form.CheckHint}"
-                       Text="Применяется сразу и запоминается до следующего запуска. То же делает кнопка в верхней части рейла." />
+                       Text="Применяется сразу и запоминается до следующего запуска. То же делает кнопка в верхней части бокового меню." />
 
             <Grid Margin="0,14,0,0">
                 <Grid.ColumnDefinitions>

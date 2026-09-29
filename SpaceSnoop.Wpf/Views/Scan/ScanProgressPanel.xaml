@@ -86,11 +86,18 @@
                            Foreground="{DynamicResource Fg.Secondary}"
                            Visibility="{Binding ScanShowsStage, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
 
-                <TextBlock Grid.Column="2"
-                           Text="{Binding ScanElapsedText}"
-                           Style="{StaticResource StatValue}"
-                           MinWidth="64"
-                           TextAlignment="Right" />
+                <StackPanel Grid.Column="2"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Text="Прошло"
+                               Style="{StaticResource Caption}"
+                               VerticalAlignment="Center"
+                               Margin="0,0,7,0" />
+                    <TextBlock Text="{Binding ScanElapsedText}"
+                               Style="{StaticResource StatValue}"
+                               MinWidth="56"
+                               TextAlignment="Right" />
+                </StackPanel>
             </Grid>
 
             <Grid Margin="0,11,0,0">
@@ -175,12 +182,12 @@
 
                 <StackPanel Style="{StaticResource Metric}"
                             Visibility="{Binding ScanHasBranches, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                    <TextBlock Text="Верхний уровень"
+                    <TextBlock Text="Пройдено папок"
                                Style="{StaticResource Caption}"
                                Margin="0,0,7,0" />
                     <TextBlock Text="{Binding ScanTopLevelText}"
                                Style="{StaticResource StatValue.Aside}"
-                               ToolTip="Сколько каталогов верхнего уровня уже обойдено" />
+                               ToolTip="Сколько папок, лежащих прямо в сканируемом каталоге, уже пройдено целиком" />
                 </StackPanel>
             </WrapPanel>
         </StackPanel>

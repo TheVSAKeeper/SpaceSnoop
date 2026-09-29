@@ -91,7 +91,7 @@
                         AutomationProperties.Name="{Binding AutomationName}" />
             </Grid>
             <TextBlock Style="{StaticResource Form.CheckHint}"
-                       Text="На диске со штрафом за позиционирование обход идёт в один поток." />
+                       Text="На жёстком диске с вращающимися пластинами (HDD) обход идёт в один поток – так он быстрее." />
             <Expander Style="{StaticResource Setting.Details}"
                       Header="Когда обход идёт в один поток">
                 <TextBlock Style="{StaticResource Setting.DetailsBody}"

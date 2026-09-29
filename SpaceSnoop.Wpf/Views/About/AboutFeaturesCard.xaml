@@ -67,12 +67,12 @@
                             <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.CalendarClock}"
                                                       Style="{StaticResource About.FeatureIcon}"
                                                       Margin="0,0,10,0" />
-                            <TextBlock Text="Расписание и обзор"
+                            <TextBlock Text="Расписание и все профили"
                                        Style="{StaticResource About.SectionTitle}"
                                        VerticalAlignment="Center" />
                         </StackPanel>
                         <TextBlock
-                            Text="Настроил пары папок один раз – дальше Планировщик Windows гоняет синхронизацию сам, тихо и без окна. На «Обзоре» все профили лежат пачкой: видно, где что разъехалось, оттуда же и запускается прогон."
+                            Text="Настроил пары папок один раз – дальше Планировщик Windows гоняет синхронизацию сам, тихо и без окна. На странице «Все профили» они лежат пачкой: видно, где что разъехалось, оттуда же и запускается прогон."
                             Style="{StaticResource TextBlock.Subtle}"
                             TextWrapping="Wrap"
                             Margin="0,6,0,0" />

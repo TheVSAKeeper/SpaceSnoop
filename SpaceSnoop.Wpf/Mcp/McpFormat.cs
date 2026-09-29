@@ -132,7 +132,7 @@ internal static class McpFormat
         {
             SectionKey.Scan => "Сканирование",
             SectionKey.Sync => "Синхронизация",
-            SectionKey.Overview => "Обзор",
+            SectionKey.Overview => "Все профили",
             SectionKey.Schedule => "Расписание",
             SectionKey.Cleanup => "Очистка",
             SectionKey.Docker => "Очистка (Docker)",

@@ -316,8 +316,9 @@ public class PerformanceTests
         Assert.That(PerformanceText.Summary(snapshot, null), Does.Contain("пик 800 мс"));
     }
 
-    [TestCase(0, "0,0 с")]
-    [TestCase(0.04, "0,0 с")]
+    [TestCase(0, "< 0,1 с")]
+    [TestCase(0.04, "< 0,1 с")]
+    [TestCase(0.05, "0,1 с")]
     [TestCase(12.34, "12,3 с")]
     [TestCase(59.94, "59,9 с")]
     [TestCase(60, "1:00")]

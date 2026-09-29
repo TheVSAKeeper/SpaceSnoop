@@ -38,7 +38,7 @@ public class DriveItemTests
     [Test]
     public async Task Каталог_не_получает_ни_доли_ни_подписи_и_зовётся_хвостом_пути()
     {
-        var path = Path.Combine(Path.GetTempPath(), "spacesnoop", "недавний");
+        var path = Path.Combine(Path.GetTempPath(), "spacesnoop", "recent", "недавний");
         var item = new DriveItem(path);
 
         await item.LoadAsync();
@@ -53,7 +53,7 @@ public class DriveItemTests
             Assert.That(item.Caption, Is.Null);
             Assert.That(item.IsMissingMedia, Is.False);
             Assert.That(item.TypeHint, Is.Null);
-            Assert.That(item.Title, Is.EqualTo($"{Path.GetPathRoot(path)!.TrimEnd(Path.DirectorySeparatorChar)}{Path.DirectorySeparatorChar}…{Path.DirectorySeparatorChar}недавний"));
+            Assert.That(item.Title, Is.EqualTo($"{Path.GetPathRoot(path)!.TrimEnd(Path.DirectorySeparatorChar)}{Path.DirectorySeparatorChar}…{Path.DirectorySeparatorChar}recent{Path.DirectorySeparatorChar}недавний"));
         });
     }
 
@@ -169,13 +169,15 @@ public class DriveItemTests
         });
     }
 
-    [TestCase(@"C:\Users\admin\AppData", @"C:\…\AppData")]
-    [TestCase(@"C:\Users\admin\AppData\", @"C:\…\AppData")]
+    [TestCase(@"C:\Users\admin\AppData\Local", @"C:\…\AppData\Local")]
+    [TestCase(@"C:\Users\admin\AppData\Local\", @"C:\…\AppData\Local")]
+    [TestCase(@"C:\Sources\TheVSAKeeper\SpaceSnoop\.git", @"C:\…\SpaceSnoop\.git")]
+    [TestCase(@"C:\Users\admin\AppData", @"C:\Users\admin\AppData")]
     [TestCase(@"C:\Users\admin", @"C:\Users\admin")]
     [TestCase(@"D:\Фото", @"D:\Фото")]
-    [TestCase(@"\\nas\share\backup\2026\photos", @"\\nas\share\…\photos")]
-    [TestCase(@"\\nas\share\backup", @"\\nas\share\backup")]
-    public void Каталог_сокращается_в_середине_и_сохраняет_корень(string path, string expected)
+    [TestCase(@"\\nas\share\backup\2026\photos\raw", @"\\nas\share\…\photos\raw")]
+    [TestCase(@"\\nas\share\backup\2026\photos", @"\\nas\share\backup\2026\photos")]
+    public void Каталог_сокращается_в_середине_и_сохраняет_корень_и_родителя(string path, string expected)
     {
         Assert.That(new DriveItem(path).Title, Is.EqualTo(expected));
     }

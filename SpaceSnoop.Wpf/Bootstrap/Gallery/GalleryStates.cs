@@ -379,7 +379,7 @@ public static class GalleryStates
 
         if (targets.Count == 0)
         {
-            throw new InvalidOperationException("В «Обзоре» нет профилей пакета – прогон изображать не на чем.");
+            throw new InvalidOperationException("На странице «Все профили» нет профилей пакета – прогон изображать не на чем.");
         }
 
         var running = Math.Min(BatchIndex, targets.Count - 1);

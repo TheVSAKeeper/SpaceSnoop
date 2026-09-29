@@ -21,6 +21,8 @@ using SpaceSnoop.Wpf.Views;
 using SpaceSnoop.Wpf.Views.Settings;
 using System.Windows;
 using System.Windows.Automation;
+using System.Windows.Automation.Peers;
+using System.Windows.Automation.Provider;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
@@ -315,6 +317,50 @@ public class BindingSmokeTests
 
             _window.Width = width;
             _window.Height = height;
+            Settle();
+        }
+    }
+
+    [TestCase(false, TestName = "Выбор плитки тома через UI Automation меняет цель скана")]
+    [TestCase(true, TestName = "Выбор недавнего каталога через UI Automation меняет цель скана")]
+    public void Выбор_плитки_через_UI_Automation_меняет_цель_скана(bool recentTarget)
+    {
+        var page = _services.GetRequiredService<ScanViewModel>();
+        var volume = page.Drives.Volumes[0].Path;
+        var recent = _fixture.Root;
+        var selected = page.SelectedDrive;
+
+        Assume.That(page.Drives.HasDrive(recent), Is.False, "Каталог стенда уже в списке – убирать его после кейса нельзя.");
+
+        try
+        {
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+
+            page.Drives.AddDrive(recent);
+            var (from, to) = recentTarget ? (volume, recent) : (recent, volume);
+            page.SelectedDrive = from;
+            page.IsPickerOpen = true;
+            Settle();
+
+            var tile = Descendants<CommandRadioButton>(_window)
+                           .FirstOrDefault(button => button.DataContext is DriveItem item && string.Equals(item.Path, to, StringComparison.OrdinalIgnoreCase))
+                       ?? throw new InvalidOperationException($"Плитка {to} не найдена.");
+            var peer = UIElementAutomationPeer.CreatePeerForElement(tile);
+
+            ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
+            Settle();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(page.SelectedDrive, Is.EqualTo(to).IgnoreCase);
+                Assert.That(tile.IsChecked, Is.True);
+            }
+        }
+        finally
+        {
+            page.IsPickerOpen = false;
+            page.Drives.RemoveDrive(recent);
+            page.SelectedDrive = selected;
             Settle();
         }
     }

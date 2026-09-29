@@ -106,7 +106,7 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
 
     public string PageTitle => "Чат";
 
-    public string? PageDescription => $"{AgentPersona.Name} – агент внутри программы: смотрит на неё теми же инструментами, что и MCP-сервер.";
+    public string? PageDescription => $"{AgentPersona.Name} – агент внутри программы: смотрит на неё теми же инструментами, что и внешние агенты.";
 
     public string AgentName => AgentPersona.Name;
 

@@ -147,6 +147,11 @@ public static class PerformanceText
 
     public static string Elapsed(TimeSpan value)
     {
+        if (value.TotalSeconds < 0.05)
+        {
+            return "< 0,1 с";
+        }
+
         return value.TotalSeconds < 60
             ? $"{value.TotalSeconds:F1} с"
             : $"{(int)value.TotalMinutes}:{value.Seconds:D2}";

@@ -144,7 +144,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         ApplyPlanState(_planState.AfterComparison());
         comparison.ApplyMode(_setup.CurrentMode, _setup.Mirror, _setup.CurrentWinner);
         RaiseComparisonChanged(SyncComparisonChange.Reloaded);
-        _reportSummary("Результат сравнения перенесён со страницы «Обзор».");
+        _reportSummary("Результат сравнения перенесён со страницы «Все профили».");
         _ = ReadGitStateAsync();
     }
 
@@ -205,13 +205,13 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
         if (string.IsNullOrEmpty(left) || string.IsNullOrEmpty(right))
         {
-            _dialogs.Warning("Сравнение", "Укажите обе директории.");
+            _dialogs.Warning("Сравнение", "Укажите оба каталога.");
             return;
         }
 
         if (!Directory.Exists(left) || !Directory.Exists(right))
         {
-            _dialogs.Warning("Сравнение", "Одна из директорий не существует.");
+            _dialogs.Warning("Сравнение", "Одного из каталогов нет на диске.");
             return;
         }
 
