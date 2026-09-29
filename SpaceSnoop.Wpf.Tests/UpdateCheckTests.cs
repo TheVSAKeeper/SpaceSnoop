@@ -1,6 +1,8 @@
 ﻿using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -8,6 +10,16 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class UpdateCheckTests
 {
+    [TestCase(HttpStatusCode.Forbidden, true)]
+    [TestCase(HttpStatusCode.TooManyRequests, true)]
+    [TestCase(HttpStatusCode.NotFound, false)]
+    public void Ограничение_GitHub_узнаётся_по_коду_ответа(HttpStatusCode status, bool expected)
+    {
+        var exception = new HttpRequestException("ответ ленты", null, status);
+
+        Assert.That(AppUpdateViewModel.IsRateLimited(exception), Is.EqualTo(expected));
+    }
+
     [Test]
     public async Task Скачивание_докладывает_только_смену_целого_процента()
     {

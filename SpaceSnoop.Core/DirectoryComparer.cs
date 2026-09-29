@@ -29,9 +29,16 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         var rules = caseRules ?? PathCaseRules.For(leftPath, rightPath);
 
         var processed = 0;
-        var root = CompareDirectories(leftDir, rightDir, "", rules, progress, ref processed, cancel);
-
-        return new(leftPath, rightPath, root);
+        var skips = new SkipJournal(logger);
+        try
+        {
+            var root = CompareDirectories(leftDir, rightDir, "", rules, skips, progress, ref processed, cancel);
+            return new(leftPath, rightPath, root);
+        }
+        finally
+        {
+            skips.ReportTotal();
+        }
     }
 
     private static ComparisonStatus DetermineDirectoryStatus(
@@ -65,6 +72,7 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         DirectoryInfo? rightDir,
         string relativePath,
         PathCaseRules rules,
+        SkipJournal skips,
         IProgress<OperationProgress>? progress,
         ref int processed,
         CancellationToken cancel)
@@ -81,10 +89,10 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         var leftLinks = new HashSet<string>(rules.Left);
         var rightLinks = new HashSet<string>(rules.Right);
 
-        var leftFiles = GetFilteredFiles(leftDir, leftLinks, rules.Left, out var leftFilesIncomplete);
-        var rightFiles = GetFilteredFiles(rightDir, rightLinks, rules.Right, out var rightFilesIncomplete);
-        var leftDirs = GetFilteredDirectories(leftDir, leftLinks, rules.Left, out var leftDirsIncomplete);
-        var rightDirs = GetFilteredDirectories(rightDir, rightLinks, rules.Right, out var rightDirsIncomplete);
+        var leftFiles = GetFilteredFiles(leftDir, leftLinks, rules.Left, skips, out var leftFilesIncomplete);
+        var rightFiles = GetFilteredFiles(rightDir, rightLinks, rules.Right, skips, out var rightFilesIncomplete);
+        var leftDirs = GetFilteredDirectories(leftDir, leftLinks, rules.Left, skips, out var leftDirsIncomplete);
+        var rightDirs = GetFilteredDirectories(rightDir, rightLinks, rules.Right, skips, out var rightDirsIncomplete);
 
         comparison.LeftIncomplete = leftFilesIncomplete || leftDirsIncomplete;
         comparison.RightIncomplete = rightFilesIncomplete || rightDirsIncomplete;
@@ -93,7 +101,7 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         var typeConflicts = CollectTypeConflicts(leftFiles, rightFiles, leftDirs, rightDirs, leftLinks, rightLinks, rules);
 
         CompareFiles(comparison, leftFiles, rightFiles, typeConflicts, relativePath, rules);
-        CompareSubDirectories(comparison, leftDirs, rightDirs, typeConflicts, relativePath, rules, progress, ref processed, cancel);
+        CompareSubDirectories(comparison, leftDirs, rightDirs, typeConflicts, relativePath, rules, skips, progress, ref processed, cancel);
 
         comparison.Status = DetermineDirectoryStatus(comparison, leftDir, rightDir);
 
@@ -255,6 +263,7 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         Dictionary<string, FileTypeConflict> typeConflicts,
         string relativePath,
         PathCaseRules rules,
+        SkipJournal skips,
         IProgress<OperationProgress>? progress,
         ref int processed,
         CancellationToken cancel)
@@ -272,12 +281,12 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
             leftDirs.TryGetValue(dirName, out var leftSub);
             rightDirs.TryGetValue(dirName, out var rightSub);
 
-            var subComparison = CompareDirectories(leftSub, rightSub, dirRelativePath, rules, progress, ref processed, cancel);
+            var subComparison = CompareDirectories(leftSub, rightSub, dirRelativePath, rules, skips, progress, ref processed, cancel);
             comparison.SubDirectories.Add(subComparison);
         }
     }
 
-    private Dictionary<string, FileInfo> GetFilteredFiles(DirectoryInfo? dir, ICollection<string> links, StringComparer names, out bool incomplete)
+    private Dictionary<string, FileInfo> GetFilteredFiles(DirectoryInfo? dir, ICollection<string> links, StringComparer names, SkipJournal skips, out bool incomplete)
     {
         if (dir is not { Exists: true })
         {
@@ -305,13 +314,13 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException or IOException)
         {
             incomplete = true;
-            logger.CompareDirectorySkipped(ex, dir.FullName);
+            skips.Report(ex, dir.FullName);
         }
 
         return result;
     }
 
-    private Dictionary<string, DirectoryInfo> GetFilteredDirectories(DirectoryInfo? dir, ICollection<string> links, StringComparer names, out bool incomplete)
+    private Dictionary<string, DirectoryInfo> GetFilteredDirectories(DirectoryInfo? dir, ICollection<string> links, StringComparer names, SkipJournal skips, out bool incomplete)
     {
         if (dir is not { Exists: true })
         {
@@ -339,9 +348,39 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         catch (Exception ex) when (ex is UnauthorizedAccessException or SecurityException or IOException)
         {
             incomplete = true;
-            logger.CompareDirectorySkipped(ex, dir.FullName);
+            skips.Report(ex, dir.FullName);
         }
 
         return result;
+    }
+
+    private sealed class SkipJournal(ILogger logger)
+    {
+        private readonly HashSet<string> _paths = new(StringComparer.Ordinal);
+
+        public void Report(Exception exception, string path)
+        {
+            if (!_paths.Add(path))
+            {
+                return;
+            }
+
+            if (_paths.Count == 1)
+            {
+                logger.CompareDirectorySkipped(exception, path);
+            }
+            else
+            {
+                logger.CompareDirectorySkippedAgain(path, exception.GetType().Name, exception.Message);
+            }
+        }
+
+        public void ReportTotal()
+        {
+            if (_paths.Count > 0)
+            {
+                logger.CompareDirectoriesSkippedTotal(_paths.Count);
+            }
+        }
     }
 }

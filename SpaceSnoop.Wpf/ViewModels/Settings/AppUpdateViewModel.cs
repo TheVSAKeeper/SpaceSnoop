@@ -1,6 +1,8 @@
 ﻿using KeepShell.Services;
 using System.ComponentModel;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.ViewModels.Settings;
@@ -126,7 +128,9 @@ public sealed partial class AppUpdateViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ChangelogStatus = "Не удалось загрузить историю изменений";
+            ChangelogStatus = IsRateLimited(ex)
+                ? "GitHub временно ограничил запросы – историю изменений можно будет загрузить через час"
+                : "Не удалось загрузить историю изменений";
             _logger.UpdateCheckFailed(ex);
         }
         finally
@@ -221,13 +225,20 @@ public sealed partial class AppUpdateViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            CheckStatus = "Не удалось проверить обновления";
+            CheckStatus = IsRateLimited(ex)
+                ? "GitHub временно ограничил проверки – повторите через час"
+                : "Не удалось проверить обновления";
             _logger.UpdateCheckFailed(ex);
         }
         finally
         {
             _checking = false;
         }
+    }
+
+    internal static bool IsRateLimited(Exception exception)
+    {
+        return exception is HttpRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests };
     }
 
     private void ResetState()
@@ -364,7 +375,9 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
             if (announce)
             {
-                _dialogs.Error("Обновление", $"Не удалось скачать обновление.{Environment.NewLine}{ex.Message}");
+                _dialogs.Error("Обновление", IsRateLimited(ex)
+                    ? "GitHub временно ограничил загрузки – повторите через час."
+                    : "Не удалось скачать обновление. Проверьте подключение к интернету и повторите попытку.");
             }
         }
         finally

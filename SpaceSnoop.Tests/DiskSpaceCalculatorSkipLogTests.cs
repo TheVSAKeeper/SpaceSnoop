@@ -54,7 +54,7 @@ public class DiskSpaceCalculatorSkipLogTests
     [TestCase(false)]
     public void Стек_пропуска_пишется_один_раз_за_скан(bool multithreaded)
     {
-        var logger = new CapturingLogger();
+        var logger = new CapturingLogger<DiskSpaceCalculator>();
         var calculator = new DiskSpaceCalculator(logger);
         var progress = new ScanProgress();
 
@@ -75,7 +75,7 @@ public class DiskSpaceCalculatorSkipLogTests
     [Test]
     public void Каждый_скан_получает_свой_стек()
     {
-        var logger = new CapturingLogger();
+        var logger = new CapturingLogger<DiskSpaceCalculator>();
         var calculator = new DiskSpaceCalculator(logger);
 
         calculator.Calculate(new(_root));
@@ -84,9 +84,39 @@ public class DiskSpaceCalculatorSkipLogTests
         Assert.That(logger.Entries.Count(entry => entry.Exception is not null), Is.EqualTo(2));
     }
 
-    private sealed record LogEntry(LogLevel Level, Exception? Exception);
+    [Test]
+    public void Сравнение_пишет_стек_один_раз_и_итог_числом()
+    {
+        var right = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"SpaceSnoopSkipLogRight_{Guid.NewGuid():N}"));
 
-    private sealed class CapturingLogger : ILogger<DiskSpaceCalculator>
+        try
+        {
+            var logger = new CapturingLogger<DirectoryComparer>();
+            var comparer = new DirectoryComparer(new(""), logger);
+
+            comparer.Compare(_root, right.FullName, CancellationToken.None);
+            comparer.Compare(_root, right.FullName, CancellationToken.None);
+
+            var skips = logger.Entries.Where(entry => entry.EventId is 1212 or 1224).ToList();
+            var totals = logger.Entries.Where(entry => entry.EventId == 1225).ToList();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(skips, Has.Count.EqualTo(2 * LockedCount));
+                Assert.That(skips.Count(entry => entry.Exception is not null), Is.EqualTo(2));
+                Assert.That(totals.Select(entry => entry.Message), Is.All.Contains(LockedCount.ToString()));
+                Assert.That(totals, Has.Count.EqualTo(2));
+            }
+        }
+        finally
+        {
+            right.Delete(true);
+        }
+    }
+
+    private sealed record LogEntry(LogLevel Level, int EventId, Exception? Exception, string Message);
+
+    private sealed class CapturingLogger<T> : ILogger<T>
     {
         private readonly Lock _lock = new();
         private readonly List<LogEntry> _entries = [];
@@ -116,7 +146,7 @@ public class DiskSpaceCalculatorSkipLogTests
         {
             lock (_lock)
             {
-                _entries.Add(new(logLevel, exception));
+                _entries.Add(new(logLevel, eventId.Id, exception, formatter(state, exception)));
             }
         }
     }

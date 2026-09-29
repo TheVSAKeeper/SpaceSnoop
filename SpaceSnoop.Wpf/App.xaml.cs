@@ -356,9 +356,10 @@ public partial class App : Application
                 ISettingsStore settings = new SettingsStore(settingsPath);
                 _settings = settings;
                 SyncProfileStore.Save(settings, GalleryFixtures.Profiles(fixture));
+                settings.SetDouble(SettingsKeys.FontScale, options.Arguments.FontScale);
 
                 ThemeManager.Apply(AppThemes.LightKey);
-                FontScaleManager.Initialize(options.Arguments.FontScale);
+                FontScaleManager.Initialize(settings.GetDouble(SettingsKeys.FontScale, FontScaleManager.DefaultScale));
                 ViewLocator.InstallIntoApplication();
 
                 _services = ConfigureServices(settings, _logging!);

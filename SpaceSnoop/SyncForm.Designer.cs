@@ -1,4 +1,4 @@
-using SpaceSnoop.Controls;
+﻿using SpaceSnoop.Controls;
 
 namespace SpaceSnoop;
 
@@ -63,6 +63,7 @@ partial class SyncForm
         //
         _leftPathTextBox.Dock = DockStyle.Fill;
         _toolTip.SetToolTip(_leftPathTextBox, "Путь к исходной (левой) директории для сравнения");
+        _leftPathTextBox.TextChanged += OnInputChanged;
         //
         // _leftBrowseButton
         //
@@ -81,6 +82,7 @@ partial class SyncForm
         //
         _rightPathTextBox.Dock = DockStyle.Fill;
         _toolTip.SetToolTip(_rightPathTextBox, "Путь к целевой (правой) директории для сравнения");
+        _rightPathTextBox.TextChanged += OnInputChanged;
         //
         // _rightBrowseButton
         //
@@ -100,6 +102,7 @@ partial class SyncForm
         _exclusionTextBox.Dock = DockStyle.Fill;
         _exclusionTextBox.PlaceholderText = "*.tmp, .git, *.bak";
         _toolTip.SetToolTip(_exclusionTextBox, "Маски файлов/папок через запятую, которые будут пропущены при сравнении.\nПример: *.tmp, .git, *.bak, node_modules");
+        _exclusionTextBox.TextChanged += OnInputChanged;
         //
         // _compareButton
         //

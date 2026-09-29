@@ -15,6 +15,12 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1212, Level = LogLevel.Warning, Message = "Сравнение: каталог пропущен (нет доступа) «{Path}»")]
     public static partial void CompareDirectorySkipped(this ILogger logger, Exception exception, string path);
 
+    [LoggerMessage(EventId = 1224, Level = LogLevel.Warning, Message = "Сравнение: каталог пропущен «{Path}» ({ErrorType}: {Reason}), стек – у первого пропуска сравнения")]
+    public static partial void CompareDirectorySkippedAgain(this ILogger logger, string path, string errorType, string reason);
+
+    [LoggerMessage(EventId = 1225, Level = LogLevel.Warning, Message = "Сравнение: пропущено каталогов {Count}")]
+    public static partial void CompareDirectoriesSkippedTotal(this ILogger logger, int count);
+
     [LoggerMessage(EventId = 1213, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}»")]
     public static partial void ScanDirectorySkipped(this ILogger logger, Exception exception, string path);
 

@@ -11,6 +11,7 @@ public partial class SyncForm : Form
     private readonly SyncWorkerService _workerService;
 
     private ComparisonResult? _comparisonResult;
+    private CompareInput? _comparedInput;
     private SyncPlanFreshnessState _planState;
     private CancellationTokenSource? _cancellationTokenSource;
 
@@ -70,18 +71,53 @@ public partial class SyncForm : Form
             return;
         }
 
-        _comparisonResult = null;
-        _planState = default;
-        _diffView.SetData(null);
-        _syncButton.Enabled = false;
+        ClearComparison();
+        _comparedInput = CurrentInput();
         _compareButton.Enabled = false;
-        _hashButton.Enabled = false;
-        _resolveConflictsButton.Enabled = false;
         _progressBar.Style = ProgressBarStyle.Marquee;
         _statusLabel.Text = "Сравнение...";
 
         ResetCancellationTokenSource();
         _workerService.StartCompare(new(leftPath, rightPath, _exclusionTextBox.Text, CurrentMode(), SyncWinner.Newest, false), _cancellationTokenSource!.Token);
+    }
+
+    private void OnInputChanged(object? sender, EventArgs e)
+    {
+        if (_workerService.IsBusy)
+        {
+            return;
+        }
+
+        DiscardComparisonIfInputChanged();
+    }
+
+    private bool DiscardComparisonIfInputChanged()
+    {
+        if (_comparisonResult == null || _comparedInput == CurrentInput())
+        {
+            return false;
+        }
+
+        ClearComparison();
+        _statusLabel.Text = "Пути или исключения изменились – нажмите «Сравнить» заново.";
+        return true;
+    }
+
+    private void ClearComparison()
+    {
+        _comparisonResult = null;
+        _comparedInput = null;
+        _planState = default;
+        _diffView.SetData(null);
+        _summaryLabel.Text = "";
+        _syncButton.Enabled = false;
+        _hashButton.Enabled = false;
+        _resolveConflictsButton.Enabled = false;
+    }
+
+    private CompareInput CurrentInput()
+    {
+        return new(_leftPathTextBox.Text.Trim(), _rightPathTextBox.Text.Trim(), _exclusionTextBox.Text);
     }
 
     private void OnCompareCompleted(object? sender, SyncWorkerService.CompareResponse? response)
@@ -102,6 +138,12 @@ public partial class SyncForm : Form
         }
 
         _comparisonResult = response.Result;
+
+        if (DiscardComparisonIfInputChanged())
+        {
+            return;
+        }
+
         _planState = _planState.AfterComparison();
         _statusLabel.Text = $"Сравнение завершено за {response.Elapsed.TotalSeconds:F2} с";
 
@@ -171,6 +213,11 @@ public partial class SyncForm : Form
         _compareButton.Enabled = true;
         _hashButton.Enabled = true;
 
+        if (DiscardComparisonIfInputChanged())
+        {
+            return;
+        }
+
         if (response?.Error != null)
         {
             _statusLabel.Text = $"Ошибка вычисления хешей: {response.Error}";
@@ -213,7 +260,7 @@ public partial class SyncForm : Form
 
     private void OnSyncClicked(object? sender, EventArgs e)
     {
-        if (_comparisonResult == null)
+        if (_comparisonResult == null || DiscardComparisonIfInputChanged())
         {
             return;
         }
@@ -234,7 +281,8 @@ public partial class SyncForm : Form
             return;
         }
 
-        var result = MessageBox.Show(this, "Начать синхронизацию?",
+        var result = MessageBox.Show(this,
+            $"Начать синхронизацию?\n\nСлева: {_comparisonResult.LeftPath}\nСправа: {_comparisonResult.RightPath}",
             "Подтверждение", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
         if (result != DialogResult.Yes)
@@ -262,6 +310,16 @@ public partial class SyncForm : Form
         _syncModeComboBox.Enabled = true;
         _diffView.Enabled = true;
 
+        ShowSyncOutcome(response);
+
+        if (_comparisonResult != null && _comparedInput != CurrentInput())
+        {
+            ClearComparison();
+        }
+    }
+
+    private void ShowSyncOutcome(SyncWorkerService.SyncResponse? response)
+    {
         if (response?.Error != null)
         {
             _planState = _planState.AfterSync(null, false);
@@ -462,4 +520,6 @@ public partial class SyncForm : Form
             Debug.WriteLine($"Ошибка сохранения настроек синхронизации: {exception.Message}");
         }
     }
+
+    private readonly record struct CompareInput(string Left, string Right, string Exclusions);
 }
