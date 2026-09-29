@@ -44,22 +44,17 @@
             <TextBlock Style="{StaticResource Form.CheckHint}"
                        Text="Параллельный обход каталогов – быстрее, но выше расход памяти." />
 
-            <Grid Margin="0,16,0,0"
-                  IsEnabled="{Binding Scan.UseMultithreading}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+            <settings:SettingRowPanel Margin="0,16,0,0"
+                                      IsEnabled="{Binding Scan.UseMultithreading}">
+                <StackPanel>
                     <TextBlock Text="Число параллельных потоков"
-                               Style="{StaticResource Form.Label}" />
+                               Style="{StaticResource Form.Label}"
+                               TextWrapping="Wrap" />
                     <TextBlock Style="{StaticResource Form.Hint}"
                                Margin="0,2,0,0"
                                Text="{Binding Scan.ParallelismHint}" />
                 </StackPanel>
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
+                <StackPanel Orientation="Horizontal"
                             Margin="16,0,0,0"
                             VerticalAlignment="Center">
                     <Slider Minimum="1"
@@ -72,13 +67,12 @@
                     <TextBlock Text="{Binding Scan.MaxParallelism, StringFormat=N0}"
                                Style="{StaticResource Form.Value}" />
                 </StackPanel>
-                <Button Grid.Column="2"
-                        Style="{StaticResource Form.RowReset}"
+                <Button Style="{StaticResource Form.RowReset}"
                         DataContext="{Binding ResetFields[wpf.scan.parallelism]}"
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </Grid>
+            </settings:SettingRowPanel>
 
             <Grid Margin="0,16,0,0"
                   IsEnabled="{Binding Scan.UseMultithreading}">
@@ -225,22 +219,17 @@
                            Text="После скана диска целиком приложение отдаёт системе память, которую занимал сам обход, – в простое оно занимает на сотни мегабайт меньше. На это уходит от половины секунды до секунды, и всё это время окно не отвечает. Если памяти на компьютере мало, а замирание не мешает, включите: результат скана от этого не меняется. Небольшие папки настройка не затрагивает." />
             </Expander>
 
-            <Grid Margin="0,16,0,0"
-                  settings:SettingsBlock.Key="view">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+            <settings:SettingRowPanel Margin="0,16,0,0"
+                                      settings:SettingsBlock.Key="view">
+                <StackPanel>
                     <TextBlock Text="Интенсивность тепловой подсветки"
-                               Style="{StaticResource Form.Label}" />
+                               Style="{StaticResource Form.Label}"
+                               TextWrapping="Wrap" />
                     <TextBlock Style="{StaticResource Form.Hint}"
                                Margin="0,2,0,0"
                                Text="Насколько ярко строка дерева окрашена по доле размера." />
                 </StackPanel>
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
+                <StackPanel Orientation="Horizontal"
                             Margin="16,0,0,0"
                             VerticalAlignment="Center">
                     <Slider Minimum="{x:Static bootstrap:AppDefaults.IntensityMin}"
@@ -253,13 +242,12 @@
                     <TextBlock Text="{Binding Scan.Intensity, StringFormat=N0}"
                                Style="{StaticResource Form.Value}" />
                 </StackPanel>
-                <Button Grid.Column="2"
-                        Style="{StaticResource Form.RowReset}"
+                <Button Style="{StaticResource Form.RowReset}"
                         DataContext="{Binding ResetFields[wpf.scan.intensity]}"
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </Grid>
+            </settings:SettingRowPanel>
 
             <Grid Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>

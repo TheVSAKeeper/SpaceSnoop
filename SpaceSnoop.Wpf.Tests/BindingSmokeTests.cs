@@ -34,6 +34,10 @@ namespace SpaceSnoop.Wpf.Tests;
 public class BindingSmokeTests
 {
     private const double SettingsCardsProbeHeight = 240;
+    private const double SmallWindowWidth = 880;
+    private const double SmallWindowHeight = 584;
+    private const int NarrowTextMinLength = 12;
+    private const double NarrowTextWidth = 120;
 
     private BindingErrorSink _sink = null!;
     private ServiceProvider _services = null!;
@@ -556,6 +560,71 @@ public class BindingSmokeTests
         {
             store.SetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault);
             (_window.DataContext as ShellViewModel)?.ToString();
+        }
+    }
+
+    [Test]
+    public void Настройки_при_крупном_шрифте_в_маленьком_окне_читаются_и_не_уходят_за_край()
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var (width, height, scale, restore) = (_window.Width, _window.Height, shell.FontScale, sections.SelectedPath);
+
+        try
+        {
+            _window.Width = SmallWindowWidth;
+            _window.Height = SmallWindowHeight;
+            shell.FontScale = FontScaleManager.MaxScale;
+
+            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+            Settle();
+
+            var cards = Descendants<ScrollViewer>(_window).First(viewer => viewer.Name == "Cards");
+            var host = (FrameworkElement)cards.Content;
+            var problems = new List<string>();
+
+            foreach (var section in sections.Items)
+            {
+                sections.SelectCommand.Execute(section);
+                Settle();
+
+                foreach (var element in Descendants<FrameworkElement>(host).Where(element => element.IsVisible && element is TextBlock or Control))
+                {
+                    var bounds = element.TransformToAncestor(host).TransformBounds(new(element.RenderSize));
+
+                    if (element is TextBlock { Text.Length: >= NarrowTextMinLength } text && text.ActualWidth < NarrowTextWidth)
+                    {
+                        problems.Add($"{section.Title}: текст «{text.Text}» сжат до {text.ActualWidth:F0} px");
+                    }
+                    else if (element is Control && bounds.Right > host.ActualWidth + 1)
+                    {
+                        problems.Add($"{section.Title}: {element.GetType().Name} «{AutomationProperties.GetName(element)}» уходит за край на {bounds.Right - host.ActualWidth:F0} px");
+                    }
+                }
+            }
+
+            sections.SelectCommand.Execute(sections["appearance"]);
+            Settle();
+
+            var slider = Descendants<Slider>(cards).Single(candidate => candidate.IsVisible);
+            var reset = RowResetButton("Сбросить: масштаб шрифта");
+            reset.Command.Execute(reset.CommandParameter);
+            Settle();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
+                Assert.That(slider.ActualWidth, Is.GreaterThan(0), "Ползунок масштаба шрифта не отрисован.");
+                Assert.That(shell.FontScale, Is.EqualTo(FontScaleManager.DefaultScale), "Кнопка строки не вернула масштаб к 100 %.");
+            }
+        }
+        finally
+        {
+            shell.FontScale = scale;
+            _window.Width = width;
+            _window.Height = height;
+            sections.Restore(restore);
+            Settle();
         }
     }
 

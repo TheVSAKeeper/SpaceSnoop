@@ -67,16 +67,12 @@
                            Text="Выключено – перезапись необратима, прежний файл пропадает без следа. Включено – каждая перезапись добавляет файл в корзину, и на больших прогонах она заметно растёт; место освободится после её очистки." />
             </Expander>
 
-            <Grid Margin="0,16,0,0"
-                  settings:SettingsBlock.Key="exclusions">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+            <settings:SettingRowPanel Margin="0,16,0,0"
+                                      settings:SettingsBlock.Key="exclusions">
+                <StackPanel>
                     <TextBlock Text="Git-папки (.git)"
-                               Style="{StaticResource Form.Label}" />
+                               Style="{StaticResource Form.Label}"
+                               TextWrapping="Wrap" />
                     <TextBlock Text="Что делать, если при сравнении найден служебный каталог репозитория."
                                Style="{StaticResource Form.Hint}"
                                Margin="0,2,0,0" />
@@ -86,21 +82,19 @@
                                    Text="Настройка решает только, копировать ли сам каталог .git. Состояние репозитория – ветка, коммит, изменения – показывается над списком в любом случае." />
                     </Expander>
                 </StackPanel>
-                <ComboBox Grid.Column="1"
-                          Style="{StaticResource ComboBox.Form}"
+                <ComboBox Style="{StaticResource ComboBox.Form}"
                           ItemsSource="{Binding GitFolderOptions}"
                           SelectedItem="{Binding SelectedGitFolderOption}"
                           DisplayMemberPath="Label"
                           Width="{StaticResource Setting.ControlWidth}"
                           Margin="16,0,0,0"
                           VerticalAlignment="Center" />
-                <Button Grid.Column="2"
-                        Style="{StaticResource Form.RowReset}"
+                <Button Style="{StaticResource Form.RowReset}"
                         DataContext="{Binding ResetFields[wpf.sync.git_folders]}"
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </Grid>
+            </settings:SettingRowPanel>
 
             <TextBlock Text="Исключения по умолчанию"
                        Style="{StaticResource Form.Label}"

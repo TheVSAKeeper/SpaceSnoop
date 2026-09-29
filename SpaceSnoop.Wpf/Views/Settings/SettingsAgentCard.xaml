@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Settings"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -85,14 +86,20 @@
                        Margin="0,16,0,0" />
             <Grid Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
                 <ListBox Grid.Column="0"
                          Style="{StaticResource ListBox.Segmented}"
                          ItemsSource="{Binding AgentBackendOptions}"
                          SelectedIndex="{Binding SelectedAgentBackendIndex}"
-                         HorizontalAlignment="Left" />
+                         HorizontalAlignment="Left">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <views:UniformRowPanel />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                </ListBox>
                 <Button Grid.Column="1"
                         Style="{StaticResource Form.RowReset}"
                         DataContext="{Binding ResetFields[wpf.agent.backend]}"
