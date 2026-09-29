@@ -2,6 +2,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:bootstrap="clr-namespace:SpaceSnoop.Wpf.Bootstrap"
                     xmlns:behaviors="clr-namespace:SpaceSnoop.Wpf.Views.Behaviors"
+                    xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
                     xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks">
 
     <ResourceDictionary.MergedDictionaries>
@@ -10,18 +11,9 @@
 
     <HierarchicalDataTemplate x:Key="ScanTreeRow"
                               ItemsSource="{Binding Children}">
-        <Grid ToolTip="{Binding Tooltip}"
-              MinWidth="420"
-              Background="Transparent">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto"
-                                  MinWidth="58" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="172" />
-            </Grid.ColumnDefinitions>
-
-            <Grid Grid.Column="0"
+        <views:PriorityRowPanel ToolTip="{Binding Tooltip}"
+                                Background="Transparent">
+            <Grid MinWidth="96"
                   VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -49,8 +41,8 @@
                 </TextBlock>
             </Grid>
 
-            <StackPanel Grid.Column="1"
-                        Orientation="Horizontal"
+            <StackPanel Orientation="Horizontal"
+                        MinWidth="58"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Margin="0,0,14,0"
@@ -69,8 +61,7 @@
                            Foreground="{DynamicResource Fg.Muted}" />
             </StackPanel>
 
-            <StackPanel Grid.Column="2"
-                        Orientation="Horizontal"
+            <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         VerticalAlignment="Center"
                         Margin="0,0,12,0"
@@ -109,31 +100,33 @@
             </StackPanel>
 
             <Border x:Name="ScanBarTrack"
-                    Grid.Column="3"
+                    MinWidth="96"
+                    MaxWidth="172"
                     Height="17"
                     Background="{DynamicResource Bg.SurfaceMute}"
                     CornerRadius="{DynamicResource Radius.S}"
                     VerticalAlignment="Center">
                 <Grid>
-                    <Rectangle HorizontalAlignment="Left"
-                               Height="17"
-                               RadiusX="5"
-                               RadiusY="5">
-                        <Rectangle.Width>
-                            <MultiBinding Converter="{StaticResource FractionToWidth}">
-                                <Binding Path="Fraction" />
-                                <Binding Path="ActualWidth"
-                                         ElementName="ScanBarTrack" />
-                            </MultiBinding>
-                        </Rectangle.Width>
-                        <Rectangle.Fill>
-                            <MultiBinding Converter="{StaticResource HeatBrush}">
-                                <Binding Path="Fraction" />
-                                <Binding Path="DataContext.Intensity"
-                                         RelativeSource="{RelativeSource AncestorType=UserControl}" />
-                            </MultiBinding>
-                        </Rectangle.Fill>
-                    </Rectangle>
+                    <Canvas Height="17">
+                        <Rectangle Height="17"
+                                   RadiusX="5"
+                                   RadiusY="5">
+                            <Rectangle.Width>
+                                <MultiBinding Converter="{StaticResource FractionToWidth}">
+                                    <Binding Path="Fraction" />
+                                    <Binding Path="ActualWidth"
+                                             ElementName="ScanBarTrack" />
+                                </MultiBinding>
+                            </Rectangle.Width>
+                            <Rectangle.Fill>
+                                <MultiBinding Converter="{StaticResource HeatBrush}">
+                                    <Binding Path="Fraction" />
+                                    <Binding Path="DataContext.Intensity"
+                                             RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                </MultiBinding>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                    </Canvas>
                     <Border HorizontalAlignment="Right"
                             VerticalAlignment="Center"
                             Margin="0,0,5,0"
@@ -148,6 +141,6 @@
                     </Border>
                 </Grid>
             </Border>
-        </Grid>
+        </views:PriorityRowPanel>
     </HierarchicalDataTemplate>
 </ResourceDictionary>

@@ -12,6 +12,8 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     private readonly ISettingsStore _settings;
     private readonly IClipboardService _clipboard;
     private bool _suppressPersist;
+    private bool _collapsedByUser;
+    private bool _autoExpanded;
 
     [ObservableProperty]
     private ScanNodeViewModel? _node;
@@ -95,7 +97,7 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     private string _moreChildrenText = string.Empty;
 
     [ObservableProperty]
-    private bool _isInspectorCollapsed;
+    private bool _isInspectorCollapsed = true;
 
     [ObservableProperty]
     private double _intensity = AppDefaults.IntensityDefault;
@@ -129,6 +131,16 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
 
     public void Show(ScanNodeViewModel node)
     {
+        if (!_autoExpanded)
+        {
+            _autoExpanded = true;
+
+            if (!_collapsedByUser)
+            {
+                IsInspectorCollapsed = false;
+            }
+        }
+
         Node = node;
         HasSelection = true;
 
@@ -197,18 +209,15 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     private void ToggleInspectorCollapsed()
     {
         IsInspectorCollapsed = !IsInspectorCollapsed;
-    }
-
-    partial void OnIsInspectorCollapsedChanged(bool value)
-    {
-        Persist(() => _settings.SetBool(SettingsKeys.ScanInspectorCollapsed, value));
+        _collapsedByUser = IsInspectorCollapsed;
+        Persist(() => _settings.SetBool(SettingsKeys.ScanInspectorCollapsed, _collapsedByUser));
     }
 
     private void LoadSettings()
     {
         _suppressPersist = true;
 
-        IsInspectorCollapsed = _settings.GetBool(SettingsKeys.ScanInspectorCollapsed);
+        _collapsedByUser = _settings.GetBool(SettingsKeys.ScanInspectorCollapsed);
 
         var rawWidth = _settings.GetStringValue(SettingsKeys.ScanInspectorWidth);
 

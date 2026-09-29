@@ -117,7 +117,8 @@ public partial class ScanView : UserControl, IView<ScanViewModel>
 
     private double AvailableInspectorWidth()
     {
-        var free = ContentArea.ActualWidth - StructureColumn.MinWidth - SplitterColumn.ActualWidth;
+        var splitter = double.IsNaN(InspectorSplitter.Width) ? SplitterColumn.ActualWidth : InspectorSplitter.Width;
+        var free = ContentArea.ActualWidth - StructureColumn.MinWidth - splitter;
 
         return free > MinPanelWidth ? free : MinPanelWidth;
     }
