@@ -167,7 +167,7 @@ internal static class ScanTreeEditor
                 continue;
             }
 
-            if (marksPresent && root.Space is { } space && HasMarkedSelfOrChild(space))
+            if (KeepsMarks(root, marksPresent))
             {
                 keptMarked = true;
                 continue;
@@ -178,6 +178,18 @@ internal static class ScanTreeEditor
         }
 
         return released;
+    }
+
+    internal static bool HasReleasableRoot(IEnumerable<ScanNodeViewModel> roots, string path, bool marksPresent)
+    {
+        var normalized = NormalizePath(path);
+
+        return roots.Any(root => IsRootOf(root, normalized) && !KeepsMarks(root, marksPresent));
+    }
+
+    private static bool KeepsMarks(ScanNodeViewModel root, bool marksPresent)
+    {
+        return marksPresent && root.Space is { } space && HasMarkedSelfOrChild(space);
     }
 
     private static bool IsRootOf(ScanNodeViewModel root, string normalizedPath)

@@ -28,6 +28,7 @@ public static class SettingsKeys
     public const string ScanTreemap = "wpf.scan.treemap";
     public const string ScanRevealFiles = "wpf.scan.reveal_files";
     public const string ScanReleaseBeforeRescan = "wpf.scan.release_before_rescan";
+    public const string ScanConfirmRescan = "wpf.scan.confirm_rescan";
     public const string ScanReturnMemoryAfterScan = "wpf.scan.return_memory_after_scan";
 
     public const string ScanView = "wpf.scan.view";

@@ -31,6 +31,9 @@ public sealed partial class ScanPreferences : ObservableObject
     private bool _releaseBeforeRescan = AppDefaults.ScanReleaseBeforeRescanDefault;
 
     [ObservableProperty]
+    private bool _confirmRescan = AppDefaults.ScanConfirmRescanDefault;
+
+    [ObservableProperty]
     private bool _returnMemoryAfterScan = AppDefaults.ScanReturnMemoryAfterScanDefault;
 
     public ScanPreferences(ISettingsStore settings)
@@ -49,6 +52,7 @@ public sealed partial class ScanPreferences : ObservableObject
         MftEnabled = _settings.GetBool(SettingsKeys.ScanMftEnabled, AppDefaults.ScanMftEnabledDefault);
         MftRootOnly = _settings.GetBool(SettingsKeys.ScanMftRootOnly, AppDefaults.ScanMftRootOnlyDefault);
         ReleaseBeforeRescan = _settings.GetBool(SettingsKeys.ScanReleaseBeforeRescan, AppDefaults.ScanReleaseBeforeRescanDefault);
+        ConfirmRescan = _settings.GetBool(SettingsKeys.ScanConfirmRescan, AppDefaults.ScanConfirmRescanDefault);
         ReturnMemoryAfterScan = _settings.GetBool(SettingsKeys.ScanReturnMemoryAfterScan, AppDefaults.ScanReturnMemoryAfterScanDefault);
         _suppressPersist = false;
 
@@ -153,6 +157,14 @@ public sealed partial class ScanPreferences : ObservableObject
         if (!_suppressPersist)
         {
             _settings.SetBool(SettingsKeys.ScanReleaseBeforeRescan, value);
+        }
+    }
+
+    partial void OnConfirmRescanChanged(bool value)
+    {
+        if (!_suppressPersist)
+        {
+            _settings.SetBool(SettingsKeys.ScanConfirmRescan, value);
         }
     }
 

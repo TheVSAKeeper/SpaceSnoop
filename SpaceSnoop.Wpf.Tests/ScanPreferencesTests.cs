@@ -64,6 +64,8 @@ public class ScanPreferencesTests
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, null, true)]
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, "false", false)]
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, "true", true)]
+    [TestCase(SettingsKeys.ScanConfirmRescan, null, true)]
+    [TestCase(SettingsKeys.ScanConfirmRescan, "false", false)]
     [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, null, false)]
     [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, "false", false)]
     [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, "true", true)]
@@ -82,6 +84,7 @@ public class ScanPreferencesTests
     }
 
     [TestCase(SettingsKeys.ScanReleaseBeforeRescan, false)]
+    [TestCase(SettingsKeys.ScanConfirmRescan, false)]
     [TestCase(SettingsKeys.ScanReturnMemoryAfterScan, true)]
     public void Настройка_памяти_не_по_умолчанию_сохраняется(string key, bool value)
     {
@@ -92,6 +95,9 @@ public class ScanPreferencesTests
         {
             case SettingsKeys.ScanReleaseBeforeRescan:
                 preferences.ReleaseBeforeRescan = value;
+                break;
+            case SettingsKeys.ScanConfirmRescan:
+                preferences.ConfirmRescan = value;
                 break;
             case SettingsKeys.ScanReturnMemoryAfterScan:
                 preferences.ReturnMemoryAfterScan = value;
@@ -106,6 +112,7 @@ public class ScanPreferencesTests
         return key switch
         {
             SettingsKeys.ScanReleaseBeforeRescan => preferences.ReleaseBeforeRescan,
+            SettingsKeys.ScanConfirmRescan => preferences.ConfirmRescan,
             SettingsKeys.ScanReturnMemoryAfterScan => preferences.ReturnMemoryAfterScan,
             _ => throw new ArgumentOutOfRangeException(nameof(key), key, null),
         };

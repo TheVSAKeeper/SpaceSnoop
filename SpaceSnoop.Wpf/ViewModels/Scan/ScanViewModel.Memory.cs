@@ -5,6 +5,19 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanViewModel
 {
+    private async Task ScanAfterRescanPromptAsync(string path)
+    {
+        var prompt = new RescanPrompt(_dialogs, Preferences);
+        var confirmed = !Directory.Exists(path) || await prompt.ConfirmAsync(Roots, path, Marks.HasMarked);
+
+        if (!confirmed || IsScanning)
+        {
+            return;
+        }
+
+        await ScanAsync(path, CancellationToken.None);
+    }
+
     private void ReleaseBeforeScan(DirectoryInfo directory)
     {
         if (!ReleasePreviousResult(directory))

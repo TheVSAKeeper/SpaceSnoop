@@ -82,6 +82,7 @@ public class SettingsResetTests
                 store.SetBool(SettingsKeys.ScanMftEnabled, true);
                 store.SetBool(SettingsKeys.ScanMftRootOnly, false);
                 store.SetBool(SettingsKeys.ScanReleaseBeforeRescan, false);
+                store.SetBool(SettingsKeys.ScanConfirmRescan, false);
                 store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, true);
             },
             (bench, store) =>
@@ -96,6 +97,7 @@ public class SettingsResetTests
                 Assert.That(scan.MftEnabled, Is.EqualTo(AppDefaults.ScanMftEnabledDefault));
                 Assert.That(scan.MftRootOnly, Is.EqualTo(AppDefaults.ScanMftRootOnlyDefault));
                 Assert.That(scan.ReleaseBeforeRescan, Is.EqualTo(AppDefaults.ScanReleaseBeforeRescanDefault));
+                Assert.That(scan.ConfirmRescan, Is.EqualTo(AppDefaults.ScanConfirmRescanDefault));
                 Assert.That(scan.ReturnMemoryAfterScan, Is.EqualTo(AppDefaults.ScanReturnMemoryAfterScanDefault));
 
                 Assert.That(store.GetBool(SettingsKeys.ScanMultithreading), Is.EqualTo(AppDefaults.ScanMultithreadingDefault));
@@ -106,6 +108,7 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.ScanMftEnabled), Is.EqualTo(AppDefaults.ScanMftEnabledDefault));
                 Assert.That(store.GetBool(SettingsKeys.ScanMftRootOnly), Is.EqualTo(AppDefaults.ScanMftRootOnlyDefault));
                 Assert.That(store.GetBool(SettingsKeys.ScanReleaseBeforeRescan), Is.EqualTo(AppDefaults.ScanReleaseBeforeRescanDefault));
+                Assert.That(store.GetBool(SettingsKeys.ScanConfirmRescan), Is.EqualTo(AppDefaults.ScanConfirmRescanDefault));
                 Assert.That(store.GetBool(SettingsKeys.ScanReturnMemoryAfterScan), Is.EqualTo(AppDefaults.ScanReturnMemoryAfterScanDefault));
             }),
 
@@ -481,6 +484,7 @@ public class SettingsResetTests
         store.SetBool(SettingsKeys.ScanMftEnabled, true);
         store.SetBool(SettingsKeys.ScanMftRootOnly, false);
         store.SetBool(SettingsKeys.ScanReleaseBeforeRescan, false);
+        store.SetBool(SettingsKeys.ScanConfirmRescan, false);
         store.SetBool(SettingsKeys.ScanReturnMemoryAfterScan, true);
 
         store.SetBool(SettingsKeys.SyncPathSuggest, false);

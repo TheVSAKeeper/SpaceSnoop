@@ -3,7 +3,7 @@ using KeepShell.Services.Modal;
 
 namespace SpaceSnoop.Wpf.Tests;
 
-internal sealed class NoopDialogs(bool showResult = false, bool confirmResult = true) : IDialogService
+internal sealed class NoopDialogs(bool showResult = false, bool confirmResult = true, Func<IDialogViewModel, bool>? show = null) : IDialogService
 {
     private readonly bool _showResult = showResult;
 
@@ -15,7 +15,7 @@ internal sealed class NoopDialogs(bool showResult = false, bool confirmResult = 
     {
         ShowCount++;
 
-        return Task.FromResult(_showResult);
+        return Task.FromResult(show?.Invoke(viewModel) ?? _showResult);
     }
 
     public Task<bool> ReplaceAsync(IDialogViewModel viewModel)

@@ -182,6 +182,26 @@
                            Text="Прежнее дерево той же папки снимается в начале скана, а не в конце, поэтому пик памяти меньше на целое дерево – на диске целиком это сотни мегабайт. Отменили скан или он упал – результата у папки не будет, пока не просканируете её снова. Дерево с пометками на удаление не снимается никогда: оно остаётся на экране до конца скана, как при выключенной настройке." />
             </Expander>
 
+            <Grid Margin="26,12,0,0"
+                  IsEnabled="{Binding Scan.ReleaseBeforeRescan}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <CheckBox Content="Предупреждать перед повторным сканом"
+                          IsChecked="{Binding Scan.ConfirmRescan, Mode=TwoWay}"
+                          VerticalAlignment="Center" />
+                <Button Grid.Column="1"
+                        Style="{StaticResource Form.RowReset}"
+                        DataContext="{Binding ResetFields[wpf.scan.confirm_rescan]}"
+                        Command="{Binding ResetCommand}"
+                        ToolTip="{Binding Hint}"
+                        AutomationProperties.Name="{Binding AutomationName}" />
+            </Grid>
+            <TextBlock Style="{StaticResource Form.CheckHint}"
+                       Margin="52,6,0,0"
+                       Text="Пока прежний результат освобождается перед сканом, программа спросит, заменить ли его, если у папки уже есть результат." />
+
             <Grid Margin="0,12,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
