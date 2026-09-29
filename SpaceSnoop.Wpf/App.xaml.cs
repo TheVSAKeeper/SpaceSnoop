@@ -20,16 +20,31 @@ public partial class App : Application
 
         base.OnStartup(e);
 
-        AppResources.InstallInto(this);
-
-        _logging = KeepShellLogging.Bootstrap(new()
-        {
-            LogsDirectory = Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName),
-            FileNamePrefix = AppInfo.LogFilePrefix,
-            MinimumLevelOverrides = AppDefaults.LogLevelOverrides,
-        });
-
         var syncIndex = Array.FindIndex(e.Args, static arg => string.Equals(arg, AppInfo.SyncArgument, StringComparison.OrdinalIgnoreCase));
+        var galleryIndex = Array.FindIndex(e.Args, static arg => string.Equals(arg, AppInfo.GalleryArgument, StringComparison.OrdinalIgnoreCase));
+
+        string logsDirectory;
+
+        try
+        {
+            AppResources.InstallInto(this);
+
+            var candidate = Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName);
+
+            _logging = KeepShellLogging.Bootstrap(new()
+            {
+                LogsDirectory = candidate,
+                FileNamePrefix = AppInfo.LogFilePrefix,
+                MinimumLevelOverrides = AppDefaults.LogLevelOverrides,
+            });
+
+            logsDirectory = candidate;
+        }
+        catch (Exception ex) when (syncIndex < 0 && galleryIndex < 0)
+        {
+            ReportStartupFailure(ex, null);
+            return;
+        }
 
         if (syncIndex >= 0)
         {
@@ -38,15 +53,13 @@ public partial class App : Application
             return;
         }
 
-        var galleryIndex = Array.FindIndex(e.Args, static arg => string.Equals(arg, AppInfo.GalleryArgument, StringComparison.OrdinalIgnoreCase));
-
         if (galleryIndex >= 0)
         {
             RunGallery(e.Args.Skip(galleryIndex + 1));
             return;
         }
 
-        AttachExceptionHandlers();
+        AttachExceptionHandlers(logsDirectory);
 
         StyledMessageBox.DefaultTitle = AppInfo.Name;
 
@@ -114,13 +127,29 @@ public partial class App : Application
         catch (Exception ex)
         {
             splash?.Dispose();
-            Log.Fatal(ex, $"{AppInfo.Name}.Wpf не смог запуститься");
-            StyledMessageBox.Show(StartupFailureNote.Describe(ex, Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)),
-                $"{AppInfo.Name} – ошибка запуска",
-                MessageBoxButton.OK,
-                MessageBoxImage.Error);
-            Shutdown(1);
+            ReportStartupFailure(ex, logsDirectory);
         }
+    }
+
+    private void ReportStartupFailure(Exception exception, string? logsDirectory)
+    {
+        Log.Fatal(exception, $"{AppInfo.Name}.Wpf не смог запуститься");
+
+        ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
+        var text = StartupFailureNote.Describe(exception, logsDirectory);
+        var caption = $"{AppInfo.Name} – ошибка запуска";
+
+        try
+        {
+            StyledMessageBox.Show(text, caption, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+        catch (Exception)
+        {
+            MessageBox.Show(text, caption, MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+
+        Shutdown(1);
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -367,7 +396,7 @@ public partial class App : Application
         Shutdown(exitCode);
     }
 
-    private void AttachExceptionHandlers()
+    private void AttachExceptionHandlers(string logsDirectory)
     {
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             Log.Fatal(args.ExceptionObject as Exception, "Необработанное исключение домена");
@@ -375,7 +404,7 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             Log.Error(args.Exception, "Необработанное исключение UI-потока");
-            StyledMessageBox.Show($"Произошла непредвиденная ошибка, она записана в журнал.{Environment.NewLine}{Environment.NewLine}{args.Exception.Message}",
+            StyledMessageBox.Show(UnexpectedErrorNote.Describe(logsDirectory),
                 "Ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

@@ -42,6 +42,22 @@ public class StartupFailureNoteTests
         }
     }
 
+    [Test]
+    public void Сбой_до_старта_журнала_не_отправляет_за_журналом_в_папку()
+    {
+        var failure = Thrown(() => throw new TypeInitializationException("SpaceSnoop.Wpf.Bootstrap.Storage.AppStorage", new UnauthorizedAccessException("Access to the path is denied")));
+
+        var text = StartupFailureNote.Describe(failure, null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(text, Does.Not.Contain("журнал из папки"));
+            Assert.That(text, Does.Contain("Журнал ошибок записать не удалось"));
+            Assert.That(text, Does.Contain("не удалось открыть свои файлы"));
+            Assert.That(text, Does.Not.Contain("Access to the path"));
+        }
+    }
+
     private static Exception Thrown(Action action)
     {
         try
