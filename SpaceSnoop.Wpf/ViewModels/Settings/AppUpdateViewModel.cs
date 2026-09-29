@@ -94,10 +94,15 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
         _started = true;
 
-        if (_preferences.CheckOnStartup)
+        if (ChecksOnStartup(_preferences.CheckOnStartup, _settings.GetBool(SettingsKeys.WelcomePending, AppDefaults.WelcomePendingDefault)))
         {
             _ = CheckAsync();
         }
+    }
+
+    internal static bool ChecksOnStartup(bool checkOnStartup, bool welcomePending)
+    {
+        return checkOnStartup && !welcomePending;
     }
 
     [RelayCommand]

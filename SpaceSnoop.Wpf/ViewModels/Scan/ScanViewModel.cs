@@ -5,7 +5,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
-using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
@@ -96,7 +95,9 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         IFilePicker filePicker,
         IUiDispatcher uiDispatcher,
         IAppNavigator navigator,
-        IApplicationLifetime lifetime)
+        IApplicationLifetime lifetime,
+        ThemeViewModel theme,
+        UpdatePreferences updates)
     {
         _navigator = navigator;
         _runner = runner;
@@ -120,6 +121,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
         RestartPrompt = new(dialogs, notifier, () => MarkedCount, () => AdminRestart.Run(lifetime));
         Summary = new(AdminElevation.IsElevated, RestartPrompt.RunAsync);
+        FirstRun = new(settings, preferences, theme, updates, AdminElevation.IsElevated, RestartPrompt.RunAsync);
 
         Treemap = new(Roots);
         Treemap.DrilledInto += OnTreemapDrilledInto;
@@ -179,6 +181,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     public ScanSummaryViewModel Summary { get; }
 
+    public FirstRunViewModel FirstRun { get; }
+
     public ScanTreemapViewModel Treemap { get; }
 
     public ScanInspectorViewModel Inspector { get; }
@@ -194,10 +198,6 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         get => Preferences.Intensity;
         set => Preferences.Intensity = value;
     }
-
-    public string PageTitle => "Сканирование";
-
-    public string PageDescription => "Анализ занятого места по дискам и каталогам.";
 
     public bool IsBusy => IsScanning;
 
@@ -231,23 +231,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         ? $"Сканировать {DriveItem.ShortName(SelectedDrive)}"
         : "Выберите диск или каталог";
 
-    public bool IsIndeterminate => Progress.IsIndeterminate;
-
-    public double ProgressValue => Progress.ProgressValue;
-
-    public double ProgressMax => Progress.ProgressMax;
-
-    public ICommand CancelCommand => StopCommand;
-
     internal DirectorySpace? CurrentRoot =>Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
-
-    private void OnProgressPropertyChanged(object? sender, PropertyChangedEventArgs e)
-    {
-        if (e.PropertyName is nameof(IsIndeterminate) or nameof(ProgressValue))
-        {
-            OnPropertyChanged(e.PropertyName);
-        }
-    }
 
     private void OnTreemapDrilledInto(ScanNodeViewModel node)
     {

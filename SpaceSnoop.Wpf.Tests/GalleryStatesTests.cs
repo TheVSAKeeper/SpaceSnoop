@@ -33,20 +33,20 @@ public class GalleryStatesTests
     public void Состояние_готово_у_страниц_не_снимается()
     {
         Assert.That(GalleryStates.All.Where(state => GalleryStates.SupportsPage(SectionKey.Scan, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker }));
+            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome }));
     }
 
-    [TestCase(SectionKey.Sync)]
-    [TestCase(SectionKey.Cleanup)]
-    [TestCase(SectionKey.Settings)]
-    public void Выбор_цели_при_пометках_снимается_только_у_скана(string page)
+    [Test]
+    public void Выбор_цели_снимается_только_у_скана(
+        [Values(SectionKey.Sync, SectionKey.Cleanup, SectionKey.Settings)] string page,
+        [Values(GalleryStates.Picker, GalleryStates.Welcome)] string state)
     {
         Assert.Multiple(() =>
         {
-            Assert.That(GalleryStates.SupportsPage(SectionKey.Scan, GalleryStates.Picker), Is.True);
-            Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Picker), Is.False);
-            Assert.That(GalleryStates.SupportsTip(GalleryStates.Picker), Is.False);
-            Assert.That(GalleryDialogs.All.Any(dialog => GalleryStates.SupportsDialog(dialog, GalleryStates.Picker)), Is.False);
+            Assert.That(GalleryStates.SupportsPage(SectionKey.Scan, state), Is.True);
+            Assert.That(GalleryStates.SupportsPage(page, state), Is.False);
+            Assert.That(GalleryStates.SupportsTip(state), Is.False);
+            Assert.That(GalleryDialogs.All.Any(dialog => GalleryStates.SupportsDialog(dialog, state)), Is.False);
         });
     }
 

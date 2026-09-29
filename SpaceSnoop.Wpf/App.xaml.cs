@@ -57,8 +57,15 @@ public partial class App : Application
         try
         {
             var settingsPath = Path.Combine(AppStorage.DataDirectory, TomlSettingsFile.PrimaryFileName);
+            var freshProfile = !AppStorage.HasSettings(AppStorage.DataDirectory);
             ISettingsStore settings = new SettingsStore(settingsPath);
             _settings = settings;
+
+            if (freshProfile)
+            {
+                settings.SetBool(SettingsKeys.WelcomePending, true);
+            }
+
             AppThemes.Register();
             var themeKey = settings.GetStringValue(SettingsKeys.Theme);
             ThemeManager.Apply(string.IsNullOrWhiteSpace(themeKey) ? AppThemes.LightKey : themeKey);
@@ -67,12 +74,6 @@ public partial class App : Application
             ViewLocator.InstallIntoApplication();
 
             Log.Information("{Marker}...", AppInfo.SessionStartMarker);
-
-            if (TryRestartAsAdministrator(settings))
-            {
-                Shutdown();
-                return;
-            }
 
             splash = new(AppInfo.Name, AppInfo.Version, $"Запуск {AppInfo.Name}", 2, _logging.CreateLogger<StartupSplash>());
 
@@ -106,6 +107,8 @@ public partial class App : Application
 
             splash.Dispose();
             splash = null;
+
+            _ = AskAboutAdministratorAsync(_services);
         }
         catch (Exception ex)
         {
@@ -141,33 +144,38 @@ public partial class App : Application
         };
     }
 
-    private static bool TryRestartAsAdministrator(ISettingsStore settings)
+    private static async Task AskAboutAdministratorAsync(ServiceProvider services)
     {
-        if (AdminElevation.IsElevated)
+        var isElevated = AdminElevation.IsElevated;
+        var scan = services.GetRequiredService<ScanViewModel>();
+        var shell = services.GetRequiredService<ShellPreferences>();
+        var welcomePending = scan.FirstRun.IsVisible;
+
+        Log.Information(isElevated ? "Приложение запущено от имени администратора" : "Приложение запущено без прав администратора");
+
+        switch (AdminStartupPrompt.Decide(isElevated, welcomePending, shell.WarnIfNotAdministrator))
         {
-            Log.Information("Приложение запущено от имени администратора");
-            return false;
+            case StartupAdminAction.WelcomeCard:
+                Log.Information("Первый запуск: вместо вопроса о правах администратора показана карточка первого запуска");
+                break;
+
+            case StartupAdminAction.None when !isElevated:
+                Log.Information("Предупреждение о запуске без прав администратора отключено в настройках");
+                break;
+
+            default:
+                break;
         }
 
-        Log.Information("Приложение запущено без прав администратора");
-
-        if (!settings.GetBool(SettingsKeys.WarnIfNotAdmin, AppDefaults.WarnIfNotAdminDefault))
+        try
         {
-            Log.Information("Предупреждение о запуске без прав администратора отключено в настройках");
-            return false;
+            var prompt = new AdminStartupPrompt(services.GetRequiredService<IDialogService>(), shell, scan.RestartPrompt.RunAsync);
+            await prompt.RunAsync(isElevated, welcomePending);
         }
-
-        var result = StyledMessageBox.Show("""
-                                           Программа запущена не от имени администратора, из-за чего могут отображаться не все директории.
-                                           Рекомендуется запустить её от имени администратора.
-
-                                           Перезапустить от имени администратора?
-                                           """,
-            "Предупреждение",
-            MessageBoxButton.YesNo,
-            MessageBoxImage.Warning);
-
-        return result == MessageBoxResult.Yes && AdminElevation.TryRestartAsAdmin();
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Вопрос о правах администратора не показан");
+        }
     }
 
     internal static ServiceProvider ConfigureServices(ISettingsStore settings, KeepShellLogging logging)

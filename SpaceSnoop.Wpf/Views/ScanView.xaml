@@ -58,8 +58,21 @@
                       Visibility="{Binding ShowTargetPicker, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
             <controls:ScanTargetPicker HorizontalAlignment="Center"
                                        VerticalAlignment="Top"
-                                       MaxWidth="1316"
-                                       Margin="24,96,24,24" />
+                                       MaxWidth="1316">
+                <controls:ScanTargetPicker.Style>
+                    <Style TargetType="controls:ScanTargetPicker">
+                        <Setter Property="Margin"
+                                Value="24,96,24,24" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding FirstRun.IsVisible}"
+                                         Value="True">
+                                <Setter Property="Margin"
+                                        Value="24,24,24,24" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </controls:ScanTargetPicker.Style>
+            </controls:ScanTargetPicker>
         </ScrollViewer>
 
         <Grid Grid.Row="4"

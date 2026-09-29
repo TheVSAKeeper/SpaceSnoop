@@ -12,6 +12,7 @@ public static class GalleryStates
     public const string Busy = "busy";
     public const string Done = "done";
     public const string Picker = "picker";
+    public const string Welcome = "welcome";
 
     private const int ScanParallelism = 8;
     private const int ScanBranchTotal = 18;
@@ -52,7 +53,7 @@ public static class GalleryStates
 
     private static readonly string[] OperationDialogs = [GalleryDialogs.Delete, GalleryDialogs.Archive];
 
-    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker];
+    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker, Welcome];
 
     public static string? Match(string state)
     {
@@ -70,7 +71,7 @@ public static class GalleryStates
         {
             Busy => BusyPages.Contains(page, StringComparer.Ordinal),
             Done => false,
-            Picker => string.Equals(page, SectionKey.Scan, StringComparison.Ordinal),
+            Picker or Welcome => string.Equals(page, SectionKey.Scan, StringComparison.Ordinal),
             _ => true,
         };
     }
@@ -79,7 +80,7 @@ public static class GalleryStates
     {
         return state switch
         {
-            Picker => false,
+            Picker or Welcome => false,
             Idle => true,
             _ => OperationDialogs.Contains(dialog, StringComparer.Ordinal),
         };
@@ -115,6 +116,10 @@ public static class GalleryStates
         {
             case SectionKey.Scan when state == Picker:
                 ApplyPicker(services);
+                break;
+
+            case SectionKey.Scan when state == Welcome:
+                ApplyWelcome(services);
                 break;
 
             case SectionKey.Scan:
@@ -153,6 +158,10 @@ public static class GalleryStates
         {
             case SectionKey.Scan when state == Picker:
                 ResetPicker(services);
+                break;
+
+            case SectionKey.Scan when state == Welcome:
+                ResetWelcome(services);
                 break;
 
             case SectionKey.Scan:
@@ -289,6 +298,32 @@ public static class GalleryStates
         }
 
         scan.OpenPickerCommand.Execute(null);
+    }
+
+    private static void ApplyWelcome(IServiceProvider services)
+    {
+        var scan = services.GetRequiredService<ScanViewModel>();
+        scan.FirstRun.ShowForAutomation(isElevated: false);
+
+        if (!scan.OpenPickerCommand.CanExecute(null))
+        {
+            throw new InvalidOperationException("Выбор цели не открывается – у скана нет результата.");
+        }
+
+        scan.OpenPickerCommand.Execute(null);
+    }
+
+    private static void ResetWelcome(IServiceProvider services)
+    {
+        var scan = services.GetRequiredService<ScanViewModel>();
+
+        if (scan.ClosePickerCommand.CanExecute(null))
+        {
+            scan.ClosePickerCommand.Execute(null);
+        }
+
+        scan.FirstRun.ShowForAutomation(AdminElevation.IsElevated);
+        scan.FirstRun.IsVisible = false;
     }
 
     private static void ResetPicker(IServiceProvider services)

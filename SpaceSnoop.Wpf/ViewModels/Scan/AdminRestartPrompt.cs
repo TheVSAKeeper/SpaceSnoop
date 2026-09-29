@@ -7,19 +7,22 @@ public sealed class AdminRestartPrompt(IDialogService dialogs, ToastNotifier not
 {
     public const string RefusedMessage = "Перезапуск отменён – права администратора не выданы";
 
-    public async Task RunAsync()
+    public async Task<bool> RunAsync()
     {
         var marked = markedCount();
 
         if (marked > 0 && !await dialogs.ShowAsync(BuildConfirm(marked)))
         {
-            return;
+            return false;
         }
 
-        if (!restart())
+        if (restart())
         {
-            notifier.Notify(RefusedMessage, StatusSeverity.Warning);
+            return true;
         }
+
+        notifier.Notify(RefusedMessage, StatusSeverity.Warning);
+        return false;
     }
 
     internal static ConfirmDialogViewModel BuildConfirm(int marked)

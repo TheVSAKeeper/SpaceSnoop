@@ -33,6 +33,12 @@ public static class AppStorage
         return useAppData ? AppDataDirectory : PortableDirectory;
     }
 
+    public static bool HasSettings(string directory)
+    {
+        return File.Exists(Path.Combine(directory, TomlSettingsFile.PrimaryFileName))
+               || File.Exists(Path.Combine(directory, TomlSettingsFile.LegacyFileName));
+    }
+
     internal static bool Resolve(bool portableMarker, bool legacyAppDataMarker, bool legacyPortableData)
     {
         if (portableMarker)
