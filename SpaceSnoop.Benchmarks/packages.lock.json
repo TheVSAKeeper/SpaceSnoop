@@ -53,8 +53,8 @@
       },
       "KeepShell": {
         "type": "Transitive",
-        "resolved": "0.1.241",
-        "contentHash": "kv2ZVMYJXCsHVu2F6LnPqSXGckSo0hQTwM2VvVWD/DypvqyGXg4KCLldLnHGHc3d3CxccO2Mxhv99Uck/K9JHQ==",
+        "resolved": "0.1.245",
+        "contentHash": "Ks4gn10xJBnFmiNstz0Qe/S8r5z+AQq2ee8TDY5jiE3vEdtDnH63bb11AmPHI/VyzuRPH79DcI9e6qfzpy0+zw==",
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.3.2",
           "MahApps.Metro.IconPacks.Lucide": "6.2.1",
@@ -69,18 +69,18 @@
       },
       "KeepShell.Automation": {
         "type": "Transitive",
-        "resolved": "0.1.241",
-        "contentHash": "dLPK7FRJevug0IrpZgzAKjB/jXRcMjyyvt8B3GUoKT4fD+OziikBN6XQjqf7ZEXZpIBekXyDrBYbsV0U24NBcw==",
+        "resolved": "0.1.245",
+        "contentHash": "9IhvMdwZir7sBjVmpS323Lg0zb2HWKxxlAIOt2KRQ5FeNCUcdUp5EQIAKDw/Wgld6YyvrwQQzITax4ND09KZrw==",
         "dependencies": {
-          "KeepShell": "0.1.241"
+          "KeepShell": "0.1.245"
         }
       },
       "KeepShell.Themes.Tarkov": {
         "type": "Transitive",
-        "resolved": "0.1.241",
-        "contentHash": "HAALeK287yS34Ej1Q07UVQrLkamH7JnSg/RyLgRMDcYXpNkPdjSjjEHiK64bXew0dlO/8tKGn/NsquNkGhwcNw==",
+        "resolved": "0.1.245",
+        "contentHash": "Z2BzxLeEXDTVRYzRYQxCVYRwhW3cVYbgdAFPFGSYAkzGs3vdIck5gtjmEWIr2Yv9TkgRdTDBXCKyY2E0+wsAQg==",
         "dependencies": {
-          "KeepShell": "0.1.241"
+          "KeepShell": "0.1.245"
         }
       },
       "MahApps.Metro.IconPacks.Core": {
@@ -352,9 +352,9 @@
         "type": "Project",
         "dependencies": {
           "CommunityToolkit.Mvvm": "[8.4.2, )",
-          "KeepShell": "[0.1.241, )",
-          "KeepShell.Automation": "[0.1.241, )",
-          "KeepShell.Themes.Tarkov": "[0.1.241, )",
+          "KeepShell": "[0.1.245, )",
+          "KeepShell.Automation": "[0.1.245, )",
+          "KeepShell.Themes.Tarkov": "[0.1.245, )",
           "MahApps.Metro.IconPacks.Lucide": "[6.2.1, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.9, )",
           "ModelContextProtocol.AspNetCore": "[1.4.1, )",
