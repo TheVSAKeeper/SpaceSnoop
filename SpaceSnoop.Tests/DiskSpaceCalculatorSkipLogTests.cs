@@ -97,8 +97,8 @@ public class DiskSpaceCalculatorSkipLogTests
             comparer.Compare(_root, right.FullName, CancellationToken.None);
             comparer.Compare(_root, right.FullName, CancellationToken.None);
 
-            var skips = logger.Entries.Where(entry => entry.EventId is 1212 or 1224).ToList();
-            var totals = logger.Entries.Where(entry => entry.EventId == 1225).ToList();
+            var skips = logger.Entries.Where(entry => entry.EventId is 1512 or 1524).ToList();
+            var totals = logger.Entries.Where(entry => entry.EventId == 1525).ToList();
 
             using (Assert.EnterMultipleScope())
             {
