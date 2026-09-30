@@ -8,6 +8,7 @@ using SpaceSnoop.Wpf.ViewModels.Settings;
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
+[Apartment(ApartmentState.STA)]
 [NonParallelizable]
 public class SystemThemeTests
 {
@@ -35,6 +36,42 @@ public class SystemThemeTests
             Assert.That(system!.IsDark, Is.EqualTo(expectedDark));
             Assert.That(system.Palette, Is.EqualTo(source.Palette));
             Assert.That(ThemeManager.IsDarkFamily(AppThemes.SystemKey), Is.EqualTo(expectedDark));
+        });
+    }
+
+    [Test]
+    public void Смена_режима_Windows_при_системной_теме_применяется_одним_Changed_без_морфа()
+    {
+        _ = TestApplication.Ensure(AppResources.Sources);
+        AppThemes.Register();
+        AppThemes.RegisterSystem(appsUseLightTheme: true);
+        ThemeManager.Apply(AppThemes.SystemKey);
+
+        var changed = new List<ThemeDefinition>();
+        var applying = 0;
+        EventHandler<ThemeDefinition> onChanged = (_, theme) => changed.Add(theme);
+        EventHandler<ThemeTransition> onApplying = (_, _) => applying++;
+        ThemeManager.Changed += onChanged;
+        ThemeManager.Applying += onApplying;
+
+        try
+        {
+            AppThemes.FollowSystem(appsUseLightTheme: false);
+        }
+        finally
+        {
+            ThemeManager.Changed -= onChanged;
+            ThemeManager.Applying -= onApplying;
+            AppThemes.RegisterSystem(appsUseLightTheme: true);
+            ThemeManager.Apply(AppThemes.LightKey);
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(changed, Has.Count.EqualTo(1));
+            Assert.That(changed[0].Key, Is.EqualTo(AppThemes.SystemKey));
+            Assert.That(changed[0].IsDark, Is.True);
+            Assert.That(applying, Is.Zero);
         });
     }
 

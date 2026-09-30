@@ -283,10 +283,8 @@
                     <Path Data="M 0,5 L 10,5"
                           Style="{StaticResource Chrome.Glyph}" />
                 </Button>
-                <Button Style="{StaticResource Chrome.Button}"
-                        keepshell:ChromeAction.Action="MaxRestore"
-                        ToolTip="Развернуть"
-                        AutomationProperties.Name="Развернуть или восстановить окно">
+                <Button Style="{StaticResource Chrome.Button.MaxRestore}"
+                        keepshell:ChromeAction.Action="MaxRestore">
                     <Path Style="{StaticResource Chrome.Glyph.MaxRestore}" />
                 </Button>
                 <Button Style="{StaticResource Chrome.Button.Close}"
