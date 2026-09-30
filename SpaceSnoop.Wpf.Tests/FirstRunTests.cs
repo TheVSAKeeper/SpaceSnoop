@@ -183,6 +183,40 @@ public class FirstRunTests
         }
     }
 
+    [Test]
+    public void Переносной_каталог_со_старым_settings_txt_открывается_без_карточки()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "SpaceSnoopFirstRun", Guid.NewGuid().ToString("N"));
+        var exe = Path.Combine(root, "exe");
+        var appData = Path.Combine(root, "appdata");
+        Directory.CreateDirectory(exe);
+        Directory.CreateDirectory(appData);
+
+        try
+        {
+            File.WriteAllText(Path.Combine(exe, TomlSettingsFile.LegacyFileName), $"{SettingsKeys.FontScale} 1.25\n");
+
+            var useAppData = AppStorage.Resolve(false, false, () => AppStorage.HasPortableSettings(exe, appData));
+            var dataDirectory = useAppData ? appData : exe;
+            var freshProfile = !AppStorage.HasSettings(dataDirectory);
+
+            using var store = new SettingsStore(Path.Combine(dataDirectory, TomlSettingsFile.PrimaryFileName));
+            ISettingsStore settings = store;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(useAppData, Is.False);
+                Assert.That(freshProfile, Is.False);
+                Assert.That(settings.GetDouble(SettingsKeys.FontScale, 1.0), Is.EqualTo(1.25));
+                Assert.That(Card(settings, isElevated: false, () => Task.FromResult(false)).IsVisible, Is.False);
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
     private static MemorySettings PendingSettings()
     {
         var settings = new MemorySettings();
@@ -191,7 +225,7 @@ public class FirstRunTests
         return settings;
     }
 
-    private static FirstRunViewModel Card(MemorySettings settings, bool isElevated, Func<Task<bool>> restart)
+    private static FirstRunViewModel Card(ISettingsStore settings, bool isElevated, Func<Task<bool>> restart)
     {
         return new(settings, new(settings), new(settings), new UpdatePreferences(settings), isElevated, restart);
     }
