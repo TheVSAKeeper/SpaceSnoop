@@ -71,4 +71,10 @@ internal static partial class CoreLog
         long extraNameBytes,
         string report);
 
+    [LoggerMessage(EventId = 1570, Level = LogLevel.Information, Message = "Сетевой диск {LocalName} переподключён в сеансе администратора: «{RemotePath}»")]
+    public static partial void NetworkDriveRestored(this ILogger logger, string localName, string remotePath);
+
+    [LoggerMessage(EventId = 1571, Level = LogLevel.Warning, Message = "Сетевой диск {LocalName} «{RemotePath}» не переподключён: код Win32 {ErrorCode} ({Reason})")]
+    public static partial void NetworkDriveRestoreFailed(this ILogger logger, string localName, string remotePath, int errorCode, string reason);
+
 }

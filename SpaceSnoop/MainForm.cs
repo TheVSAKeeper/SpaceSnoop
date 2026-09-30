@@ -1,6 +1,8 @@
-﻿using Microsoft.VisualBasic.FileIO;
+﻿using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.VisualBasic.FileIO;
 using SpaceSnoop.Extensions;
 using SpaceSnoop.Services;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace SpaceSnoop;
@@ -62,6 +64,8 @@ public partial class MainForm : Form
         FillDrives();
 
         SetDefaultSettings();
+
+        _ = RestoreNetworkDrivesAsync();
     }
 
     private void OnStartButtonClicked(object sender, EventArgs args)
@@ -257,6 +261,45 @@ public partial class MainForm : Form
         foreach (var disk in hardDisk)
         {
             _hardDiskComboBox.Items.Add(disk.Name);
+        }
+    }
+
+    private async Task RestoreNetworkDrivesAsync()
+    {
+        IReadOnlyList<DriveRestoreResult> results;
+
+        try
+        {
+            results = await NetworkDrives.RestoreAsync(AdministratorChecker.IsCurrentUserAdmin(), NullLogger.Instance);
+        }
+        catch (Exception exception)
+        {
+            results = [];
+
+            if (!IsDisposed)
+            {
+                AppendColoredText($"[{DateTime.Now:HH:mm:ss:ffff}] Сетевые диски не переподключены: {exception.Message}", ErrorColor);
+            }
+        }
+
+        if (IsDisposed)
+        {
+            return;
+        }
+
+        foreach (var result in results)
+        {
+            var drive = result.Drive;
+
+            if (result.Succeeded)
+            {
+                _hardDiskComboBox.Items.Add($@"{drive.LocalName}\");
+            }
+            else
+            {
+                AppendColoredText($"[{DateTime.Now:HH:mm:ss:ffff}] Сетевой диск {drive.LocalName} «{drive.RemotePath}» не подключён: {new Win32Exception(result.ErrorCode).Message} (код {result.ErrorCode})",
+                    ErrorColor);
+            }
         }
     }
 

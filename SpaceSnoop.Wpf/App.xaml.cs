@@ -122,6 +122,7 @@ public partial class App : Application
             splash.Dispose();
             splash = null;
 
+            _ = RestoreNetworkDrivesAsync(_services, _logging.CreateLogger<DriveCatalog>());
             _ = AskAboutAdministratorAsync(_services);
         }
         catch (Exception ex)
@@ -175,6 +176,24 @@ public partial class App : Application
                 $"Настройка не сохранена: файл «{failure.FilePath}» не записан. Значение осталось только в окне и пропадёт при следующем запуске.",
                 StatusSeverity.Error));
         };
+    }
+
+    private static async Task RestoreNetworkDrivesAsync(ServiceProvider services, Microsoft.Extensions.Logging.ILogger logger)
+    {
+        try
+        {
+            var results = await NetworkDrives.RestoreAsync(AdminElevation.IsElevated, logger);
+
+            if (results.Any(result => result.Succeeded))
+            {
+                var scan = services.GetRequiredService<ScanViewModel>();
+                services.GetRequiredService<IUiDispatcher>().Invoke(() => scan.RefreshDrivesCommand.Execute(null));
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Сетевые диски пользователя в сеансе администратора не переподключены");
+        }
     }
 
     private static async Task AskAboutAdministratorAsync(ServiceProvider services)
