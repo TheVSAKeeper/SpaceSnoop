@@ -741,6 +741,50 @@ public class BindingSmokeTests
         }
     }
 
+    [Test]
+    public void Плашка_прав_в_тесном_заголовке_видна_целиком_или_иконкой_и_заголовок_не_обрезан()
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var (width, height, scale) = (_window.Width, _window.Height, shell.FontScale);
+        var title = Descendants<TitleBarView>(_window).Single();
+        var pill = (FrameworkElement)title.FindName("ElevationPill")!;
+        var icon = (FrameworkElement)title.FindName("ElevationIcon")!;
+        var slot = (FrameworkElement)title.FindName("ElevationSlot")!;
+
+        try
+        {
+            _window.Width = SmallWindowWidth;
+            _window.Height = SmallWindowHeight;
+            shell.FontScale = FontScaleManager.MaxScale;
+            Settle();
+
+            var room = ((Grid)slot.Parent).ColumnDefinitions[Grid.GetColumn(slot)].ActualWidth - slot.Margin.Left;
+            var fits = pill.DesiredSize.Width <= room;
+            var shown = fits ? pill : icon;
+            var right = shown.TransformToAncestor(title).Transform(new(shown.ActualWidth, 0)).X;
+            var named = Descendants<FrameworkElement>(icon).Where(element => element.IsVisible && AutomationProperties.GetName(element).Length > 0).ToList();
+            var titleSlot = (FrameworkElement)VisualTreeHelper.GetParent(title);
+
+            title.Measure(new(title.ActualWidth, double.PositiveInfinity));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(pill.IsVisible, Is.EqualTo(fits), $"Плашка шириной {pill.DesiredSize.Width:F0} при месте {room:F0}: показан не тот вариант.");
+                Assert.That(icon.IsVisible, Is.EqualTo(!fits), "Иконка и полная плашка видны не взаимоисключающе.");
+                Assert.That(right, Is.LessThanOrEqualTo(room + slot.TransformToAncestor(title).Transform(default).X + 0.5), "Видимый вариант плашки прав обрезан справа.");
+                Assert.That(fits || named.Count > 0, Is.True, "У иконки режима запуска нет имени для диктора.");
+                Assert.That(titleSlot.ActualHeight, Is.GreaterThanOrEqualTo(title.DesiredSize.Height - 0.5), "Заголовок окна при крупном шрифте режется снизу.");
+            }
+        }
+        finally
+        {
+            shell.FontScale = scale;
+            _window.Width = width;
+            _window.Height = height;
+            Settle();
+        }
+    }
+
     private bool Scrollable(SettingsSectionList sections, SettingsSection section, ScrollViewer cards)
     {
         sections.SelectCommand.Execute(section);

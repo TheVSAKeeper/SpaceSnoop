@@ -4,6 +4,7 @@
              xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:bs="clr-namespace:SpaceSnoop.Wpf.Bootstrap"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -98,62 +99,112 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0"
-                        Orientation="Horizontal"
-                        Margin="14,0">
-                <Image Source="pack://application:,,,/SpaceSnoop.Wpf;component/icon.ico"
+            <Grid Grid.Column="0"
+                  Margin="14,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Image Grid.Column="0"
+                       Source="pack://application:,,,/SpaceSnoop.Wpf;component/icon.ico"
                        Width="18"
                        Height="18"
                        VerticalAlignment="Center"
                        RenderOptions.BitmapScalingMode="HighQuality" />
-                <TextBlock Text="SpaceSnoop"
+                <TextBlock Grid.Column="1"
+                           Text="SpaceSnoop"
                            Margin="10,0,0,0"
                            VerticalAlignment="Center"
                            FontWeight="SemiBold" />
-                <TextBlock VerticalAlignment="Center"
+                <TextBlock Grid.Column="2"
+                           VerticalAlignment="Center"
                            Margin="10,0,0,0"
                            Style="{StaticResource TextBlock.Subtle}">
                     <Run Text="v" /><Run Text="{Binding AppVersion, Mode=OneTime}" />
                 </TextBlock>
 
-                <Border Margin="14,0,0,0"
-                        Padding="8,2"
-                        CornerRadius="4"
-                        BorderBrush="{DynamicResource Border.Subtle}"
-                        BorderThickness="1"
-                        VerticalAlignment="Center"
-                        ToolTip="Режим запуска приложения">
-                    <StackPanel Orientation="Horizontal"
-                                VerticalAlignment="Center">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ShieldCheck}"
-                                                  Width="13"
-                                                  Height="13"
-                                                  Margin="0,0,6,0"
-                                                  VerticalAlignment="Center"
-                                                  Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}" />
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Shield}"
-                                                  Width="13"
-                                                  Height="13"
-                                                  Margin="0,0,6,0"
-                                                  VerticalAlignment="Center"
-                                                  Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
-                        <TextBlock Text="{Binding ElevationCaption}"
-                                   Style="{StaticResource TextBlock.Subtle}"
-                                   VerticalAlignment="Center" />
-                        <Button Content="Перезапустить от администратора"
-                                Style="{StaticResource Button.Ghost}"
+                <views:FirstFitPanel x:Name="ElevationSlot"
+                                     Grid.Column="3"
+                                     Margin="14,0,0,0"
+                                     HorizontalAlignment="Left"
+                                     VerticalAlignment="Center">
+                    <Border x:Name="ElevationPill"
+                            Padding="8,2"
+                            CornerRadius="4"
+                            BorderBrush="{DynamicResource Border.Subtle}"
+                            BorderThickness="1"
+                            VerticalAlignment="Center"
+                            ToolTip="Режим запуска приложения">
+                        <StackPanel Orientation="Horizontal"
+                                    VerticalAlignment="Center">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ShieldCheck}"
+                                                      Width="13"
+                                                      Height="13"
+                                                      Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}" />
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Shield}"
+                                                      Width="13"
+                                                      Height="13"
+                                                      Margin="0,0,6,0"
+                                                      VerticalAlignment="Center"
+                                                      Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
+                            <TextBlock Text="{Binding ElevationCaption}"
+                                       Style="{StaticResource TextBlock.Subtle}"
+                                       VerticalAlignment="Center" />
+                            <Button Content="Перезапустить от администратора"
+                                    Style="{StaticResource Button.Ghost}"
+                                    Command="{Binding RestartAsAdminCommand}"
+                                    shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                                    Margin="10,0,0,0"
+                                    Padding="6,2"
+                                    MinHeight="22"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Перезапустить приложение с правами администратора"
+                                    AutomationProperties.Name="Перезапустить от имени администратора"
+                                    Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+                    <Grid x:Name="ElevationIcon"
+                          VerticalAlignment="Center">
+                        <Button x:Name="ElevationIconButton"
+                                Style="{StaticResource Theme.SegmentButton}"
                                 Command="{Binding RestartAsAdminCommand}"
                                 shell:WindowChrome.IsHitTestVisibleInChrome="True"
-                                Margin="10,0,0,0"
-                                Padding="6,2"
-                                MinHeight="22"
-                                VerticalAlignment="Center"
-                                ToolTip="Перезапустить приложение с правами администратора"
+                                BorderBrush="{DynamicResource Border.Subtle}"
+                                BorderThickness="1"
+                                Width="30"
+                                MinHeight="24"
+                                ToolTip="Обычный режим: часть каталогов не прочитать. Нажмите, чтобы перезапустить от администратора"
                                 AutomationProperties.Name="Перезапустить от имени администратора"
-                                Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
-                    </StackPanel>
-                </Border>
-            </StackPanel>
+                                Visibility="{Binding IsElevated, Converter={StaticResource InverseBoolToVisibility}}">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Shield}"
+                                                      Width="14"
+                                                      Height="14" />
+                        </Button>
+                        <Border Width="30"
+                                MinHeight="24"
+                                CornerRadius="4"
+                                BorderBrush="{DynamicResource Border.Subtle}"
+                                BorderThickness="1"
+                                Background="Transparent"
+                                shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                                ToolTip="Запущено от администратора"
+                                AutomationProperties.Name="Запущено от администратора"
+                                Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}}">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ShieldCheck}"
+                                                      Width="14"
+                                                      Height="14"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{DynamicResource Fg.Secondary}" />
+                        </Border>
+                    </Grid>
+                </views:FirstFitPanel>
+            </Grid>
 
             <StackPanel Grid.Column="1"
                         Orientation="Horizontal"
@@ -266,8 +317,8 @@
                             Tag="{Binding Theme.IsTarkov}"
                             Width="36"
                             Margin="2,0,0,0"
-                            ToolTip="Tarkov-тема"
-                            AutomationProperties.Name="Tarkov-тема">
+                            ToolTip="Тема Tarkov (игровая)"
+                            AutomationProperties.Name="Тема Tarkov (игровая)">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Target}"
                                                   Width="16"
                                                   Height="16" />

@@ -5,6 +5,8 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanProgressViewModel : ObservableObject
 {
+    internal const string MeasuringText = "считаем…";
+
     private static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(120);
 
     private readonly PerformanceOperations _operations;
@@ -37,7 +39,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     private string _scanFileCountText = "0";
 
     [ObservableProperty]
-    private string _scanBytesText = "0 байт";
+    private string _scanBytesText = MeasuringText;
 
     [ObservableProperty]
     private string _scanElapsedText = PerformanceText.Elapsed(TimeSpan.Zero);
@@ -77,6 +79,11 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     public double ProgressValue => _progressFraction ?? 0;
 
     public double ProgressMax => 1;
+
+    internal static string BytesText(long files, long bytes)
+    {
+        return files == 0 && bytes == 0 ? MeasuringText : SizeFormatter.Format(bytes);
+    }
 
     internal static long? EstimateTotalBytes(DirectoryInfo directory)
     {
@@ -175,7 +182,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         ScanShowsStage = false;
         ScanDirCountText = "0";
         ScanFileCountText = "0";
-        ScanBytesText = SizeFormatter.Format(0);
+        ScanBytesText = MeasuringText;
         ScanElapsedText = PerformanceText.Elapsed(TimeSpan.Zero);
         ScanThroughputText = "–";
         ScanRemainingText = string.Empty;
@@ -215,7 +222,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
         ScanDirCountText = snapshot.DirectoriesScanned.ToString("N0");
         ScanFileCountText = snapshot.FilesScanned.ToString("N0");
-        ScanBytesText = SizeFormatter.Format(snapshot.BytesScanned);
+        ScanBytesText = BytesText(snapshot.FilesScanned, snapshot.BytesScanned);
         ScanElapsedText = PerformanceText.Elapsed(elapsed);
 
         ScanHasBranches = snapshot.TopLevelTotal > 0;

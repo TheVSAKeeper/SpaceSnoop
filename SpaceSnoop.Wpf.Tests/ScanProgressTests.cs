@@ -54,6 +54,40 @@ public class ScanProgressTests
         Assert.That(ScanProgressViewModel.EstimateTotalBytes(new($@"{free}:\")), Is.Null);
     }
 
+    [TestCase(0, 0, ScanProgressViewModel.MeasuringText)]
+    [TestCase(3, 0, "0 байт")]
+    [TestCase(1, 1536, "1,5 КБ")]
+    public void Объём_до_первого_замера_не_выдаёт_себя_за_ноль(long files, long bytes, string expected)
+    {
+        Assert.That(ScanProgressViewModel.BytesText(files, bytes), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Строка_хода_говорит_считаем_от_старта_до_первого_учтённого_файла()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var viewModel = new ScanProgressViewModel(new(TestDiagnostics.Monitor()), dispatcher);
+        var timer = dispatcher.Timers.Single();
+        var progress = viewModel.Begin(new(Path.GetTempPath()), @"C:\", 1);
+
+        var atStart = viewModel.ScanBytesText;
+
+        progress.EnterDirectory(@"C:\Windows");
+        timer.Tick();
+
+        var beforeFiles = viewModel.ScanBytesText;
+
+        progress.AddFiles(1, 1536);
+        timer.Tick();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(atStart, Is.EqualTo(ScanProgressViewModel.MeasuringText));
+            Assert.That(beforeFiles, Is.EqualTo(ScanProgressViewModel.MeasuringText));
+            Assert.That(viewModel.ScanBytesText, Is.EqualTo("1,5 КБ"));
+        }
+    }
+
     [Test]
     public void Строка_фазы_идёт_мимо_пути_и_не_переприсваивается_на_каждом_тике()
     {
