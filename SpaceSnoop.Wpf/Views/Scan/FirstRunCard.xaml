@@ -2,7 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
-             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -127,34 +126,12 @@
                     <StackPanel Grid.Column="1">
                         <TextBlock Text="Оформление"
                                    Style="{StaticResource Form.Label}" />
-                        <ListBox Style="{StaticResource ListBox.Segmented}"
-                                 ItemsSource="{Binding ThemeSegments}"
+                        <ListBox Style="{StaticResource ListBox.ThemeTiles}"
+                                 ItemsSource="{Binding ThemeOptions}"
                                  SelectedIndex="{Binding SelectedThemeIndex}"
                                  HorizontalAlignment="Left"
-                                 Margin="0,8,0,0"
-                                 AutomationProperties.Name="Тема оформления">
-                            <ListBox.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <views:UniformRowPanel />
-                                </ItemsPanelTemplate>
-                            </ListBox.ItemsPanel>
-                            <ListBox.ItemTemplate>
-                                <DataTemplate>
-                                    <StackPanel Orientation="Horizontal"
-                                                HorizontalAlignment="Center">
-                                        <ContentControl Template="{StaticResource ThemeSwatch}"
-                                                        Content="{Binding Theme}"
-                                                        Focusable="False"
-                                                        IsTabStop="False"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,0,7,0" />
-                                        <TextBlock Text="{Binding Text}"
-                                                   VerticalAlignment="Center"
-                                                   TextTrimming="CharacterEllipsis" />
-                                    </StackPanel>
-                                </DataTemplate>
-                            </ListBox.ItemTemplate>
-                        </ListBox>
+                                 Margin="-8,8,0,-8"
+                                 AutomationProperties.Name="Тема оформления" />
                     </StackPanel>
                 </Grid>
 

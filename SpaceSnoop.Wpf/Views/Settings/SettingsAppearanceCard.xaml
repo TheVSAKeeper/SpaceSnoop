@@ -25,7 +25,15 @@
                             keepshell:Form.ResetCommandParameter="appearance"
                             keepshell:Form.ResetHint="{Binding ResetPlans[appearance].Hint}">
         <StackPanel>
-            <settings:SettingRowPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <StackPanel>
                     <TextBlock Text="Тема оформления"
                                Style="{StaticResource Form.Label}"
@@ -34,35 +42,21 @@
                                Style="{StaticResource Form.Hint}"
                                Margin="0,2,0,0" />
                 </StackPanel>
-                <ComboBox Style="{StaticResource ComboBox.Form}"
-                          ItemsSource="{Binding ThemeOptions}"
-                          SelectedItem="{Binding SelectedThemeOption}"
-                          TextSearch.TextPath="Label"
-                          AutomationProperties.Name="Тема оформления"
-                          Width="{StaticResource Setting.ControlWidth}"
-                          Margin="16,0,0,0"
-                          VerticalAlignment="Center">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal">
-                                <ContentControl Template="{StaticResource ThemeSwatch}"
-                                                Content="{Binding Value}"
-                                                Focusable="False"
-                                                IsTabStop="False"
-                                                VerticalAlignment="Center"
-                                                Margin="0,0,8,0" />
-                                <TextBlock Text="{Binding Label}"
-                                           VerticalAlignment="Center" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Style="{StaticResource Form.RowReset}"
+                <Button Grid.Column="1"
+                        Style="{StaticResource Form.RowReset}"
                         DataContext="{Binding ResetFields[_system_theme]}"
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </settings:SettingRowPanel>
+                <ListBox Grid.Row="1"
+                         Grid.ColumnSpan="2"
+                         Style="{StaticResource ListBox.ThemeTiles}"
+                         ItemsSource="{Binding ThemeOptions}"
+                         SelectedItem="{Binding SelectedThemeOption}"
+                         AutomationProperties.Name="Тема оформления"
+                         HorizontalAlignment="Left"
+                         Margin="-8,10,0,-8" />
+            </Grid>
 
             <settings:SettingRowPanel Margin="0,16,0,0">
                 <StackPanel>

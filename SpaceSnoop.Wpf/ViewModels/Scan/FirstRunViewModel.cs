@@ -29,7 +29,6 @@ public sealed partial class FirstRunViewModel : ObservableObject
 
         IsElevated = isElevated;
         IsVisible = settings.GetBool(SettingsKeys.WelcomePending, AppDefaults.WelcomePendingDefault);
-        ThemeSegments = SettingsOptions.Themes.Select(static option => new ThemeSegment(option.Value, option.Label, $"Тема «{option.Label}»")).ToList();
 
         scan.PropertyChanged += OnScanChanged;
         theme.PropertyChanged += OnThemeChanged;
@@ -50,14 +49,20 @@ public sealed partial class FirstRunViewModel : ObservableObject
         set => _scan.MftEnabled = value;
     }
 
-    public IReadOnlyList<ThemeSegment> ThemeSegments { get; }
+    public IReadOnlyList<EnumOption<AppTheme>> ThemeOptions => SettingsOptions.Themes;
 
     public int SelectedThemeIndex
     {
         get => IndexOf(_theme.Current);
         set
         {
-            if (value >= 0 && value < SettingsOptions.Themes.Count && SettingsOptions.Themes[value].Value != _theme.Current)
+            if (value < 0)
+            {
+                OnPropertyChanged();
+                return;
+            }
+
+            if (value < SettingsOptions.Themes.Count && SettingsOptions.Themes[value].Value != _theme.Current)
             {
                 _theme.ApplyCommand.Execute(SettingsOptions.Themes[value].Value);
             }
@@ -90,7 +95,6 @@ public sealed partial class FirstRunViewModel : ObservableObject
     {
         var fastScan = _scan.MftEnabled;
         _scan.MftEnabled = true;
-        Complete();
         _settings.Flush();
 
         if (await _restart())
@@ -99,8 +103,6 @@ public sealed partial class FirstRunViewModel : ObservableObject
         }
 
         _scan.MftEnabled = fastScan;
-        IsVisible = true;
-        _settings.SetBool(SettingsKeys.WelcomePending, true);
     }
 
     private void Complete()

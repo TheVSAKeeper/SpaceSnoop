@@ -101,8 +101,8 @@ public class FirstRunTests
         }
     }
 
-    [TestCase(true, false, TestName = "Перезапуск из карточки включает быстрый скан и снимает отметку ещё до перезапуска")]
-    [TestCase(false, false, TestName = "Несостоявшийся перезапуск возвращает карточку, отметку и выключенный быстрый скан")]
+    [TestCase(true, false, TestName = "Перезапуск из карточки включает быстрый скан и оставляет карточку до явного «Готово»")]
+    [TestCase(false, false, TestName = "Несостоявшийся перезапуск оставляет карточку и возвращает выключенный быстрый скан")]
     [TestCase(false, true, TestName = "Несостоявшийся перезапуск оставляет включённый заранее быстрый скан")]
     public async Task Перезапуск_из_карточки(bool restarted, bool fastScanBefore)
     {
@@ -121,12 +121,36 @@ public class FirstRunTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(pendingAtRestart, Is.False);
+            Assert.That(pendingAtRestart, Is.True);
             Assert.That(fastScanAtRestart, Is.True);
-            Assert.That(card.IsVisible, Is.EqualTo(!restarted));
-            Assert.That(((ISettingsStore)settings).GetBool(SettingsKeys.WelcomePending, false), Is.EqualTo(!restarted));
+            Assert.That(card.IsVisible, Is.True);
+            Assert.That(((ISettingsStore)settings).GetBool(SettingsKeys.WelcomePending, false), Is.True);
             Assert.That(((ISettingsStore)settings).GetBool(SettingsKeys.ScanMftEnabled), Is.EqualTo(restarted || fastScanBefore));
             Assert.That(card.FastScan, Is.EqualTo(restarted || fastScanBefore));
+        }
+    }
+
+    [Test]
+    public async Task После_перезапуска_от_администратора_карточка_показывается_с_правами_и_закрывается_только_явно()
+    {
+        var settings = PendingSettings();
+        await Card(settings, isElevated: false, () => Task.FromResult(true)).RestartAsAdminCommand.ExecuteAsync(null);
+
+        var elevated = Card(settings, isElevated: true, () => Task.FromResult(false));
+        var visibleAfterRestart = elevated.IsVisible;
+        var needsElevation = elevated.NeedsElevation;
+        var fastScan = elevated.FastScan;
+        var decision = AdminStartupPrompt.Decide(true, ((ISettingsStore)settings).GetBool(SettingsKeys.WelcomePending), true);
+        elevated.DismissCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(visibleAfterRestart, Is.True);
+            Assert.That(needsElevation, Is.False);
+            Assert.That(fastScan, Is.True);
+            Assert.That(decision, Is.EqualTo(StartupAdminAction.WelcomeCard));
+            Assert.That(elevated.IsVisible, Is.False);
+            Assert.That(Card(settings, isElevated: true, () => Task.FromResult(false)).IsVisible, Is.False);
         }
     }
 

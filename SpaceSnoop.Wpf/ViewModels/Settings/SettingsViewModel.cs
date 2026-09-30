@@ -229,6 +229,12 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
         get => ThemeOptions.First(o => o.Value == Theme.Current);
         set
         {
+            if (value is null)
+            {
+                OnPropertyChanged();
+                return;
+            }
+
             if (value.Value != Theme.Current)
             {
                 Theme.ApplyCommand.Execute(value.Value);
