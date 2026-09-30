@@ -74,18 +74,14 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
             agentModel,
             mcp,
             mcpServer,
-            bridge,
             uiDispatcher,
             logger,
-            () => _cts?.Cancel(),
-            () => History.DropSession(IsBusy),
-            () =>
-            {
-                _cts?.Cancel();
-                History.DropSession(IsBusy);
-            });
+            History,
+            () => IsBusy,
+            () => _cts?.Cancel());
         Gates.PropertyChanged += OnGatesPropertyChanged;
         Gates.NavigationRequested += OnNavigationRequested;
+        bridge.NavigationDeferred += Gates.OnNavigationDeferred;
     }
 
     public event Action? FocusRequested;

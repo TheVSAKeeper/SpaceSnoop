@@ -8,9 +8,9 @@ public sealed partial class ChatGatesViewModel : ObservableObject
     private readonly AgentPreferences _preferences;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly ILogger _logger;
+    private readonly ChatHistoryViewModel _history;
+    private readonly Func<bool> _isBusy;
     private readonly Action _cancelActiveTurn;
-    private readonly Action _dropSessionIfBusy;
-    private readonly Action _beginBackendSwitch;
 
     private bool _detectStarted;
     private int _detectGeneration;
@@ -36,20 +36,19 @@ public sealed partial class ChatGatesViewModel : ObservableObject
         AgentModelSelector agentModel,
         McpPreferences mcp,
         McpServerHost mcpServer,
-        McpBridge bridge,
         IUiDispatcher uiDispatcher,
         ILogger logger,
-        Action cancelActiveTurn,
-        Action dropSessionIfBusy,
-        Action beginBackendSwitch)
+        ChatHistoryViewModel history,
+        Func<bool> isBusy,
+        Action cancelActiveTurn)
     {
         _backends = backends;
         _preferences = preferences;
         _uiDispatcher = uiDispatcher;
         _logger = logger;
+        _history = history;
+        _isBusy = isBusy;
         _cancelActiveTurn = cancelActiveTurn;
-        _dropSessionIfBusy = dropSessionIfBusy;
-        _beginBackendSwitch = beginBackendSwitch;
         AgentModel = agentModel;
         Mcp = mcp;
         McpServer = mcpServer;
@@ -58,7 +57,6 @@ public sealed partial class ChatGatesViewModel : ObservableObject
         _preferences.PropertyChanged += OnGateSourceChanged;
         Mcp.PropertyChanged += OnGateSourceChanged;
         McpServer.PropertyChanged += OnGateSourceChanged;
-        bridge.NavigationDeferred += OnNavigationDeferred;
     }
 
     public event Action<string>? NavigationRequested;
@@ -153,7 +151,7 @@ public sealed partial class ChatGatesViewModel : ObservableObject
         await DetectCliAsync();
     }
 
-    private void OnNavigationDeferred(string sectionKey)
+    internal void OnNavigationDeferred(string sectionKey)
     {
         if (ChatPendingNavigation.For(sectionKey) is not { } pending)
         {
@@ -197,7 +195,7 @@ public sealed partial class ChatGatesViewModel : ObservableObject
 
         if (ReferenceEquals(sender, Mcp) && e.PropertyName == nameof(McpPreferences.AllowMutations) && !Backend.SendsSystemPromptEachTurn)
         {
-            _dropSessionIfBusy();
+            _history.DropSession(_isBusy());
         }
 
         _uiDispatcher.Invoke(NotifyGatesChanged);
@@ -320,7 +318,8 @@ public sealed partial class ChatGatesViewModel : ObservableObject
 
     private void SwitchBackend()
     {
-        _beginBackendSwitch();
+        _cancelActiveTurn();
+        _history.DropSession(_isBusy());
         _logger.AgentBackendChanged(Backend.DisplayName);
 
         _uiDispatcher.Invoke(ReloadBackend);
