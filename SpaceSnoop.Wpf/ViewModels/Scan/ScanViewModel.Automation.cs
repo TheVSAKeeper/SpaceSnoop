@@ -113,7 +113,8 @@ public sealed partial class ScanViewModel : IScanAutomation
 
     internal void ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes)
     {
-        ScanTreeEditor.RemoveRoot(Roots, result.AbsolutePath);
+        var previous = ScanTreeEditor.RemoveRoot(Roots, result.AbsolutePath);
+        var (transferred, lost) = ScanTreeEditor.TransferMarks(previous, result, Marks.HasMarked);
 
         var node = _nodeFactory.CreateRoot(result, Sort.State);
         node.IsExpanded = true;
@@ -126,7 +127,16 @@ public sealed partial class ScanViewModel : IScanAutomation
         _performance.ReportRun(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
         HasResult = true;
         Duplicates.Clear();
-        Marks.RecountMarkedAfterScan(node);
+
+        if (transferred > 0)
+        {
+            Marks.RecountMarked();
+        }
+        else
+        {
+            Marks.RecountMarkedAfterScan(node);
+        }
+
         Drives.ReloadLabels(SelectedDrive);
 
         _logger.ScanCompleted(result.AbsolutePath,
@@ -146,6 +156,11 @@ public sealed partial class ScanViewModel : IScanAutomation
                 "Скан неполон: "
                 + ScanDropNote.Explain(notes.DroppedObjects, notes.DroppedBytes, notes.UnknownSizeFiles, notes.PartialRecords),
                 StatusSeverity.Warning);
+        }
+
+        if (lost > 0)
+        {
+            _notifier.Notify($"Не перенесено пометок на удаление: {lost} – этих путей нет в новом скане", StatusSeverity.Warning);
         }
 
         ReturnScanMemory(result);

@@ -5,6 +5,8 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 internal static class ScanTreeEditor
 {
+    private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
     internal static bool HasMarkedSelfOrChild(SpaceBase space)
     {
         if (space.IsDeleted)
@@ -135,17 +137,155 @@ internal static class ScanTreeEditor
         return true;
     }
 
-    internal static void RemoveRoot(ObservableCollection<ScanNodeViewModel> roots, string path)
+    internal static List<ScanNodeViewModel> RemoveRoot(ObservableCollection<ScanNodeViewModel> roots, string path)
     {
         var normalized = NormalizePath(path);
+        var removed = new List<ScanNodeViewModel>();
 
         for (var i = roots.Count - 1; i >= 0; i--)
         {
             if (IsRootOf(roots[i], normalized))
             {
+                removed.Add(roots[i]);
                 roots.RemoveAt(i);
             }
         }
+
+        return removed;
+    }
+
+    internal static (int Transferred, int Lost) TransferMarks(IEnumerable<ScanNodeViewModel> previousRoots, DirectorySpace fresh, bool marksPresent)
+    {
+        var transferred = 0;
+        var lost = 0;
+
+        if (!marksPresent)
+        {
+            return (transferred, lost);
+        }
+
+        var lookups = new Dictionary<DirectorySpace, ILookup<string, SpaceBase>>(ReferenceEqualityComparer.Instance);
+
+        foreach (var root in previousRoots)
+        {
+            if (root.Space is not DirectorySpace previous)
+            {
+                continue;
+            }
+
+            var marked = new List<SpaceBase>();
+
+            if (previous.IsDeleted)
+            {
+                marked.Add(previous);
+            }
+            else
+            {
+                CollectMarked(previous, marked);
+            }
+
+            foreach (var item in marked)
+            {
+                switch (FindCounterpart(previous, item, fresh, lookups))
+                {
+                    case null:
+                        lost++;
+                        break;
+
+                    case { IsDeleted: false } counterpart:
+                        counterpart.Delete();
+                        transferred++;
+                        break;
+                }
+            }
+        }
+
+        return (transferred, lost);
+    }
+
+    internal static bool SamePath(string left, string right)
+    {
+        if (string.Equals(left, right, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var start = Path.GetPathRoot(right)?.Length ?? 0;
+
+        while (start < right.Length)
+        {
+            var end = right.IndexOfAny(Separators, start);
+
+            if (end < 0)
+            {
+                end = right.Length;
+            }
+
+            if (!left.AsSpan(start, end - start).SequenceEqual(right.AsSpan(start, end - start))
+                && PathCase.IsCaseSensitive(right[..start]))
+            {
+                return false;
+            }
+
+            start = end + 1;
+        }
+
+        return true;
+    }
+
+    private static SpaceBase? FindCounterpart(
+        DirectorySpace previousRoot,
+        SpaceBase item,
+        DirectorySpace fresh,
+        Dictionary<DirectorySpace, ILookup<string, SpaceBase>> lookups)
+    {
+        var steps = new Stack<SpaceBase>();
+
+        for (var current = item; current is not null && !ReferenceEquals(current, previousRoot); current = current.Parent)
+        {
+            steps.Push(current);
+        }
+
+        SpaceBase match = fresh;
+
+        while (steps.TryPop(out var step))
+        {
+            if (match is not DirectorySpace dir || FindChild(dir, step, lookups) is not { } child)
+            {
+                return null;
+            }
+
+            match = child;
+        }
+
+        return match;
+    }
+
+    private static SpaceBase? FindChild(DirectorySpace dir, SpaceBase step, Dictionary<DirectorySpace, ILookup<string, SpaceBase>> lookups)
+    {
+        if (!lookups.TryGetValue(dir, out var children))
+        {
+            children = dir.SubDirectories.Cast<SpaceBase>()
+                .Concat(dir.Files)
+                .ToLookup(static child => child.Name, StringComparer.OrdinalIgnoreCase);
+
+            lookups[dir] = children;
+        }
+
+        var candidates = children[step.Name].Where(child => (child is DirectorySpace) == (step is DirectorySpace)).ToList();
+        var exact = candidates.Find(child => string.Equals(child.Name, step.Name, StringComparison.Ordinal));
+
+        if (exact is not null || candidates.Count == 0 || PathCase.IsCaseSensitive(dir.AbsolutePath))
+        {
+            return exact;
+        }
+
+        return candidates[0];
     }
 
     internal static List<ScanNodeViewModel> ReleaseUnmarkedRoot(
@@ -194,6 +334,6 @@ internal static class ScanTreeEditor
 
     private static bool IsRootOf(ScanNodeViewModel root, string normalizedPath)
     {
-        return string.Equals(NormalizePath(root.AbsolutePath), normalizedPath, StringComparison.OrdinalIgnoreCase);
+        return SamePath(NormalizePath(root.AbsolutePath), normalizedPath);
     }
 }
