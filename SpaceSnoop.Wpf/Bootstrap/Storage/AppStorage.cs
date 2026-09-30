@@ -12,17 +12,19 @@ public static class AppStorage
 
     private static readonly string PortableMarkerPath = Path.Combine(AppContext.BaseDirectory, PortableMarkerFileName);
 
+    private const string OwnSettingsKeyPrefix = "wpf.";
+
     private static readonly string LegacyAppDataMarkerPath = Path.Combine(AppContext.BaseDirectory, LegacyAppDataMarkerFileName);
+
+    public static string AppDataDirectory { get; } =
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.Name);
 
     public static bool UseAppData { get; } = Resolve(
         File.Exists(PortableMarkerPath),
         File.Exists(LegacyAppDataMarkerPath),
-        File.Exists(Path.Combine(AppContext.BaseDirectory, TomlSettingsFile.PrimaryFileName)));
+        static () => HasPortableSettings(AppContext.BaseDirectory, AppDataDirectory));
 
     public static string PortableDirectory => AppContext.BaseDirectory;
-
-    public static string AppDataDirectory { get; } =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.Name);
 
     public static string DataDirectory { get; } = EnsureExists(DirectoryFor(UseAppData));
 
@@ -39,7 +41,7 @@ public static class AppStorage
                || File.Exists(Path.Combine(directory, TomlSettingsFile.LegacyFileName));
     }
 
-    internal static bool Resolve(bool portableMarker, bool legacyAppDataMarker, bool legacyPortableData)
+    internal static bool Resolve(bool portableMarker, bool legacyAppDataMarker, Func<bool> hasPortableSettings)
     {
         if (portableMarker)
         {
@@ -51,7 +53,48 @@ public static class AppStorage
             return true;
         }
 
-        return !legacyPortableData;
+        return !hasPortableSettings();
+    }
+
+    internal static bool HasPortableSettings(string directory, string appDataDirectory)
+    {
+        var tomlPath = Path.Combine(directory, TomlSettingsFile.PrimaryFileName);
+
+        if (File.Exists(tomlPath))
+        {
+            return true;
+        }
+
+        return !HasSettings(appDataDirectory)
+               && IsOwnLegacySettings(Path.Combine(directory, TomlSettingsFile.LegacyFileName))
+               && TryMigrateLegacy(tomlPath);
+    }
+
+    private static bool IsOwnLegacySettings(string path)
+    {
+        try
+        {
+            return File.Exists(path)
+                   && File.ReadLines(path).Select(static line => line.Trim())
+                       .Any(static line => line.StartsWith(OwnSettingsKeyPrefix, StringComparison.Ordinal) && line.Contains(' '));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryMigrateLegacy(string tomlPath)
+    {
+        try
+        {
+            TomlSettingsFile.LoadOrMigrate(tomlPath);
+            return File.Exists(tomlPath);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     public static void SetUseAppData(bool useAppData)

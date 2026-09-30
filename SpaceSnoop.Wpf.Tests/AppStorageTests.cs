@@ -16,7 +16,83 @@ public class AppStorageTests
     [TestCase(true, true, true, false)]
     public void По_умолчанию_AppData_кроме_явного_portable_или_наследия(bool portableMarker, bool legacyAppDataMarker, bool legacyPortableData, bool expected)
     {
-        Assert.That(AppStorage.Resolve(portableMarker, legacyAppDataMarker, legacyPortableData), Is.EqualTo(expected));
+        Assert.That(AppStorage.Resolve(portableMarker, legacyAppDataMarker, () => legacyPortableData), Is.EqualTo(expected));
+    }
+
+    [TestCase(true, false, TestName = "Метка portable.flag решает без проверки каталога exe")]
+    [TestCase(false, true, TestName = "Старая метка appdata.flag решает без проверки и миграции в каталоге exe")]
+    public void Метка_решает_без_проверки_каталога_exe(bool portableMarker, bool legacyAppDataMarker)
+    {
+        var probed = false;
+
+        AppStorage.Resolve(portableMarker, legacyAppDataMarker, () => probed = true);
+
+        Assert.That(probed, Is.False);
+    }
+
+    [TestCase("wpf.shell.font_scale 1.25\nwpf.scan.multithreading True\n", false, true, TestName = "Свой settings.txt без профиля в AppData – каталог переносной, файл мигрирует")]
+    [TestCase("\n  wpf.shell.font_scale 1.25\r\n", false, true, TestName = "Свой settings.txt с отступом и CRLF – каталог переносной")]
+    [TestCase("volume 7\nlanguage ru\n", false, false, TestName = "Чужой settings.txt – каталог не переносной, миграции нет")]
+    [TestCase("", false, false, TestName = "Пустой settings.txt – каталог не переносной")]
+    [TestCase("wpf.shell.font_scale 1.25\n", true, false, TestName = "Свой settings.txt при профиле в AppData – остаётся AppData, миграции нет")]
+    public void Старый_settings_txt_рядом_с_exe(string legacy, bool appDataProfile, bool expectedPortable)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "SpaceSnoop.Tests", Guid.NewGuid().ToString("N"));
+        var exe = Path.Combine(root, "exe");
+        var appData = Path.Combine(root, "appdata");
+
+        try
+        {
+            Directory.CreateDirectory(exe);
+            Directory.CreateDirectory(appData);
+            File.WriteAllText(Path.Combine(exe, TomlSettingsFile.LegacyFileName), legacy);
+
+            if (appDataProfile)
+            {
+                File.WriteAllText(Path.Combine(appData, TomlSettingsFile.PrimaryFileName), string.Empty);
+            }
+
+            var portable = AppStorage.HasPortableSettings(exe, appData);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(portable, Is.EqualTo(expectedPortable));
+                Assert.That(File.Exists(Path.Combine(exe, TomlSettingsFile.PrimaryFileName)), Is.EqualTo(expectedPortable));
+                Assert.That(File.ReadAllText(Path.Combine(exe, TomlSettingsFile.LegacyFileName)), Is.EqualTo(legacy));
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    [Test]
+    public void Сбой_записи_settings_toml_оставляет_settings_txt_и_выбирает_AppData()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "SpaceSnoop.Tests", Guid.NewGuid().ToString("N"));
+        var exe = Path.Combine(root, "exe");
+        var appData = Path.Combine(root, "appdata");
+        const string legacy = "wpf.shell.font_scale 1.25\n";
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(exe, TomlSettingsFile.PrimaryFileName));
+            Directory.CreateDirectory(appData);
+            File.WriteAllText(Path.Combine(exe, TomlSettingsFile.LegacyFileName), legacy);
+
+            var useAppData = AppStorage.Resolve(false, false, () => AppStorage.HasPortableSettings(exe, appData));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(useAppData, Is.True);
+                Assert.That(File.ReadAllText(Path.Combine(exe, TomlSettingsFile.LegacyFileName)), Is.EqualTo(legacy));
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
     }
 
     [Test]
