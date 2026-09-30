@@ -34,9 +34,21 @@ public sealed partial class SyncOperationsViewModel
                 return;
             }
 
-            var confirm = _ledger.BuildSyncConfirmation(current, hashes);
+            var confirm = await _ledger.BuildSyncConfirmationAsync(current, hashes);
+
+            if (confirm is null || !ReferenceEquals(_result, current))
+            {
+                return;
+            }
+
+            var shown = current.CountPlannedActions();
 
             if (!await _dialogs.ShowAsync(confirm))
+            {
+                return;
+            }
+
+            if (_session.IsBusy || !ReferenceEquals(_result, current) || current.CountPlannedActions() != shown)
             {
                 return;
             }
@@ -104,6 +116,7 @@ public sealed partial class SyncOperationsViewModel
                 _notifier.Notify(interrupted, StatusSeverity.Warning);
             }
 
+            DiscardComparisonIfInputChanged();
             return null;
         }
 
@@ -139,6 +152,7 @@ public sealed partial class SyncOperationsViewModel
             _dialogs.Warning(problem.Title, problem.Message);
         }
 
+        DiscardComparisonIfInputChanged();
         return new(report, stopwatch.Elapsed, LastVerifyState);
     }
 }

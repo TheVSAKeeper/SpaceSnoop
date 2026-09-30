@@ -142,9 +142,9 @@ internal sealed class HeadlessSync
             return 3;
         }
 
-        if (SyncProfile.PathsOverlap(options.Left, options.Right))
+        if (SyncRoots.Refusal(options.Left, options.Right) is { } refusal)
         {
-            logger.HeadlessSyncAborted("каталоги совпадают или вложены");
+            logger.HeadlessSyncAborted(refusal);
             return 5;
         }
 

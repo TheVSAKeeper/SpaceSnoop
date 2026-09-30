@@ -242,12 +242,14 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
 
     private async Task CompareRowAsync(OverviewRowViewModel row, CancellationToken token)
     {
-        var preflight = OverviewPipeline.Classify(row.Profile);
+        var profile = row.Profile;
+        var preflight = await Task.Run(() => OverviewPipeline.Classify(profile), CancellationToken.None);
+        token.ThrowIfCancellationRequested();
 
-        if (preflight is not null)
+        if (preflight is { } refusal)
         {
-            row.Error = null;
-            row.Status = preflight.Value;
+            row.Error = refusal.Reason;
+            row.Status = refusal.Status;
             return;
         }
 
@@ -290,16 +292,17 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
 
     private async Task SyncRowCore(OverviewRowViewModel row, CancellationToken token)
     {
-        var preflight = OverviewPipeline.Classify(row.Profile);
+        var profile = row.Profile;
+        var preflight = await Task.Run(() => OverviewPipeline.Classify(profile), CancellationToken.None);
+        token.ThrowIfCancellationRequested();
 
-        if (preflight is not null)
+        if (preflight is { } refusal)
         {
-            row.Error = null;
-            row.Status = preflight.Value;
+            row.Error = refusal.Reason;
+            row.Status = refusal.Status;
             return;
         }
 
-        var profile = row.Profile;
         var left = profile.Left.Trim();
         var right = profile.Right.Trim();
         var mode = HeadlessSync.MapMode(profile.Mode);

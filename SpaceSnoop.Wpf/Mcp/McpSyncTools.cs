@@ -60,7 +60,17 @@ internal sealed class McpSyncTools(
     {
         logger.McpToolInvoked("open_sync", $"«{left ?? "как есть"}» → «{right ?? "как есть"}», режим {mode?.ToString() ?? "как есть"}, сравнение {compare}");
 
-        var comparison = McpDispatch.Run(() => PrepareSyncNavigation(left, right, mode, winner, mirror, exclusions, compare, cancellationToken));
+        var target = McpDispatch.Run(() => (
+            Left: string.IsNullOrWhiteSpace(left) ? sync.LeftPath.Trim() : left.Trim(),
+            Right: string.IsNullOrWhiteSpace(right) ? sync.RightPath.Trim() : right.Trim(),
+            Mode: mode ?? sync.Mode));
+
+        if (compare)
+        {
+            McpGuards.Validate(target.Left, target.Right, target.Mode);
+        }
+
+        var comparison = McpDispatch.Run(() => PrepareSyncNavigation(target.Left, target.Right, target.Mode, winner, mirror, exclusions, compare, cancellationToken));
 
         if (comparison.Run is not null)
         {
@@ -184,9 +194,9 @@ internal sealed class McpSyncTools(
     }
 
     private (Task? Run, bool Deferred, IReadOnlyList<string> Ignored) PrepareSyncNavigation(
-        string? left,
-        string? right,
-        SyncMode? mode,
+        string targetLeft,
+        string targetRight,
+        SyncMode targetMode,
         SyncWinner? winner,
         bool? mirror,
         string? exclusions,
@@ -197,15 +207,6 @@ internal sealed class McpSyncTools(
         {
             logger.McpToolRejected("open_sync", "страница занята операцией");
             throw new McpException("Страница «Синхронизация» сейчас занята другой операцией.");
-        }
-
-        var targetLeft = string.IsNullOrWhiteSpace(left) ? sync.LeftPath.Trim() : left.Trim();
-        var targetRight = string.IsNullOrWhiteSpace(right) ? sync.RightPath.Trim() : right.Trim();
-        var targetMode = mode ?? sync.Mode;
-
-        if (compare)
-        {
-            McpGuards.Validate(targetLeft, targetRight, targetMode);
         }
 
         ApplySyncPaths(targetLeft, targetRight, targetMode, exclusions);

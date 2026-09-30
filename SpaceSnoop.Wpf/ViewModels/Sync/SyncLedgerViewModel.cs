@@ -15,6 +15,8 @@ public sealed class SyncLedgerViewModel : ObservableObject
     private PlannedActions _plan = PlannedActions.Empty;
     private SyncPlanFreshnessState _planState = new(SyncPlanFreshness.Fresh);
     private int _total;
+    private (long? Left, long? Right) _free;
+    private int _freeVersion;
 
     internal SyncLedgerViewModel(SyncGitViewModel git, Func<SyncDirection> direction)
     {
@@ -76,7 +78,7 @@ public sealed class SyncLedgerViewModel : ObservableObject
     public string PlanTrashText => SizeFormatter.Format(_plan.DeleteBytes);
 
     public string PlanVolumeHint => ConfirmDialogViewModel.AsText(
-        SyncPlanNarrative.BuildPlanLines(_plan, null, SyncPlanNarrative.BuildReceivers(_result, _plan)));
+        SyncPlanNarrative.BuildPlanLines(_plan, null, SyncPlanNarrative.BuildReceivers(_result, _plan, _free)));
 
     public bool HasConflicts => ConflictCount > 0;
 
@@ -135,6 +137,8 @@ public sealed class SyncLedgerViewModel : ObservableObject
     {
         _result = result;
         _hashesCompared = hashesCompared;
+        _free = default;
+        _freeVersion++;
 
         if (result is null)
         {
@@ -153,9 +157,31 @@ public sealed class SyncLedgerViewModel : ObservableObject
             _freshness = SyncFreshness.Compute(result.Root);
             _plan = result.CountPlannedActions();
             _total = stats.Values.Sum();
+            RefreshFreeSpace(result, _plan);
         }
 
         NotifyLedgerChanged();
+    }
+
+    private void RefreshFreeSpace(ComparisonResult result, PlannedActions plan)
+    {
+        var version = ++_freeVersion;
+        var scheduler = SynchronizationContext.Current is null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
+
+        _ = ReadFreeAsync(result, plan).ContinueWith(read =>
+            {
+                if (version != _freeVersion)
+                {
+                    return;
+                }
+
+                _free = read.Result;
+                OnPropertyChanged(nameof(PlanVolumeHint));
+                OnPropertyChanged(nameof(SyncCommandHint));
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.OnlyOnRanToCompletion,
+            scheduler);
     }
 
     internal void RefreshAfterSync(IReadOnlyDictionary<object, SyncOutcome> outcomes)
@@ -174,13 +200,21 @@ public sealed class SyncLedgerViewModel : ObservableObject
         NotifyLedgerChanged();
     }
 
-    internal ConfirmDialogViewModel BuildSyncConfirmation(ComparisonResult current, ConfirmChoice hashes)
+    internal async Task<ConfirmDialogViewModel?> BuildSyncConfirmationAsync(ComparisonResult current, ConfirmChoice hashes)
     {
+        var before = current.CountPlannedActions();
+        var free = await ReadFreeAsync(current, before);
+        var planned = current.CountPlannedActions();
+
+        if (!ReferenceEquals(_result, current) || planned != before)
+        {
+            return null;
+        }
+
         var direction = _direction();
-        var planned = CurrentPlan;
         var deletes = planned.Deletes + planned.DirDeletes;
         var offerHashes = planned.ModifiedCopies > 0 && !_hashesCompared;
-        var lines = SyncPlanNarrative.BuildPlanLines(planned, null, SyncPlanNarrative.BuildReceivers(_result, planned), direction.BothWays);
+        var lines = SyncPlanNarrative.BuildPlanLines(planned, null, SyncPlanNarrative.BuildReceivers(current, planned, free), direction.BothWays);
 
         if (offerHashes)
         {
@@ -204,6 +238,14 @@ public sealed class SyncLedgerViewModel : ObservableObject
             Summary = SyncPlanNarrative.DescribePlanVolume(planned),
             Warning = BuildSyncWarning(current, deletes),
         };
+    }
+
+    private static async Task<(long? Left, long? Right)> ReadFreeAsync(ComparisonResult result, PlannedActions plan)
+    {
+        var left = plan.RequiredLeftBytes > 0 ? VolumeSpace.ReadFreeAsync(result.LeftPath) : Task.FromResult<long?>(null);
+        var right = plan.RequiredRightBytes > 0 ? VolumeSpace.ReadFreeAsync(result.RightPath) : Task.FromResult<long?>(null);
+
+        return (await left, await right);
     }
 
     private static string? BuildSyncWarning(ComparisonResult current, int deletes)
@@ -230,7 +272,7 @@ public sealed class SyncLedgerViewModel : ObservableObject
         }
 
         var direction = _direction();
-        var lines = SyncPlanNarrative.BuildPlanLines(_plan, direction.Text, SyncPlanNarrative.BuildReceivers(_result, _plan), direction.BothWays);
+        var lines = SyncPlanNarrative.BuildPlanLines(_plan, direction.Text, SyncPlanNarrative.BuildReceivers(_result, _plan, _free), direction.BothWays);
 
         if (SyncIsDestructive)
         {

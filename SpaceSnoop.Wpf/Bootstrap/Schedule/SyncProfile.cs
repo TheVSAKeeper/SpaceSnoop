@@ -78,32 +78,4 @@ public sealed class SyncProfile
             _ => !Directory.Exists(left),
         };
     }
-
-    public static bool PathsOverlap(string left, string right)
-    {
-        string a, b;
-
-        try
-        {
-            a = Trim(Path.GetFullPath(left));
-            b = Trim(Path.GetFullPath(right));
-        }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return false;
-        }
-
-        if (string.Equals(a, b, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        return b.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-               || a.StartsWith(b + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
-
-        static string Trim(string path)
-        {
-            return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        }
-    }
 }

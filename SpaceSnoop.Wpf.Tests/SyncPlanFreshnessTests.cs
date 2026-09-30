@@ -173,6 +173,57 @@ public class SyncPlanFreshnessTests
         Assert.That(transitions, Is.EquivalentTo(new[] { nameof(SyncPlanFreshnessState.AfterComparison), nameof(SyncPlanFreshnessState.AfterSync) }));
     }
 
+    [Test]
+    public async Task Правка_исключений_во_время_сравнения_отбрасывает_его_результат()
+    {
+        var page = CreatePage();
+        var automation = (ISyncAutomation)page;
+        automation.LeftPath = Path.Combine(_root, "left");
+        automation.RightPath = Path.Combine(_root, "right");
+        page.Session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SyncSessionViewModel.IsBusy) && page.Session.IsBusy)
+            {
+                page.Setup.Exclusions = "*.txt";
+            }
+        };
+
+        await automation.CompareFromAutomationAsync(CancellationToken.None);
+
+        Assert.That(page.Operations.Result, Is.Null);
+    }
+
+    [Test]
+    public async Task Правка_исключений_во_время_синхронизации_сбрасывает_сравнение_только_по_её_завершении()
+    {
+        var page = CreatePage();
+        var automation = (ISyncAutomation)page;
+        automation.LeftPath = Path.Combine(_root, "left");
+        automation.RightPath = Path.Combine(_root, "right");
+        automation.Mode = SyncMode.LeftToRight;
+
+        await automation.CompareFromAutomationAsync(CancellationToken.None);
+
+        var keptWhileBusy = false;
+        page.Session.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SyncSessionViewModel.IsBusy) && page.Session.IsBusy)
+            {
+                page.Setup.Exclusions = "*.txt";
+                keptWhileBusy = page.Operations.Result is not null;
+            }
+        };
+
+        var run = await automation.SyncFromAutomationAsync(CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(keptWhileBusy, Is.True);
+            Assert.That(run?.Report.SuccessCount, Is.EqualTo(1));
+            Assert.That(page.Operations.Result, Is.Null);
+        }
+    }
+
     private async Task<SyncViewModel> RunSyncAsync()
     {
         var page = CreatePage();

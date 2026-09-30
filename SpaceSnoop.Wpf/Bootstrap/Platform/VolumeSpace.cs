@@ -6,16 +6,21 @@ namespace SpaceSnoop.Wpf.Bootstrap.Platform;
 
 public static class VolumeSpace
 {
-    public static long? TryReadFree(string path)
+    public static async Task<long?> ReadFreeAsync(string path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
             return null;
         }
 
-        var probe = Task.Run(() => Read(path));
-
-        return probe.Wait(TimeSpan.FromMilliseconds(AppDefaults.VolumeSpaceTimeoutMs)) ? probe.Result : null;
+        try
+        {
+            return await Task.Run(() => Read(path)).WaitAsync(TimeSpan.FromMilliseconds(AppDefaults.VolumeSpaceTimeoutMs)).ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            return null;
+        }
     }
 
     private static long? Read(string path)

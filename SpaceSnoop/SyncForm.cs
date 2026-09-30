@@ -71,6 +71,12 @@ public partial class SyncForm : Form
             return;
         }
 
+        if (SyncRoots.Refusal(leftPath, rightPath) is { } refusal)
+        {
+            MessageBox.Show(this, refusal, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         ClearComparison();
         _comparedInput = CurrentInput();
         _compareButton.Enabled = false;

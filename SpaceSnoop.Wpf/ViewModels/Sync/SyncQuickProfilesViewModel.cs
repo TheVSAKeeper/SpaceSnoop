@@ -270,9 +270,9 @@ public sealed partial class SyncQuickProfilesViewModel(
             return false;
         }
 
-        if (SyncProfile.PathsOverlap(left, right))
+        if (SyncRoots.Refusal(left, right) is { } refusal)
         {
-            dialogs.Warning("Профиль синхронизации", "Каталоги совпадают или вложены друг в друга – такой профиль опасен.");
+            dialogs.Warning("Профиль синхронизации", refusal);
             profile = new();
             return false;
         }

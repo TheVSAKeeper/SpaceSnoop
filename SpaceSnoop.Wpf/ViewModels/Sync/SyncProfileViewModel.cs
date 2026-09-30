@@ -419,9 +419,9 @@ public sealed partial class SyncProfileViewModel : ObservableObject
             return false;
         }
 
-        if (SyncProfile.PathsOverlap(left, right))
+        if (SyncRoots.Refusal(left, right) is { } refusal)
         {
-            reason = "Каталоги не должны совпадать или быть вложены друг в друга.";
+            reason = refusal;
             return false;
         }
 

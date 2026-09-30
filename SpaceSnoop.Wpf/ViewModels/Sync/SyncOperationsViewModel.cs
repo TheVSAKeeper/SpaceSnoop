@@ -21,6 +21,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     private readonly Action<string> _reportSummary;
 
     private ComparisonResult? _result;
+    private string _comparedExclusions = string.Empty;
     private SyncReport? _lastReport;
 
     private Dictionary<object, SyncOutcome> _outcomes = [];
@@ -104,15 +105,16 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         RaiseComparisonChanged(SyncComparisonChange.Rebuilt);
     }
 
-    public void DiscardComparisonIfPathChanged()
+    public void DiscardComparisonIfInputChanged()
     {
-        if (_result is null)
+        if (_result is null || _session.IsBusy)
         {
             return;
         }
 
         if (!string.Equals(_setup.LeftPath.Trim(), _result.LeftPath, StringComparison.Ordinal)
-            || !string.Equals(_setup.RightPath.Trim(), _result.RightPath, StringComparison.Ordinal))
+            || !string.Equals(_setup.RightPath.Trim(), _result.RightPath, StringComparison.Ordinal)
+            || !string.Equals(_setup.Exclusions.Trim(), _comparedExclusions, StringComparison.Ordinal))
         {
             ClearComparison();
         }
@@ -138,6 +140,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     internal void AdoptComparison(ComparisonResult comparison)
     {
         _result = comparison;
+        _comparedExclusions = _setup.Exclusions.Trim();
         _dirSizeCache = SyncRowsProjector.BuildDirSizeCache(comparison.Root);
         _outcomes = [];
         _hashesCompared = false;
@@ -215,32 +218,54 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
             return;
         }
 
-        if (SyncProfile.PathsOverlap(left, right))
-        {
-            _dialogs.Warning("Сравнение", "Каталоги совпадают или вложены друг в друга – синхронизация невозможна.");
-            return;
-        }
-
         var stopwatch = Stopwatch.StartNew();
 
         _logger.CompareStarted(left, right);
 
         var request = new CompareDirectoriesRequest(left, right, _setup.Exclusions, _setup.CurrentMode, _setup.CurrentWinner, _setup.Mirror);
 
-        var prepared = await _session.RunAsync(CompareCaption, (token, progress) =>
+        var outcome = await _session.RunAsync<object>(CompareCaption, (token, progress) =>
         {
+            if (SyncRoots.Refusal(left, right) is { } refusal)
+            {
+                return new CompareRefused(refusal);
+            }
+
             var compared = _compare.Execute(request, token, progress);
             return new ComparePreparation(compared, SyncRowsProjector.BuildDirSizeCache(compared.Root));
         }, external: external);
 
         stopwatch.Stop();
 
-        if (prepared is null)
+        if (outcome is CompareRefused refused)
         {
+            DiscardComparisonIfInputChanged();
+            _dialogs.Warning("Сравнение", refused.Text);
             return;
         }
 
+        if (outcome is not ComparePreparation prepared)
+        {
+            DiscardComparisonIfInputChanged();
+            return;
+        }
+
+        if (!string.Equals(_setup.LeftPath.Trim(), request.LeftPath, StringComparison.Ordinal)
+            || !string.Equals(_setup.RightPath.Trim(), request.RightPath, StringComparison.Ordinal)
+            || !string.Equals(_setup.Exclusions.Trim(), request.Exclusions.Trim(), StringComparison.Ordinal))
+        {
+            ClearComparison();
+            Report("Пути или исключения изменились во время сравнения – нажмите «Сравнить» заново.");
+            return;
+        }
+
+        if (request.Mode != _setup.CurrentMode || request.Mirror != _setup.Mirror || request.Winner != _setup.CurrentWinner)
+        {
+            prepared.Result.ApplyMode(_setup.CurrentMode, _setup.Mirror, _setup.CurrentWinner);
+        }
+
         _result = prepared.Result;
+        _comparedExclusions = request.Exclusions.Trim();
         _dirSizeCache = prepared.Sizes;
         _outcomes = [];
         _hashesCompared = false;
@@ -319,6 +344,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
         if (sizes is null)
         {
+            DiscardComparisonIfInputChanged();
             return;
         }
 
@@ -329,6 +355,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         Report($"Хеши вычислены за {stopwatch.Elapsed.TotalSeconds:F2} с");
 
         _logger.HashFinished((long)stopwatch.Elapsed.TotalMilliseconds);
+        DiscardComparisonIfInputChanged();
     }
 
     private bool CanSync()
@@ -397,4 +424,6 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     }
 
     private sealed record ComparePreparation(ComparisonResult Result, Dictionary<DirectoryComparison, (long Left, long Right)> Sizes);
+
+    private sealed record CompareRefused(string Text);
 }

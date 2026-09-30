@@ -254,7 +254,7 @@ public sealed partial class OverviewRowViewModel : ObservableObject
         OverviewRunStatus.Syncing => "Синхронизация…",
         OverviewRunStatus.Synced => SyncSummary(),
         OverviewRunStatus.Unavailable => "Каталог недоступен",
-        OverviewRunStatus.Overlap => "Пути пересекаются или вложены",
+        OverviewRunStatus.Overlap => Error ?? "Пути пересекаются или вложены",
         OverviewRunStatus.Skipped => Error ?? "Пропущено",
         OverviewRunStatus.Error => Error ?? "Ошибка",
         _ => "Не сравнивалось",

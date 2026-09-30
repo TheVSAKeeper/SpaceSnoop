@@ -7,11 +7,12 @@ public sealed partial class BatchPairRow(
     string left,
     string right,
     bool alreadyExists,
-    bool destWillBeCreated)
+    bool destWillBeCreated,
+    string? refusal = null)
     : ObservableObject
 {
     [ObservableProperty]
-    private bool _include = !alreadyExists;
+    private bool _include = !alreadyExists && refusal is null;
 
     public string Name { get; } = name;
 
@@ -22,6 +23,12 @@ public sealed partial class BatchPairRow(
     public bool AlreadyExists { get; } = alreadyExists;
 
     public bool DestWillBeCreated { get; } = destWillBeCreated;
+
+    public string? Refusal { get; } = refusal;
+
+    public bool IsRefused => Refusal is not null;
+
+    public bool IsSelectable => Refusal is null;
 }
 
 public static class ProfileBatch
@@ -63,14 +70,8 @@ public static class ProfileBatch
             }
 
             var right = Path.Combine(destParent, name);
-
-            if (SyncProfile.PathsOverlap(directory, right))
-            {
-                continue;
-            }
-
             var alreadyExists = !seen.Add(Key(directory, right));
-            rows.Add(new(name, directory, right, alreadyExists, !Directory.Exists(right)));
+            rows.Add(new(name, directory, right, alreadyExists, !Directory.Exists(right), SyncRoots.Refusal(directory, right)));
         }
 
         return rows;

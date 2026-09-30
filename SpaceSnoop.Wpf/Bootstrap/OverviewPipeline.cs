@@ -1,25 +1,27 @@
 ﻿namespace SpaceSnoop.Wpf.Bootstrap;
 
+public readonly record struct OverviewPreflight(OverviewRunStatus Status, string? Reason = null);
+
 public static class OverviewPipeline
 {
-    public static OverviewRunStatus? Classify(SyncProfile profile)
+    public static OverviewPreflight? Classify(SyncProfile profile)
     {
         var left = profile.Left.Trim();
         var right = profile.Right.Trim();
 
         if (left.Length == 0 || right.Length == 0)
         {
-            return OverviewRunStatus.Unavailable;
+            return new(OverviewRunStatus.Unavailable);
         }
 
         if (SyncProfile.SourceMissing(left, right, HeadlessSync.MapMode(profile.Mode)))
         {
-            return OverviewRunStatus.Unavailable;
+            return new(OverviewRunStatus.Unavailable);
         }
 
-        if (SyncProfile.PathsOverlap(left, right))
+        if (SyncRoots.Refusal(left, right) is { } refusal)
         {
-            return OverviewRunStatus.Overlap;
+            return new(OverviewRunStatus.Overlap, refusal);
         }
 
         return null;

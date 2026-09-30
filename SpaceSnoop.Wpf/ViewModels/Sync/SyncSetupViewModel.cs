@@ -62,7 +62,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
         Profiles.Load();
     }
 
-    public event Action? PathChanged;
+    public event Action? InputChanged;
 
     public event Action? ModeChanged;
 
@@ -198,7 +198,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
         LeftPathInvalid = PathMissing(value);
         _activeProfileId = null;
         Profiles.MarkCurrent();
-        PathChanged?.Invoke();
+        InputChanged?.Invoke();
     }
 
     partial void OnRightPathChanged(string value)
@@ -207,7 +207,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
         RightPathInvalid = PathMissing(value);
         _activeProfileId = null;
         Profiles.MarkCurrent();
-        PathChanged?.Invoke();
+        InputChanged?.Invoke();
     }
 
     partial void OnExclusionsChanged(string value)
@@ -215,6 +215,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
         OnPropertyChanged(nameof(ExclusionsEmpty));
         Persist(SettingsKeys.SyncExclusions, value);
         Profiles.MarkCurrent();
+        InputChanged?.Invoke();
     }
 
     partial void OnSelectedModeIndexChanged(int value)

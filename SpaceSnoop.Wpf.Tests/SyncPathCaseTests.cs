@@ -33,6 +33,22 @@ public class SyncPathCaseTests
         Assert.That(page.Operations.Result, kept ? Is.Not.Null : Is.Null);
     }
 
+    [TestCase("bin ", true)]
+    [TestCase("bin,obj", false)]
+    [TestCase("", false)]
+    public void Сравнение_сбрасывается_правкой_исключений_после_него(string entered, bool kept)
+    {
+        var page = CreatePage();
+        page.Setup.LeftPath = Left;
+        page.Setup.RightPath = Right;
+        page.Setup.Exclusions = "bin";
+        page.Operations.AdoptComparison(new(Left, Right, new(string.Empty, string.Empty)));
+
+        page.Setup.Exclusions = entered;
+
+        Assert.That(page.Operations.Result, kept ? Is.Not.Null : Is.Null);
+    }
+
     private static SyncViewModel CreatePage()
     {
         var settings = new MemorySettings();

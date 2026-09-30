@@ -44,7 +44,7 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
         Operations.ComparisonChanged += OnComparisonChanged;
         Operations.ProfileRunCompleted += RaiseProfileRun;
 
-        Setup.PathChanged += Operations.DiscardComparisonIfPathChanged;
+        Setup.InputChanged += Operations.DiscardComparisonIfInputChanged;
         Setup.ModeChanged += Operations.ReapplyMode;
 
         Export = new(dialogs, logger, notifier, filePicker, Setup, Session, Git, () => Operations.Result, () => Operations.LastReport);

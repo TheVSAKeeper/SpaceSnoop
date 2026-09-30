@@ -149,8 +149,8 @@ internal static class McpFormat
     {
         return OverviewPipeline.Classify(profile) switch
         {
-            OverviewRunStatus.Unavailable => "каталог недоступен или не задан",
-            OverviewRunStatus.Overlap => "каталоги совпадают или вложены",
+            { Status: OverviewRunStatus.Unavailable } => "каталог недоступен или не задан",
+            { Status: OverviewRunStatus.Overlap, Reason: var reason } => reason ?? "каталоги совпадают или вложены",
             _ => null,
         };
     }

@@ -1,4 +1,5 @@
-﻿using SpaceSnoop.Wpf.Bootstrap;
+﻿using SpaceSnoop.Core;
+using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -41,13 +42,18 @@ public class ProfileBatchTests
     }
 
     [Test]
-    public void Совпадающие_родители_отбрасывают_перекрывающиеся_пары()
+    public void Перекрывающаяся_пара_остаётся_в_списке_с_причиной_и_не_выбирается()
     {
         var source = Make("src", "A");
 
-        var rows = ProfileBatch.BuildPairs(source, source, []);
+        var row = ProfileBatch.BuildPairs(source, source, []).Single();
 
-        Assert.That(rows, Is.Empty);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(row.Refusal, Is.EqualTo(SyncRoots.OverlapMessage));
+            Assert.That(row.IsSelectable, Is.False);
+            Assert.That(row.Include, Is.False);
+        }
     }
 
     [Test]

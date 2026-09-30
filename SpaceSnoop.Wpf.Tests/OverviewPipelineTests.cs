@@ -1,4 +1,5 @@
-﻿using SpaceSnoop.Wpf.Bootstrap;
+﻿using SpaceSnoop.Core;
+using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
 using SpaceSnoop.Wpf.ViewModels.Overview;
 
@@ -32,7 +33,7 @@ public class OverviewPipelineTests
         Directory.CreateDirectory(nested);
         var profile = new SyncProfile { Left = left, Right = nested };
 
-        Assert.That(OverviewPipeline.Classify(profile), Is.EqualTo(OverviewRunStatus.Overlap));
+        Assert.That(OverviewPipeline.Classify(profile), Is.EqualTo(new OverviewPreflight(OverviewRunStatus.Overlap, SyncRoots.OverlapMessage)));
     }
 
     [Test]
@@ -48,7 +49,7 @@ public class OverviewPipelineTests
     {
         var profile = new SyncProfile { Left = Path.Combine(_root, "missing"), Right = Make("right") };
 
-        Assert.That(OverviewPipeline.Classify(profile), Is.EqualTo(OverviewRunStatus.Unavailable));
+        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }
 
     [Test]
@@ -64,7 +65,7 @@ public class OverviewPipelineTests
     {
         var profile = new SyncProfile { Left = string.Empty, Right = Make("right") };
 
-        Assert.That(OverviewPipeline.Classify(profile), Is.EqualTo(OverviewRunStatus.Unavailable));
+        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }
 
     [Test]
@@ -72,7 +73,7 @@ public class OverviewPipelineTests
     {
         var profile = new SyncProfile { Left = Make("left"), Right = Path.Combine(_root, "missing"), Mode = 1 };
 
-        Assert.That(OverviewPipeline.Classify(profile), Is.EqualTo(OverviewRunStatus.Unavailable));
+        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }
 
     [TestCase(0, true, false, ExpectedResult = false)]

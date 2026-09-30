@@ -80,11 +80,13 @@ public sealed partial class BatchCreateProfilesDialogViewModel : ObservableObjec
 
     public IReadOnlyList<SyncProfile> CreatedProfiles { get; private set; } = [];
 
-    public int SelectedCount => Rows.Count(row => row.Include);
+    public int SelectedCount => Rows.Count(row => row.Include && row.IsSelectable);
 
     public bool HasRows => Rows.Count > 0;
 
-    public string SelectionSummary => $"Отмечено: {SelectedCount} из {Rows.Count}";
+    public int SelectableCount => Rows.Count(row => row.IsSelectable);
+
+    public string SelectionSummary => $"Отмечено: {SelectedCount} из {SelectableCount}";
 
     public string CreateCaption => SelectedCount > 0
         ? $"Создать {Plural.Format(SelectedCount, "профиль", "профиля", "профилей")}"
@@ -94,12 +96,12 @@ public sealed partial class BatchCreateProfilesDialogViewModel : ObservableObjec
     {
         get
         {
-            if (Rows.Count == 0 || SelectedCount == 0)
+            if (SelectableCount == 0 || SelectedCount == 0)
             {
                 return false;
             }
 
-            return SelectedCount == Rows.Count ? true : null;
+            return SelectedCount == SelectableCount ? true : null;
         }
         set
         {
@@ -108,7 +110,7 @@ public sealed partial class BatchCreateProfilesDialogViewModel : ObservableObjec
                 return;
             }
 
-            foreach (var row in Rows)
+            foreach (var row in Rows.Where(static row => row.IsSelectable))
             {
                 row.Include = target;
             }
@@ -174,7 +176,7 @@ public sealed partial class BatchCreateProfilesDialogViewModel : ObservableObjec
     private void Create()
     {
         CreatedProfiles = Rows
-            .Where(row => row.Include)
+            .Where(row => row.Include && row.IsSelectable)
             .Select(row => new SyncProfile
             {
                 Id = Guid.NewGuid().ToString("N")[..8],

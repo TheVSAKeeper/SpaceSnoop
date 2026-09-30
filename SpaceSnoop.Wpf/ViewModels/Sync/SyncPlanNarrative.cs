@@ -189,7 +189,7 @@ internal static class SyncPlanNarrative
         return $"Ссылки не сравниваются: пропущено «{paths[0]}»{tail}. Junction, symlink и облачные заглушки в сравнение не попадают и не синхронизируются.";
     }
 
-    internal static List<PlanReceiver> BuildReceivers(ComparisonResult? result, PlannedActions planned)
+    internal static List<PlanReceiver> BuildReceivers(ComparisonResult? result, PlannedActions planned, (long? Left, long? Right) free)
     {
         if (result is null)
         {
@@ -200,12 +200,12 @@ internal static class SyncPlanNarrative
 
         if (planned.RequiredLeftBytes > 0)
         {
-            receivers.Add(new(result.LeftPath, planned.RequiredLeftBytes, VolumeSpace.TryReadFree(result.LeftPath)));
+            receivers.Add(new(result.LeftPath, planned.RequiredLeftBytes, free.Left));
         }
 
         if (planned.RequiredRightBytes > 0)
         {
-            receivers.Add(new(result.RightPath, planned.RequiredRightBytes, VolumeSpace.TryReadFree(result.RightPath)));
+            receivers.Add(new(result.RightPath, planned.RequiredRightBytes, free.Right));
         }
 
         return receivers;

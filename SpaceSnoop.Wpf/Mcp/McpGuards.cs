@@ -60,9 +60,9 @@ internal static class McpGuards
             throw new McpException("Оба каталога должны быть заданы.");
         }
 
-        if (SyncProfile.PathsOverlap(left, right))
+        if (SyncRoots.Refusal(left, right) is { } refusal)
         {
-            throw new McpException("Каталоги совпадают или вложены друг в друга.");
+            throw new McpException(refusal);
         }
 
         if (SyncProfile.SourceMissing(left, right, mode))

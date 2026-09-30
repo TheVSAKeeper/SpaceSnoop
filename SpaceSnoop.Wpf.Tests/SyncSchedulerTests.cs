@@ -131,17 +131,6 @@ public class SyncSchedulerTests
         Assert.That(ScheduleStatus.ParseEnabled(xml), Is.True);
     }
 
-    [TestCase(@"C:\A", @"C:\B", false)]
-    [TestCase(@"C:\A", @"C:\AB", false)]
-    [TestCase(@"C:\A", @"C:\A", true)]
-    [TestCase(@"C:\A\", @"C:\A", true)]
-    [TestCase(@"C:\A", @"C:\A\Sub", true)]
-    [TestCase(@"C:\A\Sub", @"C:\A", true)]
-    public void Совпадающие_и_вложенные_каталоги_распознаются(string left, string right, bool overlap)
-    {
-        Assert.That(SyncProfile.PathsOverlap(left, right), Is.EqualTo(overlap));
-    }
-
     private static string Value(List<string> args, string flag)
     {
         return args[args.IndexOf(flag) + 1];

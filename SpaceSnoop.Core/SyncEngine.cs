@@ -12,6 +12,10 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
 
     public SyncReport Execute(ComparisonResult comparisonResult, CancellationToken cancel, IProgress<OperationProgress>? progress = null)
     {
+        // TODO: корни сверяются один раз до прогона – каталог, подменённый на junction во время прогона, пишется по новой цели;
+        // при появлении недоверенного процесса с правом записи в корни – открывать корни дескриптором и писать относительно него
+        SyncRoots.EnsureDisjoint(comparisonResult.LeftPath, comparisonResult.RightPath);
+
         var report = new SyncReport();
         var tracker = new TransferTracker(progress, report);
         var blocked = new Dictionary<(DirectoryComparison Directory, SyncAction Action), bool>();
