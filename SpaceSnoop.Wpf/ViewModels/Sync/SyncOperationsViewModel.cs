@@ -212,24 +212,23 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
             return;
         }
 
-        if (!Directory.Exists(left) || !Directory.Exists(right))
-        {
-            _dialogs.Warning("Сравнение", "Одного из каталогов нет на диске.");
-            return;
-        }
-
         var stopwatch = Stopwatch.StartNew();
-
-        _logger.CompareStarted(left, right);
 
         var request = new CompareDirectoriesRequest(left, right, _setup.Exclusions, _setup.CurrentMode, _setup.CurrentWinner, _setup.Mirror);
 
         var outcome = await _session.RunAsync<object>(CompareCaption, (token, progress) =>
         {
+            if (!Directory.Exists(left) || !Directory.Exists(right))
+            {
+                return new CompareRefused("Одного из каталогов нет на диске.");
+            }
+
             if (SyncRoots.Refusal(left, right) is { } refusal)
             {
                 return new CompareRefused(refusal);
             }
+
+            _logger.CompareStarted(left, right);
 
             var compared = _compare.Execute(request, token, progress);
             return new ComparePreparation(compared, SyncRowsProjector.BuildDirSizeCache(compared.Root));

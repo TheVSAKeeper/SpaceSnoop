@@ -14,6 +14,7 @@ public partial class SyncForm : Form
     private CompareInput? _comparedInput;
     private SyncPlanFreshnessState _planState;
     private CancellationTokenSource? _cancellationTokenSource;
+    private bool _closing;
 
     public SyncForm(string? initialLeftPath = null)
     {
@@ -33,6 +34,7 @@ public partial class SyncForm : Form
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
+        _closing = true;
         SaveSettings();
         _cancellationTokenSource?.Cancel();
         _cancellationTokenSource?.Dispose();
@@ -54,37 +56,75 @@ public partial class SyncForm : Form
         BrowsePath(_rightPathTextBox);
     }
 
-    private void OnCompareClicked(object? sender, EventArgs e)
+    private async void OnCompareClicked(object? sender, EventArgs e)
     {
-        var leftPath = _leftPathTextBox.Text.Trim();
-        var rightPath = _rightPathTextBox.Text.Trim();
+        var input = CurrentInput();
 
-        if (string.IsNullOrEmpty(leftPath) || string.IsNullOrEmpty(rightPath))
+        if (string.IsNullOrEmpty(input.Left) || string.IsNullOrEmpty(input.Right))
         {
             MessageBox.Show(this, "Укажите обе директории.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        if (!Directory.Exists(leftPath) || !Directory.Exists(rightPath))
+        const string checking = "Проверка директорий...";
+        var status = _statusLabel.Text;
+        _compareButton.Enabled = false;
+        _syncButton.Enabled = false;
+        _hashButton.Enabled = false;
+        _resolveConflictsButton.Enabled = false;
+        _statusLabel.Text = checking;
+
+        string? refusal;
+
+        while (true)
         {
-            MessageBox.Show(this, "Одна из директорий не существует.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            var checkedInput = input;
+            refusal = await Task.Run(() => RefuseRoots(checkedInput.Left, checkedInput.Right), CancellationToken.None);
+
+            if (_closing)
+            {
+                return;
+            }
+
+            if (input == CurrentInput())
+            {
+                break;
+            }
+
+            input = CurrentInput();
         }
 
-        if (SyncRoots.Refusal(leftPath, rightPath) is { } refusal)
+        if (refusal is not null)
         {
+            _compareButton.Enabled = true;
+
+            if (_statusLabel.Text == checking)
+            {
+                _statusLabel.Text = status;
+            }
+
+            UpdateSummary();
             MessageBox.Show(this, refusal, "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
         ClearComparison();
-        _comparedInput = CurrentInput();
-        _compareButton.Enabled = false;
+        _comparedInput = input;
         _progressBar.Style = ProgressBarStyle.Marquee;
         _statusLabel.Text = "Сравнение...";
 
         ResetCancellationTokenSource();
-        _workerService.StartCompare(new(leftPath, rightPath, _exclusionTextBox.Text, CurrentMode(), SyncWinner.Newest, false), _cancellationTokenSource!.Token);
+        _workerService.StartCompare(new(input.Left, input.Right, input.Exclusions, CurrentMode(), SyncWinner.Newest, false), _cancellationTokenSource!.Token);
+    }
+
+    private static string? RefuseRoots(string leftPath, string rightPath)
+    {
+        if (!Directory.Exists(leftPath) || !Directory.Exists(rightPath))
+        {
+            return "Одна из директорий не существует.";
+        }
+
+        return SyncRoots.Refusal(leftPath, rightPath);
     }
 
     private void OnInputChanged(object? sender, EventArgs e)

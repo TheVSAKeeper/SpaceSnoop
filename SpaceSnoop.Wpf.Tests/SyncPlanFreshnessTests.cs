@@ -1,6 +1,7 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Testing;
 using KeepShell.ViewModels;
+using MahApps.Metro.IconPacks;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
@@ -9,6 +10,7 @@ using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.Mcp;
 using SpaceSnoop.Wpf.ViewModels;
+using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using System.IO;
@@ -16,6 +18,7 @@ using System.IO;
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
+[NonParallelizable]
 public class SyncPlanFreshnessTests
 {
     private string _root = string.Empty;
@@ -222,6 +225,38 @@ public class SyncPlanFreshnessTests
             Assert.That(run?.Report.SuccessCount, Is.EqualTo(1));
             Assert.That(page.Operations.Result, Is.Null);
         }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task План_сменившийся_за_замер_места_не_доходит_до_подтверждения(bool replaceResult)
+    {
+        using var reader = new BlockingVolumeReader(1_000_000);
+        var compare = new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance);
+        var request = new CompareDirectoriesRequest(Path.Combine(_root, "left"), Path.Combine(_root, "right"), string.Empty, SyncMode.LeftToRight, SyncWinner.Newest, false);
+        var result = compare.Execute(request, CancellationToken.None);
+        var ledger = new SyncLedgerViewModel(new(new MemorySettings(), new NoopDialogs(), NullLogger.Instance),
+            () => new(PackIconLucideKind.ArrowRight, "слева направо", false));
+
+        ledger.Update(result, false);
+
+        Assume.That(result.CountPlannedActions().RequiredRightBytes, Is.GreaterThan(0));
+
+        var confirmation = ledger.BuildSyncConfirmationAsync(result, new("Сверить хеши", ConfirmChoiceKind.Secondary));
+        reader.WaitEntered();
+
+        if (replaceResult)
+        {
+            ledger.Update(compare.Execute(request, CancellationToken.None), false);
+        }
+        else
+        {
+            result.Root.Files.Single().Action = SyncAction.Skip;
+        }
+
+        reader.Release();
+
+        Assert.That(await confirmation, Is.Null);
     }
 
     private async Task<SyncViewModel> RunSyncAsync()

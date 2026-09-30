@@ -449,7 +449,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         try
         {
             ReleaseBeforeScan(directory);
-            var parallelism = await Task.Run(() => Preferences.ResolveParallelism(path), token);
+            var parallelism = await Preferences.ResolveParallelismAsync(path).WaitAsync(token);
             var progress = Progress.Begin(directory, path, parallelism);
 
             if (parallelism == 1 && Preferences.UseMultithreading && Preferences.MaxParallelism > 1)
