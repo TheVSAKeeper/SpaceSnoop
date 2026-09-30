@@ -1,4 +1,6 @@
 ﻿using SpaceSnoop.Core;
+using System.ComponentModel;
+using System.Diagnostics;
 
 namespace SpaceSnoop.Tests;
 
@@ -56,6 +58,15 @@ public class PathCaseTests
         Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.True);
     }
 
+    [Test]
+    public void IsCaseSensitive_OnEmptyDirectoryWithCaseSensitiveFlag_ReadsFlag()
+    {
+        Assume.That(OperatingSystem.IsWindows());
+        Assume.That(TryEnableCaseSensitivity(_tempDir), "fsutil не включает регистрозависимость каталога на этой машине");
+
+        Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.True);
+    }
+
     [TestCase(false, false, false)]
     [TestCase(true, false, true)]
     [TestCase(false, true, true)]
@@ -67,5 +78,32 @@ public class PathCaseTests
             right ? StringComparer.Ordinal : StringComparer.OrdinalIgnoreCase);
 
         Assert.That(rules.MatchIsSensitive, Is.EqualTo(expected));
+    }
+
+    private static bool TryEnableCaseSensitivity(string directory)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            });
+
+            if (process is null)
+            {
+                return false;
+            }
+
+            process.WaitForExit(10_000);
+
+            return process.HasExited && process.ExitCode == 0;
+        }
+        catch (Win32Exception)
+        {
+            return false;
+        }
     }
 }

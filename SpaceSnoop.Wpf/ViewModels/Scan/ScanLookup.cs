@@ -65,6 +65,11 @@ internal static class ScanLookup
                 return space;
             }
 
+            if (!ScanTreeEditor.SamePath(current, target))
+            {
+                continue;
+            }
+
             ambiguous |= loose is not null && !string.Equals(Normalize(loose.AbsolutePath), current, StringComparison.Ordinal);
             loose ??= space;
         }

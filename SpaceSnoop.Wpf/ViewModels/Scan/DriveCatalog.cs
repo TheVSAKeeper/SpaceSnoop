@@ -63,7 +63,7 @@ public sealed class DriveCatalog
             return;
         }
 
-        var known = RecentDirectories.FirstOrDefault(recent => string.Equals(recent.Path, path, StringComparison.OrdinalIgnoreCase));
+        var known = RecentDirectories.FirstOrDefault(recent => ScanTreeEditor.SamePath(recent.Path, path));
 
         if (known is not null)
         {
@@ -91,7 +91,7 @@ public sealed class DriveCatalog
 
     internal bool RemoveDrive(string path)
     {
-        var item = Items.FirstOrDefault(drive => string.Equals(drive.Path, path, StringComparison.OrdinalIgnoreCase));
+        var item = Items.FirstOrDefault(drive => ScanTreeEditor.SamePath(drive.Path, path));
 
         if (item is null)
         {
@@ -107,12 +107,12 @@ public sealed class DriveCatalog
 
     private bool IsSelectedPath(string path)
     {
-        return string.Equals(path, _selectedPath, StringComparison.OrdinalIgnoreCase);
+        return _selectedPath is not null && ScanTreeEditor.SamePath(path, _selectedPath);
     }
 
     internal bool HasDrive(string path)
     {
-        return Items.Any(drive => string.Equals(drive.Path, path, StringComparison.OrdinalIgnoreCase));
+        return Items.Any(drive => ScanTreeEditor.SamePath(drive.Path, path));
     }
 
     internal void ReloadLabels(string? selectedPath)

@@ -1,10 +1,18 @@
-﻿using System.Security;
+﻿using Microsoft.Win32.SafeHandles;
+using System.Runtime.InteropServices;
+using System.Security;
 
 namespace SpaceSnoop.Core;
 
 public static class PathCase
 {
     private const int ProbeLimit = 8;
+    private const uint FileReadAttributes = 0x0080;
+    private const uint FileShareAll = 0x0007;
+    private const uint OpenExisting = 3;
+    private const uint FileFlagBackupSemantics = 0x0200_0000;
+    private const int FileCaseSensitiveInfo = 23;
+    private const uint CaseSensitiveDirFlag = 0x0001;
 
     public static bool PlatformDefaultIsCaseSensitive { get; } = !OperatingSystem.IsWindows() && !OperatingSystem.IsMacOS();
 
@@ -24,6 +32,35 @@ public static class PathCase
     }
 
     public static bool IsCaseSensitive(string path)
+    {
+        if (ReadDirectoryFlag(path) is { } flag)
+        {
+            return flag;
+        }
+
+        return ProbeCaseSensitive(path);
+    }
+
+    private static bool? ReadDirectoryFlag(string path)
+    {
+        if (!OperatingSystem.IsWindows() || string.IsNullOrEmpty(path))
+        {
+            return null;
+        }
+
+        using var handle = CreateFile(path, FileReadAttributes, FileShareAll, IntPtr.Zero, OpenExisting, FileFlagBackupSemantics, IntPtr.Zero);
+
+        if (handle.IsInvalid)
+        {
+            return null;
+        }
+
+        return GetFileInformationByHandleEx(handle, FileCaseSensitiveInfo, out var flags, sizeof(uint))
+            ? (flags & CaseSensitiveDirFlag) != 0
+            : null;
+    }
+
+    private static bool ProbeCaseSensitive(string path)
     {
         try
         {
@@ -73,4 +110,21 @@ public static class PathCase
 
         return string.Equals(flipped, name, StringComparison.Ordinal) ? null : flipped;
     }
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool GetFileInformationByHandleEx(
+        SafeFileHandle hFile,
+        int fileInformationClass,
+        out uint lpFileInformation,
+        uint dwBufferSize);
 }
