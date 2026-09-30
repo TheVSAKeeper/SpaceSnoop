@@ -140,6 +140,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     internal void AdoptComparison(ComparisonResult comparison)
     {
         _result = comparison;
+        _lastReport = null;
         _comparedExclusions = _setup.Exclusions.Trim();
         _dirSizeCache = SyncRowsProjector.BuildDirSizeCache(comparison.Root);
         _outcomes = [];
@@ -223,6 +224,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         _logger.CompareStarted(left, right);
 
         var request = new CompareDirectoriesRequest(left, right, _setup.Exclusions, _setup.CurrentMode, _setup.CurrentWinner, _setup.Mirror);
+        var previous = _result;
 
         var outcome = await _session.RunAsync<object>(CompareCaption, (token, progress) =>
         {
@@ -247,6 +249,12 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         if (outcome is not ComparePreparation prepared)
         {
             DiscardComparisonIfInputChanged();
+            return;
+        }
+
+        if (!ReferenceEquals(_result, previous))
+        {
+            ReportSuperseded();
             return;
         }
 
@@ -286,9 +294,11 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         _logger.CompareFinished(_ledger.Total, (long)stopwatch.Elapsed.TotalMilliseconds);
         RaiseProfileRun(_result, null, (long)stopwatch.Elapsed.TotalMilliseconds);
 
+        var compared = _result;
+
         await ReadGitStateAsync();
 
-        if (_result is not null && await _git.OfferToSkipAsync(_result, () => _setup.Exclusions) is { } exclusions)
+        if (ReferenceEquals(_result, compared) && await _git.OfferToSkipAsync(compared, () => _setup.Exclusions) is { } exclusions)
         {
             _setup.Exclusions = exclusions;
             await CompareAsync();
@@ -345,6 +355,12 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         if (sizes is null)
         {
             DiscardComparisonIfInputChanged();
+            return;
+        }
+
+        if (!ReferenceEquals(_result, result))
+        {
+            ReportSuperseded();
             return;
         }
 
@@ -421,6 +437,12 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     {
         _reportSummary(summary);
         _session.StatusCaption = summary;
+    }
+
+    private void ReportSuperseded()
+    {
+        _session.StatusCaption = "Результат устарел: сравнение сменилось.";
+        DiscardComparisonIfInputChanged();
     }
 
     private sealed record ComparePreparation(ComparisonResult Result, Dictionary<DirectoryComparison, (long Left, long Right)> Sizes);

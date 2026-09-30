@@ -6,8 +6,6 @@ namespace SpaceSnoop.Wpf.ViewModels.Sync;
 
 public sealed partial class SyncGitViewModel : ObservableObject
 {
-    private const string NoCommits = "нет коммитов";
-
     private readonly ISettingsStore _settings;
     private readonly IDialogService _dialogs;
     private readonly ILogger _logger;
@@ -17,6 +15,8 @@ public sealed partial class SyncGitViewModel : ObservableObject
     private GitRepoState? _rightGit;
     private string? _leftPath;
     private string? _rightPath;
+    private CancellationTokenSource? _read;
+    private int _historyGeneration;
     private bool _gitHistoryLoaded;
     private bool _gitPromptDeclined;
 
@@ -41,25 +41,25 @@ public sealed partial class SyncGitViewModel : ObservableObject
 
     public bool RightIsRepo => _rightGit is not null;
 
-    public string LeftGitBranch => FormatBranch(_leftGit);
+    public string LeftGitBranch => SyncGitText.FormatBranch(_leftGit);
 
-    public string RightGitBranch => FormatBranch(_rightGit);
+    public string RightGitBranch => SyncGitText.FormatBranch(_rightGit);
 
-    public string LeftGitHead => FormatHead(_leftGit);
+    public string LeftGitHead => SyncGitText.FormatHead(_leftGit);
 
-    public string RightGitHead => FormatHead(_rightGit);
+    public string RightGitHead => SyncGitText.FormatHead(_rightGit);
 
-    public string LeftGitDirty => FormatDirty(_leftGit);
+    public string LeftGitDirty => SyncGitText.FormatDirty(_leftGit);
 
-    public string RightGitDirty => FormatDirty(_rightGit);
+    public string RightGitDirty => SyncGitText.FormatDirty(_rightGit);
 
     public bool LeftGitIsDirty => _leftGit?.IsDirty == true;
 
     public bool RightGitIsDirty => _rightGit?.IsDirty == true;
 
-    public string LeftGitUpstream => FormatUpstream(_leftGit);
+    public string LeftGitUpstream => SyncGitText.FormatUpstream(_leftGit);
 
-    public string RightGitUpstream => FormatUpstream(_rightGit);
+    public string RightGitUpstream => SyncGitText.FormatUpstream(_rightGit);
 
     public bool GitInSync =>
         _leftGit is not null
@@ -101,7 +101,7 @@ public sealed partial class SyncGitViewModel : ObservableObject
 
             if (!_leftGit.HasCommits || !_rightGit.HasCommits)
             {
-                return NoCommits;
+                return SyncGitText.NoCommits;
             }
 
             if (!string.Equals(_leftGit.Oid, _rightGit.Oid, StringComparison.OrdinalIgnoreCase))
@@ -127,9 +127,9 @@ public sealed partial class SyncGitViewModel : ObservableObject
 
     public bool RightGitLogEmpty => _gitHistoryLoaded && RightGitLog.Count == 0;
 
-    public string LeftGitLogEmptyText => _leftGit is null ? "не репозиторий" : NoCommits;
+    public string LeftGitLogEmptyText => _leftGit is null ? "не репозиторий" : SyncGitText.NoCommits;
 
-    public string RightGitLogEmptyText => _rightGit is null ? "не репозиторий" : NoCommits;
+    public string RightGitLogEmptyText => _rightGit is null ? "не репозиторий" : SyncGitText.NoCommits;
 
     public string? GitTooltip
     {
@@ -215,38 +215,66 @@ public sealed partial class SyncGitViewModel : ObservableObject
 
     internal async Task ReadAsync(string left, string right, CancellationToken cancellationToken)
     {
+        CancelRead();
+        using var read = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _read = read;
         _leftPath = left;
         _rightPath = right;
 
         try
         {
-            (_leftGit, _rightGit) = await Task.Run(
-                async () => (await _git.ReadAsync(left, cancellationToken), await _git.ReadAsync(right, cancellationToken)),
-                cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.GitStateFailed(ex.Unwrap());
-            Clear();
-            return;
-        }
+            GitRepoState? leftGit;
+            GitRepoState? rightGit;
 
-        if (_leftGit is not null || _rightGit is not null)
-        {
-            _logger.GitStateRead(FormatBranch(_leftGit), FormatBranch(_rightGit));
+            try
+            {
+                (leftGit, rightGit) = await Task.Run(
+                    async () => (await _git.ReadAsync(left, read.Token), await _git.ReadAsync(right, read.Token)),
+                    read.Token);
+            }
+            catch (Exception ex)
+            {
+                if (ReferenceEquals(_read, read))
+                {
+                    _logger.GitStateFailed(ex.Unwrap());
+                    Clear();
+                }
+
+                return;
+            }
+
+            if (!ReferenceEquals(_read, read))
+            {
+                return;
+            }
+
+            (_leftGit, _rightGit) = (leftGit, rightGit);
+
+            if (_leftGit is not null || _rightGit is not null)
+            {
+                _logger.GitStateRead(SyncGitText.FormatBranch(_leftGit), SyncGitText.FormatBranch(_rightGit));
+            }
+
+            ResetHistory();
+            NotifyChanged();
+
+            if (GitHistoryExpanded)
+            {
+                await LoadHistoryAsync();
+            }
         }
-
-        ResetHistory();
-        NotifyChanged();
-
-        if (GitHistoryExpanded)
+        finally
         {
-            await LoadHistoryAsync();
+            if (ReferenceEquals(_read, read))
+            {
+                _read = null;
+            }
         }
     }
 
     internal void Clear()
     {
+        CancelRead();
         _leftPath = null;
         _rightPath = null;
         _leftGit = null;
@@ -352,63 +380,6 @@ public sealed partial class SyncGitViewModel : ObservableObject
         return span.TotalMinutes >= 1 ? $"{(int)span.TotalMinutes} мин." : "<1 мин.";
     }
 
-    private static string FormatBranch(GitRepoState? git)
-    {
-        if (git is null)
-        {
-            return string.Empty;
-        }
-
-        return git.IsDetached ? "detached" : git.Branch;
-    }
-
-    private static string FormatHead(GitRepoState? git)
-    {
-        if (git is null)
-        {
-            return string.Empty;
-        }
-
-        if (!git.HasCommits)
-        {
-            return NoCommits;
-        }
-
-        return string.IsNullOrEmpty(git.Subject) ? git.ShortHash : $"{git.ShortHash} · {git.Subject}";
-    }
-
-    private static string FormatDirty(GitRepoState? git)
-    {
-        if (git is null)
-        {
-            return string.Empty;
-        }
-
-        return git.IsDirty ? $"{git.DirtyCount} изм." : "чисто";
-    }
-
-    private static string FormatUpstream(GitRepoState? git)
-    {
-        if (git is null || !git.HasUpstream)
-        {
-            return string.Empty;
-        }
-
-        var parts = new List<string>(2);
-
-        if (git.Ahead > 0)
-        {
-            parts.Add($"↑{git.Ahead}");
-        }
-
-        if (git.Behind > 0)
-        {
-            parts.Add($"↓{git.Behind}");
-        }
-
-        return string.Join(" ", parts);
-    }
-
     [RelayCommand]
     private async Task ToggleGitHistoryAsync()
     {
@@ -430,22 +401,39 @@ public sealed partial class SyncGitViewModel : ObservableObject
         }
 
         var count = GitHistoryCount;
+        var generation = ++_historyGeneration;
+        IReadOnlyList<GitCommit> leftLog;
+        IReadOnlyList<GitCommit> rightLog;
 
         try
         {
-            (LeftGitLog, RightGitLog) = await Task.Run(
+            (leftLog, rightLog) = await Task.Run(
                 async () => (await _git.ReadHistoryAsync(left, count, CancellationToken.None), await _git.ReadHistoryAsync(right, count, CancellationToken.None)),
                 CancellationToken.None);
         }
         catch (Exception ex)
         {
             _logger.GitStateFailed(ex.Unwrap());
-            LeftGitLog = [];
-            RightGitLog = [];
+            leftLog = [];
+            rightLog = [];
         }
 
+        if (generation != _historyGeneration)
+        {
+            return;
+        }
+
+        (LeftGitLog, RightGitLog) = (leftLog, rightLog);
         _gitHistoryLoaded = true;
         NotifyChanged();
+    }
+
+    private void CancelRead()
+    {
+        _historyGeneration++;
+        var read = _read;
+        _read = null;
+        read?.Cancel();
     }
 
     private void ResetHistory()
