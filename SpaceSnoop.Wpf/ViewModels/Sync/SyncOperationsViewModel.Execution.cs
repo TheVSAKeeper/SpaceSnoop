@@ -107,11 +107,23 @@ public sealed partial class SyncOperationsViewModel
 
         stopwatch.Stop();
 
-        ApplyPlanState(_planState.AfterSync(report, _session.LastOperationCancelled || external.IsCancellationRequested));
+        var afterSync = _planState.AfterSync(report, _session.LastOperationCancelled || external.IsCancellationRequested);
+        var same = ReferenceEquals(_result, result);
+
+        if (same)
+        {
+            ApplyPlanState(afterSync);
+        }
+        else if (_result is { } replaced
+                 && await Task.Run(() => SharesRoot(replaced, result), CancellationToken.None)
+                 && ReferenceEquals(_result, replaced))
+        {
+            ApplyPlanState(afterSync);
+        }
 
         if (report is null)
         {
-            if (_planState.RefusalMessage is { } interrupted)
+            if (afterSync.RefusalMessage is { } interrupted)
             {
                 _notifier.Notify(interrupted, StatusSeverity.Warning);
             }
@@ -120,8 +132,13 @@ public sealed partial class SyncOperationsViewModel
             return null;
         }
 
-        LastSyncElapsed = stopwatch.Elapsed;
-        LastVerifyState = SyncPlanNarrative.ResolveVerify(verify, report);
+        var verifyState = SyncPlanNarrative.ResolveVerify(verify, report);
+
+        if (same)
+        {
+            LastSyncElapsed = stopwatch.Elapsed;
+            LastVerifyState = verifyState;
+        }
 
         _logger.SyncFinished(report.SuccessCount, report.Errors.Count, (long)stopwatch.Elapsed.TotalMilliseconds);
 
@@ -130,15 +147,19 @@ public sealed partial class SyncOperationsViewModel
             _logger.SyncVerified(report.Applied.Count, report.Mismatches.Count);
         }
 
-        SyncLog.AppendSafe(interactive ? SyncLogOrigin.Manual : SyncLogOrigin.Mcp, null, report, LastVerifyState, _logger);
+        SyncLog.AppendSafe(interactive ? SyncLogOrigin.Manual : SyncLogOrigin.Mcp, null, report, verifyState, _logger);
 
-        _lastReport = report;
-        _outcomes = SyncOutcomes.Build(result, report.Errors, report.Mismatches);
-        RaiseComparisonChanged(SyncComparisonChange.Applied);
-        RaiseProfileRun(null, report, (long)stopwatch.Elapsed.TotalMilliseconds, LastVerifyState);
+        if (same)
+        {
+            _lastReport = report;
+            _outcomes = SyncOutcomes.Build(result, report.Errors, report.Mismatches);
+            RaiseComparisonChanged(SyncComparisonChange.Applied);
+        }
+
+        RaiseProfileRun(null, report, (long)stopwatch.Elapsed.TotalMilliseconds, verifyState);
         await ReadGitStateAsync();
 
-        var verifyText = SyncPlanNarrative.DescribeVerify(LastVerifyState, report.Mismatches.Count);
+        var verifyText = SyncPlanNarrative.DescribeVerify(verifyState, report.Mismatches.Count);
         var volumeText = report.CopiedBytes > 0 ? $" Перенесено: {SizeFormatter.Format(report.CopiedBytes)}." : string.Empty;
         var rateText = SyncSessionViewModel.DescribeRate("Синхронизация", report, stopwatch.Elapsed);
         var staleText = _planState.RefusalMessage is { } refused ? $" {refused}" : string.Empty;
@@ -153,6 +174,14 @@ public sealed partial class SyncOperationsViewModel
         }
 
         DiscardComparisonIfInputChanged();
-        return new(report, stopwatch.Elapsed, LastVerifyState);
+        return new(report, stopwatch.Elapsed, verifyState);
+    }
+
+    private static bool SharesRoot(ComparisonResult comparison, ComparisonResult synced)
+    {
+        return SyncRoots.Overlap(comparison.LeftPath, synced.LeftPath)
+            || SyncRoots.Overlap(comparison.LeftPath, synced.RightPath)
+            || SyncRoots.Overlap(comparison.RightPath, synced.LeftPath)
+            || SyncRoots.Overlap(comparison.RightPath, synced.RightPath);
     }
 }
