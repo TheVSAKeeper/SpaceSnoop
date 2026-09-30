@@ -227,4 +227,43 @@ public class DriveItemTests
             Assert.That(catalog.RecentDirectories.Any(item => item.IsSelected), Is.False);
         });
     }
+
+    [Test]
+    public async Task Опрос_томов_не_возвращается_в_контекст_вызывающего()
+    {
+        var catalog = new DriveCatalog(NullLogger.Instance);
+
+        Assert.That(catalog.Volumes, Is.Not.Empty, "Без единого тома кейс нечего проверять.");
+
+        var context = new CountingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+
+        try
+        {
+            catalog.LoadDriveLabels();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        await Task.WhenAll(catalog.Items.Select(item => item.LoadAsync()));
+
+        Assert.That(context.Posts, Is.Zero,
+            "Опрос тома доигрывается в контексте вызывающего: у async STA-теста NUnit этот контекст закрывается вместе с тестом, и опоздавший Post роняет хост.");
+    }
+
+    private sealed class CountingSynchronizationContext : SynchronizationContext
+    {
+        private int _posts;
+
+        public int Posts => Volatile.Read(ref _posts);
+
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            Interlocked.Increment(ref _posts);
+            ThreadPool.QueueUserWorkItem(_ => callback(state));
+        }
+    }
 }

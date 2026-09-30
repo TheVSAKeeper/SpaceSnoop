@@ -17,6 +17,7 @@ public sealed class DriveItem : ObservableObject
         System.IO.Path.AltDirectorySeparatorChar,
     ];
 
+    private readonly Lock _gate = new();
     private Task? _loading;
     private int _generation;
     private bool _isSelected;
@@ -93,8 +94,11 @@ public sealed class DriveItem : ObservableObject
 
     internal void Invalidate()
     {
-        _generation++;
-        _loading = null;
+        lock (_gate)
+        {
+            _generation++;
+            _loading = null;
+        }
     }
 
     internal static string ShortName(string path)
@@ -240,20 +244,23 @@ public sealed class DriveItem : ObservableObject
 
     private async Task LoadCoreAsync(int generation)
     {
-        var probe = await Task.Run(() => Probe(Path, IsDirectory));
+        var probe = await Task.Run(() => Probe(Path, IsDirectory)).ConfigureAwait(false);
 
-        if (generation != _generation)
+        lock (_gate)
         {
-            return;
-        }
+            if (generation != _generation)
+            {
+                return;
+            }
 
-        VolumeLabel = probe.VolumeLabel;
-        DriveType = probe.Type;
-        TotalSize = probe.TotalSize;
-        FreeSpace = probe.FreeSpace;
-        IsReady = probe.IsReady;
-        IsKnownVolume = probe.IsKnownVolume;
-        IsProbed = true;
+            VolumeLabel = probe.VolumeLabel;
+            DriveType = probe.Type;
+            TotalSize = probe.TotalSize;
+            FreeSpace = probe.FreeSpace;
+            IsReady = probe.IsReady;
+            IsKnownVolume = probe.IsKnownVolume;
+            IsProbed = true;
+        }
 
         OnPropertyChanged(string.Empty);
     }
