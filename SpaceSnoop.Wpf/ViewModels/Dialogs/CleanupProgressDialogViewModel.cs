@@ -26,9 +26,14 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
     private int _deleted;
     private int _skipped;
     private string _firstError = string.Empty;
+    private bool _cancelMissedIndivisible;
 
     [ObservableProperty]
     private string _targetName = string.Empty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanCancelStep))]
+    private bool _isStepIndivisible;
 
     public CleanupProgressDialogViewModel(CleanupRequest request, CleanupService service, IUiDispatcher uiDispatcher, ILogger logger)
     {
@@ -66,6 +71,10 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
 
     public bool IsIndeterminate => _request.EstimatedFiles == 0;
 
+    public bool CanCancelStep => !IsStepIndivisible;
+
+    public string IndivisibleText => "Корзина Windows очищается одним системным вызовом – этот шаг не прерывается.";
+
     protected override string RunningStatus => "Очистка…";
 
     protected override bool CloseResult => _freed > 0;
@@ -81,11 +90,28 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
 
         try
         {
-            await Task.Run(() => Execute(linked.Token), linked.Token);
+            foreach (var target in _request.Targets)
+            {
+                linked.Token.ThrowIfCancellationRequested();
+
+                IsStepIndivisible = target.IsIndivisible;
+
+                var progress = new OffsetProgress(_progress, _deleted, _freed);
+                var report = await Task.Run(() => _service.Clean(target, progress, linked.Token), linked.Token);
+
+                IsStepIndivisible = false;
+                Tally(target, report, linked.Token.IsCancellationRequested);
+
+                if (report.Cancelled)
+                {
+                    throw new OperationCanceledException(linked.Token);
+                }
+            }
         }
         finally
         {
             _progressTimer.Stop();
+            IsStepIndivisible = false;
             Apply(_progress.CreateSnapshot());
         }
     }
@@ -119,47 +145,38 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
             return $"Ошибка: {failure.Message}";
         }
 
-        var done = $"удалено {_deleted:N0}, освобождено {SizeFormatter.Format(_freed)}";
-
-        if (Cancelled)
-        {
-            return $"Отменено: {done}.";
-        }
-
-        if (_skipped > 0)
-        {
-            return $"Готово: {done}. Пропущено {_skipped:N0} – {_firstError}";
-        }
-
-        if (_firstError.Length > 0)
-        {
-            return $"Готово: {done}. {_firstError}";
-        }
-
-        return $"Готово: {done}.";
+        return Summarize(_deleted, _freed, Cancelled, _cancelMissedIndivisible, _skipped, _firstError);
     }
 
-    private void Execute(CancellationToken token)
+    internal static string Summarize(int deleted, long freed, bool cancelled, bool binClearedDespiteCancel, int skipped, string firstError)
     {
-        foreach (var target in _request.Targets)
+        var done = $"{(cancelled ? "Отменено" : "Готово")}: удалено {deleted:N0}, освобождено {SizeFormatter.Format(freed)}";
+
+        var text = skipped > 0 ? $"{done}. Пропущено {skipped:N0} – {firstError}"
+            : firstError.Length > 0 ? $"{done}. {firstError}"
+            : $"{done}.";
+
+        return binClearedDespiteCancel
+            ? $"{text.TrimEnd('.')}. Корзину Windows отмена не остановила: этот шаг не прерывается."
+            : text;
+    }
+
+    internal static bool ClearedDespiteCancel(CleanupTarget target, CleanupReport report, bool cancelRequested)
+    {
+        return target.IsIndivisible && cancelRequested && !report.Cancelled && report.Deleted > 0;
+    }
+
+    private void Tally(CleanupTarget target, CleanupReport report, bool cancelRequested)
+    {
+        _cancelMissedIndivisible |= ClearedDespiteCancel(target, report, cancelRequested);
+
+        _freed += report.FreedBytes;
+        _deleted += report.Deleted;
+        _skipped += report.Skipped;
+
+        if (_firstError.Length == 0 && report.Errors.Count > 0)
         {
-            token.ThrowIfCancellationRequested();
-
-            var report = _service.Clean(target, new OffsetProgress(_progress, _deleted, _freed), token);
-
-            _freed += report.FreedBytes;
-            _deleted += report.Deleted;
-            _skipped += report.Skipped;
-
-            if (_firstError.Length == 0 && report.Errors.Count > 0)
-            {
-                _firstError = report.Errors[0];
-            }
-
-            if (report.Cancelled)
-            {
-                throw new OperationCanceledException(token);
-            }
+            _firstError = report.Errors[0];
         }
     }
 

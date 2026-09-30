@@ -227,21 +227,21 @@ public class McpBridgeTests
     [Test]
     public void Путь_скана_пропускается_для_существующего_каталога()
     {
-        Assert.DoesNotThrow(() => McpGuards.ValidateScanPath(_left));
+        Assert.DoesNotThrow(() => McpGuards.ValidateScanPath(_left, refuseLink: true));
     }
 
     [TestCase("/")]
     [TestCase("\\.\\")]
     public void Путь_скана_приводится_к_каноничному(string tail)
     {
-        Assert.That(McpGuards.ValidateScanPath(_left.Replace('\\', '/') + tail), Is.EqualTo(_left));
+        Assert.That(McpGuards.ValidateScanPath(_left.Replace('\\', '/') + tail, refuseLink: true), Is.EqualTo(_left));
     }
 
     [Test]
     public void Пустой_путь_скана_отбивается()
     {
         Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(string.Empty))?.Message,
+            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(string.Empty, refuseLink: true))?.Message,
             Does.Contain("должен быть задан"));
     }
 
@@ -251,7 +251,7 @@ public class McpBridgeTests
         var missing = Path.Combine(_root, "нет-такого");
 
         Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(missing))?.Message,
+            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(missing, refuseLink: true))?.Message,
             Does.Contain("не найден"));
     }
 

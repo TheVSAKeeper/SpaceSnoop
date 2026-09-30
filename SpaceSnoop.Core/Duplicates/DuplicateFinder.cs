@@ -241,9 +241,9 @@ public sealed class DuplicateFinder(ILogger<DuplicateFinder>? logger = null)
                 continue;
             }
 
-            var omitted = Math.Max(0, members.Count - memberLimit);
-
-            groups.Add(new(size, omitted > 0 ? members.Take(memberLimit).ToList() : members, distinct, omitted));
+            groups.Add(members.Count > memberLimit
+                ? new(size, members[..memberLimit], distinct, members[memberLimit..])
+                : new(size, members, distinct));
         }
 
         return groups;

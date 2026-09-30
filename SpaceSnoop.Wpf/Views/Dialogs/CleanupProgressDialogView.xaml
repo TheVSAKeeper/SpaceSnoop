@@ -119,6 +119,13 @@
                        Foreground="{DynamicResource Fg.Muted}"
                        ToolTip="{Binding CurrentPath}"
                        Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+
+            <TextBlock Text="{Binding IndivisibleText}"
+                       Margin="0,8,0,0"
+                       TextWrapping="Wrap"
+                       Style="{StaticResource TextBlock.Subtle}"
+                       AutomationProperties.LiveSetting="Polite"
+                       Visibility="{Binding IsStepIndivisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
         </StackPanel>
 
         <Grid Grid.Row="3"
@@ -155,6 +162,7 @@
                         Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                 <Button Style="{StaticResource Button.Secondary}"
                         Command="{Binding CancelRunCommand}"
+                        IsEnabled="{Binding CanCancelStep}"
                         Content="Отменить"
                         MinWidth="96"
                         MinHeight="{DynamicResource Control.Height.Default}"

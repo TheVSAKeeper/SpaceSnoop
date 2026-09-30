@@ -90,6 +90,9 @@ internal static partial class AppLog
         Message = "Сканирование «{Path}»: не прочитано каталогов {Count} (права администратора: {Elevated}), стек – у первого пропуска")]
     public static partial void ScanDirectoriesUnread(this ILogger logger, string path, long count, bool elevated);
 
+    [LoggerMessage(EventId = 1228, Level = LogLevel.Information, Message = "Сканирование «{Path}» не начато: корень – ссылка, её цель не обходится")]
+    public static partial void ScanRootLinkRejected(this ILogger logger, string path);
+
     [LoggerMessage(EventId = 1100, Level = LogLevel.Information,
         Message = "Старт удаления {Run}: {Count} элемент(ов), {BytesText} (безвозвратно: {Permanent})")]
     public static partial void DeletionStarted(this ILogger logger, string run, int count, string bytesText, bool permanent);
@@ -172,10 +175,10 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1214, Level = LogLevel.Error, Message = "Автосинхронизация прервана ошибкой")]
     public static partial void HeadlessSyncFailed(this ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 1215, Level = LogLevel.Error, Message = "Операция «{Operation}» завершилась ошибкой")]
+    [LoggerMessage(EventId = 1226, Level = LogLevel.Error, Message = "Операция «{Operation}» завершилась ошибкой")]
     public static partial void SyncOperationFailed(this ILogger logger, Exception exception, string operation);
 
-    [LoggerMessage(EventId = 1216, Level = LogLevel.Information, Message = "Операция «{Operation}» отменена")]
+    [LoggerMessage(EventId = 1227, Level = LogLevel.Information, Message = "Операция «{Operation}» отменена")]
     public static partial void SyncOperationCancelled(this ILogger logger, string operation);
 
     [LoggerMessage(EventId = 1217, Level = LogLevel.Information, Message = "Проверка синхронизации: проверено {Checked}, расхождений {Mismatches}")]

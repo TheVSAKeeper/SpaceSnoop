@@ -60,6 +60,11 @@ public sealed partial class ScanViewModel : IScanAutomation
         SelectPathForAutomation(path);
     }
 
+    void IScanAutomation.ReleaseBeforeScan(string path)
+    {
+        ReleaseBeforeScan(new(path));
+    }
+
     void IScanAutomation.ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes)
     {
         ApplyScanResult(result, elapsed, traversal, notes);
