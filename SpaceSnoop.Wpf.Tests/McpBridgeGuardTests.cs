@@ -260,6 +260,7 @@ public class McpBridgeGuardTests
                 Does.Contain("сейчас занята"));
 
             Assert.That(_scan.ApplyCalls, Is.Zero);
+            Assert.That(_scan.PageCalls, Is.Empty);
         });
     }
 
@@ -272,10 +273,11 @@ public class McpBridgeGuardTests
         Assert.Multiple(() =>
         {
             Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None))?.Message,
-                Does.Contain("пока шёл обход"));
+                Does.Contain("пока шёл обход").And.Contain("результат не показан"));
 
             Assert.That(_scan.ApplyCalls, Is.Zero);
             Assert.That(_scan.SelectCalls, Is.Zero);
+            Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}" }));
         });
     }
 
@@ -290,7 +292,52 @@ public class McpBridgeGuardTests
         {
             Assert.That(json, Does.Contain("файл.txt"));
             Assert.That(_scan.ApplyCalls, Is.Zero);
+            Assert.That(_scan.PageCalls, Is.Empty);
         });
+    }
+
+    [Test]
+    public async Task Показ_снимает_прежний_корень_страницы_до_обхода()
+    {
+        await _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None);
+
+        Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}", $"apply {_root}" }));
+    }
+
+    [Test]
+    public void Корень_скана_ссылка_отбивается_понятным_текстом()
+    {
+        var link = Path.Combine(Path.GetTempPath(), "ss_guard_link_" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateSymbolicLink(link, _root);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Assert.Ignore("не удалось создать символьную ссылку");
+        }
+
+        try
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(link, 2, 20, true, CancellationToken.None))?.Message,
+                    Does.Contain("ссылка на другое место"));
+
+                Assert.That(_scan.PageCalls, Is.Empty);
+
+                Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.OpenScanAsync(link, true, CancellationToken.None))?.Message,
+                    Does.Contain("ссылка на другое место"));
+
+                Assert.That(() => _bridge.Scan.OpenScanAsync(link, false, CancellationToken.None), Throws.Nothing);
+                Assert.That(_scan.SelectCalls, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
     }
 
     [Test]

@@ -4,6 +4,7 @@ using SpaceSnoop.Core.Domain;
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace SpaceSnoop.Tests;
 
@@ -240,6 +241,77 @@ public class DiskSpaceCalculatorTests
         {
             Assert.That(result.TotalSize, Is.EqualTo(1500));
             Assert.That(result.TotalDirectoryCount, Is.EqualTo(2));
+        }
+    }
+
+    [TestCase(true, true)]
+    [TestCase(true, false)]
+    [TestCase(false, true)]
+    [TestCase(false, false)]
+    public void Calculate_RefusesLinkRoot(bool junction, bool multithreaded)
+    {
+        var link = Path.Combine(_tempDir, "root-link");
+        var target = Path.Combine(_tempDir, "sub");
+
+        if (!(junction ? TryCreateJunction(link, target) : TryCreateSymbolicDirectory(link, target)))
+        {
+            Assert.Ignore("не удалось создать ссылку");
+        }
+
+        var calculator = new DiskSpaceCalculator();
+
+        var exception = Assert.Throws<ScanRootLinkException>(() =>
+        {
+            _ = multithreaded
+                ? calculator.CalculateMultithreaded(new(link), 4, CancellationToken.None)
+                : calculator.Calculate(new(link), CancellationToken.None);
+        });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(exception!.Path, Is.EqualTo(link));
+            Assert.That(exception.Message, Does.Contain("ссылка на другое место"));
+            Assert.That(DiskSpaceCalculator.DescribeRootRefusal(new(link + Path.DirectorySeparatorChar)), Is.Not.Null);
+            Assert.That(DiskSpaceCalculator.DescribeRootRefusal(new(target)), Is.Null);
+            Assert.That(DiskSpaceCalculator.DescribeRootRefusal(new(Path.GetPathRoot(_tempDir)!)), Is.Null);
+        }
+    }
+
+    [TestCase(@"\??\Volume{6f1d2c3a-0000-0000-0000-100000000000}\", ExpectedResult = true)]
+    [TestCase(@"\??\volume{6f1d2c3a-0000-0000-0000-100000000000}\", ExpectedResult = true)]
+    [TestCase(@"\??\Volume{6f1d2c3a-0000-0000-0000-100000000000}\Users\x", ExpectedResult = false)]
+    [TestCase(@"\??\Volume{6f1d2c3a-0000-0000-0000-100000000000}", ExpectedResult = false)]
+    [TestCase(@"\??\Volume{not-a-guid}\", ExpectedResult = false)]
+    [TestCase(@"\??\C:\Data\Backup", ExpectedResult = false)]
+    [TestCase(@"\??\UNC\server\share", ExpectedResult = false)]
+    [TestCase("", ExpectedResult = false)]
+    public bool ReparsePoint_TellsVolumeTargetFromFolderTarget(string substituteName)
+    {
+        return ReparsePoint.IsVolumeTarget(substituteName);
+    }
+
+    [Test]
+    public void IsLink_AcceptsVolumeMountedIntoFolder()
+    {
+        var mount = Path.Combine(_tempDir, "mounted-volume");
+        Directory.CreateDirectory(mount);
+
+        if (!TryMountVolume(mount, Path.GetPathRoot(_tempDir)!))
+        {
+            Assert.Ignore("не удалось смонтировать том в папку");
+        }
+
+        try
+        {
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(DiskSpaceCalculator.DescribeRootRefusal(new(mount)), Is.Null);
+                Assert.That(DiskSpaceCalculator.IsReparsePoint(new(mount)), Is.True);
+            }
+        }
+        finally
+        {
+            Directory.Delete(mount);
         }
     }
 
@@ -581,6 +653,58 @@ public class DiskSpaceCalculatorTests
         int nOutBufferSize,
         out int lpBytesReturned,
         IntPtr lpOverlapped);
+
+    [DllImport("kernel32.dll", EntryPoint = "GetVolumeNameForVolumeMountPointW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern bool GetVolumeNameForVolumeMountPoint(string lpszVolumeMountPoint, char[] lpszVolumeName, int cchBufferLength);
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
+
+    private static bool TryMountVolume(string path, string volumeRoot)
+    {
+        var name = new char[64];
+
+        if (!GetVolumeNameForVolumeMountPoint(volumeRoot, name, name.Length))
+        {
+            return false;
+        }
+
+        var substitute = Encoding.Unicode.GetBytes(@"\??\" + new string(name).TrimEnd('\0')[4..]);
+        var pathBuffer = substitute.Length + 4;
+        var buffer = new byte[16 + pathBuffer];
+
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer, 0xA000_0003);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(4), (ushort)(8 + pathBuffer));
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(10), (ushort)substitute.Length);
+        BinaryPrimitives.WriteUInt16LittleEndian(buffer.AsSpan(12), (ushort)(substitute.Length + 2));
+        substitute.CopyTo(buffer, 16);
+
+        using var handle = CreateFile(path, 0x4000_0000, 0x7, IntPtr.Zero, 3, 0x0200_0000 | 0x0020_0000, IntPtr.Zero);
+
+        return !handle.IsInvalid
+               && DeviceIoControl(handle, FsctlSetReparsePoint, buffer, buffer.Length, IntPtr.Zero, 0, out _, IntPtr.Zero)
+               && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+    }
+
+    private static bool TryCreateSymbolicDirectory(string path, string target)
+    {
+        try
+        {
+            Directory.CreateSymbolicLink(path, target);
+            return true;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
 
     private static bool TryCreateJunction(string path, string target)
     {
