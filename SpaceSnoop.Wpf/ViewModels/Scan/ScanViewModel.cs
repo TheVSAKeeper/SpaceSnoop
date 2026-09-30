@@ -236,7 +236,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         ? $"Сканировать {DriveItem.ShortName(SelectedDrive)}"
         : "Выберите диск или каталог";
 
-    internal DirectorySpace? CurrentRoot =>Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
+    internal DirectorySpace? CurrentRoot => Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
 
     private void OnTreemapDrilledInto(ScanNodeViewModel node)
     {
