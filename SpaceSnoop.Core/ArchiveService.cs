@@ -9,7 +9,7 @@ namespace SpaceSnoop.Core;
 
 public readonly record struct ZipStats(int Count, long Bytes);
 
-public readonly record struct ZipEntryStamp(long Length, DateTime Modified);
+public readonly record struct ZipEntryStamp(long Length, DateTime Modified, uint Crc32);
 
 public readonly record struct VerifyResult(bool Ok, string Detail);
 
@@ -42,7 +42,7 @@ internal sealed class ArchiveIndex
 
         foreach (var entry in zip.Entries)
         {
-            index._entries[entry.FullName] = new(entry.Length, entry.LastWriteTime.DateTime);
+            index._entries[entry.FullName] = new(entry.Length, entry.LastWriteTime.DateTime, entry.Crc32);
 
             for (var slash = entry.FullName.IndexOf('/'); slash >= 0; slash = entry.FullName.IndexOf('/', slash + 1))
             {
@@ -233,7 +233,17 @@ public sealed class ArchiveService
         var index = ArchiveIndex.Read(zipPath, PathCase.ComparerFor(root));
         var content = Collect(root, token);
 
-        return CheckCoverage(root, content, index);
+        if (CheckCoverage(root, content, index) is { Ok: false } coverage)
+        {
+            return coverage;
+        }
+
+        if (CheckContent(root, content, index, token) is { Ok: false } rewritten)
+        {
+            return rewritten;
+        }
+
+        return CheckCoverage(root, Collect(root, token), index);
     }
 
     public VerifyResult VerifyZip(
@@ -302,6 +312,36 @@ public sealed class ArchiveService
         if (Missing(content.EmptyDirectories, x => index.HasDirectory(Relative(prefix, x) + "/"), "в архив не попал пустой каталог") is { } empty)
         {
             return new(false, empty);
+        }
+
+        return new(true, string.Empty);
+    }
+
+    // TODO: содержимое сверяется по CRC-32 из центрального каталога – 32 бита ловят случайную правку, но не
+    // подобранную подмену; сверять побайтно с распакованной записью, когда упаковка пойдёт по каталогам, куда
+    // пишут недоверенные процессы.
+    internal VerifyResult CheckContent(string root, ArchiveContent content, ArchiveIndex index, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(index);
+
+        var prefix = Prefix(root);
+        var buffer = ArrayPool<byte>.Shared.Rent(BufferSize);
+
+        try
+        {
+            foreach (var file in content.Files)
+            {
+                token.ThrowIfCancellationRequested();
+
+                if (ContentMismatch(index.Stamp(Relative(prefix, file)), file, buffer, token) is { } mismatch)
+                {
+                    return new(false, mismatch);
+                }
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
         }
 
         return new(true, string.Empty);
@@ -465,6 +505,33 @@ public sealed class ArchiveService
         return crc.GetCurrentHashAsUInt32() == entry.Crc32
             ? null
             : $"«{entry.FullName}»: контрольная сумма не сошлась";
+    }
+
+    private static string? ContentMismatch(ZipEntryStamp stamp, string path, byte[] buffer, CancellationToken token)
+    {
+        var crc = new Crc32();
+        long read = 0;
+
+        try
+        {
+            using var source = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            int chunk;
+
+            while ((chunk = source.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                token.ThrowIfCancellationRequested();
+                crc.Append(buffer.AsSpan(0, chunk));
+                read += chunk;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            return $"файл не прочитан для сверки с архивом «{path}»: {exception.Message}";
+        }
+
+        return read == stamp.Length && crc.GetCurrentHashAsUInt32() == stamp.Crc32
+            ? null
+            : $"после упаковки изменилось содержимое файла «{path}»";
     }
 
     public void DeleteDirectoryToRecycleBin(string path, bool showUi)

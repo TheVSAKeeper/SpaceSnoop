@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
+using SpaceSnoop.Tests;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using System.IO;
 using System.Runtime.CompilerServices;
@@ -117,24 +119,63 @@ public class CleanupProgressPollTests
         return summary.Replace($"удалено {5:N0}, освобождено {SizeFormatter.Format(2048)}", "{0}");
     }
 
+    [Test]
+    public async Task Отмена_на_обходе_цели_не_теряет_непрочитанный_каталог_в_итоге()
+    {
+        var target = Path.Combine(_root, "отмена");
+        var kept = Path.Combine(target, "a-open", "keep.tmp");
+        var locked = Path.Combine(target, "m-locked");
+        Directory.CreateDirectory(Path.GetDirectoryName(kept)!);
+        Directory.CreateDirectory(Path.Combine(target, "z-open"));
+        Directory.CreateDirectory(locked);
+        File.WriteAllText(kept, "k");
+
+        TestAcl.DenyEnumeration(locked);
+
+        try
+        {
+            using var cancel = new CancellationTokenSource();
+            CleanupRequest request = new([Target(target)], 1, 1, cancel.Token);
+            var dialog = new CleanupProgressDialogViewModel(request, new(new CancelOnSkippedDirectory(cancel)), new FakeUiDispatcher(), NullLogger.Instance);
+
+            await dialog.StartCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(dialog.WasCancelled, Is.True);
+                Assert.That(File.Exists(kept), Is.True, "Отмена на обходе не остановила удаление.");
+                Assert.That(dialog.StatusText, Is.EqualTo($"Отменено: удалено 0, освобождено {SizeFormatter.Format(0)}. Пропущено 1 – «{locked}»: каталог не читается"));
+            }
+        }
+        finally
+        {
+            TestAcl.AllowEnumeration(locked);
+        }
+    }
+
     private CleanupProgressDialogViewModel CreateDialog(FakeUiDispatcher dispatcher)
     {
         var targets = Directory.GetDirectories(_root)
             .Order(StringComparer.Ordinal)
-            .Select(path => new CleanupTarget
-            {
-                Id = Path.GetFileName(path),
-                Name = Path.GetFileName(path),
-                Description = "Тест",
-                Kind = CleanupTargetKind.Directory,
-                Path = path,
-                MinimumAge = TimeSpan.Zero,
-            })
+            .Select(Target)
             .ToList();
 
         CleanupRequest request = new(targets, 512L * FilesPerTarget * Targets, FilesPerTarget * Targets);
 
         return new(request, new(), dispatcher, NullLogger.Instance);
+    }
+
+    private static CleanupTarget Target(string path)
+    {
+        return new()
+        {
+            Id = Path.GetFileName(path),
+            Name = Path.GetFileName(path),
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Path = path,
+            MinimumAge = TimeSpan.Zero,
+        };
     }
 
     private static StrongBox<int> Watch(CleanupProgressDialogViewModel dialog)
@@ -150,5 +191,32 @@ public class CleanupProgressPollTests
         };
 
         return updates;
+    }
+
+    private sealed class CancelOnSkippedDirectory(CancellationTokenSource cancel) : ILogger<CleanupService>
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull
+        {
+            return null;
+        }
+
+        public bool IsEnabled(LogLevel logLevel)
+        {
+            return true;
+        }
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            if (eventId.Name == "CleanupDirectorySkipped")
+            {
+                cancel.Cancel();
+            }
+        }
     }
 }

@@ -330,6 +330,66 @@ public class ArchiveServiceTests
     }
 
     [Test]
+    public void VerifyCoverage_FailsWhenContentReplacedWithSameLengthAndTime()
+    {
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+
+        var changed = Path.Combine(_sourceDir, "a.txt");
+        var modified = File.GetLastWriteTime(changed);
+        File.WriteAllText(changed, "omega");
+        File.SetLastWriteTime(changed, modified);
+
+        var coverage = service.VerifyCoverage(_sourceDir, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"после упаковки изменилось содержимое файла «{changed}»"));
+        }
+    }
+
+    [TestCase(FileAccess.Read, FileShare.None)]
+    [TestCase(FileAccess.Write, FileShare.ReadWrite)]
+    public void CheckContent_FailsWhenFileHeldByAnotherHandle(FileAccess access, FileShare share)
+    {
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var index = ArchiveIndex.Read(_zipPath, StringComparer.OrdinalIgnoreCase);
+
+        var held = Path.Combine(_sourceDir, "a.txt");
+
+        using (new FileStream(held, FileMode.Open, access, share))
+        {
+            var coverage = service.CheckContent(_sourceDir, content, index, CancellationToken.None);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(coverage.Ok, Is.False);
+                Assert.That(coverage.Detail, Does.StartWith($"файл не прочитан для сверки с архивом «{held}»"));
+            }
+        }
+
+        Assert.That(service.CheckContent(_sourceDir, content, index, CancellationToken.None).Ok, Is.True);
+    }
+
+    [Test]
+    public void CheckContent_CancelledThrowsInsteadOfReportingVerdict()
+    {
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var index = ArchiveIndex.Read(_zipPath, StringComparer.OrdinalIgnoreCase);
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => service.CheckContent(_sourceDir, content, index, cts.Token));
+    }
+
+    [Test]
     public void VerifyZip_ContentCheckAcceptsDirectoryEntries()
     {
         var service = new ArchiveService();
