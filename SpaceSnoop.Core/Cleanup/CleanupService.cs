@@ -283,7 +283,14 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
         var unreadable = new List<string>();
         var errors = new List<string>();
 
-        Walk(target, token, files.Add, unreadable, directories);
+        try
+        {
+            Walk(target, token, files.Add, unreadable, directories);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            return new(0, 0, ReportUnreadable(unreadable, errors), errors, true);
+        }
 
         var (freed, deleted, skipped, cancelled) = DeleteFiles(target, files, errors, progress, token);
 
@@ -297,13 +304,19 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
             cancelled |= dirCancelled;
         }
 
+        skipped += ReportUnreadable(unreadable, errors);
+
+        return new(freed, deleted, skipped, errors, cancelled);
+    }
+
+    private static int ReportUnreadable(List<string> unreadable, List<string> errors)
+    {
         foreach (var path in unreadable)
         {
-            skipped++;
             Report(errors, $"«{path}»: каталог не читается");
         }
 
-        return new(freed, deleted, skipped, errors, cancelled);
+        return unreadable.Count;
     }
 
     private (long Freed, int Deleted, int Skipped, bool Cancelled) DeleteFiles(
