@@ -18,6 +18,8 @@ using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using SpaceSnoop.Wpf.Views;
+using SpaceSnoop.Wpf.Views.Dialogs;
+using SpaceSnoop.Wpf.Views.Scan;
 using SpaceSnoop.Wpf.Views.Settings;
 using System.Windows;
 using System.Windows.Automation;
@@ -783,6 +785,244 @@ public class BindingSmokeTests
             _window.Height = height;
             Settle();
         }
+    }
+
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Запрос прав при крупном шрифте в узком окне ставит исходы столбиком и не режет кнопки")]
+    [TestCase(1280d, 800d, false, TestName = "Запрос прав в обычном окне держит исходы одним рядом справа")]
+    public void Кнопки_запроса_прав(double width, double height, bool bigFont)
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var modals = _services.GetRequiredService<ModalHostViewModel>();
+        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
+
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
+            _ = modals.ShowAsync(AdminStartupPrompt.BuildConfirm());
+            Settle();
+
+            var view = Descendant<ConfirmDialogView>(_window) ?? throw new InvalidOperationException("Диалог подтверждения не показан.");
+            var row = (FrameworkElement)view.FindName("ChoiceRow");
+            var column = (FrameworkElement)view.FindName("ChoiceColumn");
+            var buttons = Descendants<Button>(view).Where(button => button.IsVisible).ToList();
+            var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
+
+            SaveFrame(view, bigFont ? "confirm-admin-column" : "confirm-admin-row");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Не перезапускать", "Больше не спрашивать", "Перезапустить" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда исходов.");
+                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик исходов видны не взаимоисключающе.");
+                Assert.That(buttons.Where(static button => button.ActualWidth < button.DesiredSize.Width - 0.5).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
+                Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > view.ActualWidth + 0.5), Is.Empty, "Кнопка выходит за край диалога.");
+
+                if (bigFont)
+                {
+                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[2].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
+                    Assert.That(bounds.Select(static rect => rect.Width).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
+                }
+                else
+                {
+                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Исходы в обычном окне не в один ряд.");
+                }
+            }
+        }
+        finally
+        {
+            modals.RequestCancel();
+            shell.FontScale = scale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Вопрос про git-папки при крупном шрифте в узком окне ставит кнопки столбиком на всю ширину")]
+    [TestCase(1280d, 800d, false, TestName = "Вопрос про git-папки в обычном окне держит кнопки одним рядом справа")]
+    public void Кнопки_вопроса_про_git_папки(double width, double height, bool bigFont)
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var modals = _services.GetRequiredService<ModalHostViewModel>();
+        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
+
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
+            _ = modals.ShowAsync(new GitFolderPromptViewModel(3));
+            Settle();
+
+            var view = Descendant<GitFolderPromptView>(_window) ?? throw new InvalidOperationException("Вопрос про git-папки не показан.");
+            var column = (FrameworkElement)view.FindName("ChoiceColumn");
+            var row = (FrameworkElement)view.FindName("ChoiceRow");
+            var buttons = Descendants<Button>(view).Where(static button => button.IsVisible).ToList();
+            var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
+
+            SaveFrame(view, bigFont ? "git-column" : "git-row");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Синхронизировать .git", "Пропустить .git" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда кнопок.");
+                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик кнопок видны не взаимоисключающе.");
+                Assert.That(buttons.Where(static button => button.ActualWidth < button.DesiredSize.Width - button.Margin.Left - button.Margin.Right - 0.5).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
+                Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > view.ActualWidth + 0.5), Is.Empty, "Кнопка выходит за край диалога.");
+                Assert.That(buttons.Count(static button => button.IsDefault), Is.EqualTo(1), "Enter подтверждает не одну кнопку.");
+                Assert.That(buttons.Count(static button => button.IsCancel), Is.EqualTo(1), "Escape отвечает не одной кнопкой.");
+
+                if (bigFont)
+                {
+                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[1].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
+                    Assert.That(bounds.Select(static rect => Math.Round(rect.Width)).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
+                }
+                else
+                {
+                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Кнопки в обычном окне не в один ряд.");
+                    Assert.That(buttons[1].TransformToAncestor(row).TransformBounds(new(buttons[1].RenderSize)).Right, Is.EqualTo(row.ActualWidth).Within(1), "Ряд кнопок не прижат вправо.");
+                }
+            }
+        }
+        finally
+        {
+            modals.RequestCancel();
+            shell.FontScale = scale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Страница скана при крупном шрифте в окне 900 на 600 ужимает верхние блоки и показывает шесть строк дерева")]
+    [TestCase(1280d, 800d, false, TestName = "Страница скана в обычном окне не ужимает верхние блоки")]
+    public void Дерево_скана_держит_минимум_строк(double width, double height, bool bigFont)
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<ScanViewModel>();
+        var (oldWidth, oldHeight, scale, collapsed) = (_window.Width, _window.Height, shell.FontScale, page.Inspector.IsInspectorCollapsed);
+        var selected = page.SelectedNode;
+
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
+
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+
+            page.Tips.ShowForAutomation(0);
+            page.Inspector.IsInspectorCollapsed = true;
+            Settle();
+            page.SelectedNode = page.Roots[0];
+            page.Inspector.IsInspectorCollapsed = true;
+            Settle();
+
+            var view = Descendant<ScanView>(_window) ?? throw new InvalidOperationException("Страница скана не найдена.");
+            var content = (FrameworkElement)view.FindName("ContentArea");
+            var rail = Descendants<TextBlock>(view).Single(static text => text.Text == "Детали" && text.LayoutTransform is RotateTransform);
+            var railBottom = rail.TransformToAncestor(content).TransformBounds(new(rail.RenderSize)).Bottom;
+            var tipText = Descendants<TextBlock>(view).Single(text => text.Text == page.Tips.Text);
+            var tree = Descendants<TreeView>(view).Single(static tree => tree.IsVisible);
+            var viewport = Descendant<ScrollContentPresenter>(tree) ?? throw new InvalidOperationException("У дерева нет области прокрутки.");
+            var row = Descendants<TreeViewItem>(tree).Select(static item => item.Template.FindName("SelectionBd", item)).OfType<FrameworkElement>().First(static bd => bd.ActualHeight > 0);
+            var title = Descendants<TextBlock>(view).Single(static text => text.Text == "Структура каталога");
+            var structure = Descendant<ScanStructurePanel>(view) ?? throw new InvalidOperationException("Панель структуры не найдена.");
+            var railPanel = Descendant<ScanInspectorRail>(view) ?? throw new InvalidOperationException("Свёрнутая колонка деталей не найдена.");
+            var railActions = (FrameworkElement)railPanel.FindName("RailActions");
+            var moreButton = (Button)railPanel.FindName("MoreButton");
+            var moreMenu = (ContextMenu)railPanel.FindName("MoreMenu");
+            var railButtons = Descendants<Button>(railPanel).Where(static button => button.IsVisible).ToList();
+            var railBounds = railButtons.Select(button => button.TransformToAncestor(content).TransformBounds(new(button.RenderSize))).ToList();
+            var actionCount = Descendants<Button>(railActions).Count(static button => button.Visibility == Visibility.Visible);
+            SaveFrame(view, bigFont ? "scan-compact" : "scan-regular");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(page.ShowSummary && page.Tips.IsVisible, Is.True, "Над деревом нет итогов или совета – кейс ничего не проверяет.");
+                Assert.That(view.IsCompact, Is.EqualTo(bigFont), "Верхние блоки ужаты не по месту.");
+                Assert.That(Math.Floor(viewport.ActualHeight / row.ActualHeight), Is.GreaterThanOrEqualTo(ScanView.MinTreeRows), "В дереве видно меньше шести строк.");
+                Assert.That(title.IsVisible, Is.EqualTo(!bigFont), "Заголовок панели в сжатом виде должен уходить.");
+                Assert.That(tipText.IsVisible, Is.EqualTo(!bigFont), "Текст совета в сжатом виде должен прятаться до щелчка.");
+                Assert.That(railBottom, Is.LessThanOrEqualTo(content.ActualHeight + 0.5), "Подпись свёрнутых деталей режется снизу.");
+                Assert.That(tree.GetValue(AutomationProperties.NameProperty), Is.EqualTo("Структура каталога"), "Дерево без имени для экранного диктора.");
+                Assert.That(structure.TreeRowCapacity() * row.ActualHeight, Is.EqualTo(viewport.ActualHeight).Within(1), "Запас строк дерева посчитан не по его настоящей высоте.");
+                Assert.That(railBounds.Where(rect => rect.Bottom > content.ActualHeight + 0.5), Is.Empty, "Кнопка свёрнутых деталей режется снизу.");
+                Assert.That(railActions.IsVisible || moreButton.IsVisible, Is.True, "Действия выбранного узла недоступны из свёрнутых деталей.");
+
+                if (moreButton.IsVisible)
+                {
+                    moreButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                    Settle();
+                    Assert.That(moreMenu.IsOpen, Is.True, "Кнопка «Ещё» не открыла меню действий.");
+                    Assert.That(moreMenu.Items.OfType<MenuItem>().Count(static item => item.Visibility == Visibility.Visible), Is.EqualTo(actionCount), "В меню «Ещё» не все действия свёрнутых деталей.");
+                    moreMenu.IsOpen = false;
+                }
+            }
+        }
+        finally
+        {
+            page.Tips.DismissCommand.Execute(null);
+            page.SelectedNode = selected;
+            page.Inspector.IsInspectorCollapsed = collapsed;
+            shell.FontScale = scale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [TestCase("scan", "Сколько ставить")]
+    [TestCase("archive", "Когда сжатие не помогает")]
+    [TestCase("sync", "Что настройка не меняет")]
+    public void Раскрытие_подробностей_не_сдвигает_контрол_строки(string section, string header)
+    {
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var restore = sections.SelectedPath;
+        Expander? details = null;
+
+        try
+        {
+            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+            sections.SelectCommand.Execute(sections[section]);
+            Settle();
+
+            details = Descendants<Expander>(_window).Single(expander => expander.IsVisible && Equals(expander.Header, header));
+            var row = Ancestor<SettingRowPanel>(details) ?? throw new InvalidOperationException($"Раскрытие «{header}» стоит не в строке формы.");
+            var before = Tops(row);
+
+            details.IsExpanded = true;
+            Settle();
+
+            Assert.That(Tops(row), Is.EqualTo(before), $"Раскрытие «{header}» сдвинуло контрол строки.");
+        }
+        finally
+        {
+            details?.SetCurrentValue(Expander.IsExpandedProperty, false);
+            sections.Restore(restore);
+            Settle();
+        }
+
+        static double[] Tops(SettingRowPanel row)
+        {
+            return [.. row.Children.Cast<FrameworkElement>().Skip(1).Select(child => Math.Round(child.TransformToAncestor(row).Transform(default).Y, 1))];
+        }
+    }
+
+    private static T? Ancestor<T>(DependencyObject element)
+        where T : DependencyObject
+    {
+        for (var current = VisualTreeHelper.GetParent(element); current is not null; current = VisualTreeHelper.GetParent(current))
+        {
+            if (current is T found)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private bool Scrollable(SettingsSectionList sections, SettingsSection section, ScrollViewer cards)

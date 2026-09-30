@@ -32,7 +32,7 @@ public sealed partial class ScanViewModel
         && !ScanTreeEditor.SamePath(root.AbsolutePath, ScanTargetPath);
 
     public string StaleResultCaption => CurrentRoot is { } root
-        ? $"Прежний результат: {root.AbsolutePath} – новый появится после обхода {ScanTargetPath}"
+        ? $"Прежний результат: {root.AbsolutePath}{OtherRootsSuffix} – новый появится после обхода {ScanTargetPath}"
         : string.Empty;
 
     public string CancelledCaption => $"Сканирование {CancelledPath} остановлено";
@@ -42,6 +42,8 @@ public sealed partial class ScanViewModel
     public string StartCaption => HasTarget
         ? $"Сканировать {DriveItem.ShortName(SelectedDrive)}"
         : "Выберите диск или каталог";
+
+    private string OtherRootsSuffix => Roots.Count > 1 ? $" и ещё {Roots.Count - 1}" : string.Empty;
 
     private bool CanRescanCancelled()
     {

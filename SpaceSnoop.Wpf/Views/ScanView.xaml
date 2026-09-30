@@ -22,7 +22,6 @@
         </Grid.RowDefinitions>
 
         <controls:ScanToolbar Grid.Row="0"
-                              Margin="0,0,0,12"
                               Visibility="{Binding ShowScanResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Visible}" />
 
         <controls:ScanProgressPanel Grid.Row="1"
@@ -135,7 +134,8 @@
                                   MinWidth="280" />
             </Grid.ColumnDefinitions>
 
-            <controls:ScanStructurePanel Grid.Column="0" />
+            <controls:ScanStructurePanel Grid.Column="0"
+                                         x:Name="Structure" />
 
             <GridSplitter Grid.Column="1"
                           x:Name="InspectorSplitter"

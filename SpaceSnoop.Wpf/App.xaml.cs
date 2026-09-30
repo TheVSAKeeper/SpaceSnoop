@@ -3,6 +3,7 @@ using KeepShell.Services;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using SpaceSnoop.Wpf.Views;
+using SpaceSnoop.Wpf.Views.Behaviors;
 using System.Diagnostics;
 using System.IO;
 
@@ -28,6 +29,7 @@ public partial class App : Application
         try
         {
             AppResources.InstallInto(this);
+            ToolTipOwnerWatch.Install();
 
             var candidate = Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName);
 

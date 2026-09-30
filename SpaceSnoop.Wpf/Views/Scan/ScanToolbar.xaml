@@ -3,13 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:ScanViewModel}"
              d:DesignWidth="980">
-    <Border Style="{StaticResource Card.Inset}"
-            Padding="14,10">
+    <Border>
+        <Border.Style>
+            <Style TargetType="Border"
+                   BasedOn="{StaticResource Card.Inset}">
+                <Setter Property="Padding"
+                        Value="14,10" />
+                <Setter Property="Margin"
+                        Value="0,0,0,12" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                 Value="True">
+                        <Setter Property="Padding"
+                                Value="14,2" />
+                        <Setter Property="Margin"
+                                Value="0,0,0,6" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />

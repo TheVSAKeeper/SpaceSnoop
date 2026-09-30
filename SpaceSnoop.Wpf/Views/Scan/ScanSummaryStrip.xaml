@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -14,6 +15,8 @@
                BasedOn="{StaticResource Card.Inset}">
             <Setter Property="Padding"
                     Value="0" />
+            <Setter Property="Margin"
+                    Value="0,0,0,12" />
             <Setter Property="Visibility"
                     Value="Collapsed" />
             <Setter Property="Opacity"
@@ -51,12 +54,17 @@
                     <Setter Property="Visibility"
                             Value="Collapsed" />
                 </DataTrigger>
+
+                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                             Value="True">
+                    <Setter Property="Margin"
+                            Value="0,0,0,6" />
+                </DataTrigger>
             </Style.Triggers>
         </Style>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource SummaryStrip}"
-            Margin="0,0,0,12">
+    <Border Style="{StaticResource SummaryStrip}">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="4" />
@@ -67,10 +75,11 @@
                     Background="{StaticResource HeatSpectrumVertical}"
                     CornerRadius="10,0,0,10" />
 
-            <WrapPanel Grid.Column="1"
-                       VerticalAlignment="Center"
-                       Margin="14,3,0,3">
-                <WrapPanel.Resources>
+            <views:CompactWrapPanel Grid.Column="1"
+                                    VerticalAlignment="Center"
+                                    Margin="14,3,0,3"
+                                    SingleLine="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}">
+                <views:CompactWrapPanel.Resources>
                     <Style x:Key="Metric"
                            TargetType="StackPanel">
                         <Setter Property="Orientation"
@@ -78,7 +87,7 @@
                         <Setter Property="Margin"
                                 Value="0,4,20,0" />
                     </Style>
-                </WrapPanel.Resources>
+                </views:CompactWrapPanel.Resources>
 
                 <StackPanel Style="{StaticResource Metric}">
                     <TextBlock Text="Объём"
@@ -105,7 +114,8 @@
                                Style="{StaticResource StatValue}" />
                 </StackPanel>
 
-                <StackPanel Style="{StaticResource Metric}">
+                <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Optional="True">
                     <TextBlock Text="Время"
                                Style="{StaticResource Caption}"
                                Margin="0,0,7,0" />
@@ -113,7 +123,8 @@
                                Style="{StaticResource StatValue.Aside}" />
                 </StackPanel>
 
-                <StackPanel Style="{StaticResource Metric}">
+                <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Optional="True">
                     <TextBlock Text="Скорость"
                                Style="{StaticResource Caption}"
                                Margin="0,0,7,0" />
@@ -123,6 +134,7 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Optional="True"
                             Visibility="{Binding HasVolumeNote, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="{Binding VolumeNoteHint}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Info}"
@@ -140,6 +152,7 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Optional="True"
                             Visibility="{Binding HasLinkNote, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="{Binding LinkNoteHint}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Link}"
@@ -157,6 +170,7 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Keep="True"
                             Visibility="{Binding HasDropNote, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="{Binding DropNoteHint}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.TriangleAlert}"
@@ -174,6 +188,7 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Keep="True"
                             Visibility="{Binding HasUnreadNote, Converter={StaticResource BoolToVisibility}}">
                     <StackPanel Orientation="Horizontal"
                                 Background="Transparent"
@@ -199,7 +214,7 @@
                             MinHeight="22"
                             VerticalAlignment="Center" />
                 </StackPanel>
-            </WrapPanel>
+            </views:CompactWrapPanel>
         </Grid>
     </Border>
 </UserControl>

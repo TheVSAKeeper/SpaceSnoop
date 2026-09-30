@@ -88,8 +88,9 @@
                           DisplayMemberPath="Label"
                           Width="{StaticResource Setting.ControlWidth}"
                           Margin="16,0,0,0"
-                          VerticalAlignment="Center" />
+                          VerticalAlignment="Top" />
                 <Button Style="{StaticResource Form.RowReset}"
+                        VerticalAlignment="Top"
                         DataContext="{Binding ResetFields[wpf.sync.git_folders]}"
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"

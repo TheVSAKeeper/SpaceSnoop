@@ -14,6 +14,10 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     private bool _suppressPersist;
     private bool _collapsedByUser;
     private bool _autoExpanded;
+    private bool _openedAutomatically;
+    private bool _compact;
+    private bool _collapsedForCompact;
+    private bool _reopenedAfterCompact;
 
     [ObservableProperty]
     private ScanNodeViewModel? _node;
@@ -129,16 +133,51 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         Persist(() => _settings.SetValue(SettingsKeys.ScanInspectorWidth, clamped.ToString("F0", CultureInfo.InvariantCulture)));
     }
 
-    public void Show(ScanNodeViewModel node)
+    public void SetCompact(bool compact)
     {
-        if (!_autoExpanded)
+        if (compact == _compact)
+        {
+            if (!compact)
+            {
+                _reopenedAfterCompact = false;
+            }
+
+            return;
+        }
+
+        _compact = compact;
+
+        if (compact)
+        {
+            if (_openedAutomatically)
+            {
+                _openedAutomatically = false;
+                _collapsedForCompact = !_reopenedAfterCompact;
+                IsInspectorCollapsed = true;
+            }
+
+            return;
+        }
+
+        if (_collapsedForCompact)
+        {
+            _collapsedForCompact = false;
+            _reopenedAfterCompact = true;
+            ExpandAutomatically();
+        }
+        else if (!_autoExpanded && HasSelection)
         {
             _autoExpanded = true;
+            ExpandAutomatically();
+        }
+    }
 
-            if (!_collapsedByUser)
-            {
-                IsInspectorCollapsed = false;
-            }
+    public void Show(ScanNodeViewModel node)
+    {
+        if (!_autoExpanded && !_compact)
+        {
+            _autoExpanded = true;
+            ExpandAutomatically();
         }
 
         Node = node;
@@ -210,7 +249,19 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     {
         IsInspectorCollapsed = !IsInspectorCollapsed;
         _collapsedByUser = IsInspectorCollapsed;
+        _openedAutomatically = false;
+        _collapsedForCompact = false;
+        _reopenedAfterCompact = false;
         Persist(() => _settings.SetBool(SettingsKeys.ScanInspectorCollapsed, _collapsedByUser));
+    }
+
+    private void ExpandAutomatically()
+    {
+        if (!_collapsedByUser && IsInspectorCollapsed)
+        {
+            IsInspectorCollapsed = false;
+            _openedAutomatically = true;
+        }
     }
 
     private void LoadSettings()

@@ -175,6 +175,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             () => IsScanning);
 
         Marks.ItemsDeleted += Duplicates.RemoveDeleted;
+        Roots.CollectionChanged += (_, _) => OnPropertyChanged(nameof(StaleResultCaption));
 
         ViewModes = BuildViewModes(preferences.DuplicatesEnabled);
 

@@ -168,6 +168,58 @@ public class ScanPageNoticeTests
     }
 
     [Test]
+    public void Прежний_результат_из_нескольких_корней_называет_первый_и_число_остальных()
+    {
+        Arrange("target");
+        var previous = Arrange("other");
+        var target = Path.Combine(_root, "third");
+        var changed = new List<string?>();
+        _scan.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+
+        _scan.IsScanning = true;
+        _scan.ScanTargetPath = target;
+
+        try
+        {
+            Assert.That(_scan.StaleResultCaption, Is.EqualTo($"Прежний результат: {previous.AbsolutePath} и ещё 1 – новый появится после обхода {target}"));
+
+            changed.Clear();
+            _scan.Roots.RemoveAt(1);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(changed, Does.Contain(nameof(ScanViewModel.StaleResultCaption)));
+                Assert.That(_scan.StaleResultCaption, Does.Not.Contain("и ещё"));
+            }
+        }
+        finally
+        {
+            _scan.IsScanning = false;
+        }
+    }
+
+    [Test]
+    public async Task Повторный_скан_и_Сканировать_снова_снимают_только_корень_своей_папки()
+    {
+        var other = Arrange("other");
+        var target = Arrange("target");
+        _scan.Preferences.ReleaseBeforeRescan = true;
+        _scan.Preferences.ConfirmRescan = false;
+
+        await CancelledScanAsync(target.AbsolutePath);
+        var afterCancel = _scan.Roots.Select(static root => root.AbsolutePath).ToList();
+
+        await _scan.RescanCancelledCommand.ExecuteAsync(null);
+        await SettleDriveLabelsAsync();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(afterCancel, Is.EqualTo(new[] { other.AbsolutePath }));
+            Assert.That(_scan.Roots.Select(static root => root.AbsolutePath), Is.EqualTo(new[] { target.AbsolutePath, other.AbsolutePath }));
+        }
+    }
+
+    [Test]
     public void Итог_прежнего_скана_прячется_при_выборе_новой_цели_и_переезжает_в_кнопку_возврата()
     {
         var previous = Arrange("other");

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
              xmlns:controls="clr-namespace:SpaceSnoop.Wpf.Views.Scan"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:bootstrap="clr-namespace:SpaceSnoop.Wpf.Bootstrap"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
@@ -20,6 +21,18 @@
                 <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTreeRowTemplate.xaml" />
                 <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTreemapTooltip.xaml" />
             </ResourceDictionary.MergedDictionaries>
+
+            <Style x:Key="ToggleButton.Header"
+                   TargetType="ToggleButton"
+                   BasedOn="{StaticResource ToggleButton.Toolbar}">
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                 Value="True">
+                        <Setter Property="Height"
+                                Value="{DynamicResource Control.Height.Compact}" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
         </ResourceDictionary>
     </UserControl.Resources>
 
@@ -28,14 +41,44 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="*" />
+                <RowDefinition x:Name="TreeRow"
+                               Height="*" />
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0"
-                  Margin="10,4,12,6">
+                  x:Name="HeaderBar">
+                <Grid.Style>
+                    <Style TargetType="Grid">
+                        <Setter Property="Margin"
+                                Value="10,4,12,6" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                         Value="True">
+                                <Setter Property="Margin"
+                                        Value="10,0,12,2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Style>
                 <WrapPanel Orientation="Horizontal">
                     <Border MinHeight="{DynamicResource Control.Height.Default}"
                             Margin="0,2,16,2">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Style.Triggers>
+                                    <MultiDataTrigger>
+                                        <MultiDataTrigger.Conditions>
+                                            <Condition Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                                       Value="True" />
+                                            <Condition Binding="{Binding HasResult}"
+                                                       Value="True" />
+                                        </MultiDataTrigger.Conditions>
+                                        <Setter Property="Visibility"
+                                                Value="Collapsed" />
+                                    </MultiDataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <TextBlock Text="Структура каталога"
                                    Style="{StaticResource SectionTitle}"
                                    VerticalAlignment="Center" />
@@ -52,7 +95,7 @@
                                  AutomationProperties.Name="Вид структуры" />
 
                         <ToggleButton x:Name="HeatToggle"
-                                      Style="{StaticResource ToggleButton.Toolbar}"
+                                      Style="{StaticResource ToggleButton.Header}"
                                       Margin="6,0,0,0"
                                       MinWidth="34"
                                       Padding="0"
@@ -72,11 +115,28 @@
                         <ComboBox ItemsSource="{Binding Sort.Options}"
                                   SelectedItem="{Binding Sort.SelectedOption}"
                                   DisplayMemberPath="Name"
-                                  Style="{StaticResource ComboBox.Toolbar}"
-                                  MinWidth="132"
                                   Margin="0,0,6,0"
-                                  ToolTip="Поле сортировки строк дерева" />
-                        <ToggleButton Style="{StaticResource ToggleButton.Toolbar}"
+                                  ToolTip="Поле сортировки строк дерева">
+                            <ComboBox.Style>
+                                <Style TargetType="ComboBox"
+                                       BasedOn="{StaticResource ComboBox.Toolbar}">
+                                    <Setter Property="MinWidth"
+                                            Value="132" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                                     Value="True">
+                                            <Setter Property="MinWidth"
+                                                    Value="0" />
+                                            <Setter Property="Height"
+                                                    Value="{DynamicResource Control.Height.Compact}" />
+                                            <Setter Property="MinHeight"
+                                                    Value="{DynamicResource Control.Height.Compact}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.Style>
+                        </ComboBox>
+                        <ToggleButton Style="{StaticResource ToggleButton.Header}"
                                       IsChecked="{Binding Sort.Invert}"
                                       MinWidth="34"
                                       Padding="0"
@@ -176,6 +236,8 @@
                     Background="{DynamicResource Border.Subtle}" />
 
             <TreeView Grid.Row="1"
+                      x:Name="Tree"
+                      AutomationProperties.Name="Структура каталога"
                       ItemsSource="{Binding Roots}"
                       Background="Transparent"
                       BorderThickness="0"
@@ -297,11 +359,24 @@
                                   Icon="Radar"
                                   IconSize="40"
                                   Heading="Обходим каталоги"
-                                  Description="{Binding ScanTargetPath, StringFormat='Дерево появится, когда обход {0} закончится – ход виден в панели выше. Прервать можно кнопкой «Остановить» или клавишей Esc.'}"
                                   DescriptionMaxWidth="440"
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Center"
-                                  Visibility="{Binding ShowScanningState, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+                                  Visibility="{Binding ShowScanningState, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                <keepshell:EmptyState.Style>
+                    <Style TargetType="keepshell:EmptyState">
+                        <Setter Property="Description"
+                                Value="{Binding ScanTargetPath, StringFormat='Дерево появится, когда обход {0} закончится – ход виден в панели выше. Прервать можно кнопкой «Остановить» или клавишей Esc.'}" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                         Value="True">
+                                <Setter Property="Description"
+                                        Value="{x:Null}" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </keepshell:EmptyState.Style>
+            </keepshell:EmptyState>
 
             <Grid x:Name="StaleResultOverlay"
                   Grid.Row="0"

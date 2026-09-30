@@ -1,16 +1,27 @@
 ﻿using System.ComponentModel;
 using System.Windows.Controls.Primitives;
+using System.Windows.Threading;
 
 namespace SpaceSnoop.Wpf.Views;
 
 public partial class ScanView : UserControl, IView<ScanViewModel>
 {
+    public const int MinTreeRows = 6;
+
+    public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(
+        nameof(IsCompact),
+        typeof(bool),
+        typeof(ScanView),
+        new(false));
+
     private const double RailWidth = 46;
 
     private const double MinPanelWidth = ScanInspectorViewModel.MinInspectorWidth;
 
     private ScanViewModel? _vm;
     private bool _hooked;
+    private bool _fitting;
+    private bool _fitQueued;
 
     public ScanView()
     {
@@ -19,12 +30,21 @@ public partial class ScanView : UserControl, IView<ScanViewModel>
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
         DataContextChanged += OnDataContextChanged;
+        ContentArea.IsVisibleChanged += (_, _) => QueueFit();
+        Structure.HeaderBar.SizeChanged += (_, _) => QueueFit();
+    }
+
+    public bool IsCompact
+    {
+        get => (bool)GetValue(IsCompactProperty);
+        private set => SetValue(IsCompactProperty, value);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
     {
         Hook();
         ApplyInspectorLayout();
+        QueueFit();
     }
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
@@ -57,6 +77,49 @@ public partial class ScanView : UserControl, IView<ScanViewModel>
         if (e.WidthChanged)
         {
             ApplyInspectorLayout();
+        }
+
+        QueueFit();
+    }
+
+    private void QueueFit()
+    {
+        if (_fitting || _fitQueued)
+        {
+            return;
+        }
+
+        _fitQueued = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, FitUpperBlocks);
+    }
+
+    private void FitUpperBlocks()
+    {
+        _fitQueued = false;
+
+        if (!IsLoaded || !ContentArea.IsVisible)
+        {
+            return;
+        }
+
+        _fitting = true;
+
+        try
+        {
+            IsCompact = false;
+            UpdateLayout();
+
+            if (Structure.TreeRowCapacity() < MinTreeRows)
+            {
+                IsCompact = true;
+                UpdateLayout();
+            }
+
+            _vm?.Inspector.SetCompact(IsCompact);
+        }
+        finally
+        {
+            _fitting = false;
         }
     }
 

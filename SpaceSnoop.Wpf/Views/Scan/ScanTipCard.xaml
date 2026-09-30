@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
@@ -10,12 +11,27 @@
              d:DesignWidth="980"
              Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
 
-    <Border Style="{StaticResource Card.Inset}"
-            Padding="14,10,10,10"
-            Margin="0,0,0,12"
-            BorderBrush="{DynamicResource Accent.Primary}"
+    <Border BorderBrush="{DynamicResource Accent.Primary}"
             BorderThickness="0,0,0,2"
             AutomationProperties.Name="Совет">
+        <Border.Style>
+            <Style TargetType="Border"
+                   BasedOn="{StaticResource Card.Inset}">
+                <Setter Property="Padding"
+                        Value="14,10,10,10" />
+                <Setter Property="Margin"
+                        Value="0,0,0,12" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                 Value="True">
+                        <Setter Property="Padding"
+                                Value="14,3,6,3" />
+                        <Setter Property="Margin"
+                                Value="0,0,0,6" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
@@ -27,9 +43,25 @@
                                       Kind="{x:Static iconPacks:PackIconLucideKind.Lightbulb}"
                                       Width="16"
                                       Height="16"
-                                      Margin="0,2,10,0"
-                                      VerticalAlignment="Top"
-                                      Foreground="{DynamicResource Accent.Text}" />
+                                      Foreground="{DynamicResource Accent.Text}">
+                <iconPacks:PackIconLucide.Style>
+                    <Style TargetType="iconPacks:PackIconLucide">
+                        <Setter Property="Margin"
+                                Value="0,2,10,0" />
+                        <Setter Property="VerticalAlignment"
+                                Value="Top" />
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                         Value="True">
+                                <Setter Property="Margin"
+                                        Value="0,0,10,0" />
+                                <Setter Property="VerticalAlignment"
+                                        Value="Center" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </iconPacks:PackIconLucide.Style>
+            </iconPacks:PackIconLucide>
 
             <Grid Grid.Column="1"
                   Margin="0,0,12,0">
@@ -40,6 +72,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Grid.Row="0"
@@ -48,31 +81,112 @@
                            FontSize="{DynamicResource Font.Size.S}"
                            FontWeight="SemiBold"
                            Foreground="{DynamicResource Fg.Primary}"
-                           TextWrapping="Wrap" />
+                           VerticalAlignment="Center">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping"
+                                    Value="Wrap" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                             Value="True">
+                                    <Setter Property="TextWrapping"
+                                            Value="NoWrap" />
+                                    <Setter Property="TextTrimming"
+                                            Value="CharacterEllipsis" />
+                                    <Setter Property="ToolTip"
+                                            Value="{Binding Text}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
 
                 <TextBlock Grid.Row="0"
                            Grid.Column="1"
                            Text="{Binding Counter}"
                            Style="{StaticResource Caption}"
+                           VerticalAlignment="Center"
                            Margin="12,0,0,0" />
+
+                <ToggleButton Grid.Row="0"
+                              Grid.Column="2"
+                              x:Name="ExpandToggle"
+                              Height="Auto"
+                              Style="{StaticResource ToggleButton.Toolbar}"
+                              Margin="6,0,0,0"
+                              Padding="4"
+                              VerticalAlignment="Center"
+                              ToolTip="Показать или скрыть текст совета"
+                              AutomationProperties.Name="Текст совета">
+                    <ToggleButton.Visibility>
+                        <Binding Path="IsCompact"
+                                 RelativeSource="{RelativeSource AncestorType=views:ScanView}"
+                                 Converter="{StaticResource BoolToVisibility}" />
+                    </ToggleButton.Visibility>
+                    <iconPacks:PackIconLucide Width="14"
+                                              Height="14">
+                        <iconPacks:PackIconLucide.Style>
+                            <Style TargetType="iconPacks:PackIconLucide">
+                                <Setter Property="Kind"
+                                        Value="{x:Static iconPacks:PackIconLucideKind.ChevronDown}" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsChecked, ElementName=ExpandToggle}"
+                                                 Value="True">
+                                        <Setter Property="Kind"
+                                                Value="{x:Static iconPacks:PackIconLucideKind.ChevronUp}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </iconPacks:PackIconLucide.Style>
+                    </iconPacks:PackIconLucide>
+                </ToggleButton>
 
                 <TextBlock Grid.Row="1"
                            Grid.Column="0"
-                           Grid.ColumnSpan="2"
+                           Grid.ColumnSpan="3"
                            Text="{Binding Text}"
                            Margin="0,3,0,0"
                            FontSize="{DynamicResource Font.Size.S}"
                            Foreground="{DynamicResource Fg.Secondary}"
                            TextWrapping="Wrap"
-                           AutomationProperties.LiveSetting="Polite" />
+                           AutomationProperties.LiveSetting="Polite">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                                   Value="True" />
+                                        <Condition Binding="{Binding IsChecked, ElementName=ExpandToggle}"
+                                                   Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility"
+                                            Value="Collapsed" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
             </Grid>
 
             <Button Grid.Column="2"
-                    Style="{StaticResource Button.Secondary}"
                     Command="{Binding DismissCommand}"
                     VerticalAlignment="Center"
                     ToolTip="Скрыть совет – он больше не появится"
-                    Content="Понятно" />
+                    Content="Понятно">
+                <Button.Style>
+                    <Style TargetType="Button"
+                           BasedOn="{StaticResource Button.Secondary}">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                         Value="True">
+                                <Setter Property="Padding"
+                                        Value="12,2" />
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
         </Grid>
     </Border>
 </UserControl>

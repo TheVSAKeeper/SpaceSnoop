@@ -3,15 +3,31 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
              xmlns:behaviors="clr-namespace:SpaceSnoop.Wpf.Views.Behaviors"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:ScanProgressViewModel}"
              d:DesignWidth="980">
-    <Border Style="{StaticResource Card.Inset}"
-            Padding="15,12"
-            Margin="0,0,0,12"
-            Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+    <Border Visibility="{Binding IsScanning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+        <Border.Style>
+            <Style TargetType="Border"
+                   BasedOn="{StaticResource Card.Inset}">
+                <Setter Property="Padding"
+                        Value="15,12" />
+                <Setter Property="Margin"
+                        Value="0,0,0,12" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                 Value="True">
+                        <Setter Property="Padding"
+                                Value="15,8" />
+                        <Setter Property="Margin"
+                                Value="0,0,0,6" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Border.Style>
         <StackPanel>
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -125,8 +141,9 @@
                            Visibility="{Binding ScanHasDeterminateProgress, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
             </Grid>
 
-            <WrapPanel Margin="0,7,0,0">
-                <WrapPanel.Resources>
+            <views:CompactWrapPanel Margin="0,7,0,0"
+                                    SingleLine="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}">
+                <views:CompactWrapPanel.Resources>
                     <Style x:Key="Metric"
                            TargetType="StackPanel">
                         <Setter Property="Orientation"
@@ -134,7 +151,7 @@
                         <Setter Property="Margin"
                                 Value="0,4,18,0" />
                     </Style>
-                </WrapPanel.Resources>
+                </views:CompactWrapPanel.Resources>
 
                 <StackPanel Style="{StaticResource Metric}">
                     <TextBlock Text="Объём"
@@ -161,7 +178,8 @@
                                Style="{StaticResource StatValue}" />
                 </StackPanel>
 
-                <StackPanel Style="{StaticResource Metric}">
+                <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Optional="True">
                     <TextBlock Text="Скорость"
                                Style="{StaticResource Caption}"
                                Margin="0,0,7,0" />
@@ -181,6 +199,7 @@
                 </StackPanel>
 
                 <StackPanel Style="{StaticResource Metric}"
+                            views:CompactWrapPanel.Optional="True"
                             Visibility="{Binding ScanHasBranches, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                     <TextBlock Text="Пройдено папок"
                                Style="{StaticResource Caption}"
@@ -189,7 +208,7 @@
                                Style="{StaticResource StatValue.Aside}"
                                ToolTip="Сколько папок, лежащих прямо в сканируемом каталоге, уже пройдено целиком" />
                 </StackPanel>
-            </WrapPanel>
+            </views:CompactWrapPanel>
         </StackPanel>
     </Border>
 </UserControl>

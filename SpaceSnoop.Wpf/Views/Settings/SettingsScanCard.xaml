@@ -61,7 +61,7 @@
                 </StackPanel>
                 <StackPanel Orientation="Horizontal"
                             Margin="16,0,0,0"
-                            VerticalAlignment="Center">
+                            VerticalAlignment="Top">
                     <Slider Minimum="1"
                             Maximum="{Binding Scan.ParallelismCeiling}"
                             Value="{Binding Scan.MaxParallelism, Mode=TwoWay}"
@@ -73,6 +73,7 @@
                                Style="{StaticResource Form.Value}" />
                 </StackPanel>
                 <Button Style="{StaticResource Form.RowReset}"
+                        VerticalAlignment="Top"
                         DataContext="{Binding ResetFields[wpf.scan.parallelism]}"
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
