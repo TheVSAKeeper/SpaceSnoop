@@ -47,7 +47,7 @@ public sealed partial class ScanViewModel
             return;
         }
 
-        if (string.Equals(SelectedDrive, path, StringComparison.OrdinalIgnoreCase))
+        if (SelectedDrive is not null && ScanTreeEditor.SamePath(SelectedDrive, path))
         {
             SelectedDrive = Drives.FallbackPath;
         }

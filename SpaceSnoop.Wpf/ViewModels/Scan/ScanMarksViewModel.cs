@@ -136,14 +136,14 @@ public sealed partial class ScanMarksViewModel : ObservableObject
             _roots.Remove(rootVm);
         }
 
-        var resultRoot = _roots.FirstOrDefault(r =>
-            string.Equals(ScanTreeEditor.NormalizePath(r.AbsolutePath), ScanTreeEditor.NormalizePath(_summary.ResultPath), StringComparison.OrdinalIgnoreCase));
+        var resultPath = ScanTreeEditor.NormalizePath(_summary.ResultPath);
+        var resultRoot = _roots.FirstOrDefault(r => ScanTreeEditor.SamePath(ScanTreeEditor.NormalizePath(r.AbsolutePath), resultPath));
 
         if (resultRoot?.Space is DirectorySpace resultDir)
         {
             _summary.Refresh(resultDir);
         }
-        else if (rootsToRemove.Any(r => string.Equals(ScanTreeEditor.NormalizePath(r.AbsolutePath), ScanTreeEditor.NormalizePath(_summary.ResultPath), StringComparison.OrdinalIgnoreCase)))
+        else if (rootsToRemove.Any(r => ScanTreeEditor.SamePath(ScanTreeEditor.NormalizePath(r.AbsolutePath), resultPath)))
         {
             _clearHasResult();
         }
