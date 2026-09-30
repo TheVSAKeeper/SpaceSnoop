@@ -282,7 +282,7 @@
                            Style="{StaticResource Form.Hint}" />
                 <Button Style="{StaticResource Button.Ghost}"
                         Command="{Binding CancelRunCommand}"
-                        Content="Отменить"
+                        Content="Остановить"
                         Padding="12,4" />
             </StackPanel>
 

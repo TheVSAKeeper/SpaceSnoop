@@ -109,8 +109,14 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         : Space?.GetTooltipText() ?? string.Empty;
 
     public string ShareHint => ShowsDriveShare
-        ? "Доля занятого места на диске"
-        : "Доля от родительского каталога";
+        ? $"Доля диска: {ShareText} ({DriveHint})"
+        : $"Доля от родителя: {ShareText}";
+
+    public string FileCountHint => $"Файлов: {FileCountText} – вместе с вложенными папками";
+
+    public string SizeHint => IsDirectory
+        ? $"Размер: {SizeText} – вместе с вложенными папками"
+        : $"Размер: {SizeText}";
 
     public string KindText => IsDirectory ? "Каталог" : "Файл";
 

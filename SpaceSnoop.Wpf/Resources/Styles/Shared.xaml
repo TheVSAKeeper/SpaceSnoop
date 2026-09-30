@@ -1,6 +1,32 @@
 ﻿<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks">
+                    xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+                    xmlns:conv="clr-namespace:SpaceSnoop.Wpf.Converters">
+
+    <conv:ThemeSwatchBrushConverter x:Key="ThemeSwatchBrush" />
+
+    <ControlTemplate x:Key="ThemeSwatch"
+                     TargetType="ContentControl">
+        <Border Width="26"
+                Height="16"
+                CornerRadius="4"
+                BorderThickness="1"
+                SnapsToDevicePixels="True"
+                Background="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ThemeSwatchBrush}, ConverterParameter=Bg.Base}"
+                BorderBrush="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ThemeSwatchBrush}, ConverterParameter=Border.Strong}">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                <Ellipse Width="7"
+                         Height="7"
+                         Margin="0,0,3,0"
+                         Fill="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ThemeSwatchBrush}, ConverterParameter=Accent.Primary}" />
+                <Ellipse Width="7"
+                         Height="7"
+                         Fill="{Binding Content, RelativeSource={RelativeSource TemplatedParent}, Converter={StaticResource ThemeSwatchBrush}, ConverterParameter=Fg.Primary}" />
+            </StackPanel>
+        </Border>
+    </ControlTemplate>
 
     <Style x:Key="Caption"
            TargetType="TextBlock">

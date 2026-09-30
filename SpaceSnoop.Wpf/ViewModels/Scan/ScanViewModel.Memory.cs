@@ -21,16 +21,18 @@ public sealed partial class ScanViewModel
         }
     }
 
-    private void ReleaseBeforeScan(DirectoryInfo directory)
+    private bool ReleaseBeforeScan(DirectoryInfo directory)
     {
         if (!ReleasePreviousResult(directory))
         {
-            return;
+            return false;
         }
 
         var collect = Stopwatch.StartNew();
         GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: false);
         _logger.ScanPreviousReleased(directory.FullName, collect.ElapsedMilliseconds);
+
+        return true;
     }
 
     private bool ReleasePreviousResult(DirectoryInfo directory)

@@ -138,6 +138,22 @@
                                     <views:UniformRowPanel />
                                 </ItemsPanelTemplate>
                             </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal"
+                                                HorizontalAlignment="Center">
+                                        <ContentControl Template="{StaticResource ThemeSwatch}"
+                                                        Content="{Binding Theme}"
+                                                        Focusable="False"
+                                                        IsTabStop="False"
+                                                        VerticalAlignment="Center"
+                                                        Margin="0,0,7,0" />
+                                        <TextBlock Text="{Binding Text}"
+                                                   VerticalAlignment="Center"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
                         </ListBox>
                     </StackPanel>
                 </Grid>

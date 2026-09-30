@@ -127,15 +127,15 @@
                         Padding="10,4"
                         MinHeight="26"
                         VerticalAlignment="Center"
-                        ToolTip="Отменить операцию"
-                        AutomationProperties.Name="Отменить операцию">
+                        ToolTip="Остановить операцию (Esc)"
+                        AutomationProperties.Name="Остановить операцию">
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.X}"
                                                   Width="12"
                                                   Height="12"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0" />
-                        <TextBlock Text="Отмена"
+                        <TextBlock Text="Остановить"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>

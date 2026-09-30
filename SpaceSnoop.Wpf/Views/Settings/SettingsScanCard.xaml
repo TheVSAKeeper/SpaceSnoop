@@ -53,6 +53,11 @@
                     <TextBlock Style="{StaticResource Form.Hint}"
                                Margin="0,2,0,0"
                                Text="{Binding Scan.ParallelismHint}" />
+                    <Expander Style="{StaticResource Setting.Details}"
+                              Header="Сколько ставить">
+                        <TextBlock Style="{StaticResource Setting.DetailsBody}"
+                                   Text="{Binding Scan.ParallelismDetails}" />
+                    </Expander>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal"
                             Margin="16,0,0,0"

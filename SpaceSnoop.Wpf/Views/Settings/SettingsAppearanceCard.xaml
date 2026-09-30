@@ -30,17 +30,33 @@
                     <TextBlock Text="Тема оформления"
                                Style="{StaticResource Form.Label}"
                                TextWrapping="Wrap" />
-                    <TextBlock Text="Как в Windows, светлая, тёмная или Tarkov."
+                    <TextBlock Text="Как в Windows, светлая, тёмная или игровая Tarkov."
                                Style="{StaticResource Form.Hint}"
                                Margin="0,2,0,0" />
                 </StackPanel>
                 <ComboBox Style="{StaticResource ComboBox.Form}"
                           ItemsSource="{Binding ThemeOptions}"
                           SelectedItem="{Binding SelectedThemeOption}"
-                          DisplayMemberPath="Label"
+                          TextSearch.TextPath="Label"
+                          AutomationProperties.Name="Тема оформления"
                           Width="{StaticResource Setting.ControlWidth}"
                           Margin="16,0,0,0"
-                          VerticalAlignment="Center" />
+                          VerticalAlignment="Center">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Orientation="Horizontal">
+                                <ContentControl Template="{StaticResource ThemeSwatch}"
+                                                Content="{Binding Value}"
+                                                Focusable="False"
+                                                IsTabStop="False"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,8,0" />
+                                <TextBlock Text="{Binding Label}"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
                 <Button Style="{StaticResource Form.RowReset}"
                         DataContext="{Binding ResetFields[_system_theme]}"
                         Command="{Binding ResetCommand}"

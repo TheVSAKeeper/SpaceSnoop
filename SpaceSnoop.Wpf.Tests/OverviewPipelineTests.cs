@@ -130,6 +130,29 @@ public class OverviewPipelineTests
         }
     }
 
+    [Test]
+    public void Пустой_обзор_ведёт_создавать_профиль_на_страницу_расписания()
+    {
+        var settings = new MemorySettings();
+        var navigator = new FakeAppNavigator();
+
+        var overview = new OverviewViewModel(settings,
+            new NoopDialogs(),
+            new ToastNotifier(new ToastHostViewModel(), new ShellPreferences(settings)),
+            NullLogger<OverviewViewModel>.Instance,
+            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
+            new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
+            navigator);
+
+        overview.CreateProfileCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(overview.Rows.HasRows, Is.False);
+            Assert.That(navigator.LastSection, Is.EqualTo(SectionKey.Schedule));
+        }
+    }
+
     private string Make(string name)
     {
         var path = Path.Combine(_root, name);

@@ -11,9 +11,11 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
     private bool _isScanning;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReturnCaption))]
     private string _resultPath = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReturnCaption))]
     private string _resultSizeText = NoValue;
 
     [ObservableProperty]
@@ -59,6 +61,10 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
         _isElevated = isElevated;
         _restartAsAdmin = restartAsAdmin;
     }
+
+    public string ReturnCaption => ResultPath.Length > 0
+        ? $"К результатам: {DriveItem.ShortName(ResultPath)} · {ResultSizeText}"
+        : "К результатам";
 
     public bool HasUnreadNote => UnreadNote.Length > 0;
 

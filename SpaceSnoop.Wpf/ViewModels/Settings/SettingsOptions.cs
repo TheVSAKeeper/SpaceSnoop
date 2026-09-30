@@ -10,7 +10,7 @@ public static class SettingsOptions
         new(AppTheme.System, "Как в системе"),
         new(AppTheme.Light, "Светлая"),
         new(AppTheme.Dark, "Тёмная"),
-        new(AppTheme.Tarkov, "Tarkov"),
+        new(AppTheme.Tarkov, "Tarkov (игровая)"),
     ];
 
     public static IReadOnlyList<EnumOption<StartupPage>> StartupPages { get; } =

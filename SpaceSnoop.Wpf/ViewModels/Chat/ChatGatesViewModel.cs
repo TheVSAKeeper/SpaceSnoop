@@ -79,7 +79,9 @@ public sealed partial class ChatGatesViewModel : ObservableObject
 
     public string BackendName => Backend.DisplayName;
 
-    public string DetectingCliText => $"Проверяю, установлен ли {Backend.DisplayName}…";
+    public string DetectingCliText => "Готовлю помощника…";
+
+    public string DetectingCliHint => $"Проверяю, установлен ли на этом компьютере {Backend.DisplayName} – через него работает чат";
 
     public string CliMissingTitle => BackendChoice is { NothingFound: true }
         ? "CLI агента не найден"
@@ -339,7 +341,7 @@ public sealed partial class ChatGatesViewModel : ObservableObject
     private void NotifyBackendChanged()
     {
         OnPropertyChanged(nameof(BackendName));
-        OnPropertyChanged(nameof(DetectingCliText));
+        OnPropertyChanged(nameof(DetectingCliHint));
         OnPropertyChanged(nameof(CliMissingTitle));
         OnPropertyChanged(nameof(CliMissingText));
         OnPropertyChanged(nameof(ConsentText));

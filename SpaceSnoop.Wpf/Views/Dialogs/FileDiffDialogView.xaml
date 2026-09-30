@@ -259,8 +259,13 @@
                            Text="{Binding LeftPath}"
                            AutomationProperties.Name="Путь слева"
                            Style="{StaticResource TextBlock.Subtle}"
-                           TextTrimming="CharacterEllipsis"
-                           ToolTip="{Binding LeftPath, StringFormat='Левая сторона: {0}'}" />
+                           TextTrimming="CharacterEllipsis">
+                    <TextBlock.ToolTip>
+                        <ToolTip>
+                            <TextBlock Text="{Binding LeftPath, StringFormat='Левая сторона: {0}'}" />
+                        </ToolTip>
+                    </TextBlock.ToolTip>
+                </TextBlock>
                 <iconPacks:PackIconLucide Grid.Column="1"
                                           Kind="{x:Static iconPacks:PackIconLucideKind.ArrowRight}"
                                           Width="13"
@@ -272,8 +277,13 @@
                            Text="{Binding RightPath}"
                            AutomationProperties.Name="Путь справа"
                            Style="{StaticResource TextBlock.Subtle}"
-                           TextTrimming="CharacterEllipsis"
-                           ToolTip="{Binding RightPath, StringFormat='Правая сторона: {0}'}" />
+                           TextTrimming="CharacterEllipsis">
+                    <TextBlock.ToolTip>
+                        <ToolTip>
+                            <TextBlock Text="{Binding RightPath, StringFormat='Правая сторона: {0}'}" />
+                        </ToolTip>
+                    </TextBlock.ToolTip>
+                </TextBlock>
             </Grid>
 
             <Border Margin="0,12,0,0"

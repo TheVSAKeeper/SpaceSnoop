@@ -98,11 +98,12 @@ public sealed partial class ScanPreferences : ObservableObject
         }
     }
 
-    public string ParallelismHint =>
-        $"Сколько каталогов обходить одновременно. "
-        + $"Максимум и значение по умолчанию – вдвое больше числа логических процессоров ({ParallelismCeiling} при {ProcessorCount} ядрах): "
-        + $"обход ждёт ответа файловой системы, а не считает, поэтому потоков нужно больше, чем ядер. "
-        + $"Меньше потоков – ниже нагрузка и расход памяти.";
+    public string ParallelismHint => "Сколько папок читать одновременно: больше – быстрее, но больше памяти.";
+
+    public string ParallelismDetails =>
+        $"Максимум и значение по умолчанию – вдвое больше числа логических процессоров ({ParallelismCeiling} при {ProcessorCount} ядрах): "
+        + "обход ждёт ответа диска, а не считает, поэтому потоков нужно больше, чем ядер. "
+        + "Меньше потоков – ниже нагрузка на компьютер и расход памяти.";
 
     partial void OnUseMultithreadingChanged(bool value)
     {

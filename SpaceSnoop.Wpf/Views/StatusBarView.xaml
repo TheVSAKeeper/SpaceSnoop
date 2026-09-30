@@ -53,8 +53,8 @@
                         Padding="8,2"
                         MinHeight="22"
                         VerticalAlignment="Center"
-                        ToolTip="Отменить операцию"
-                        AutomationProperties.Name="Отменить операцию"
+                        ToolTip="Остановить операцию (Esc)"
+                        AutomationProperties.Name="Остановить операцию"
                         Visibility="{Binding CurrentPageStatus.CancelCommand, Converter={StaticResource NullToVisibility}, FallbackValue=Collapsed, TargetNullValue=Collapsed}">
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.X}"
@@ -62,7 +62,7 @@
                                                   Height="12"
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0" />
-                        <TextBlock Text="Отменить"
+                        <TextBlock Text="Остановить"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>

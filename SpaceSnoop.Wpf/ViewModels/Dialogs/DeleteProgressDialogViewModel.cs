@@ -74,8 +74,8 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         IntroText = $"Будут {ActionVerb}: {Plural.Format(Items.Count, "объект", "объекта", "объектов")} · {SizeFormatter.Format(_totalBytes)}";
         CountText = $"0 / {Items.Count}";
         CancelHint = permanent
-            ? "Отмена сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
-            : $"Отмена сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
+            ? "Остановка сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
+            : $"Остановка сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
         WidestSizeText = Items.Select(static row => row.SizeText).MaxBy(static text => text.Length) ?? string.Empty;
         _freedText = SizeFormatter.Format(0);
     }
@@ -94,7 +94,7 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
     public string CancelHint { get; }
 
-    public string CancelCaption => CancelPending ? "Отмена запрошена…" : "Отменить удаление";
+    public string CancelCaption => CancelPending ? "Остановка запрошена…" : "Остановить удаление";
 
     public bool IsChunkStalled => IsChunkRunning && ChunkElapsedText is not null;
 

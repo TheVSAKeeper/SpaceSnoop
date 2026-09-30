@@ -1,5 +1,4 @@
-﻿using MahApps.Metro.IconPacks;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 
 namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
@@ -30,7 +29,7 @@ public sealed partial class FirstRunViewModel : ObservableObject
 
         IsElevated = isElevated;
         IsVisible = settings.GetBool(SettingsKeys.WelcomePending, AppDefaults.WelcomePendingDefault);
-        ThemeSegments = SettingsOptions.Themes.Select(static option => new SegmentOption(IconFor(option.Value), option.Label, $"Тема «{option.Label}»")).ToList();
+        ThemeSegments = SettingsOptions.Themes.Select(static option => new ThemeSegment(option.Value, option.Label, $"Тема «{option.Label}»")).ToList();
 
         scan.PropertyChanged += OnScanChanged;
         theme.PropertyChanged += OnThemeChanged;
@@ -51,7 +50,7 @@ public sealed partial class FirstRunViewModel : ObservableObject
         set => _scan.MftEnabled = value;
     }
 
-    public IReadOnlyList<SegmentOption> ThemeSegments { get; }
+    public IReadOnlyList<ThemeSegment> ThemeSegments { get; }
 
     public int SelectedThemeIndex
     {
@@ -121,18 +120,6 @@ public sealed partial class FirstRunViewModel : ObservableObject
         }
 
         return -1;
-    }
-
-    private static PackIconLucideKind IconFor(AppTheme theme)
-    {
-        return theme switch
-        {
-            AppTheme.Light => PackIconLucideKind.Sun,
-            AppTheme.Dark => PackIconLucideKind.Moon,
-            AppTheme.Tarkov => PackIconLucideKind.Target,
-            AppTheme.System => PackIconLucideKind.Monitor,
-            _ => PackIconLucideKind.Palette,
-        };
     }
 
     private void OnScanChanged(object? sender, PropertyChangedEventArgs e)

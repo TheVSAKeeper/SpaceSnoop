@@ -105,7 +105,8 @@
         <StackPanel>
 
             <Border Style="{StaticResource Card.Inset}"
-                    Margin="0,0,0,12">
+                    Margin="0,0,0,12"
+                    Visibility="{Binding Rows.HasRows, Converter={StaticResource BoolToVisibility}}">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -153,7 +154,9 @@
                         </Button>
                         <Button Style="{StaticResource Button.Ghost}"
                                 Command="{Binding CancelCommand}"
-                                Content="Отмена"
+                                Content="Остановить"
+                                ToolTip="Остановить операцию (Esc)"
+                                AutomationProperties.Name="Остановить операцию"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="14,6"
                                 Margin="0,2,8,2"
@@ -224,6 +227,8 @@
                                   Heading="Профилей пока нет"
                                   Description="Профиль – это пара каталогов с направлением и расписанием. Создайте их на странице «Расписание», и здесь можно будет сравнить и синхронизировать все разом."
                                   DescriptionMaxWidth="460"
+                                  ActionText="Создать профиль"
+                                  ActionCommand="{Binding CreateProfileCommand}"
                                   Margin="0,60,0,10"
                                   HorizontalAlignment="Center"
                                   Visibility="{Binding Rows.HasRows, Converter={StaticResource InverseBoolToVisibility}}" />

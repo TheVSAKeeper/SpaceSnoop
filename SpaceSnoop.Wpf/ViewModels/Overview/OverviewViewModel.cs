@@ -135,6 +135,12 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageHeader, I
     }
 
     [RelayCommand]
+    private void CreateProfile()
+    {
+        _navigator.TryNavigate(SectionKey.Schedule);
+    }
+
+    [RelayCommand]
     private void Reload()
     {
         ReloadRows();

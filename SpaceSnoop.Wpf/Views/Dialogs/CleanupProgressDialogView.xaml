@@ -163,7 +163,7 @@
                 <Button Style="{StaticResource Button.Secondary}"
                         Command="{Binding CancelRunCommand}"
                         IsEnabled="{Binding CanCancelStep}"
-                        Content="Отменить"
+                        Content="Остановить"
                         MinWidth="96"
                         MinHeight="{DynamicResource Control.Height.Default}"
                         Padding="14,6" />

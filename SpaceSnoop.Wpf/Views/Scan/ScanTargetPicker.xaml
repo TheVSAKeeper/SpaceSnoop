@@ -143,16 +143,22 @@
                         <Button Style="{StaticResource Button.Ghost}"
                                 Command="{Binding ClosePickerCommand}"
                                 Margin="0,0,6,0"
-                                ToolTip="Вернуться к результатам сканирования"
-                                AutomationProperties.Name="Вернуться к результатам сканирования"
+                                AutomationProperties.Name="{Binding Summary.ReturnCaption}"
                                 Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                            <Button.ToolTip>
+                                <ToolTip>
+                                    <TextBlock Text="{Binding Summary.ResultPath, StringFormat='Вернуться к результатам сканирования {0}'}" />
+                                </ToolTip>
+                            </Button.ToolTip>
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ArrowLeft}"
                                                           Width="14"
                                                           Height="14"
                                                           VerticalAlignment="Center"
                                                           Margin="0,0,6,0" />
-                                <TextBlock Text="К результатам"
+                                <TextBlock Text="{Binding Summary.ReturnCaption}"
+                                           MaxWidth="320"
+                                           TextTrimming="CharacterEllipsis"
                                            VerticalAlignment="Center" />
                             </StackPanel>
                         </Button>

@@ -29,29 +29,88 @@
                                     DataContext="{Binding Progress}" />
 
         <Border Grid.Row="2"
+                x:Name="CancelledNotice"
                 Style="{StaticResource Card.Inset}"
-                Padding="14,10"
+                Padding="0"
                 Margin="0,0,0,12"
-                BorderBrush="{DynamicResource State.Warning}"
-                BorderThickness="0,0,0,2"
                 Visibility="{Binding ScanWasCancelled, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-            <StackPanel Orientation="Horizontal"
-                        VerticalAlignment="Center">
-                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.OctagonAlert}"
-                                          Width="15"
-                                          Height="15"
-                                          VerticalAlignment="Center"
-                                          Margin="0,0,9,0"
-                                          Foreground="{DynamicResource State.WarningText}" />
-                <TextBlock Text="Сканирование отменено – результаты не построены"
-                           VerticalAlignment="Center"
-                           FontSize="{DynamicResource Font.Size.S}"
-                           Foreground="{DynamicResource Fg.Secondary}" />
-            </StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Border Grid.Column="0"
+                        Background="{DynamicResource State.Warning}"
+                        CornerRadius="10,0,0,10" />
+
+                <Grid Grid.Column="1"
+                      Margin="14,10,10,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <iconPacks:PackIconLucide Grid.Column="0"
+                                              Kind="{x:Static iconPacks:PackIconLucideKind.OctagonAlert}"
+                                              Width="16"
+                                              Height="16"
+                                              VerticalAlignment="Top"
+                                              Margin="0,2,10,0"
+                                              Foreground="{DynamicResource State.WarningText}" />
+
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{Binding CancelledCaption}"
+                                   ToolTip="{Binding CancelledPath}"
+                                   TextTrimming="CharacterEllipsis"
+                                   FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                                   Foreground="{DynamicResource Fg.Primary}" />
+                        <TextBlock Text="Прежний результат этой папки убран в начале скана, чтобы освободить память. Чтобы увидеть её снова, просканируйте папку ещё раз."
+                                   Style="{StaticResource TextBlock.Subtle}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,2,0,0"
+                                   Visibility="{Binding CancelledReleasedPrevious, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="12,0,0,0">
+                        <Button Style="{StaticResource Button.Primary}"
+                                Command="{Binding RescanCancelledCommand}"
+                                Margin="0,0,6,0"
+                                AutomationProperties.Name="Сканировать снова">
+                            <Button.ToolTip>
+                                <ToolTip>
+                                    <TextBlock Text="{Binding CancelledPath, StringFormat='Сканировать {0} заново'}" />
+                                </ToolTip>
+                            </Button.ToolTip>
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RotateCw}"
+                                                          Width="14"
+                                                          Height="14"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,6,0" />
+                                <TextBlock Text="Сканировать снова"
+                                           VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource Button.Ghost}"
+                                Command="{Binding DismissCancelledCommand}"
+                                Content="Скрыть"
+                                ToolTip="Убрать это сообщение"
+                                AutomationProperties.Name="Скрыть сообщение об остановке" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
         </Border>
 
-        <controls:ScanSummaryStrip Grid.Row="3"
-                                   DataContext="{Binding Summary}" />
+        <Grid Grid.Row="3"
+              Visibility="{Binding ShowSummary, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+            <controls:ScanSummaryStrip DataContext="{Binding Summary}" />
+        </Grid>
 
         <Grid Grid.Row="4"
               Visibility="{Binding ShowScanResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">

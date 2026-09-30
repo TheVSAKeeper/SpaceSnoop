@@ -36,16 +36,21 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     [NotifyPropertyChangedFor(nameof(ShowTargetPicker))]
     [NotifyPropertyChangedFor(nameof(ShowScanResult))]
     [NotifyPropertyChangedFor(nameof(ShowScanningState))]
+    [NotifyPropertyChangedFor(nameof(ShowStaleResult))]
+    [NotifyPropertyChangedFor(nameof(ShowSummary))]
     [NotifyCanExecuteChangedFor(nameof(OpenPickerCommand))]
     [NotifyCanExecuteChangedFor(nameof(StartCommand))]
     [NotifyCanExecuteChangedFor(nameof(BrowseCommand))]
     [NotifyCanExecuteChangedFor(nameof(StopCommand))]
+    [NotifyCanExecuteChangedFor(nameof(RescanCancelledCommand))]
     private bool _isScanning;
 
     [ObservableProperty]
     private string? _statusCaption;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowStaleResult))]
+    [NotifyPropertyChangedFor(nameof(StaleResultCaption))]
     private string _scanTargetPath = string.Empty;
 
     [ObservableProperty]
@@ -55,6 +60,9 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     [NotifyPropertyChangedFor(nameof(ShowTargetPicker))]
     [NotifyPropertyChangedFor(nameof(ShowScanResult))]
     [NotifyPropertyChangedFor(nameof(ShowScanningState))]
+    [NotifyPropertyChangedFor(nameof(ShowStaleResult))]
+    [NotifyPropertyChangedFor(nameof(StaleResultCaption))]
+    [NotifyPropertyChangedFor(nameof(ShowSummary))]
     [NotifyCanExecuteChangedFor(nameof(OpenPickerCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClosePickerCommand))]
     private bool _hasResult;
@@ -62,6 +70,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowTargetPicker))]
     [NotifyPropertyChangedFor(nameof(ShowScanResult))]
+    [NotifyPropertyChangedFor(nameof(ShowSummary))]
     [NotifyCanExecuteChangedFor(nameof(OpenPickerCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClosePickerCommand))]
     private bool _isPickerOpen;
@@ -76,6 +85,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     private ScanNodeViewModel? _selectedNode;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(RescanCancelledCommand))]
     private bool _scanWasCancelled;
 
     public ScanViewModel(
@@ -217,24 +227,6 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         get => (ScanViewMode)(SelectedViewIndex + 1);
         set => SelectedViewIndex = Math.Clamp((int)value - 1, 0, ViewModes.Count - 1);
     }
-
-    public bool TreeVisible => HasResult && ViewMode == ScanViewMode.Tree;
-
-    public bool TreemapVisible => HasResult && ViewMode == ScanViewMode.Treemap;
-
-    public bool DuplicatesVisible => HasResult && ViewMode == ScanViewMode.Duplicates;
-
-    public bool ShowTargetPicker => !IsScanning && (!HasResult || IsPickerOpen);
-
-    public bool ShowScanResult => !ShowTargetPicker;
-
-    public bool ShowScanningState => !HasResult && IsScanning;
-
-    public bool HasTarget => !string.IsNullOrWhiteSpace(SelectedDrive);
-
-    public string StartCaption => HasTarget
-        ? $"Сканировать {DriveItem.ShortName(SelectedDrive)}"
-        : "Выберите диск или каталог";
 
     internal DirectorySpace? CurrentRoot => Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
 
@@ -445,10 +437,11 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         StatusCaption = $"Сканирование: {path}";
 
         SelectedNode = null;
+        var released = false;
 
         try
         {
-            ReleaseBeforeScan(directory);
+            released = ReleaseBeforeScan(directory);
             var parallelism = await Preferences.ResolveParallelismAsync(path).WaitAsync(token);
             var progress = Progress.Begin(directory, path, parallelism);
 
@@ -473,6 +466,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         }
         catch (OperationCanceledException)
         {
+            CancelledPath = path;
+            CancelledReleasedPrevious = released;
             ScanWasCancelled = true;
             _logger.ScanCancelled(path);
             return false;

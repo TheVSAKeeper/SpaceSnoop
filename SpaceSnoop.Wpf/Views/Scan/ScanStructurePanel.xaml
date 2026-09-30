@@ -302,6 +302,40 @@
                                   VerticalAlignment="Center"
                                   HorizontalAlignment="Center"
                                   Visibility="{Binding ShowScanningState, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+
+            <Grid x:Name="StaleResultOverlay"
+                  Grid.Row="0"
+                  Grid.RowSpan="2"
+                  Visibility="{Binding ShowStaleResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                <Border Background="{DynamicResource Bg.Base}"
+                        Opacity="0.6"
+                        CornerRadius="{DynamicResource Radius.S}" />
+
+                <Border Style="{StaticResource Card}"
+                        Padding="16,12"
+                        MaxWidth="480"
+                        Margin="16"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <iconPacks:PackIconLucide Grid.Column="0"
+                                                  Kind="{x:Static iconPacks:PackIconLucideKind.History}"
+                                                  Width="16"
+                                                  Height="16"
+                                                  VerticalAlignment="Top"
+                                                  Margin="0,2,10,0"
+                                                  Foreground="{DynamicResource Fg.Secondary}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding StaleResultCaption}"
+                                   TextWrapping="Wrap"
+                                   Foreground="{DynamicResource Fg.Primary}" />
+                    </Grid>
+                </Border>
+            </Grid>
         </Grid>
     </Border>
 </UserControl>

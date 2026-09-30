@@ -44,6 +44,7 @@
     <StackPanel>
         <Border Style="{StaticResource Chat.Banner}"
                 BorderBrush="{DynamicResource Border.Subtle}"
+                ToolTip="{Binding Gates.DetectingCliHint}"
                 Visibility="{Binding Gates.IsDetectingCli, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Style="{StaticResource Chat.BannerIcon}"
