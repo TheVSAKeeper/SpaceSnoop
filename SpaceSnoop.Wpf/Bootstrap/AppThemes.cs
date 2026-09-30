@@ -75,8 +75,6 @@ public static class AppThemes
             return;
         }
 
-        // TODO: ThemeManager.Apply под тем же ключом меняет словари без Changed, поэтому хром окна и масштаб шрифта не перечитались бы – уходим через конкретную тему и обратно, морфа при этом не видно; появится в каркасе повторное применение с уведомлением – заменить одним вызовом.
-        ThemeManager.Apply(appsUseLightTheme ? LightKey : DarkKey);
         ThemeManager.Apply(SystemKey);
     }
 }
