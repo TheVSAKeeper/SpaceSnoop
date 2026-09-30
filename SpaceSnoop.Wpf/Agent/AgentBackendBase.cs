@@ -45,6 +45,8 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
 
     protected abstract IReadOnlyList<string> ExtraDirectories { get; }
 
+    internal Func<IReadOnlyList<string>, string?, IReadOnlyList<string>, AgentCliInfo?> DetectCli { get; init; } = AgentCli.Detect;
+
     public virtual IReadOnlyList<AgentModelOption> LoadModels()
     {
         return AgentModels.For(Kind);
@@ -92,7 +94,7 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
             generation = ++_cacheGeneration;
         }
 
-        var detected = AgentCli.Detect(AgentCli.ExecutableNames(CliName), overridePath, ExtraDirectories);
+        var detected = DetectCli(AgentCli.ExecutableNames(CliName), overridePath, ExtraDirectories);
 
         lock (_cacheGate)
         {
