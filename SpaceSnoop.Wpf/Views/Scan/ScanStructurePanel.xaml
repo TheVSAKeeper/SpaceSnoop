@@ -32,81 +32,78 @@
             </Grid.RowDefinitions>
 
             <Grid Grid.Row="0"
-                  Height="{DynamicResource Control.Height.Default}"
-                  Margin="10,6,12,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center">
-                    <TextBlock Text="Структура каталога"
-                               Style="{StaticResource SectionTitle}" />
-                    <ListBox Style="{StaticResource ListBox.SegmentedCompact}"
-                             ItemsSource="{Binding ViewModes}"
-                             SelectedIndex="{Binding SelectedViewIndex}"
-                             Margin="16,0,0,0"
-                             VerticalAlignment="Center"
-                             AutomationProperties.Name="Вид структуры"
-                             Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+                  Margin="10,4,12,6">
+                <WrapPanel Orientation="Horizontal">
+                    <Border MinHeight="{DynamicResource Control.Height.Default}"
+                            Margin="0,2,16,2">
+                        <TextBlock Text="Структура каталога"
+                                   Style="{StaticResource SectionTitle}"
+                                   VerticalAlignment="Center" />
+                    </Border>
 
-                    <ToggleButton x:Name="HeatToggle"
-                                  Style="{StaticResource ToggleButton.Toolbar}"
-                                  Margin="6,0,0,0"
-                                  MinWidth="34"
-                                  Padding="0"
-                                  ToolTip="Чувствительность тепловой подсветки"
-                                  AutomationProperties.Name="Тепловая подсветка"
-                                  Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Flame}"
-                                                  Width="14"
-                                                  Height="14"
-                                                  VerticalAlignment="Center" />
-                    </ToggleButton>
-                </StackPanel>
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="0,2,12,2"
+                                Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                        <ListBox Style="{StaticResource ListBox.SegmentedCompact}"
+                                 ItemsSource="{Binding ViewModes}"
+                                 SelectedIndex="{Binding SelectedViewIndex}"
+                                 VerticalAlignment="Center"
+                                 AutomationProperties.Name="Вид структуры" />
 
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal"
-                            VerticalAlignment="Center"
-                            Margin="12,0,10,0"
-                            Visibility="{Binding TreeVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                    <ComboBox ItemsSource="{Binding Sort.Options}"
-                              SelectedItem="{Binding Sort.SelectedOption}"
-                              DisplayMemberPath="Name"
-                              Style="{StaticResource ComboBox.Toolbar}"
-                              MinWidth="132"
-                              Margin="0,0,6,0"
-                              ToolTip="Поле сортировки строк дерева" />
-                    <ToggleButton Style="{StaticResource ToggleButton.Toolbar}"
-                                  IsChecked="{Binding Sort.Invert}"
-                                  MinWidth="34"
-                                  Padding="0"
-                                  ToolTip="Направление: отмечено – по убыванию, снято – по возрастанию"
-                                  AutomationProperties.Name="Направление сортировки">
-                        <iconPacks:PackIconLucide Width="15"
-                                                  Height="15"
-                                                  VerticalAlignment="Center">
-                            <iconPacks:PackIconLucide.Style>
-                                <Style TargetType="iconPacks:PackIconLucide">
-                                    <Setter Property="Kind"
-                                            Value="ArrowUpNarrowWide" />
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Sort.Invert}"
-                                                     Value="True">
-                                            <Setter Property="Kind"
-                                                    Value="ArrowDownWideNarrow" />
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </iconPacks:PackIconLucide.Style>
-                        </iconPacks:PackIconLucide>
-                    </ToggleButton>
-                </StackPanel>
+                        <ToggleButton x:Name="HeatToggle"
+                                      Style="{StaticResource ToggleButton.Toolbar}"
+                                      Margin="6,0,0,0"
+                                      MinWidth="34"
+                                      Padding="0"
+                                      ToolTip="Чувствительность тепловой подсветки"
+                                      AutomationProperties.Name="Тепловая подсветка">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Flame}"
+                                                      Width="14"
+                                                      Height="14"
+                                                      VerticalAlignment="Center" />
+                        </ToggleButton>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal"
+                                VerticalAlignment="Center"
+                                Margin="0,2,0,2"
+                                Visibility="{Binding TreeVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                        <ComboBox ItemsSource="{Binding Sort.Options}"
+                                  SelectedItem="{Binding Sort.SelectedOption}"
+                                  DisplayMemberPath="Name"
+                                  Style="{StaticResource ComboBox.Toolbar}"
+                                  MinWidth="132"
+                                  Margin="0,0,6,0"
+                                  ToolTip="Поле сортировки строк дерева" />
+                        <ToggleButton Style="{StaticResource ToggleButton.Toolbar}"
+                                      IsChecked="{Binding Sort.Invert}"
+                                      MinWidth="34"
+                                      Padding="0"
+                                      ToolTip="Направление: отмечено – по убыванию, снято – по возрастанию"
+                                      AutomationProperties.Name="Направление сортировки">
+                            <iconPacks:PackIconLucide Width="15"
+                                                      Height="15"
+                                                      VerticalAlignment="Center">
+                                <iconPacks:PackIconLucide.Style>
+                                    <Style TargetType="iconPacks:PackIconLucide">
+                                        <Setter Property="Kind"
+                                                Value="ArrowUpNarrowWide" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding Sort.Invert}"
+                                                         Value="True">
+                                                <Setter Property="Kind"
+                                                        Value="ArrowDownWideNarrow" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </iconPacks:PackIconLucide.Style>
+                            </iconPacks:PackIconLucide>
+                        </ToggleButton>
+                    </StackPanel>
+                </WrapPanel>
 
                 <Popup x:Name="HeatPopup"
-                       Grid.Column="0"
                        PlacementTarget="{Binding ElementName=HeatToggle}"
                        Placement="Bottom"
                        IsOpen="{Binding IsChecked, ElementName=HeatToggle, Mode=TwoWay}"
