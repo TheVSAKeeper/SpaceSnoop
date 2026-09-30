@@ -1,5 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using SpaceSnoop.Core.Domain;
+using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 
 namespace SpaceSnoop.Benchmarks;
@@ -8,6 +9,7 @@ namespace SpaceSnoop.Benchmarks;
 public class SyncRowsBenchmarks
 {
     private readonly BenchSyncRowHost _host = new();
+    private readonly HashSet<DirectoryComparison> _collapsed = [];
 
     private ComparisonResult _result = null!;
     private Dictionary<DirectoryComparison, (long Left, long Right)> _dirSizes = null!;
@@ -17,6 +19,9 @@ public class SyncRowsBenchmarks
 
     [Params(false, true)]
     public bool FlatView { get; set; }
+
+    [Params(false, true)]
+    public bool CollapseAll { get; set; }
 
     [GlobalSetup]
     public void Setup()
@@ -29,12 +34,19 @@ public class SyncRowsBenchmarks
     [Benchmark]
     public int Build()
     {
+        if (CollapseAll)
+        {
+            SyncRowsProjector.CollapseAllDirectories(_collapsed, _result.Root);
+        }
+
         var request = new SyncRowsRequest
         {
             Result = _result,
             FlatView = FlatView,
             ShowIdentical = true,
             DirSizeCache = _dirSizes,
+            Collapsed = _collapsed,
+            GroupFolders = AppDefaults.SyncGroupFoldersDefault,
         };
 
         return SyncRowsProjector.Build(request, _host).Count;
