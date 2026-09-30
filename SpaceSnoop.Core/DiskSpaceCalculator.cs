@@ -41,8 +41,11 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     /// <param name="progress">Приёмник прогресса сканирования (может быть <c>null</c>).</param>
     /// <param name="cancel">Токен отмены операции.</param>
     /// <returns>Объект <see cref="DirectorySpace" /> с вычисленной информацией о занимаемом дисковом пространстве.</returns>
+    /// <exception cref="ScanRootLinkException">Корень – ссылка на каталог (junction, symlink): её цель не обходится.</exception>
     public DirectorySpace Calculate(DirectoryInfo directory, ScanProgress? progress, CancellationToken cancel = default)
     {
+        ThrowIfLink(directory);
+
         var root = CreateRoot(directory);
         var children = new List<ScanChild>();
         var files = new List<FileSpace>();
@@ -103,8 +106,11 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     /// <param name="cancel">Токен отмены операции.</param>
     /// <returns>Объект <see cref="DirectorySpace" /> с вычисленной информацией о занимаемом дисковом пространстве.</returns>
     /// <remarks>Повышенное выделение памяти; растёт со степенью параллелизма.</remarks>
+    /// <exception cref="ScanRootLinkException">Корень – ссылка на каталог (junction, symlink): её цель не обходится.</exception>
     public DirectorySpace CalculateMultithreaded(DirectoryInfo directory, int maxDegreeOfParallelism, ScanProgress? progress, CancellationToken cancel = default)
     {
+        ThrowIfLink(directory);
+
         var root = CreateRoot(directory);
 
         ScanParallel(ToEnumerationPath(directory.FullName), root, Math.Max(1, maxDegreeOfParallelism), progress, cancel);
@@ -112,6 +118,65 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         root.AggregateTotals();
         root.FixAbsolutePath(directory);
         return root;
+    }
+
+    /// <summary>
+    /// Объясняет, почему каталог нельзя взять корнем скана: он ссылка на другой каталог (junction, symlink), которую обход
+    /// пропустил бы внутри дерева, либо точка повторного разбора, вид которой не удалось прочитать.
+    /// Том, смонтированный в папку, ссылкой не считается: корнем скана он допустим. Недоступный для чтения атрибутов путь ссылкой не считается.
+    /// </summary>
+    /// <param name="directory">Проверяемый каталог.</param>
+    /// <returns>Текст отказа для человека или <c>null</c>, если каталог можно сканировать.</returns>
+    public static string? DescribeRootRefusal(DirectoryInfo directory)
+    {
+        if (!IsReparsePoint(directory, out var path))
+        {
+            return null;
+        }
+
+        return ReparsePoint.IsLink(path) switch
+        {
+            null => ScanRootLinkException.DescribeUnverified(path),
+            true when !ReparsePoint.IsMountedVolume(path) => ScanRootLinkException.Describe(path),
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Проверяет, что каталог – точка повторного разбора любого вида, включая том, смонтированный в папку.
+    /// </summary>
+    /// <param name="directory">Проверяемый каталог.</param>
+    /// <returns><c>true</c>, если у каталога есть атрибут <see cref="FileAttributes.ReparsePoint" />.</returns>
+    public static bool IsReparsePoint(DirectoryInfo directory)
+    {
+        return IsReparsePoint(directory, out _);
+    }
+
+    private static bool IsReparsePoint(DirectoryInfo directory, out string path)
+    {
+        path = Path.TrimEndingDirectorySeparator(directory.FullName);
+
+        try
+        {
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+        }
+        catch (Exception exception) when (IsTraversalError(exception))
+        {
+            return false;
+        }
+    }
+
+    private void ThrowIfLink(DirectoryInfo directory)
+    {
+        var refusal = DescribeRootRefusal(directory);
+
+        if (refusal is null)
+        {
+            return;
+        }
+
+        _log.ScanReparsePointSkipped(directory.FullName);
+        throw new ScanRootLinkException(directory.FullName, refusal);
     }
 
     private static DirectorySpace CreateRoot(DirectoryInfo directory)

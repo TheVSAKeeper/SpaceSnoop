@@ -164,6 +164,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             MarkForAutomation,
             () => IsScanning);
 
+        Marks.ItemsDeleted += Duplicates.RemoveDeleted;
+
         ViewModes = BuildViewModes(preferences.DuplicatesEnabled);
 
         LoadSettings();
@@ -424,6 +426,13 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         if (!directory.Exists)
         {
             _dialogs.Warning("Сканирование", $"Каталог не найден: {path}");
+            return false;
+        }
+
+        if (DiskSpaceCalculator.DescribeRootRefusal(directory) is { } refusal)
+        {
+            _logger.ScanRootLinkRejected(path);
+            _dialogs.Warning("Сканирование", refusal);
             return false;
         }
 

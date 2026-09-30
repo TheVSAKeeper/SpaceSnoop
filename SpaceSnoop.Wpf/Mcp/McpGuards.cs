@@ -27,7 +27,7 @@ internal static class McpGuards
         return Math.Clamp(seconds, 0, AppDefaults.PerformanceHistorySecondsMax);
     }
 
-    public static string ValidateScanPath(string path)
+    public static string ValidateScanPath(string path, bool refuseLink)
     {
         if (path.Length == 0)
         {
@@ -48,6 +48,11 @@ internal static class McpGuards
         if (!Directory.Exists(full))
         {
             throw new McpException($"Каталог «{path}» не найден или недоступен.");
+        }
+
+        if (refuseLink && DiskSpaceCalculator.DescribeRootRefusal(new(full)) is { } refusal)
+        {
+            throw new McpException(refusal);
         }
 
         return full;

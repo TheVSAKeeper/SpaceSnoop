@@ -101,8 +101,16 @@ internal sealed class ScanAutomationDouble : IScanAutomation
         SelectCalls++;
     }
 
+    public List<string> PageCalls { get; } = [];
+
+    public void ReleaseBeforeScan(string path)
+    {
+        PageCalls.Add($"release {path}");
+    }
+
     public void ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes)
     {
+        PageCalls.Add($"apply {result.AbsolutePath}");
         ApplyCalls++;
         AppliedTraversal = traversal;
         AppliedNotes = notes;

@@ -21,4 +21,6 @@ public sealed record CleanupTarget
     public bool Supported { get; init; } = true;
 
     public TimeSpan MinimumAge { get; init; } = DefaultMinimumAge;
+
+    public bool IsIndivisible => Kind == CleanupTargetKind.RecycleBin;
 }

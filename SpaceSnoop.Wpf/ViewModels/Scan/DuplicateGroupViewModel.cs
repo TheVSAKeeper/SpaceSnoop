@@ -6,6 +6,7 @@ public sealed class DuplicateGroupViewModel
 {
     internal DuplicateGroupViewModel(DuplicateGroup group, string? root, Func<IReadOnlyList<SpaceBase>, bool, int> mark)
     {
+        Group = group;
         Members = [.. group.Members.Select(x => new DuplicateMemberViewModel(x, root, mark))];
         SizeText = SizeFormatter.Format(group.Size);
         ReclaimText = SizeFormatter.Format(group.ReclaimableBytes);
@@ -13,6 +14,8 @@ public sealed class DuplicateGroupViewModel
         DetailText = $"{CountText} по {SizeText}";
         OmittedText = group.OmittedMembers > 0 ? $"ещё {group.OmittedMembers:N0} не показано" : string.Empty;
     }
+
+    internal DuplicateGroup Group { get; }
 
     public IReadOnlyList<DuplicateMemberViewModel> Members { get; }
 

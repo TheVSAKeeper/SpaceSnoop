@@ -61,6 +61,8 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         nodeFactory.MarksChanged += RecountMarked;
     }
 
+    internal event Action<IReadOnlySet<SpaceBase>>? ItemsDeleted;
+
     public bool HasMarked => MarkedCount > 0;
 
     public string DeleteHint => HasMarked
@@ -147,6 +149,7 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         }
 
         _treemap.RefreshAfterDeletion(deletedSet);
+        ItemsDeleted?.Invoke(deletedSet);
         RecountMarked();
         _reloadDrives();
     }

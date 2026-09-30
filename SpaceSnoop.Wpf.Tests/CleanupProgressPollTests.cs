@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
+using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using System.IO;
@@ -87,6 +88,33 @@ public class CleanupProgressPollTests
         dispatcher.Timers[0].Tick();
 
         Assert.That(updates.Value, Is.Zero, "Тик после конца операции переписал итоговый срез.");
+    }
+
+    [TestCase(CleanupTargetKind.RecycleBin, 5, 0, true, ExpectedResult = true)]
+    [TestCase(CleanupTargetKind.RecycleBin, 0, 0, true, ExpectedResult = false)]
+    [TestCase(CleanupTargetKind.RecycleBin, 0, 5, true, ExpectedResult = false)]
+    [TestCase(CleanupTargetKind.RecycleBin, 5, 0, false, ExpectedResult = false)]
+    [TestCase(CleanupTargetKind.Directory, 5, 0, true, ExpectedResult = false)]
+    public bool Фраза_про_неделимый_шаг_только_когда_корзина_очищена(CleanupTargetKind kind, int deleted, int skipped, bool cancelRequested)
+    {
+        var target = new CleanupTarget { Id = "t", Name = "t", Description = "Тест", Kind = kind, Path = _root };
+        string[] errors = skipped > 0 ? ["Корзина занята другим процессом"] : [];
+
+        return CleanupProgressDialogViewModel.ClearedDespiteCancel(target, new(deleted * 512L, deleted, skipped, errors), cancelRequested);
+    }
+
+    [TestCase(false, false, 0, "", ExpectedResult = "Готово: {0}.")]
+    [TestCase(false, true, 0, "", ExpectedResult = "Готово: {0}. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
+    [TestCase(true, true, 0, "", ExpectedResult = "Отменено: {0}. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
+    [TestCase(false, true, 2, "Нет доступа", ExpectedResult = "Готово: {0}. Пропущено 2 – Нет доступа. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
+    [TestCase(false, false, 0, "Каталог не найден.", ExpectedResult = "Готово: {0}. Каталог не найден.")]
+    [TestCase(true, false, 2, "Нет доступа", ExpectedResult = "Отменено: {0}. Пропущено 2 – Нет доступа")]
+    [TestCase(true, false, 0, "Каталог не найден.", ExpectedResult = "Отменено: {0}. Каталог не найден.")]
+    public string Итог_очистки_не_прячет_ошибку_за_фразой_про_отмену(bool cancelled, bool binCleared, int skipped, string firstError)
+    {
+        var summary = CleanupProgressDialogViewModel.Summarize(5, 2048, cancelled, binCleared, skipped, firstError);
+
+        return summary.Replace($"удалено {5:N0}, освобождено {SizeFormatter.Format(2048)}", "{0}");
     }
 
     private CleanupProgressDialogViewModel CreateDialog(FakeUiDispatcher dispatcher)

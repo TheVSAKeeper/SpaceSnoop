@@ -10,7 +10,7 @@ public sealed class ScanRunner(
 {
     public ScanOutcome Run(DirectoryInfo directory, int parallelism, ScanProgress progress, CancellationToken cancel)
     {
-        if (preferences.MftEnabled && TryReadMft(directory, progress, cancel) is { } outcome)
+        if (preferences.MftEnabled && !DiskSpaceCalculator.IsReparsePoint(directory) && TryReadMft(directory, progress, cancel) is { } outcome)
         {
             return outcome;
         }

@@ -61,6 +61,10 @@ public sealed class WorkerService : IDisposable
             {
                 args.Cancel = true;
             }
+            catch (ScanRootLinkException exception)
+            {
+                error = exception.Message;
+            }
             finally
             {
                 stopwatch.Stop();

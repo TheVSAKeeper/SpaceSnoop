@@ -1,5 +1,13 @@
-﻿using SpaceSnoop.Core.Duplicates;
+﻿using KeepShell.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
+using SpaceSnoop.Core;
+using SpaceSnoop.Core.Domain;
+using SpaceSnoop.Core.Duplicates;
+using SpaceSnoop.Wpf.Bootstrap;
+using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.ViewModels.Scan;
+using SpaceSnoop.Wpf.ViewModels;
+using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -80,6 +88,83 @@ public class ScanDuplicatesTests
     public void Полный_результат_без_ограничений_примечания_не_даёт()
     {
         Assert.That(ScanDuplicatesViewModel.DescribeLimits(new([Group()], 4096, 8, 0, 0, [])), Is.Empty);
+    }
+
+    [TestCase("a", ExpectedResult = true)]
+    [TestCase("b", ExpectedResult = true)]
+    [TestCase("соседний", ExpectedResult = false)]
+    public bool Удалённый_предок_снимает_файл_из_групп(string deleted)
+    {
+        var root = new DirectorySpace("root", null, DateTime.Now, DateTime.Now);
+        var a = new DirectorySpace("a", root, DateTime.Now, DateTime.Now);
+        var b = new DirectorySpace("b", a, DateTime.Now, DateTime.Now);
+        var sibling = new DirectorySpace("соседний", root, DateTime.Now, DateTime.Now);
+
+        var set = new HashSet<SpaceBase>(ReferenceEqualityComparer.Instance)
+        {
+            deleted switch
+            {
+                "a" => a,
+                "b" => b,
+                _ => sibling,
+            },
+        };
+
+        return ScanDuplicatesViewModel.IsGone(b, set);
+    }
+
+    [TestCase("", 0, ExpectedResult = "2|Дубликатов не найдено|Искать от 0 МБ|3")]
+    [TestCase("x0", 0, ExpectedResult = "1|Дубликатов не найдено|Искать от 0 МБ|2")]
+    [TestCase("y0", 0, ExpectedResult = "2|Дубликатов не найдено|Искать от 0 МБ|2")]
+    [TestCase("x0 y0 y1", 0, ExpectedResult = "0|Дубликатов не осталось|Искать от 0 МБ|0")]
+    [TestCase("x0 y0 y1", 3, ExpectedResult = "0|Показанные дубликаты разобраны|Искать заново|0")]
+    public string Удаление_пересчитывает_группы_и_итог(string deleted, int omittedGroups)
+    {
+        const long size = 4096;
+        var folder = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "spacesnoop-duplicates-removed", Guid.NewGuid().ToString("N")));
+        var root = new DirectorySpace("root", null, DateTime.Now, DateTime.Now);
+        var files = new Dictionary<string, FileSpace>();
+
+        DuplicateMember Copy(string name)
+        {
+            var path = Path.Combine(folder.FullName, name);
+            File.WriteAllBytes(path, new byte[size]);
+            files[name] = FileSpace.Create(new FileInfo(path), root);
+            return new(files[name], path, DuplicateMemberKind.Copy);
+        }
+
+        DuplicateGroup[] groups;
+
+        try
+        {
+            groups = [new(size, [Copy("x0"), Copy("x1")], 2), new(size, [Copy("y0"), Copy("y1"), Copy("y2")], 3)];
+        }
+        finally
+        {
+            folder.Delete(true);
+        }
+        var settings = new MemorySettings();
+
+        var duplicates = new ScanDuplicatesViewModel(new NoopDialogs(),
+            new(new DuplicateFinder(), new FakeUiDispatcher(), NullLogger<DuplicateProgressDialogViewModel>.Instance),
+            settings,
+            new(settings),
+            new(new(), new ShellPreferences(settings)),
+            () => root,
+            static (_, _) => 0,
+            static () => false);
+
+        duplicates.Apply(new(groups, 3 * size, 5, omittedGroups, 0, []));
+        duplicates.RemoveDeleted(deleted.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(name => (SpaceBase)files[name]).ToHashSet());
+
+        var reclaim = duplicates.ReclaimText.Length == 0
+            ? 0
+            : Enumerable.Range(1, 3).Single(units => duplicates.ReclaimText == $"вернёт {SizeFormatter.Format(units * size)}");
+
+        var repeats = ReferenceEquals(duplicates.NothingFoundCommand, duplicates.FindCommand);
+        Assert.That(repeats, Is.EqualTo(duplicates.NothingFoundActionText == "Искать заново"));
+
+        return $"{duplicates.Groups.Count}|{duplicates.NothingFoundHeading}|{duplicates.NothingFoundActionText}|{reclaim}";
     }
 
     private static DuplicateGroup Group()

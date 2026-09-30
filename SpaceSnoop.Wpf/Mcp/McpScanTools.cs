@@ -30,7 +30,7 @@ internal sealed class McpScanTools(
 
         logger.McpToolInvoked("scan_directory", $"«{path}», глубина {depth}, записей до {entryLimit}, показать в окне {show}");
 
-        path = McpGuards.ValidateScanPath(path);
+        path = McpGuards.ValidateScanPath(path, refuseLink: true);
 
         if (show)
         {
@@ -41,6 +41,9 @@ internal sealed class McpScanTools(
                     logger.McpToolRejected("scan_directory", BusyReason);
                     throw new McpException(ScanBusyMessage);
                 }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                scan.ReleaseBeforeScan(path);
             });
         }
 
@@ -279,7 +282,7 @@ internal sealed class McpScanTools(
 
         if (start || explicitPath)
         {
-            target = McpGuards.ValidateScanPath(target);
+            target = McpGuards.ValidateScanPath(target, refuseLink: start);
         }
 
         if (target.Length > 0)
