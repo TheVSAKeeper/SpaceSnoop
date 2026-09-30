@@ -6,62 +6,62 @@ namespace SpaceSnoop.Core;
 
 internal static partial class CoreLog
 {
-    [LoggerMessage(EventId = 1210, Level = LogLevel.Debug, Message = "Синхронизация: {Action} «{RelativePath}»")]
+    [LoggerMessage(EventId = 1510, Level = LogLevel.Debug, Message = "Синхронизация: {Action} «{RelativePath}»")]
     public static partial void SyncFileApplied(this ILogger logger, SyncAction action, string relativePath);
 
-    [LoggerMessage(EventId = 1211, Level = LogLevel.Warning, Message = "Синхронизация: не удалось {Action} «{RelativePath}»")]
+    [LoggerMessage(EventId = 1511, Level = LogLevel.Warning, Message = "Синхронизация: не удалось {Action} «{RelativePath}»")]
     public static partial void SyncFileFailed(this ILogger logger, Exception exception, SyncAction action, string relativePath);
 
-    [LoggerMessage(EventId = 1212, Level = LogLevel.Warning, Message = "Сравнение: каталог пропущен (нет доступа) «{Path}»")]
+    [LoggerMessage(EventId = 1512, Level = LogLevel.Warning, Message = "Сравнение: каталог пропущен (нет доступа) «{Path}»")]
     public static partial void CompareDirectorySkipped(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1224, Level = LogLevel.Warning, Message = "Сравнение: каталог пропущен «{Path}» ({ErrorType}: {Reason}), стек – у первого пропуска сравнения")]
+    [LoggerMessage(EventId = 1524, Level = LogLevel.Warning, Message = "Сравнение: каталог пропущен «{Path}» ({ErrorType}: {Reason}), стек – у первого пропуска сравнения")]
     public static partial void CompareDirectorySkippedAgain(this ILogger logger, string path, string errorType, string reason);
 
-    [LoggerMessage(EventId = 1225, Level = LogLevel.Warning, Message = "Сравнение: пропущено каталогов {Count}")]
+    [LoggerMessage(EventId = 1525, Level = LogLevel.Warning, Message = "Сравнение: пропущено каталогов {Count}")]
     public static partial void CompareDirectoriesSkippedTotal(this ILogger logger, int count);
 
-    [LoggerMessage(EventId = 1213, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}»")]
+    [LoggerMessage(EventId = 1513, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}»")]
     public static partial void ScanDirectorySkipped(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1218, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}» ({ErrorType}: {Reason}), стек – у первого пропуска скана")]
+    [LoggerMessage(EventId = 1518, Level = LogLevel.Warning, Message = "Сканирование: каталог пропущен «{Path}» ({ErrorType}: {Reason}), стек – у первого пропуска скана")]
     public static partial void ScanDirectorySkippedAgain(this ILogger logger, string path, string errorType, string reason);
 
-    [LoggerMessage(EventId = 1214, Level = LogLevel.Debug, Message = "Сканирование: пропущена ссылка (reparse point) «{Path}»")]
+    [LoggerMessage(EventId = 1514, Level = LogLevel.Debug, Message = "Сканирование: пропущена ссылка (reparse point) «{Path}»")]
     public static partial void ScanReparsePointSkipped(this ILogger logger, string path);
 
-    [LoggerMessage(EventId = 1215, Level = LogLevel.Debug, Message = "Сравнение: пропущена ссылка (reparse point) «{Path}»")]
+    [LoggerMessage(EventId = 1515, Level = LogLevel.Debug, Message = "Сравнение: пропущена ссылка (reparse point) «{Path}»")]
     public static partial void CompareReparsePointSkipped(this ILogger logger, string path);
 
-    [LoggerMessage(EventId = 1216, Level = LogLevel.Warning, Message = "Синхронизация: {Action} «{RelativePath}» отклонено, обход стороны неполон")]
+    [LoggerMessage(EventId = 1516, Level = LogLevel.Warning, Message = "Синхронизация: {Action} «{RelativePath}» отклонено, обход стороны неполон")]
     public static partial void SyncDeleteBlocked(this ILogger logger, SyncAction action, string relativePath);
 
-    [LoggerMessage(EventId = 1217, Level = LogLevel.Warning,
+    [LoggerMessage(EventId = 1517, Level = LogLevel.Warning,
         Message = "Синхронизация: {Action} «{RelativePath}» отклонено, конфликт вида объектов ({Conflict})")]
     public static partial void SyncTypeConflictBlocked(this ILogger logger, SyncAction action, string relativePath, FileTypeConflict conflict);
 
-    [LoggerMessage(EventId = 1250, Level = LogLevel.Information, Message = "Дубликаты: групп {Groups}, вернёт {ReclaimableBytes} Б, проверено файлов {Examined}")]
+    [LoggerMessage(EventId = 1550, Level = LogLevel.Information, Message = "Дубликаты: групп {Groups}, вернёт {ReclaimableBytes} Б, проверено файлов {Examined}")]
     public static partial void DuplicatesFinished(this ILogger logger, int groups, long reclaimableBytes, int examined);
 
-    [LoggerMessage(EventId = 1251, Level = LogLevel.Warning, Message = "Дубликаты: файл пропущен «{Path}»")]
+    [LoggerMessage(EventId = 1551, Level = LogLevel.Warning, Message = "Дубликаты: файл пропущен «{Path}»")]
     public static partial void DuplicateFileSkipped(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1240, Level = LogLevel.Information, Message = "Очистка: начата цель «{TargetId}»")]
+    [LoggerMessage(EventId = 1540, Level = LogLevel.Information, Message = "Очистка: начата цель «{TargetId}»")]
     public static partial void CleanupStarted(this ILogger logger, string targetId);
 
-    [LoggerMessage(EventId = 1241, Level = LogLevel.Information, Message = "Очистка: цель «{TargetId}» – удалено {Deleted}, освобождено {FreedBytes} Б")]
+    [LoggerMessage(EventId = 1541, Level = LogLevel.Information, Message = "Очистка: цель «{TargetId}» – удалено {Deleted}, освобождено {FreedBytes} Б")]
     public static partial void CleanupFinished(this ILogger logger, string targetId, int deleted, long freedBytes);
 
-    [LoggerMessage(EventId = 1242, Level = LogLevel.Warning, Message = "Очистка: не удалось удалить «{Path}»")]
+    [LoggerMessage(EventId = 1542, Level = LogLevel.Warning, Message = "Очистка: не удалось удалить «{Path}»")]
     public static partial void CleanupFileFailed(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1243, Level = LogLevel.Warning, Message = "Очистка: каталог пропущен «{Path}»")]
+    [LoggerMessage(EventId = 1543, Level = LogLevel.Warning, Message = "Очистка: каталог пропущен «{Path}»")]
     public static partial void CleanupDirectorySkipped(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1244, Level = LogLevel.Warning, Message = "Очистка: цель «{TargetId}» недоступна ({Availability})")]
+    [LoggerMessage(EventId = 1544, Level = LogLevel.Warning, Message = "Очистка: цель «{TargetId}» недоступна ({Availability})")]
     public static partial void CleanupTargetUnavailable(this ILogger logger, string targetId, CleanupAvailability availability);
 
-    [LoggerMessage(EventId = 1260, Level = LogLevel.Information,
+    [LoggerMessage(EventId = 1560, Level = LogLevel.Information,
         Message = "Обход по $MFT: «{Path}», записей {Records}, повторных имён {ExtraNames} на {ExtraNameBytes} Б ({Report})")]
     public static partial void MftScanCompleted(
         this ILogger logger,
