@@ -1,4 +1,5 @@
-﻿using SpaceSnoop.Core.Domain;
+﻿using SpaceSnoop.Core;
+using SpaceSnoop.Core.Domain;
 
 namespace SpaceSnoop.Benchmarks;
 
@@ -12,6 +13,11 @@ internal static class SyntheticTree
     private const int ErrorEveryDirectory = 97;
     private const long MaxFileBytes = 1L << 20;
     private const int SpreadSeconds = 1_000_000;
+    private const string RootName = "root";
+    private const int MarkedDirectoryEvery = 8;
+    private const int ServiceDepth = 3;
+    private const double SizeExponentBits = 30;
+    private const int RepeatedSizePercent = 10;
 
     private static readonly DateTime Stamp = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Local);
 
@@ -19,23 +25,22 @@ internal static class SyntheticTree
 
     private static readonly string[] FileNames = CreateNames("file", FilesPerDirectory);
 
+    private static readonly string[] ServiceDirectoryNames = [".git", "bin", "obj"];
+
     public static DirectorySpace BuildScan(IReadOnlyList<FileInfo> samples, int files)
     {
-        return BuildScanDirectory(new(samples), "root", null, files, 1);
+        return BuildScanDirectory(new SampleScanState(samples), RootName, CreateScanParent(), files, 1);
+    }
+
+    public static DirectorySpace BuildSizedScan(int files)
+    {
+        return BuildScanDirectory(new SizedScanState(new(Seed)), RootName, CreateScanParent(), files, 1);
     }
 
     public static DirectorySpace BuildFlatScan(IReadOnlyList<FileInfo> samples, int files)
     {
-        var state = new ScanState(samples);
-        var directory = new DirectorySpace("root", null, Stamp, Stamp);
-        var batch = new FileInfo[files];
-
-        for (var i = 0; i < files; i++)
-        {
-            batch[i] = state.NextFile();
-        }
-
-        directory.AddFiles(batch.AsSpan());
+        var directory = new DirectorySpace(RootName, CreateScanParent(), Stamp, Stamp);
+        new SampleScanState(samples).AddFiles(directory, files);
 
         return directory;
     }
@@ -61,17 +66,12 @@ internal static class SyntheticTree
 
     public static List<SpaceBase> MarkEvenly(DirectorySpace root, int count)
     {
-        var files = CollectFiles(root);
-        var take = Math.Min(count, files.Count);
-        var step = files.Count / Math.Max(take, 1);
-        var marked = new List<SpaceBase>(take);
+        var marked = new List<SpaceBase>(count);
 
-        for (var i = 0; i < take; i++)
-        {
-            var file = files[i * step];
-            file.Delete();
-            marked.Add(file);
-        }
+        MarkSpread(CollectLeafDirectories(root), count / MarkedDirectoryEvery, marked);
+
+        var files = CollectFiles(root).Where(static x => !x.IsDeleted).ToList();
+        MarkSpread(files, count - marked.Count, marked);
 
         return marked;
     }
@@ -83,6 +83,46 @@ internal static class SyntheticTree
         return new(@"L:\left", @"R:\right", root);
     }
 
+    private static DirectorySpace CreateScanParent()
+    {
+        return new(@"C:\SpaceSnoopBench", null, Stamp, Stamp);
+    }
+
+    private static List<SpaceBase> CollectLeafDirectories(DirectorySpace root)
+    {
+        var leaves = new List<SpaceBase>();
+        var pending = new Stack<DirectorySpace>();
+        pending.Push(root);
+
+        while (pending.TryPop(out var directory))
+        {
+            if (directory.SubDirectories.Count == 0 && directory != root && directory.State != SpaceState.Error)
+            {
+                leaves.Add(directory);
+            }
+
+            for (var i = directory.SubDirectories.Count - 1; i >= 0; i--)
+            {
+                pending.Push(directory.SubDirectories[i]);
+            }
+        }
+
+        return leaves;
+    }
+
+    private static void MarkSpread(List<SpaceBase> candidates, int count, List<SpaceBase> marked)
+    {
+        var take = Math.Min(count, candidates.Count);
+        var step = candidates.Count / Math.Max(take, 1);
+
+        for (var i = 0; i < take; i++)
+        {
+            var item = candidates[i * step];
+            item.Delete();
+            marked.Add(item);
+        }
+    }
+
     private static DirectorySpace BuildScanDirectory(ScanState state, string name, DirectorySpace? parent, int budget, int depth)
     {
         var directory = new DirectorySpace(name, parent, Stamp, Stamp);
@@ -90,14 +130,7 @@ internal static class SyntheticTree
 
         if (take > 0)
         {
-            var batch = new FileInfo[take];
-
-            for (var i = 0; i < take; i++)
-            {
-                batch[i] = state.NextFile();
-            }
-
-            directory.AddFiles(batch.AsSpan());
+            state.AddFiles(directory, take);
             budget -= take;
         }
 
@@ -132,7 +165,7 @@ internal static class SyntheticTree
 
         for (var i = 0; i < children; i++)
         {
-            var childName = DirectoryNames[i];
+            var childName = depth + 1 == ServiceDepth && i == children - 1 ? state.NextServiceName() : DirectoryNames[i];
             var childRelative = relative.Length == 0 ? childName : Path.Combine(relative, childName);
             var child = BuildComparisonDirectory(state, childName, childRelative, Share(budget, children, i), depth + 1);
 
@@ -218,21 +251,69 @@ internal static class SyntheticTree
         return names;
     }
 
-    private sealed class ScanState(IReadOnlyList<FileInfo> samples)
+    private abstract class ScanState
+    {
+        public int Created { get; set; }
+
+        public abstract void AddFiles(DirectorySpace directory, int count);
+    }
+
+    private sealed class SampleScanState(IReadOnlyList<FileInfo> samples) : ScanState
     {
         private int _cursor;
 
-        public int Created { get; set; }
-
-        public FileInfo NextFile()
+        public override void AddFiles(DirectorySpace directory, int count)
         {
-            return samples[_cursor++ % samples.Count];
+            var batch = new FileInfo[count];
+
+            for (var i = 0; i < count; i++)
+            {
+                batch[i] = samples[_cursor++ % samples.Count];
+            }
+
+            directory.AddFiles(batch.AsSpan());
+        }
+    }
+
+    private sealed class SizedScanState(Random random) : ScanState
+    {
+        private readonly List<long> _sizes = [];
+
+        public override void AddFiles(DirectorySpace directory, int count)
+        {
+            var files = new List<FileSpace>(count);
+
+            for (var i = 0; i < count; i++)
+            {
+                var entry = new ScanEntry(FileNames[i % FileNames.Length], NextSize(), Stamp, Stamp, FileAttributes.Normal, false);
+                files.Add(FileSpace.Create(entry, directory));
+            }
+
+            directory.SetScanned(files, []);
+        }
+
+        private long NextSize()
+        {
+            var size = _sizes.Count > 0 && random.Next(100) < RepeatedSizePercent
+                ? _sizes[random.Next(_sizes.Count)]
+                : (long)Math.Pow(2, random.NextDouble() * SizeExponentBits);
+
+            _sizes.Add(size);
+
+            return size;
         }
     }
 
     private sealed class CompareState(Random random)
     {
+        private int _services;
+
         public Random Random { get; } = random;
+
+        public string NextServiceName()
+        {
+            return ServiceDirectoryNames[_services++ % ServiceDirectoryNames.Length];
+        }
 
         public ComparisonStatus NextDirectoryStatus()
         {

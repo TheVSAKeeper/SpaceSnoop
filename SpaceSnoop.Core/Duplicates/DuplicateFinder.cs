@@ -60,7 +60,7 @@ public sealed class DuplicateFinder(ILogger<DuplicateFinder>? logger = null)
         return new(groups, reclaimable, state.Examined, omitted, unreadable, state.Errors.ToList());
     }
 
-    private static int Collect(DirectorySpace root, long minSize, Dictionary<long, List<FileSpace>> bySize, CancellationToken token)
+    internal static int Collect(DirectorySpace root, long minSize, Dictionary<long, List<FileSpace>> bySize, CancellationToken token)
     {
         var unreadable = 0;
         var stack = new Stack<DirectorySpace>();
