@@ -50,14 +50,15 @@ public sealed partial class SyncSetupViewModel : ObservableObject
         OperationPreferences operations,
         IFilePicker filePicker,
         Func<bool> canRun,
-        Action<string> setStatus)
+        Action<string> setStatus,
+        IUiDispatcher uiDispatcher)
     {
         _settings = settings;
         _operations = operations;
         _filePicker = filePicker;
         _canRun = canRun;
 
-        Profiles = new(settings, dialogs, BuildCurrentProfile, RaiseProfileSelected, canRun, setStatus);
+        Profiles = new(settings, dialogs, BuildCurrentProfile, RaiseProfileSelected, canRun, setStatus, uiDispatcher);
         LoadSettings();
         Profiles.Load();
     }

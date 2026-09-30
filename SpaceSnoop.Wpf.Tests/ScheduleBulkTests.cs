@@ -10,6 +10,7 @@ using SpaceSnoop.Wpf.ViewModels.Schedule;
 
 namespace SpaceSnoop.Wpf.Tests;
 
+[NonParallelizable]
 public class ScheduleBulkTests
 {
     [Test]
@@ -318,11 +319,109 @@ public class ScheduleBulkTests
         }
     }
 
+    [Test]
+    public async Task Ручное_выключение_во_время_проверки_не_перекрывается_пакетным_включением()
+    {
+        using var dirs = new TempProfileDirectories();
+        var settings = dirs.SeedProfiles(true);
+        var scheduler = new FakeScheduleRunner();
+        var vm = Create(settings, scheduler);
+        var profile = vm.Profiles[0];
+
+        profile.IsSelected = true;
+
+        using (var roots = new BlockingRootsCheck())
+        {
+            var run = vm.Bulk.EnableCommand.ExecuteAsync(null);
+            roots.WaitEntered();
+            profile.Enabled = false;
+            roots.Release();
+            await run;
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(profile.Enabled, Is.False);
+            Assert.That(SyncProfileStore.Load(settings)[0].Enabled, Is.False);
+            Assert.That(scheduler.Applied.Select(request => request.Enabled), Is.EqualTo(new[] { false }));
+        }
+    }
+
+    [Test]
+    public void Включение_тумблером_попадает_в_настройки_только_после_проверки()
+    {
+        using var dirs = new TempProfileDirectories();
+        var settings = dirs.SeedProfiles();
+        var scheduler = new FakeScheduleRunner();
+        var vm = Create(settings, scheduler);
+        using var persisted = new ManualResetEventSlim();
+        bool storedDuringCheck;
+
+        using (var roots = new BlockingRootsCheck())
+        {
+            vm.Profiles[0].Enabled = true;
+            roots.WaitEntered();
+            vm.Persist();
+            storedDuringCheck = SyncProfileStore.Load(settings)[0].Enabled;
+
+            settings.Changed += (_, _) => persisted.Set();
+            roots.Release();
+
+            Assert.That(persisted.Wait(TimeSpan.FromSeconds(10)), Is.True, "проверка так и не сохранила профиль");
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(storedDuringCheck, Is.False);
+            Assert.That(SyncProfileStore.Load(settings)[0].Enabled, Is.True);
+            Assert.That(scheduler.Applied.Select(request => request.Enabled), Is.EqualTo(new[] { true }));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Сохранение_прерванное_отменой_или_удалением_не_применяет_расписание(bool remove)
+    {
+        using var dirs = new TempProfileDirectories();
+        var settings = dirs.SeedProfiles(true);
+        var scheduler = new FakeScheduleRunner();
+        var vm = Create(settings, scheduler);
+        var profile = vm.Profiles[0];
+
+        profile.EditCommand.Execute(null);
+        profile.Name = "Правка";
+
+        using (var roots = new BlockingRootsCheck())
+        {
+            var save = profile.SaveCommand.ExecuteAsync(null);
+            roots.WaitEntered();
+
+            if (remove)
+            {
+                vm.RemoveProfile(profile);
+            }
+            else
+            {
+                profile.CancelCommand.Execute(null);
+            }
+
+            roots.Release();
+            await save;
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(scheduler.Applied, Is.Empty);
+            Assert.That(profile.IsEditing, Is.EqualTo(remove));
+            Assert.That(SyncProfileStore.Load(settings).Select(model => model.Name), Does.Not.Contain("Правка"));
+        }
+    }
+
     private sealed class TempProfileDirectories : IDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), $"SpaceSnoopSchedule_{Guid.NewGuid():N}");
 
-        public MemorySettings SeedProfiles()
+        public MemorySettings SeedProfiles(bool enabled = false)
         {
             var settings = new MemorySettings();
 
@@ -332,6 +431,7 @@ public class ScheduleBulkTests
                 Name = $"Профиль {index}",
                 Left = CreateDirectory($"left{index}"),
                 Right = CreateDirectory($"right{index}"),
+                Enabled = enabled,
             }));
 
             return settings;

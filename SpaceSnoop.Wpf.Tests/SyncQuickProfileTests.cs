@@ -12,10 +12,11 @@ using SpaceSnoop.Wpf.ViewModels.Sync;
 
 namespace SpaceSnoop.Wpf.Tests;
 
+[NonParallelizable]
 public class SyncQuickProfileTests
 {
     [Test]
-    public void Новый_профиль_сохраняет_текущие_параметры_и_не_включает_автозапуск()
+    public async Task Новый_профиль_сохраняет_текущие_параметры_и_не_включает_автозапуск()
     {
         var settings = new MemorySettings();
         var vm = Create(settings);
@@ -26,7 +27,7 @@ public class SyncQuickProfileTests
         vm.Setup.Mirror = true;
         vm.Setup.Exclusions = "bin,obj";
 
-        vm.Setup.Profiles.SaveProfileCommand.Execute(null);
+        await vm.Setup.Profiles.SaveProfileCommand.ExecuteAsync(null);
 
         var profile = SyncProfileStore.Load(settings).Single();
 
@@ -44,7 +45,7 @@ public class SyncQuickProfileTests
     }
 
     [Test]
-    public void Обновление_профиля_сохраняет_параметры_расписания()
+    public async Task Обновление_профиля_сохраняет_параметры_расписания()
     {
         var settings = new MemorySettings();
         SyncProfileStore.Save(settings,
@@ -73,7 +74,7 @@ public class SyncQuickProfileTests
 
         var profileItem = vm.Setup.Profiles.Items.Single(profile => profile.Id == "abc");
         profileItem.RequestUpdateCommand.Execute(null);
-        profileItem.ConfirmUpdateCommand.Execute(null);
+        await profileItem.ConfirmUpdateCommand.ExecuteAsync(null);
 
         var profile = SyncProfileStore.Load(settings).Single();
 
@@ -89,6 +90,53 @@ public class SyncQuickProfileTests
             Assert.That(profile.Interval, Is.EqualTo(ScheduleInterval.Hourly));
             Assert.That(profile.Time, Is.EqualTo("11:00"));
             Assert.That(profile.Enabled, Is.True);
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Профиль_сохраняет_параметры_изменённые_во_время_проверки_корней(bool update)
+    {
+        var settings = new MemorySettings();
+
+        if (update)
+        {
+            SyncProfileStore.Save(settings, [new() { Id = "abc", Name = "Backup", Left = @"C:\OldLeft", Right = @"C:\OldRight" }]);
+        }
+
+        var vm = Create(settings);
+        vm.Setup.LeftPath = @"C:\Left";
+        vm.Setup.RightPath = @"C:\Right";
+
+        using (var roots = new BlockingRootsCheck())
+        {
+            Task save;
+
+            if (update)
+            {
+                var item = vm.Setup.Profiles.Items.Single(profile => profile.Id == "abc");
+                item.RequestUpdateCommand.Execute(null);
+                save = item.ConfirmUpdateCommand.ExecuteAsync(null);
+            }
+            else
+            {
+                save = vm.Setup.Profiles.SaveProfileCommand.ExecuteAsync(null);
+            }
+
+            roots.WaitEntered();
+            vm.Setup.RightPath = @"C:\Other";
+            vm.Setup.SelectedModeIndex = 1;
+            roots.Release();
+            await save;
+        }
+
+        var profile = SyncProfileStore.Load(settings).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(profile.Left, Is.EqualTo(@"C:\Left"));
+            Assert.That(profile.Right, Is.EqualTo(@"C:\Other"));
+            Assert.That(profile.Mode, Is.EqualTo(1));
         }
     }
 

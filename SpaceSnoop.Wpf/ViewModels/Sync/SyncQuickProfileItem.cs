@@ -6,7 +6,7 @@ public sealed class SyncQuickProfileItem : ObservableObject
     private readonly Action<SyncQuickProfileItem> _confirmDelete;
     private readonly Action<SyncQuickProfileItem> _cancelDelete;
     private readonly Action<SyncQuickProfileItem> _requestUpdate;
-    private readonly Action<SyncQuickProfileItem> _confirmUpdate;
+    private readonly Func<SyncQuickProfileItem, Task> _confirmUpdate;
     private readonly Action<SyncQuickProfileItem> _cancelUpdate;
     private readonly Action<SyncQuickProfileItem> _requestRename;
     private readonly Action<SyncQuickProfileItem> _confirmRename;
@@ -23,7 +23,7 @@ public sealed class SyncQuickProfileItem : ObservableObject
         Action<SyncQuickProfileItem> confirmDelete,
         Action<SyncQuickProfileItem> cancelDelete,
         Action<SyncQuickProfileItem> requestUpdate,
-        Action<SyncQuickProfileItem> confirmUpdate,
+        Func<SyncQuickProfileItem, Task> confirmUpdate,
         Action<SyncQuickProfileItem> cancelUpdate,
         Action<SyncQuickProfileItem> requestRename,
         Action<SyncQuickProfileItem> confirmRename,
@@ -44,7 +44,7 @@ public sealed class SyncQuickProfileItem : ObservableObject
         ConfirmDeleteCommand = new RelayCommand(() => _confirmDelete(this));
         CancelDeleteCommand = new RelayCommand(() => _cancelDelete(this));
         RequestUpdateCommand = new RelayCommand(() => _requestUpdate(this));
-        ConfirmUpdateCommand = new RelayCommand(() => _confirmUpdate(this));
+        ConfirmUpdateCommand = new AsyncRelayCommand(() => _confirmUpdate(this));
         CancelUpdateCommand = new RelayCommand(() => _cancelUpdate(this));
         RequestRenameCommand = new RelayCommand(() => _requestRename(this));
         ConfirmRenameCommand = new RelayCommand(() => _confirmRename(this));
@@ -59,7 +59,7 @@ public sealed class SyncQuickProfileItem : ObservableObject
 
     public IRelayCommand RequestUpdateCommand { get; }
 
-    public IRelayCommand ConfirmUpdateCommand { get; }
+    public IAsyncRelayCommand ConfirmUpdateCommand { get; }
 
     public IRelayCommand CancelUpdateCommand { get; }
 

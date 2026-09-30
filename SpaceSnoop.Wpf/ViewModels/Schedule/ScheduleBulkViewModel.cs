@@ -326,10 +326,23 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
             return;
         }
 
-        var valid = Array.FindAll(targets, profile => profile.ValidateEnable(value));
+        var rejected = 0;
 
-        var run = await RunBatchAsync(valid, async profile =>
+        var run = await RunBatchAsync(targets, async profile =>
         {
+            var attempt = profile.EnableAttempt;
+
+            if (!await profile.ValidateEnableAsync(value))
+            {
+                rejected++;
+                return false;
+            }
+
+            if (!_owner.Profiles.Contains(profile) || profile.EnableAttempt != attempt)
+            {
+                return false;
+            }
+
             var request = profile.BuildScheduleRequest(value);
             var outcome = await Task.Run(() => _owner.Scheduler.Apply(request), CancellationToken.None);
 
@@ -345,7 +358,7 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
 
         _owner.Persist();
 
-        var rest = valid.Length < targets.Length ? " (остальные не прошли проверку, причина в карточке)" : string.Empty;
+        var rest = rejected > 0 ? " (остальные не прошли проверку, причина в карточке)" : string.Empty;
         var tail = run.Cancelled ? ", дальше отменено" : string.Empty;
 
         Message = value

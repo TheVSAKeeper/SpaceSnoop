@@ -198,7 +198,7 @@ public sealed partial class ScanDuplicatesViewModel : ObservableObject
         }
 
         var path = root.AbsolutePath;
-        var parallelism = await Task.Run(() => _preferences.ResolveParallelism(path));
+        var parallelism = await _preferences.ResolveParallelismAsync(path);
 
         var options = DuplicateOptions.Default with
         {

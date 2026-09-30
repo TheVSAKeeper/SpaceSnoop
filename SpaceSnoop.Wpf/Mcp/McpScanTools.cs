@@ -47,7 +47,7 @@ internal sealed class McpScanTools(
             });
         }
 
-        var parallelism = scanPreferences.ResolveParallelism(path);
+        var parallelism = await scanPreferences.ResolveParallelismAsync(path).WaitAsync(cancellationToken).ConfigureAwait(false);
 
         var directory = new DirectoryInfo(path);
 
@@ -157,10 +157,12 @@ internal sealed class McpScanTools(
         var root = McpDispatch.Run(scan.CaptureScanRoot)
                    ?? throw new McpException("На странице «Сканирование» результата ещё нет. Запустите scan_directory с show=true или open_scan с scan=true.");
 
+        var parallelism = await scanPreferences.ResolveParallelismAsync(root.AbsolutePath).WaitAsync(cancellationToken).ConfigureAwait(false);
+
         var options = DuplicateOptions.Default with
         {
             MinSize = minSize,
-            MaxParallelism = scanPreferences.ResolveParallelism(root.AbsolutePath),
+            MaxParallelism = parallelism,
             GroupLimit = entryLimit,
             MemberLimit = entryLimit,
         };

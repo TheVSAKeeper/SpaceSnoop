@@ -34,7 +34,7 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
 
         Git = new(settings, dialogs, logger);
 
-        Setup = new(settings, dialogs, operations, filePicker, () => !IsBusy, message => Session.StatusCaption = message);
+        Setup = new(settings, dialogs, operations, filePicker, () => !IsBusy, message => Session.StatusCaption = message, uiDispatcher);
         Setup.ProfileSelected += ApplyProfile;
 
         Ledger = new(Git, () => new(Setup.DirectionIconKind, Setup.DirectionText(), Setup.CurrentMode == SyncMode.Bidirectional));
