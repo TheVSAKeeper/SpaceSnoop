@@ -72,7 +72,7 @@ public sealed partial class ScanPreferences : ObservableObject
 
     public bool MftNeedsElevation => MftEnabled && !AdminElevation.IsElevated;
 
-    public int ResolveParallelism(string path)
+    public async Task<int> ResolveParallelismAsync(string path)
     {
         if (!UseMultithreading)
         {
@@ -85,9 +85,17 @@ public sealed partial class ScanPreferences : ObservableObject
         }
 
         var requested = MaxParallelism;
-        var probe = Task.Run(() => StorageMedia.LimitParallelism(path, requested));
 
-        return probe.Wait(AppDefaults.StorageMediaTimeoutMs) ? probe.Result : requested;
+        try
+        {
+            return await Task.Run(() => StorageMedia.LimitParallelism(path, requested))
+                .WaitAsync(TimeSpan.FromMilliseconds(AppDefaults.StorageMediaTimeoutMs))
+                .ConfigureAwait(false);
+        }
+        catch (TimeoutException)
+        {
+            return requested;
+        }
     }
 
     public string ParallelismHint =>

@@ -1,6 +1,13 @@
-﻿using SpaceSnoop.Core;
+﻿using KeepShell.Bootstrap;
+using KeepShell.Testing;
+using KeepShell.ViewModels;
+using Microsoft.Extensions.Logging.Abstractions;
+using SpaceSnoop.Core;
+using SpaceSnoop.Core.UseCases;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
+using SpaceSnoop.Wpf.Bootstrap.Storage;
+using SpaceSnoop.Wpf.ViewModels;
 using SpaceSnoop.Wpf.ViewModels.Overview;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -89,6 +96,38 @@ public class OverviewPipelineTests
         var right = rightExists ? Make("right") : Path.Combine(_root, "noright");
 
         return SyncProfile.SourceMissing(left, right, HeadlessSync.MapMode(mode));
+    }
+
+    [Test]
+    public async Task Отмена_во_время_предпроверки_последней_строки_отменяет_сравнение_всех()
+    {
+        var settings = new MemorySettings();
+        SyncProfileStore.Save(settings, [new() { Id = "one", Name = "Один", Left = Path.Combine(_root, "missing"), Right = Make("right") }]);
+
+        var overview = new OverviewViewModel(settings,
+            new NoopDialogs(),
+            new ToastNotifier(new ToastHostViewModel(), new ShellPreferences(settings)),
+            NullLogger<OverviewViewModel>.Instance,
+            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
+            new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
+            new FakeAppNavigator());
+
+        var batch = overview.Batch;
+        batch.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(OverviewBatchViewModel.StatusCaption) && batch.StatusCaption.StartsWith("Пара 1 из 1", StringComparison.Ordinal))
+            {
+                batch.CancelOperationCommand.Execute(null);
+            }
+        };
+
+        await batch.CompareAllCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(batch.StatusCaption, Is.EqualTo("Сравнение отменено."));
+            Assert.That(overview.Rows.Rows.Single().Status, Is.EqualTo(OverviewRunStatus.None));
+        }
     }
 
     private string Make(string name)
