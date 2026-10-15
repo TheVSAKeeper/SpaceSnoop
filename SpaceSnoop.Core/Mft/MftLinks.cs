@@ -176,14 +176,14 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
 
     private static bool IsValidParent(MftEntry[] entries, int parent, ushort parentSequence, MftStatistics? statistics)
     {
-        if (parent < 0 || parent >= entries.Length || !entries[parent].Exists || !entries[parent].IsDirectory)
+        if (parent < 0 || parent >= entries.Length || !entries[parent].Exists)
         {
             return false;
         }
 
         if (MftLayout.SameGeneration(entries[parent].Sequence, parentSequence))
         {
-            return true;
+            return entries[parent].IsDirectory;
         }
 
         if (statistics is not null)

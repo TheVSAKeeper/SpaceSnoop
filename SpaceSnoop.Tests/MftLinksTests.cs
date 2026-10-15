@@ -53,6 +53,60 @@ public class MftLinksTests
         Assert.That(links.FirstChild[Target], Is.EqualTo(File));
     }
 
+    [TestCase(48, 27, 1)]
+    [TestCase(48, 48, 0)]
+    [TestCase(48, 0, 0)]
+    [TestCase(0, 27, 0)]
+    public void Родитель_переиспользованный_файлом_учитывает_расхождение_поколения(
+        int currentSequence, int parentSequence, long staleParents)
+    {
+        var table = Table();
+        table.Entries[Target] = Leaf(name: "exceptions.py", parent: Root, parentSequence: 1, size: 50);
+        table.Entries[Target].Sequence = (ushort)currentSequence;
+        table.Entries[File] = Leaf(name: "d908ee3d92017122_0", parent: Target, parentSequence: (ushort)parentSequence, size: 24654);
+
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.Rehome(table, Root, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(links.FirstChild[Target], Is.EqualTo(-1));
+            Assert.That(table.Entries[Target].Exists, Is.True);
+            Assert.That(table.Entries[File].Exists, Is.False);
+            Assert.That(table.Statistics.StaleParents, Is.EqualTo(staleParents));
+            Assert.That(table.Statistics.Detached, Is.EqualTo(1));
+            Assert.That(table.Statistics.OrphanFiles, Is.EqualTo(1));
+            Assert.That(table.Statistics.OrphanBytes, Is.EqualTo(24654));
+        }
+    }
+
+    [Test]
+    public void Другое_имя_спасает_файл_с_родителем_переиспользованным_под_файл()
+    {
+        var table = Table();
+        table.Entries[Outside] = Leaf(name: "exceptions.py", parent: Root, parentSequence: 1, size: 50);
+        table.Entries[Outside].Sequence = 48;
+        table.Entries[File] = Leaf(name: "кэш_0", parent: Outside, parentSequence: 27, size: 24654);
+        table.Alternates[File] = [new(Target, 7, "внутри.bin")];
+
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.Rehome(table, Root, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(links.FirstChild[Outside], Is.EqualTo(-1));
+            Assert.That(links.FirstChild[Target], Is.EqualTo(File));
+            Assert.That(table.Entries[File].Name, Is.EqualTo("внутри.bin"));
+            Assert.That(table.Statistics.StaleParents, Is.EqualTo(1));
+            Assert.That(table.Statistics.Rehomed, Is.EqualTo(1));
+            Assert.That(table.Statistics.Detached, Is.Zero);
+            Assert.That(table.Statistics.OrphanFiles, Is.Zero);
+            Assert.That(table.Statistics.OrphanBytes, Is.Zero);
+        }
+    }
+
     [Test]
     public void Жёсткая_ссылка_переподвешивается_под_имя_достижимое_из_корня_скана()
     {
