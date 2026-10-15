@@ -2,6 +2,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using SpaceSnoop.Core;
+using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Core.Export;
 
 namespace SpaceSnoop.Tests;
@@ -111,6 +112,61 @@ public partial class ScanExportTests
     public void Build_ClampsDepthAndReportsAppliedValue(int requested, int expected)
     {
         Assert.That(Build(Options with { Depth = requested }).Options.Depth, Is.EqualTo(expected));
+    }
+
+    [TestCase(0, false)]
+    [TestCase(1, false)]
+    [TestCase(20, false)]
+    [TestCase(20, true)]
+    [TestCase(500, true)]
+    public void Build_TopKPreservesLargestWeightsIncludingTiesAndZero(int requested, bool equal)
+    {
+        const int count = 256;
+        var root = new DirectorySpace(@"C:\synthetic", null, default, default);
+        var sizes = Enumerable.Range(0, count).Select(i => equal ? 0L : i * 37 % 17 * 100L).ToArray();
+        var files = sizes.Select((size, i) => FileSpace.Create(new ScanEntry($"f{i}.bin", size, default, default, FileAttributes.Normal, false), root)).ToList();
+        root.SetScanned(files, []);
+        root.AggregateTotals();
+
+        var model = ScanExport.Build(root, root.Name, Options, entryLimit: requested);
+        var take = Math.Min(count, Math.Max(1, requested));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Files.Select(x => x.Bytes), Is.EqualTo(sizes.OrderDescending().Take(take)));
+            Assert.That(model.Files.Select(x => x.Path).Distinct().Count(), Is.EqualTo(take));
+            Assert.That(model.OmittedFiles, Is.EqualTo(count - take));
+            Assert.That(model.Totals.Files, Is.EqualTo(count));
+            Assert.That(model.Totals.Bytes, Is.EqualTo(sizes.Sum()));
+        }
+    }
+
+    [Test]
+    public void Build_TopKDirectoriesPreservesTiesAndOmittedCounts()
+    {
+        const int count = 50;
+        const int take = 5;
+        var root = new DirectorySpace(@"C:\synthetic", null, default, default);
+        var sizes = Enumerable.Range(0, count).Select(i => i % 5 * 10L).ToArray();
+        var children = sizes.Select((size, i) =>
+        {
+            var child = new DirectorySpace($"d{i}", root, default, default);
+            child.SetScanned([FileSpace.Create(new ScanEntry("f.bin", size, default, default, FileAttributes.Normal, false), child)], []);
+            return child;
+        }).ToArray();
+        root.SetScanned([], children);
+        root.AggregateTotals();
+
+        var model = ScanExport.Build(root, root.Name, Options, entryLimit: take);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Directories.Select(x => x.TotalBytes), Is.EqualTo(sizes.OrderDescending().Take(take)));
+            Assert.That(model.Directories.Select(x => x.Path).Distinct().Count(), Is.EqualTo(take));
+            Assert.That(model.OmittedDirectories, Is.EqualTo(count - take));
+            Assert.That(model.OmittedFiles, Is.EqualTo(count - take));
+            Assert.That(model.Totals.Directories, Is.EqualTo(count));
+        }
     }
 
     private static void Write(string path, int size)

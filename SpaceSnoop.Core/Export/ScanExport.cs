@@ -163,11 +163,13 @@ public static class ScanExport
     /// </summary>
     private static void Push<T>(PriorityQueue<T, long> queue, T item, long weight, int limit)
     {
-        queue.Enqueue(item, weight);
-
-        if (queue.Count > limit)
+        if (queue.Count < limit)
         {
-            queue.Dequeue();
+            queue.Enqueue(item, weight);
+        }
+        else
+        {
+            queue.EnqueueDequeue(item, weight);
         }
     }
 
