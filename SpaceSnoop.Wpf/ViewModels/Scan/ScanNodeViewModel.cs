@@ -6,6 +6,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     private readonly ScanSortState? _sort;
     private readonly ScanNodeFactory? _factory;
+    private RangeObservableCollection<ScanNodeViewModel>? _children;
     private IReadOnlyList<ScanNodeViewModel>? _previewTiles;
     private bool _loaded;
 
@@ -39,7 +40,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
     {
     }
 
-    public RangeObservableCollection<ScanNodeViewModel> Children { get; } = [];
+    public RangeObservableCollection<ScanNodeViewModel> Children => _children ??= [];
 
     public bool IsDirectory => Space is DirectorySpace;
 
@@ -380,7 +381,12 @@ public sealed partial class ScanNodeViewModel : ObservableObject
             OnPropertyChanged(nameof(CanUnmarkContents));
         }
 
-        foreach (var child in Children.Where(static child => !ReferenceEquals(child, Dummy)))
+        if (_children is null)
+        {
+            return;
+        }
+
+        foreach (var child in _children.Where(static child => !ReferenceEquals(child, Dummy)))
         {
             child.RefreshMarkRecursive();
         }
