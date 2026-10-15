@@ -9,12 +9,13 @@ namespace SpaceSnoop.Wpf.Tests;
 public class ScanPreferencesTests
 {
     [Test]
-    public void По_умолчанию_потоков_вдвое_больше_чем_ядер()
+    public void Умолчание_ограничивает_потоки_а_максимум_остаётся_вдвое_больше_ядер()
     {
         var preferences = new ScanPreferences(new MemorySettings());
 
         Assert.That(preferences.ParallelismCeiling, Is.EqualTo(preferences.ProcessorCount * AppDefaults.ScanParallelismPerCore));
-        Assert.That(preferences.MaxParallelism, Is.EqualTo(preferences.ParallelismCeiling));
+        Assert.That(preferences.MaxParallelism, Is.EqualTo(Math.Min(preferences.ParallelismCeiling, AppDefaults.ScanParallelismDefaultCeiling)));
+        Assert.That(preferences.MaxParallelism, Is.EqualTo(preferences.DefaultParallelism));
     }
 
     [Test]

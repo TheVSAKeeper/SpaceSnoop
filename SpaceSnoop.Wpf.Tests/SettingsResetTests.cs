@@ -90,7 +90,7 @@ public class SettingsResetTests
                 var scan = bench.Scan;
 
                 Assert.That(scan.UseMultithreading, Is.EqualTo(AppDefaults.ScanMultithreadingDefault));
-                Assert.That(scan.MaxParallelism, Is.EqualTo(scan.ParallelismCeiling));
+                Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism));
                 Assert.That(scan.MediaAware, Is.EqualTo(AppDefaults.ScanMediaAwareDefault));
                 Assert.That(scan.Intensity, Is.EqualTo(AppDefaults.IntensityDefault));
                 Assert.That(scan.RevealFiles, Is.EqualTo(AppDefaults.ScanRevealFilesDefault));
@@ -101,7 +101,7 @@ public class SettingsResetTests
                 Assert.That(scan.ReturnMemoryAfterScan, Is.EqualTo(AppDefaults.ScanReturnMemoryAfterScanDefault));
 
                 Assert.That(store.GetBool(SettingsKeys.ScanMultithreading), Is.EqualTo(AppDefaults.ScanMultithreadingDefault));
-                Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 1), Is.EqualTo(scan.ParallelismCeiling));
+                Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 1), Is.EqualTo(scan.DefaultParallelism));
                 Assert.That(store.GetBool(SettingsKeys.ScanMediaAware), Is.EqualTo(AppDefaults.ScanMediaAwareDefault));
                 Assert.That(store.GetDouble(SettingsKeys.ScanIntensity), Is.EqualTo(AppDefaults.IntensityDefault));
                 Assert.That(store.GetBool(SettingsKeys.ScanRevealFiles), Is.EqualTo(AppDefaults.ScanRevealFilesDefault));
@@ -240,7 +240,7 @@ public class SettingsResetTests
     }
 
     [Test]
-    public void Число_потоков_сбрасывается_к_пересчитанному_потолку_а_не_к_запомненному_числу()
+    public void Число_потоков_сбрасывается_к_новому_умолчанию_а_не_к_максимуму()
     {
         ISettingsStore store = new MemorySettings();
         var ceiling = Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore;
@@ -256,8 +256,8 @@ public class SettingsResetTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(ceiling), "Потолок посчитан не по этой машине: умолчание для параллелизма вычисляемое, а не константа.");
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(ceiling));
+            Assert.That(scan.MaxParallelism, Is.EqualTo(Math.Min(ceiling, AppDefaults.ScanParallelismDefaultCeiling)));
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(scan.DefaultParallelism));
         }
     }
 
@@ -282,8 +282,8 @@ public class SettingsResetTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(ceiling));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(ceiling));
+            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism));
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(scan.DefaultParallelism));
         }
     }
 
@@ -429,8 +429,8 @@ public class SettingsResetTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(bench.Scan.MaxParallelism, Is.EqualTo(bench.Scan.ParallelismCeiling));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(bench.Scan.ParallelismCeiling), "Сброс строки не доехал до хранилища.");
+            Assert.That(bench.Scan.MaxParallelism, Is.EqualTo(bench.Scan.DefaultParallelism));
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(bench.Scan.DefaultParallelism), "Сброс строки не доехал до хранилища.");
             Assert.That(bench.Scan.MftEnabled, Is.True, "Сброс одной строки задел соседнюю настройку того же раздела.");
             Assert.That(bench.Scan.RevealFiles, Is.True, "Сброс одной строки задел соседнюю настройку того же раздела.");
             Assert.That(bench.Reset.Select(field => field.Key), Is.EqualTo(new[] { SettingsKeys.ScanParallelism }), "Команда строки доложила не о той настройке или сразу о нескольких.");

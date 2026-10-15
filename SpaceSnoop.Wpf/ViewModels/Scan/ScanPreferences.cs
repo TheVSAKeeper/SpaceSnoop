@@ -9,7 +9,7 @@ public sealed partial class ScanPreferences : ObservableObject
     private bool _useMultithreading = AppDefaults.ScanMultithreadingDefault;
 
     [ObservableProperty]
-    private int _maxParallelism = Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore;
+    private int _maxParallelism = Math.Min(Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore, AppDefaults.ScanParallelismDefaultCeiling);
 
     [ObservableProperty]
     private bool _mediaAware = AppDefaults.ScanMediaAwareDefault;
@@ -43,7 +43,7 @@ public sealed partial class ScanPreferences : ObservableObject
         _suppressPersist = true;
         UseMultithreading = _settings.GetBool(SettingsKeys.ScanMultithreading, AppDefaults.ScanMultithreadingDefault);
 
-        var storedParallelism = _settings.GetInt(SettingsKeys.ScanParallelism, ParallelismCeiling);
+        var storedParallelism = _settings.GetInt(SettingsKeys.ScanParallelism, DefaultParallelism);
         MaxParallelism = Math.Clamp(storedParallelism, 1, ParallelismCeiling);
 
         MediaAware = _settings.GetBool(SettingsKeys.ScanMediaAware, AppDefaults.ScanMediaAwareDefault);
@@ -67,6 +67,8 @@ public sealed partial class ScanPreferences : ObservableObject
     public int ProcessorCount { get; } = Environment.ProcessorCount;
 
     public int ParallelismCeiling => ProcessorCount * AppDefaults.ScanParallelismPerCore;
+
+    public int DefaultParallelism => Math.Min(ParallelismCeiling, AppDefaults.ScanParallelismDefaultCeiling);
 
     public bool DuplicatesEnabled { get; }
 
@@ -98,12 +100,12 @@ public sealed partial class ScanPreferences : ObservableObject
         }
     }
 
-    public string ParallelismHint => "Сколько папок читать одновременно: больше – быстрее, но больше памяти.";
+    public string ParallelismHint => "Сколько папок читать одновременно: лишние потоки могут увеличить нагрузку без ускорения обхода.";
 
     public string ParallelismDetails =>
-        $"Максимум и значение по умолчанию – вдвое больше числа логических процессоров ({ParallelismCeiling} при {ProcessorCount} ядрах): "
-        + "обход ждёт ответа диска, а не считает, поэтому потоков нужно больше, чем ядер. "
-        + "Меньше потоков – ниже нагрузка на компьютер и расход памяти.";
+        $"По умолчанию – {DefaultParallelism} потоков, максимум – {ParallelismCeiling} при {ProcessorCount} логических процессорах. "
+        + "На большом числе потоков скорость может выйти на плато, а нагрузка на процессор продолжит расти. "
+        + "Сохранённое вручную число потоков не меняется; для медленного носителя доступен отдельный режим ограничения.";
 
     partial void OnUseMultithreadingChanged(bool value)
     {

@@ -71,14 +71,14 @@ public static class SettingsResetCatalog
                 []),
 
             new("scan",
-                $"Вернуть раздел к заводским значениям. Число потоков вернётся к {scan.ParallelismCeiling} – это вдвое больше ядер этой машины, а не запомненное когда-то число.",
+                $"Вернуть раздел к заводским значениям. Число потоков вернётся к {scan.DefaultParallelism}; максимум этой машины – {scan.ParallelismCeiling}.",
                 [
                     Field(SettingsKeys.ScanMultithreading, "многопоточный обход", Flag(AppDefaults.ScanMultithreadingDefault),
                         () => scan.UseMultithreading == AppDefaults.ScanMultithreadingDefault,
                         () => scan.UseMultithreading = AppDefaults.ScanMultithreadingDefault),
-                    Field(SettingsKeys.ScanParallelism, "число параллельных потоков", $"{scan.ParallelismCeiling}",
-                        () => scan.MaxParallelism == scan.ParallelismCeiling,
-                        () => scan.MaxParallelism = scan.ParallelismCeiling),
+                    Field(SettingsKeys.ScanParallelism, "число параллельных потоков", $"{scan.DefaultParallelism}",
+                        () => scan.MaxParallelism == scan.DefaultParallelism,
+                        () => scan.MaxParallelism = scan.DefaultParallelism),
                     Field(SettingsKeys.ScanMediaAware, "учёт типа носителя", Flag(AppDefaults.ScanMediaAwareDefault),
                         () => scan.MediaAware == AppDefaults.ScanMediaAwareDefault,
                         () => scan.MediaAware = AppDefaults.ScanMediaAwareDefault),

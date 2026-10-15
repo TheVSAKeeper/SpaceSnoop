@@ -13,6 +13,7 @@ public static class AppDefaults
     public const bool ScanMultithreadingDefault = true;
     public const bool ScanMediaAwareDefault = true;
     public const int ScanParallelismPerCore = 2;
+    public const int ScanParallelismDefaultCeiling = 16;
     public const ScanSortField ScanSortModeDefault = ScanSortField.Size;
     public const bool ScanSortInvertDefault = true;
     public const bool ScanTreemapDefault = false;

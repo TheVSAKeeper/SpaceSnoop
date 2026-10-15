@@ -511,7 +511,7 @@ public class BindingSmokeTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.ParallelismCeiling), "Нажатие не вернуло настройку к заводскому значению.");
+            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism), "Нажатие не вернуло настройку к заводскому значению.");
             Assert.That(button.Visibility, Is.EqualTo(Visibility.Hidden), "Вернувшаяся к умолчанию строка держит кнопку видимой.");
             Assert.That(button.ActualWidth, Is.GreaterThan(0), "Спрятанная кнопка отдала своё место – строка прыгает при возврате к умолчанию.");
             Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
