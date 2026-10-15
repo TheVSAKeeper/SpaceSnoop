@@ -123,6 +123,11 @@ internal sealed class ScanAutomationDouble : IScanAutomation
         return Task.CompletedTask;
     }
 
+    public Task ReturnScanMemoryAsync(DirectorySpace result, Action<string> reportPhase, CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
     public Task<ArchiveOutcome> ArchiveFromAutomationAsync(DirectorySpace dir, ArchiveRequest request, CancellationToken cancellationToken)
     {
         ArchiveCalls++;

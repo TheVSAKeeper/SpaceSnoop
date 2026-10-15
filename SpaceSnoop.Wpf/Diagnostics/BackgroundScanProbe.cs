@@ -18,6 +18,7 @@ internal sealed class BackgroundScanProbe : IDisposable
 
     private PerformanceOperation? _reported;
     private bool _stopped;
+    private bool _disposed;
 
     public BackgroundScanProbe(PerformanceOperations operations, long? totalBytes, int parallelism)
     {
@@ -25,6 +26,7 @@ internal sealed class BackgroundScanProbe : IDisposable
         _totalBytes = totalBytes;
         _parallelism = Math.Max(1, parallelism);
         _timer = new(_ => Publish(), null, ReportInterval, ReportInterval);
+        Publish();
     }
 
     public ScanProgress Progress { get; } = new();
@@ -41,9 +43,9 @@ internal sealed class BackgroundScanProbe : IDisposable
             LogicalBytes: true);
     }
 
-    public PerformanceOperation Finish()
+    public PerformanceOperation Finish(bool releaseMeasurement = true)
     {
-        Stop();
+        Stop(releaseMeasurement);
 
         var run = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, _parallelism);
         _operations.ReportRun(run);
@@ -53,8 +55,46 @@ internal sealed class BackgroundScanProbe : IDisposable
 
     public void Dispose()
     {
-        Stop();
-        _timer.Dispose();
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            Stop();
+            _timer.Dispose();
+            _disposed = true;
+        }
+    }
+
+    public void ReportPhase(string name)
+    {
+        lock (_gate)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            var phase = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, _parallelism) with { Name = name };
+
+            if (_operations.TryReport(phase, _reported))
+            {
+                _reported = phase;
+            }
+        }
+    }
+
+    public Task CompleteMeasurementAsync()
+    {
+        lock (_gate)
+        {
+            Stop(releaseMeasurement: false);
+            var reported = _reported;
+            _reported = null;
+            return _operations.ReleaseAfterRenderAsync(reported);
+        }
     }
 
     internal bool Publish()
@@ -79,15 +119,18 @@ internal sealed class BackgroundScanProbe : IDisposable
         }
     }
 
-    private void Stop()
+    private void Stop(bool releaseMeasurement = true)
     {
         lock (_gate)
         {
             _stopped = true;
             _stopwatch.Stop();
             _timer.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-            _operations.Release(_reported);
-            _reported = null;
+            if (releaseMeasurement)
+            {
+                _operations.Release(_reported);
+                _reported = null;
+            }
         }
     }
 }

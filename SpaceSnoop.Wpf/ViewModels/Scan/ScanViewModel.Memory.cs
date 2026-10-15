@@ -68,7 +68,12 @@ public sealed partial class ScanViewModel
         return true;
     }
 
-    private void ReturnScanMemory(DirectorySpace result)
+    internal static bool ShouldReturnScanMemory(long loadBytes, long thresholdBytes)
+    {
+        return thresholdBytes > 0 && loadBytes >= thresholdBytes;
+    }
+
+    private async Task ReturnScanMemoryAsync(DirectorySpace result, Action<string> reportPhase, CancellationToken cancellationToken)
     {
         if (!Preferences.ReturnMemoryAfterScan
             || (long)result.TotalFileCount + result.TotalDirectoryCount < AppDefaults.ScanMemoryReturnMinNodes)
@@ -76,22 +81,45 @@ public sealed partial class ScanViewModel
             return;
         }
 
-        // TODO: уплотняющая сборка замораживает окно на 0,6–0,85 с вскоре после скана C: (3,5 млн файлов) и растёт с деревом.
-        // Станет мешать (просадка в журнале на слабом железе) – звать её только при высокой нагрузке на память (GCMemoryInfo.MemoryLoadBytes)
-        _ = Task.Run(async () =>
+        var pressure = GC.GetGCMemoryInfo();
+
+        if (!ShouldReturnScanMemory(pressure.MemoryLoadBytes, pressure.HighMemoryLoadThresholdBytes))
         {
-            await Task.Delay(AppDefaults.ScanMemoryReturnDelayMs, CancellationToken.None).ConfigureAwait(false);
+            _logger.ScanMemoryReturnSkipped(pressure.MemoryLoadBytes, pressure.HighMemoryLoadThresholdBytes);
+            return;
+        }
 
-            if (IsScanning)
-            {
-                return;
-            }
+        var version = _scanVersion;
+        reportPhase("Ожидание возврата памяти");
 
+        try
+        {
+            await Task.Delay(AppDefaults.ScanMemoryReturnDelayMs, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return;
+        }
+
+        pressure = GC.GetGCMemoryInfo();
+
+        if (version != _scanVersion || cancellationToken.IsCancellationRequested
+            || !ShouldReturnScanMemory(pressure.MemoryLoadBytes, pressure.HighMemoryLoadThresholdBytes))
+        {
+            return;
+        }
+
+        reportPhase("Возврат памяти после сканирования");
+
+        await Task.Run(() =>
+        {
             var collect = Stopwatch.StartNew();
             GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
             var memory = GC.GetGCMemoryInfo();
 
             _logger.ScanMemoryReturned(collect.ElapsedMilliseconds, memory.HeapSizeBytes, memory.TotalCommittedBytes);
         }, CancellationToken.None);
+
+        await _performance.FlushFramesAsync();
     }
 }

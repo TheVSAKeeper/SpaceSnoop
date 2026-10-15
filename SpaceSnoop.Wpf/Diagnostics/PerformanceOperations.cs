@@ -14,6 +14,7 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
     private PerformanceOperation? _last;
 
     private IDisposable? _frames;
+    private bool _hasVisibleWindow;
 
     public event EventHandler? Changed;
 
@@ -23,6 +24,7 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
 
     public bool TryReport(PerformanceOperation operation, PerformanceOperation? own)
     {
+        RefreshWindowVisibility();
         lock (_gate)
         {
             if (_current is not null && !ReferenceEquals(_current, own))
@@ -57,8 +59,44 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
 
     public void ReportRun(PerformanceOperation run)
     {
+        RefreshWindowVisibility();
         Volatile.Write(ref _last, run);
         Notify();
+    }
+
+    public async Task ReleaseAfterRenderAsync(PerformanceOperation? own)
+    {
+        try
+        {
+            if (own is not null)
+            {
+                await FlushFramesAsync();
+            }
+        }
+        finally
+        {
+            Release(own);
+        }
+    }
+
+    public Task FlushFramesAsync()
+    {
+        RefreshWindowVisibility();
+        return Volatile.Read(ref _hasVisibleWindow) && Application.Current is { } app && !app.Dispatcher.HasShutdownStarted
+            ? app.Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.ContextIdle).Task
+            : Task.CompletedTask;
+    }
+
+    private void RefreshWindowVisibility()
+    {
+        if (Application.Current is not { } app)
+        {
+            Volatile.Write(ref _hasVisibleWindow, false);
+        }
+        else if (app.Dispatcher.CheckAccess())
+        {
+            Volatile.Write(ref _hasVisibleWindow, app.MainWindow?.IsVisible == true);
+        }
     }
 
     public void ClearRun()

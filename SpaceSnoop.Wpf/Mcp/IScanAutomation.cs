@@ -44,6 +44,8 @@ public interface IScanAutomation
 
     void ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes);
 
+    Task ReturnScanMemoryAsync(DirectorySpace result, Action<string> reportPhase, CancellationToken cancellationToken);
+
     Task ScanFromAutomationAsync(string path, CancellationToken cancellationToken);
 
     Task<ArchiveOutcome> ArchiveFromAutomationAsync(DirectorySpace dir, ArchiveRequest request, CancellationToken cancellationToken);

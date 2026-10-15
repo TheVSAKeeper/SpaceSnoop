@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
+using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -62,6 +63,16 @@ public class ScanReleaseTests
         {
             TestContext.Out.WriteLine($"Не удалось удалить каталог стенда {_root}: {exception.Message}");
         }
+    }
+
+    [Test]
+    public async Task Завершение_кадра_можно_запросить_с_фонового_потока()
+    {
+        var operations = _services.GetRequiredService<PerformanceOperations>();
+
+        await Task.Run(operations.FlushFramesAsync).WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.That(operations.Current, Is.Null);
     }
 
     [TestCase(true, false, false, TestName = "Включённая настройка снимает прежний результат папки до скана")]

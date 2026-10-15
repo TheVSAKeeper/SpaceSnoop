@@ -86,6 +86,10 @@ internal static partial class AppLog
         Message = "Память после скана возвращена системе за {ElapsedMs} мс: куча {HeapBytes} Б, занято у ОС {CommittedBytes} Б")]
     public static partial void ScanMemoryReturned(this ILogger logger, long elapsedMs, long heapBytes, long committedBytes);
 
+    [LoggerMessage(EventId = 1018, Level = LogLevel.Debug,
+        Message = "Уплотнение после скана пропущено: нагрузка памяти {LoadBytes} Б ниже порога GC {ThresholdBytes} Б")]
+    public static partial void ScanMemoryReturnSkipped(this ILogger logger, long loadBytes, long thresholdBytes);
+
     [LoggerMessage(EventId = 1017, Level = LogLevel.Warning,
         Message = "Сканирование «{Path}»: не прочитано каталогов {Count} (права администратора: {Elevated}), стек – у первого пропуска")]
     public static partial void ScanDirectoriesUnread(this ILogger logger, string path, long count, bool elevated);

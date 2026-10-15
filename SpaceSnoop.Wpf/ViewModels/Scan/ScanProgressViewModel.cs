@@ -124,6 +124,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
         ResetLiveProgress(path);
         _progressTimer.Start();
+        UpdateLiveProgress();
 
         return _progress;
     }
@@ -136,13 +137,16 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         }
     }
 
-    internal TimeSpan Finish()
+    internal TimeSpan Finish(bool releaseMeasurement = true)
     {
         _progressTimer.Stop();
         _scanElapsed = Elapsed();
         _scanStarted = null;
-        _operations.Release(_reported);
-        _reported = null;
+        if (releaseMeasurement)
+        {
+            _operations.Release(_reported);
+            _reported = null;
+        }
 
         if (_progress is { } progress)
         {
@@ -157,6 +161,25 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         OnPropertyChanged(nameof(ProgressValue));
 
         return _scanElapsed;
+    }
+
+    internal void ReportPhase(string name)
+    {
+        var phase = _reported is { } reported
+            ? reported with { Name = name }
+            : new PerformanceOperation(name, 0, 0, TimeSpan.Zero);
+
+        if (_operations.TryReport(phase, _reported))
+        {
+            _reported = phase;
+        }
+    }
+
+    internal Task CompleteMeasurementAsync()
+    {
+        var reported = _reported;
+        _reported = null;
+        return _operations.ReleaseAfterRenderAsync(reported);
     }
 
     private TimeSpan Elapsed()

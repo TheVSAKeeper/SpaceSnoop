@@ -70,6 +70,11 @@ public sealed partial class ScanViewModel : IScanAutomation
         ApplyScanResult(result, elapsed, traversal, notes);
     }
 
+    Task IScanAutomation.ReturnScanMemoryAsync(DirectorySpace result, Action<string> reportPhase, CancellationToken cancellationToken)
+    {
+        return ReturnScanMemoryAsync(result, reportPhase, cancellationToken);
+    }
+
     Task IScanAutomation.ScanFromAutomationAsync(string path, CancellationToken cancellationToken)
     {
         return ScanFromAutomationAsync(path, cancellationToken);
@@ -113,6 +118,7 @@ public sealed partial class ScanViewModel : IScanAutomation
 
     internal void ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes)
     {
+        _scanVersion++;
         var previous = ScanTreeEditor.RemoveRoot(Roots, result.AbsolutePath);
         var (transferred, lost) = ScanTreeEditor.TransferMarks(previous, result, Marks.HasMarked);
 
@@ -163,7 +169,6 @@ public sealed partial class ScanViewModel : IScanAutomation
             _notifier.Notify($"Не перенесено пометок на удаление: {lost} – этих путей нет в новом скане", StatusSeverity.Warning);
         }
 
-        ReturnScanMemory(result);
     }
 
     internal SpaceBase? FindForAutomation(string path)

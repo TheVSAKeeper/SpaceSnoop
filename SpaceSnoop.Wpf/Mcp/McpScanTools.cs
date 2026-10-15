@@ -32,91 +32,104 @@ internal sealed class McpScanTools(
 
         path = McpGuards.ValidateScanPath(path, refuseLink: true);
 
-        if (show)
-        {
-            McpDispatch.Run(() =>
-            {
-                if (scan.IsScanning)
-                {
-                    logger.McpToolRejected("scan_directory", BusyReason);
-                    throw new McpException(ScanBusyMessage);
-                }
-
-                cancellationToken.ThrowIfCancellationRequested();
-                scan.ReleaseBeforeScan(path);
-            });
-        }
-
         var parallelism = await scanPreferences.ResolveParallelismAsync(path).WaitAsync(cancellationToken).ConfigureAwait(false);
-
         var directory = new DirectoryInfo(path);
+        using var probe = new BackgroundScanProbe(operations,
+            ScanProgressViewModel.EstimateTotalBytes(directory), parallelism);
 
-        var phases = new ScanPhases();
-
-        var (tree, model, run, notes) = await Task.Run(() =>
-                {
-                    using var probe = new BackgroundScanProbe(operations,
-                        ScanProgressViewModel.EstimateTotalBytes(directory),
-                        parallelism);
-
-                    var outcome = runner.Run(directory, parallelism, probe.Progress, cancellationToken);
-
-                    var walked = probe.Finish();
-                    phases.WalkMs = (long)walked.Elapsed.TotalMilliseconds;
-
-                    var stopwatch = Stopwatch.StartNew();
-
-                    var options = new ScanExportOptions(depth,
-                        outcome.Notes.Parallelism > 1,
-                        outcome.Notes.Parallelism,
-                        outcome.Notes.Engine);
-
-                    var built = ScanExport.Build(outcome.Root, directory.FullName, options, AppInfo.Version, entryLimit) with
-                    {
-                        Notes = ScanExportNotes.From(outcome.Notes.ExtraNameBytes,
-                            outcome.Notes.DroppedObjects,
-                            outcome.Notes.DroppedBytes,
-                            outcome.Notes.UnknownSizeFiles,
-                            outcome.Notes.PartialRecords),
-                    };
-
-                    phases.ExportMs = stopwatch.ElapsedMilliseconds;
-
-                    return (outcome.Root, built, walked, outcome.Notes);
-                },
-                cancellationToken)
-            .ConfigureAwait(false);
-
-        if (show)
+        try
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            probe.ReportPhase("Подготовка сканирования (агент)");
 
-            var stopwatch = Stopwatch.StartNew();
-
-            McpDispatch.Run(() =>
+            if (show)
             {
-                if (scan.IsScanning)
+                McpDispatch.Run(() =>
                 {
-                    logger.McpToolRejected("scan_directory", "страница занялась операцией, пока шёл обход");
-                    throw new McpException("Страница «Сканирование» занялась другой операцией, пока шёл обход – результат не показан. Повторите с show=false, чтобы получить данные без окна.");
-                }
+                    if (scan.IsScanning)
+                    {
+                        logger.McpToolRejected("scan_directory", BusyReason);
+                        throw new McpException(ScanBusyMessage);
+                    }
 
-                scan.ApplyScanResult(tree, run.Elapsed, run.Traversal, notes);
-                scan.SelectPathForAutomation(tree.AbsolutePath);
-                navigator.DeferOrNavigate(SectionKey.Scan);
-                notifier.Notify($"Агент показал сканирование: {tree.AbsolutePath} · {tree.TotalSizeText}");
-            });
+                    cancellationToken.ThrowIfCancellationRequested();
+                    scan.ReleaseBeforeScan(path);
+                });
+            }
 
-            phases.ApplyMs = stopwatch.ElapsedMilliseconds;
+            var phases = new ScanPhases();
+
+            var (tree, model, run, notes) = await Task.Run(() =>
+                    {
+                        probe.ReportPhase(BackgroundScanProbe.OperationName);
+                        var outcome = runner.Run(directory, parallelism, probe.Progress, cancellationToken);
+
+                        var walked = probe.Finish(releaseMeasurement: false);
+                        phases.WalkMs = (long)walked.Elapsed.TotalMilliseconds;
+
+                        var stopwatch = Stopwatch.StartNew();
+                        probe.ReportPhase("Экспорт сканирования");
+
+                        var options = new ScanExportOptions(depth,
+                            outcome.Notes.Parallelism > 1,
+                            outcome.Notes.Parallelism,
+                            outcome.Notes.Engine);
+
+                        var built = ScanExport.Build(outcome.Root, directory.FullName, options, AppInfo.Version, entryLimit) with
+                        {
+                            Notes = ScanExportNotes.From(outcome.Notes.ExtraNameBytes,
+                                outcome.Notes.DroppedObjects,
+                                outcome.Notes.DroppedBytes,
+                                outcome.Notes.UnknownSizeFiles,
+                                outcome.Notes.PartialRecords),
+                        };
+
+                        phases.ExportMs = stopwatch.ElapsedMilliseconds;
+
+                        return (outcome.Root, built, walked, outcome.Notes);
+                    },
+                    cancellationToken)
+                .ConfigureAwait(false);
+
+            if (show)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var stopwatch = Stopwatch.StartNew();
+                probe.ReportPhase("Показ результата сканирования");
+
+                McpDispatch.Run(() =>
+                {
+                    if (scan.IsScanning)
+                    {
+                        logger.McpToolRejected("scan_directory", "страница занялась операцией, пока шёл обход");
+                        throw new McpException("Страница «Сканирование» занялась другой операцией, пока шёл обход – результат не показан. Повторите с show=false, чтобы получить данные без окна.");
+                    }
+
+                    scan.ApplyScanResult(tree, run.Elapsed, run.Traversal, notes);
+                    scan.SelectPathForAutomation(tree.AbsolutePath);
+                    navigator.DeferOrNavigate(SectionKey.Scan);
+                    notifier.Notify($"Агент показал сканирование: {tree.AbsolutePath} · {tree.TotalSizeText}");
+                });
+
+                phases.ApplyMs = stopwatch.ElapsedMilliseconds;
+
+                await operations.FlushFramesAsync().ConfigureAwait(false);
+                await McpDispatch.Run(() => scan.ReturnScanMemoryAsync(tree, probe.ReportPhase, cancellationToken)).ConfigureAwait(false);
+            }
+
+            probe.ReportPhase("Сериализация сканирования");
+            var serializing = Stopwatch.StartNew();
+            var json = ScanExport.ToJson(model);
+            phases.JsonMs = serializing.ElapsedMilliseconds;
+
+            logger.McpScanPhases(phases.WalkMs, phases.ExportMs, phases.JsonMs, phases.ApplyMs, json.Length);
+
+            return json;
         }
-
-        var serializing = Stopwatch.StartNew();
-        var json = ScanExport.ToJson(model);
-        phases.JsonMs = serializing.ElapsedMilliseconds;
-
-        logger.McpScanPhases(phases.WalkMs, phases.ExportMs, phases.JsonMs, phases.ApplyMs, json.Length);
-
-        return json;
+        finally
+        {
+            await probe.CompleteMeasurementAsync().ConfigureAwait(false);
+        }
     }
 
     private sealed class ScanPhases

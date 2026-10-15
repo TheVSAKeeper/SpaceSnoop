@@ -544,6 +544,29 @@ public class PerformanceTests
     }
 
     [Test]
+    public async Task Короткий_агентский_скан_держит_измерение_до_конца_выгрузки()
+    {
+        using var monitor = TestDiagnostics.Monitor();
+        var operations = new PerformanceOperations(monitor);
+        using var probe = new BackgroundScanProbe(operations, null, 4);
+        Assert.That(operations.Current?.Name, Is.EqualTo(BackgroundScanProbe.OperationName));
+
+        probe.Finish(releaseMeasurement: false);
+        probe.ReportPhase("Экспорт сканирования");
+        Assert.That(operations.Current?.Name, Is.EqualTo("Экспорт сканирования"));
+
+        probe.ReportPhase("Показ результата сканирования");
+        Assert.That(operations.TryReport(Page(), null), Is.False);
+
+        await probe.CompleteMeasurementAsync();
+        Assert.That(operations.Current, Is.Null);
+        probe.Dispose();
+        probe.Dispose();
+        probe.ReportPhase("Запоздавший отчёт");
+        Assert.That(operations.Current, Is.Null);
+    }
+
+    [Test]
     public void Зонд_агентского_скана_не_вытесняет_операцию_окна()
     {
         using var monitor = TestDiagnostics.Monitor();
