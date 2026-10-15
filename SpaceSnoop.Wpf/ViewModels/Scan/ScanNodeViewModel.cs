@@ -307,8 +307,9 @@ public sealed partial class ScanNodeViewModel : ObservableObject
             return;
         }
 
+        var before = _factory?.CaptureMarks(Space, Root ?? Space);
         Space.Delete();
-        ApplyMarkChange();
+        ApplyMarkChange(before);
     }
 
     [RelayCommand]
@@ -319,8 +320,9 @@ public sealed partial class ScanNodeViewModel : ObservableObject
             return;
         }
 
+        var before = _factory?.CaptureMarks(Space, Root ?? Space);
         RestoreRecursive(Space);
-        ApplyMarkChange();
+        ApplyMarkChange(before);
     }
 
     [RelayCommand]
@@ -331,12 +333,14 @@ public sealed partial class ScanNodeViewModel : ObservableObject
             return;
         }
 
+        var before = _factory?.CaptureMarks(dir, Root ?? dir);
+
         foreach (var child in EnumerateChildren(dir))
         {
             child.Delete();
         }
 
-        ApplyMarkChange();
+        ApplyMarkChange(before);
     }
 
     [RelayCommand]
@@ -347,17 +351,23 @@ public sealed partial class ScanNodeViewModel : ObservableObject
             return;
         }
 
+        var before = _factory?.CaptureMarks(dir, Root ?? dir);
+
         foreach (var child in EnumerateChildren(dir))
         {
             RestoreRecursive(child);
         }
 
-        ApplyMarkChange();
+        ApplyMarkChange(before);
     }
 
-    private void ApplyMarkChange()
+    private void ApplyMarkChange(ScanMarkSnapshot? before)
     {
-        _factory?.RaiseMarksChanged();
+        if (before is { } snapshot)
+        {
+            _factory?.RaiseMarksChanged(snapshot);
+        }
+
         RefreshMarkRecursive();
     }
 

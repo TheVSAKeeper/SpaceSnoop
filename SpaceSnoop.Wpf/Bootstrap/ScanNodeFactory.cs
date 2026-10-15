@@ -4,7 +4,9 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
 {
     public event Action<ScanNodeViewModel>? ArchiveRequested;
     public event Action<ScanNodeViewModel>? AskAgentRequested;
-    public event Action? MarksChanged;
+    internal event Action<ScanMarkSnapshot>? MarksChanged;
+
+    internal Func<SpaceBase, SpaceBase, ScanMarkSnapshot>? MarkSnapshot { get; set; }
 
     public bool MarksPresent { get; set; }
 
@@ -24,9 +26,14 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
         return new(space, space.TotalSize, space.TotalSize, space, DriveCapacity.TryRead(space.AbsolutePath), sort, this);
     }
 
-    public void RaiseMarksChanged()
+    internal ScanMarkSnapshot CaptureMarks(SpaceBase space, SpaceBase root)
     {
-        MarksChanged?.Invoke();
+        return MarkSnapshot?.Invoke(root, space) ?? ScanTreeEditor.CaptureMarks(root, space, MarksPresent);
+    }
+
+    internal void RaiseMarksChanged(ScanMarkSnapshot before)
+    {
+        MarksChanged?.Invoke(before);
     }
 
     public void RequestArchive(ScanNodeViewModel node)

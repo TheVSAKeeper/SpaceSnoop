@@ -113,7 +113,7 @@ public class ScanNodeMarksTests
         root.EnsureLoaded();
 
         ScanNodeViewModel[] roots = [root];
-        _factory.MarksChanged += () => _factory.MarksPresent = ScanTreeEditor.CollectMarked(roots).Count > 0;
+        _factory.MarksChanged += _ => _factory.MarksPresent = ScanTreeEditor.CollectMarked(roots).Count > 0;
 
         return root;
     }

@@ -69,6 +69,50 @@ internal static class ScanTreeEditor
         }
     }
 
+    internal static List<SpaceBase> CollectMarked(SpaceBase space)
+    {
+        var marked = new List<SpaceBase>();
+
+        if (space.IsDeleted)
+        {
+            marked.Add(space);
+        }
+        else if (space is DirectorySpace directory)
+        {
+            CollectMarked(directory, marked);
+        }
+
+        return marked;
+    }
+
+    internal static ScanMarkSnapshot CaptureMarks(SpaceBase root, SpaceBase space, bool marksPresent)
+    {
+        var scope = FindMarkScope(root, space);
+        var marked = marksPresent || scope.IsDeleted ? CollectMarked(scope) : [];
+
+        return new(root, scope, marked.Count, marked.Sum(static item => item.TotalSize));
+    }
+
+    internal static SpaceBase FindMarkScope(SpaceBase root, SpaceBase space)
+    {
+        var scope = space;
+
+        for (var current = space; current is not null; current = current.Parent)
+        {
+            if (current.IsDeleted)
+            {
+                scope = current;
+            }
+
+            if (ReferenceEquals(current, root))
+            {
+                break;
+            }
+        }
+
+        return scope;
+    }
+
     internal static void RefreshNodeAfterDeletion(ScanNodeViewModel node, HashSet<SpaceBase> deletedSet)
     {
         if (node.Space is null)
