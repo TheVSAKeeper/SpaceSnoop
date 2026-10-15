@@ -3,6 +3,7 @@ using KeepShell.Testing;
 using KeepShell.ViewModels;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
@@ -157,7 +158,8 @@ public class ScanReleaseTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result, Is.EqualTo((0, 0)));
+            Assert.That(result.Transferred, Is.Empty);
+            Assert.That(result.Lost, Is.Zero);
             Assert.That(fresh.SubDirectories.Single().IsDeleted, Is.False);
         }
     }
@@ -165,6 +167,87 @@ public class ScanReleaseTests
     private async Task SettleDriveLabelsAsync()
     {
         await Task.WhenAll(_scan.Drives.Items.Select(static drive => drive.LoadAsync()));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Пересчёт_после_переноса_учитывает_новые_размеры_и_пометки_другого_корня(bool wholeRoot)
+    {
+        var other = Arrange("other");
+        var otherBranch = other.SubDirectories.Single();
+        AddSizedFile(otherBranch, "other.bin", 19);
+        var previous = Arrange("target");
+        AddSizedFile(previous.SubDirectories.Single(), "inside.bin", 1);
+        AddSizedFile(previous, "loose.bin", 1);
+        _scan.MarkForAutomation(wholeRoot
+            ? [otherBranch, previous]
+            : [otherBranch, previous.SubDirectories.Single(), previous.Files.Single()], true);
+
+        var fresh = Tree(previous.AbsolutePath, "branch");
+        AddSizedFile(fresh.SubDirectories.Single(), "inside.bin", 37);
+        AddSizedFile(fresh, "loose.bin", 11);
+        AddSizedFile(fresh, "plain.bin", 99);
+        _scan.ApplyScanResult(fresh, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.Marks.MarkedCount, Is.EqualTo(wholeRoot ? 2 : 3));
+            Assert.That(_scan.Marks.MarkedSizeText, Is.EqualTo(SizeFormatter.Format(wholeRoot ? 166 : 67)));
+            Assert.That(_scan.Marks.HasMarked, Is.True);
+            Assert.That(otherBranch.IsDeleted, Is.True);
+            Assert.That(fresh.SubDirectories.Single().Files.Single().IsDeleted, Is.True);
+            Assert.That(Child(fresh, "plain.bin").IsDeleted, Is.EqualTo(wholeRoot));
+        }
+    }
+
+    [Test]
+    public void Непомечаемый_узел_нового_дерева_не_попадает_в_счётчик_перенесённых_пометок()
+    {
+        var previous = Arrange("target");
+        _scan.MarkForAutomation([previous.SubDirectories.Single()], true);
+        var fresh = Tree(previous.AbsolutePath, "branch");
+        fresh.SubDirectories.Single().Error();
+
+        _scan.ApplyScanResult(fresh, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.Marks.MarkedCount, Is.Zero);
+            Assert.That(_scan.Marks.MarkedSizeText, Is.Empty);
+            Assert.That(_scan.Marks.HasMarked, Is.False);
+            Assert.That(fresh.SubDirectories.Single().IsDeleted, Is.False);
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Перенесённые_пометки_не_считают_потомка_помеченного_корня_повторно(bool rootFirst)
+    {
+        var previous = Arrange("target");
+        _scan.MarkForAutomation([previous.SubDirectories.Single()], true);
+        var branchRoot = _scan.Roots.Single();
+        var previousWhole = Tree(previous.AbsolutePath, "branch");
+        _scan.ApplyScanResult(previousWhole, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+        _scan.MarkForAutomation([previousWhole], true);
+        var wholeRoot = _scan.Roots.Single();
+        var fresh = Tree(previous.AbsolutePath, "branch");
+
+        var result = ScanTreeEditor.TransferMarks(rootFirst ? [wholeRoot, branchRoot] : [branchRoot, wholeRoot], fresh, true);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Transferred, Is.EqualTo(new[] { fresh }));
+            Assert.That(result.Lost, Is.Zero);
+            Assert.That(fresh.SubDirectories.Single().IsDeleted, Is.True);
+        }
+    }
+
+    private static void AddSizedFile(DirectorySpace directory, string name, int bytes)
+    {
+        Directory.CreateDirectory(directory.AbsolutePath);
+        var path = Path.Combine(directory.AbsolutePath, name);
+        File.WriteAllBytes(path, new byte[bytes]);
+        directory.AddFile(new(path));
     }
 
     [TestCase(false, true, TestName = "Пометка переходит на узел, переименованный только регистром, в обычном каталоге")]

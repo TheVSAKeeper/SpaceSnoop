@@ -134,14 +134,7 @@ public sealed partial class ScanViewModel : IScanAutomation
         HasResult = true;
         Duplicates.Clear();
 
-        if (transferred > 0)
-        {
-            Marks.RecountMarked();
-        }
-        else
-        {
-            Marks.RecountMarkedAfterScan(node);
-        }
+        Marks.RecountMarkedAfterScan(node, transferred);
 
         Drives.ReloadLabels(SelectedDrive);
 

@@ -154,9 +154,9 @@ internal static class ScanTreeEditor
         return removed;
     }
 
-    internal static (int Transferred, int Lost) TransferMarks(IEnumerable<ScanNodeViewModel> previousRoots, DirectorySpace fresh, bool marksPresent)
+    internal static (List<SpaceBase> Transferred, int Lost) TransferMarks(IEnumerable<ScanNodeViewModel> previousRoots, DirectorySpace fresh, bool marksPresent)
     {
-        var transferred = 0;
+        var transferred = new List<SpaceBase>();
         var lost = 0;
 
         if (!marksPresent)
@@ -194,13 +194,33 @@ internal static class ScanTreeEditor
 
                     case { IsDeleted: false } counterpart:
                         counterpart.Delete();
-                        transferred++;
+
+                        if (counterpart.IsDeleted)
+                        {
+                            transferred.Add(counterpart);
+                        }
+
                         break;
                 }
             }
         }
 
+        transferred.RemoveAll(HasMarkedAncestor);
+
         return (transferred, lost);
+    }
+
+    private static bool HasMarkedAncestor(SpaceBase space)
+    {
+        for (var parent = space.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (parent.IsDeleted)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     internal static bool SamePath(string left, string right)
