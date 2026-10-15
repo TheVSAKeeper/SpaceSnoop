@@ -151,6 +151,64 @@ public class MftReaderVolumeTests
         }
     }
 
+    [TestCase(0, 1)]
+    [TestCase(45, 1)]
+    [TestCase(0, 4)]
+    [TestCase(45, 4)]
+    public void Резидентный_размер_из_расширения_доезжает_через_границу_блоков(int size, int threads)
+    {
+        var image = new MftVolumeBuilder()
+            .Record(20, new MftRecordBuilder().WithSequence(7).FileName(MftLayout.RootRecord, 1, "маленький.txt"))
+            .Record(28, new MftRecordBuilder().ExtensionOf(20, 7).ResidentData(size))
+            .Build(Records);
+
+        var table = Read(image, threads, blockBytes: 1024);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[20].Size, Is.EqualTo(size));
+            Assert.That(table.Entries[20].SizeKnown, Is.True);
+            Assert.That(table.Statistics.Extensions, Is.EqualTo(1));
+            Assert.That(table.Statistics.Partial, Is.Zero);
+        }
+    }
+
+    [Test]
+    public void Резидентный_размер_расширения_чужого_поколения_не_применяется()
+    {
+        var image = new MftVolumeBuilder()
+            .Record(20, new MftRecordBuilder().WithSequence(7).FileName(MftLayout.RootRecord, 1, "маленький.txt"))
+            .Record(28, new MftRecordBuilder().ExtensionOf(20, 6).ResidentData(45))
+            .Build(Records);
+
+        var table = Read(image, threads: 4, blockBytes: 1024);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[20].SizeKnown, Is.False);
+            Assert.That(table.Statistics.Partial, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public void Расширение_нулевой_записи_не_становится_безымянным_файлом()
+    {
+        var image = new MftVolumeBuilder()
+            .Record(16, new MftRecordBuilder().ExtensionOf(0))
+            .Build(Records);
+
+        var table = Read(image, threads: 4, blockBytes: 1024);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[0].SizeKnown, Is.True);
+            Assert.That(table.Entries[16].Present, Is.False);
+            Assert.That(table.Statistics.Extensions, Is.EqualTo(1));
+            Assert.That(table.Statistics.Nameless, Is.Zero);
+            Assert.That(table.Statistics.Partial, Is.Zero);
+        }
+    }
+
     [TestCase(false, TestName = "Резидентный $ATTRIBUTE_LIST дочитывает таблицу целиком")]
     [TestCase(true, TestName = "Нерезидентный $ATTRIBUTE_LIST дочитывает таблицу целиком")]
     public void Экстенты_из_списка_атрибутов_дочитывают_таблицу(bool listOutside)

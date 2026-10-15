@@ -113,6 +113,17 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
         var stack = new Stack<int>();
         stack.Push(MftLayout.RootRecord);
 
+        for (var index = 0; index < Math.Min(entries.Length, MftLayout.FirstUserRecord); index++)
+        {
+            if (index != MftLayout.RootRecord
+                && entries[index].Exists
+                && entries[index].IsDirectory
+                && !entries[index].IsLink)
+            {
+                stack.Push(index);
+            }
+        }
+
         while (stack.Count > 0)
         {
             cancel.ThrowIfCancellationRequested();

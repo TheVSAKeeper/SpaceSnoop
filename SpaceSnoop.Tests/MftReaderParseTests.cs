@@ -287,6 +287,21 @@ public class MftReaderParseTests
         }
     }
 
+    [Test]
+    public void Резидентный_data_расширения_за_границей_атрибута_размер_не_задаёт()
+    {
+        var statistics = new MftStatistics();
+        var pending = new MftPending();
+
+        Parse(new MftRecordBuilder().ExtensionOf(20).OversizedResidentData(4096), statistics, pending);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(pending.Sizes, Is.Empty);
+            Assert.That(statistics.Partial, Is.EqualTo(1));
+        }
+    }
+
     private static MftEntry Parse(MftRecordBuilder builder, MftStatistics? statistics = null, MftPending? pending = null)
     {
         var entries = new MftEntry[1];

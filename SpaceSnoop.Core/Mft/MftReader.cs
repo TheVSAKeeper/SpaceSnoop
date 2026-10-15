@@ -345,7 +345,7 @@ internal static class MftReader
         var reference = BinaryPrimitives.ReadUInt64LittleEndian(record[0x20..]);
         var baseReference = (long)(reference & MftLayout.ReferenceMask);
 
-        if (baseReference != 0)
+        if (reference != 0)
         {
             statistics.Extensions++;
 
@@ -574,21 +574,14 @@ internal static class MftReader
             {
                 AddName(attribute, baseIndex, pending, baseSequence);
             }
-            else if (type == MftLayout.AttributeData
-                     && attribute[0x09] == 0
-                     && attribute[0x08] != 0
-                     && attribute.Length >= NonResidentHeaderBytes
-                     && BinaryPrimitives.ReadInt64LittleEndian(attribute[0x10..]) == 0)
+            else if (type == MftLayout.AttributeData && attribute[0x09] == 0)
             {
-                var size = BinaryPrimitives.ReadInt64LittleEndian(attribute[0x30..]);
+                var entry = new MftEntry();
+                ReadDataSize(attribute, attribute[0x08] != 0, ref entry, statistics);
 
-                if (size < 0)
+                if (entry.SizeKnown)
                 {
-                    statistics.Partial++;
-                }
-                else
-                {
-                    pending.Sizes[baseIndex] = new(size, baseSequence);
+                    pending.Sizes[baseIndex] = new(entry.Size, baseSequence);
                 }
             }
 

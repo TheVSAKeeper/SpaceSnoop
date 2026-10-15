@@ -193,6 +193,55 @@ public class MftLinksTests
     }
 
     [Test]
+    public void Исключённое_системное_поддерево_не_считается_потерей_пользовательских_файлов()
+    {
+        var table = Table();
+        table.Entries[11] = Folder(name: "$Extend", parent: Root, parentSequence: 1, sequence: 11);
+        table.Entries[24] = Folder(name: "$RmMetadata", parent: 11, parentSequence: 11, sequence: 2);
+        table.Entries[File] = Leaf(name: "$TxfLog", parent: 24, parentSequence: 2, size: 700);
+        table.Entries[40] = Leaf(name: "пользовательский.txt", parent: Target, parentSequence: 7, size: 100);
+
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.Rehome(table, Root, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[File].Exists, Is.True);
+            Assert.That(table.Statistics.Detached, Is.Zero);
+            Assert.That(table.Statistics.OrphanFiles, Is.Zero);
+            Assert.That(table.Statistics.OrphanBytes, Is.Zero);
+            Assert.That(links.NextSibling[11], Is.EqualTo(-1));
+            Assert.That(links.FirstChild[Root], Is.EqualTo(Target));
+            Assert.That(links.NextSibling[Target], Is.EqualTo(Outside));
+            Assert.That(links.NextSibling[Outside], Is.EqualTo(-1));
+            Assert.That(links.FirstChild[Target], Is.EqualTo(40));
+        }
+    }
+
+    [Test]
+    public void Недостижимый_обычный_каталог_не_маскируется_системным_поддеревом()
+    {
+        var table = Table();
+        table.Entries[11] = Folder(name: "$Extend", parent: Root, parentSequence: 1, sequence: 11);
+        table.Entries[24] = Leaf(name: "$Quota", parent: 11, parentSequence: 11, size: 200);
+        table.Entries[40] = Folder(name: "оторванный", parent: 63, parentSequence: 1, sequence: 5);
+        table.Entries[41] = Leaf(name: "потерянный.bin", parent: 40, parentSequence: 5, size: 700);
+
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[24].Exists, Is.True);
+            Assert.That(table.Entries[41].Exists, Is.False);
+            Assert.That(table.Statistics.Detached, Is.EqualTo(2));
+            Assert.That(table.Statistics.OrphanFiles, Is.EqualTo(1));
+            Assert.That(table.Statistics.OrphanBytes, Is.EqualTo(700));
+        }
+    }
+
+    [Test]
     public void Запись_корня_не_каталог_отменяет_скан()
     {
         var table = Table();
