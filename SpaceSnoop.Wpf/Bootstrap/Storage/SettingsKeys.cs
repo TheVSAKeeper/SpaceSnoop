@@ -82,6 +82,9 @@ public static class SettingsKeys
 
     public const string ScheduleProfiles = "wpf.schedule.profiles";
 
+    public const string DeveloperProjectRoots = "wpf.developer.project_roots";
+    public const string DeveloperCustomOutputs = "wpf.developer.custom_outputs";
+
     public const string BatchSource = "wpf.batch.source";
     public const string BatchDest = "wpf.batch.dest";
     public const string BatchMode = "wpf.batch.mode";

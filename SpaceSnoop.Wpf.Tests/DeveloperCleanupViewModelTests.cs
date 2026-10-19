@@ -3,6 +3,7 @@ using SpaceSnoop.Core.Cleanup;
 using KeepShell.Services;
 using KeepShell.Services.Modal;
 using KeepShell.Services.Platform;
+using KeepShell.Testing;
 using SpaceSnoop.Wpf.ViewModels.Cleanup;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 
@@ -53,10 +54,19 @@ public sealed class DeveloperCleanupViewModelTests
         CreateProjects(), CreateWorkloads());
 
     private static ProjectCleanupViewModel CreateProjects() => new(new ProjectCleanupService(), new NoopDialogs(),
-        new FakeFilePicker(), new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<ProjectCleanupViewModel>.Instance);
+        new FakeFilePicker(), new FakeShellLauncher(), new FakeUiDispatcher(), new MemorySettings(), NullLogger<ProjectCleanupViewModel>.Instance);
 
     private WorkloadCleanupViewModel CreateWorkloads() => new(new WorkloadCleanupService(_root), new NoopDialogs(),
         new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance);
+
+    [Test]
+    public void Статус_проекта_остаётся_в_родительской_строке_после_завершения_поиска()
+    {
+        var vm = Create();
+        vm.Projects.StatusText = "Поиск завершён. Проверьте пути и выберите каталоги.";
+        vm.SelectedAreaIndex = 1;
+        Assert.That(vm.StatusCaption, Is.EqualTo(vm.Projects.StatusText));
+    }
 
     [Test]
     public async Task После_замера_выбраны_только_HTTP_и_plugins()

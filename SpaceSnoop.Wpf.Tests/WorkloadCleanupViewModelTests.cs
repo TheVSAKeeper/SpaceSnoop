@@ -1,5 +1,6 @@
 ﻿using KeepShell.Services;
 using KeepShell.Services.Modal;
+using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Wpf.ViewModels.Cleanup;
@@ -149,7 +150,7 @@ public sealed class WorkloadCleanupViewModelTests
         var workload = new WorkloadCleanupViewModel(CreateService(), dialogs, new FakeShellLauncher(),
             new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance);
         var projects = new ProjectCleanupViewModel(new ProjectCleanupService(), new NoopDialogs(), new FakeFilePicker(),
-            new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<ProjectCleanupViewModel>.Instance);
+            new FakeShellLauncher(), new FakeUiDispatcher(), new MemorySettings(), NullLogger<ProjectCleanupViewModel>.Instance);
         var parent = new DeveloperCleanupViewModel(new NuGetCleanupService(), new NoopDialogs(), new FakeUiDispatcher(),
             NullLogger<DeveloperCleanupViewModel>.Instance, projects, workload);
         parent.SelectedAreaIndex = 2;

@@ -32,6 +32,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     [NotifyPropertyChangedFor(nameof(IsProjectsActive))]
     [NotifyPropertyChangedFor(nameof(IsWorkloadsActive))]
     [NotifyPropertyChangedFor(nameof(RefreshTooltip))]
+    [NotifyPropertyChangedFor(nameof(StatusCaption))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     private int _selectedAreaIndex;
 
@@ -59,7 +60,6 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             OnPropertyChanged(nameof(StatusCaption));
             OnPropertyChanged(nameof(CanClean));
             OnPropertyChanged(nameof(CancelCommand));
-            OnPropertyChanged(nameof(StatusCaption));
             RefreshCommand.NotifyCanExecuteChanged();
             CleanCommand.NotifyCanExecuteChanged();
             SelectRecommendedCommand.NotifyCanExecuteChanged();
@@ -98,7 +98,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     public string PageDescription => "Кэши NuGet, артефакты проектов и workloads .NET. SDK, Runtime и инструменты сохраняются.";
     public string? RefreshTooltip => IsProjectsActive ? "Повторить поиск в выбранном каталоге проектов"
         : IsWorkloadsActive ? "Определить активный SDK и workloads заново" : "Определить пути NuGet и измерить кэши заново";
-    public string? StatusCaption => Projects.IsBusy ? Projects.StatusText : Workloads.IsBusy ? Workloads.StatusText
+    public string? StatusCaption => Projects.IsBusy || IsProjectsActive ? Projects.StatusText : Workloads.IsBusy ? Workloads.StatusText
         : IsWorkloadsActive ? Workloads.StatusText : StatusText;
     public bool IsIdle => !IsBusy;
     public bool IsIndeterminate => true;

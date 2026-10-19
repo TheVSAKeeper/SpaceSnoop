@@ -42,7 +42,7 @@ public sealed class ProjectCleanupTests
     }
 
     private Task<CleanupReport> Clean(ProjectCleanupPlan plan, params ProjectArtifactKind[] kinds) =>
-        _service.CleanAsync(plan, plan.Artifacts.Where(x => kinds.Contains(x.Kind)).Select(x => x.Path).ToArray(), null, default);
+        _service.CleanAsync(plan, plan.Artifacts.Where(x => kinds.Contains(x.Kind)).Select(x => x.Id).ToArray(), null, default);
 
     [Test]
     public async Task Finds_only_project_outputs_and_separates_nested_results()
@@ -241,6 +241,229 @@ public sealed class ProjectCleanupTests
         {
             foreach (var handle in handles) { handle.Dispose(); }
         }
+    }
+
+    [Test]
+    public async Task Overlapping_roots_are_scanned_once_and_grouped_by_project()
+    {
+        Write("a/a.csproj");
+        Write("a/bin/a.dll");
+        Write("b/b.fsproj");
+        Write("b/obj/b.dll");
+        var plan = await _service.ScanAsync([Path.Combine(_root, "a"), _root, Path.Combine(_root, "b"), _root], [], default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Roots, Is.EqualTo(new[] { _root }));
+            Assert.That(plan.Artifacts.Sum(x => x.Files), Is.EqualTo(2));
+            Assert.That(plan.Artifacts.Select(x => x.ProjectDirectory),
+                Is.EquivalentTo(new[] { Path.Combine(_root, "a"), Path.Combine(_root, "b") }));
+        });
+    }
+
+    [Test]
+    public async Task Every_root_identity_is_checked_before_any_selected_target_is_moved()
+    {
+        Write("a/a.csproj");
+        var first = Write("a/bin/a.dll");
+        Write("b/b.csproj");
+        Write("b/bin/b.dll");
+        var secondRoot = Path.Combine(_root, "b");
+        var plan = await _service.ScanAsync([Path.Combine(_root, "a"), secondRoot], [], default);
+        Directory.Move(secondRoot, secondRoot + "-original");
+        Directory.CreateDirectory(secondRoot);
+        var report = await _service.CleanAsync(plan, [plan.Artifacts.Single(x => x.ProjectDirectory.EndsWith("a")).Id], null, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors.Any(x => x.Contains("корень заменён")), Is.True);
+            Assert.That(File.Exists(first), Is.True);
+            Assert.That(_recycled, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Standalone_coverage_has_distinct_selection_and_never_double_counts_build_or_test_results()
+    {
+        Write("app.csproj");
+        var rootCoverage = Write("coverage.cobertura.xml");
+        var binCoverage = Write("bin/coverage.json");
+        var assembly = Write("bin/app.dll");
+        var testCoverage = Write("TestResults/coverage.xml");
+        var note = Write("notes.xml");
+        var plan = await _service.ScanAsync(_root, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Artifacts.Count(x => x.Kind == ProjectArtifactKind.Coverage), Is.EqualTo(2));
+            Assert.That(plan.Artifacts.Sum(x => x.Files), Is.EqualTo(4));
+            Assert.That(plan.Artifacts.SelectMany(x => x.Contents).Select(x => x.Path).Distinct().Count(), Is.EqualTo(4));
+            Assert.That(plan.Artifacts.Select(x => x.Id).Distinct().Count(), Is.EqualTo(4));
+        });
+        var report = await Clean(plan, ProjectArtifactKind.Coverage);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.Deleted, Is.EqualTo(2));
+            Assert.That(File.Exists(rootCoverage) || File.Exists(binCoverage), Is.False);
+            Assert.That(File.Exists(assembly) && File.Exists(testCoverage) && File.Exists(note), Is.True);
+            Assert.That(_recycled.All(path => path.StartsWith(_root + Path.DirectorySeparatorChar, StringComparison.Ordinal)), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task Explicit_custom_output_can_be_the_only_root_and_new_files_stay_out_of_the_recycle_batch()
+    {
+        var file = Write("output/data.bin");
+        var output = Path.GetDirectoryName(file)!;
+        var plan = await _service.ScanAsync([], [output, output], default);
+        var newFile = Write("output/new.bin");
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.CustomOutputs, Is.EqualTo(new[] { output }));
+            Assert.That(plan.Artifacts.Single().Kind, Is.EqualTo(ProjectArtifactKind.CustomOutput));
+            Assert.That(plan.Artifacts.Single().Contents.Single().Path, Is.EqualTo(Path.GetFullPath(file)));
+        });
+        var report = await Clean(plan, ProjectArtifactKind.CustomOutput);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(File.Exists(file), Is.False);
+            Assert.That(File.Exists(newFile), Is.True);
+            Assert.That(_recycled.Single(), Does.StartWith(output + Path.DirectorySeparatorChar));
+        });
+    }
+
+    [Test]
+    public async Task Custom_output_inside_project_is_not_scanned_twice_and_coverage_stays_separate()
+    {
+        Write("app.csproj");
+        Write("coverage.xml");
+        Write("bin/app.dll");
+        var custom = Write("build-output/data.bin");
+        var coverage = Write("build-output/coverage.json");
+        var plan = await _service.ScanAsync([_root], [Path.GetDirectoryName(custom)!], default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Errors, Is.Empty);
+            Assert.That(plan.Artifacts.Sum(x => x.Files), Is.EqualTo(4));
+            Assert.That(plan.Artifacts.SelectMany(x => x.Contents).Select(x => x.Path).Distinct().Count(), Is.EqualTo(4));
+        });
+        var report = await Clean(plan, ProjectArtifactKind.CustomOutput);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(File.Exists(custom), Is.False);
+            Assert.That(File.Exists(coverage), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task Custom_output_with_project_sources_is_not_available_for_cleanup()
+    {
+        Write("output/project.csproj");
+        var file = Write("output/data.bin");
+        var plan = await _service.ScanAsync([], [Path.GetDirectoryName(file)!], default);
+        Assert.That(plan.Artifacts.Single().CanClean, Is.False);
+        var report = await Clean(plan, ProjectArtifactKind.CustomOutput);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Not.Empty);
+            Assert.That(File.Exists(file), Is.True);
+            Assert.That(_recycled, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Custom_parent_of_search_root_is_rejected_without_hiding_standard_artifacts()
+    {
+        Write("app/app.csproj");
+        Write("app/bin/app.dll");
+        var plan = await _service.ScanAsync([Path.Combine(_root, "app")], [_root], default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Errors.Any(x => x.Contains("содержит корень поиска")), Is.True);
+            Assert.That(plan.Artifacts.Single().Kind, Is.EqualTo(ProjectArtifactKind.Bin));
+            Assert.That(plan.Artifacts.Single().Files, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task Legacy_path_selection_cannot_select_both_build_files_and_coverage_with_one_ambiguous_path()
+    {
+        Write("app.csproj");
+        var assembly = Write("bin/app.dll");
+        var coverage = Write("bin/coverage.json");
+        var plan = await _service.ScanAsync(_root, default);
+        var report = await _service.CleanAsync(plan, [Path.GetDirectoryName(assembly)!], null, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(report.Errors, Is.Not.Empty);
+            Assert.That(File.Exists(assembly) && File.Exists(coverage), Is.True);
+            Assert.That(_recycled, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Nested_report_keeps_its_nearest_project_group()
+    {
+        Write("app/project.vbproj");
+        var report = Write("app/reports/run/lcov.info");
+        var plan = await _service.ScanAsync(_root, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Artifacts.Single().ProjectDirectory, Is.EqualTo(Path.Combine(_root, "app")));
+            Assert.That(plan.Artifacts.Single().Contents.Single().Path, Is.EqualTo(Path.GetFullPath(report)));
+        });
+    }
+
+    [Test]
+    public async Task Coverage_outside_application_directory_is_not_blocked_by_its_group_directory()
+    {
+        Write("app.csproj");
+        Write("coverage.xml");
+        Write("bin/app.dll");
+        Write("bin/coverage.json");
+        var plan = await _service.ScanAsync(_root, default);
+        var appDirectory = Path.Combine(_root, "bin");
+        Assert.Multiple(() =>
+        {
+            Assert.That(ProjectCleanupService.ContainsApplicationFiles(
+                plan.Artifacts.Single(x => x.Kind == ProjectArtifactKind.Coverage && x.Path == _root), appDirectory), Is.False);
+            Assert.That(plan.Artifacts.Where(x => x.Path == appDirectory)
+                .All(x => ProjectCleanupService.ContainsApplicationFiles(x, appDirectory)), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task Custom_output_containing_running_application_is_not_measured()
+    {
+        var parent = Directory.GetParent(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory))!.FullName;
+        var plan = await _service.ScanAsync([], [parent], default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(plan.Artifacts, Is.Empty);
+            Assert.That(plan.Errors.Any(x => x.Contains("содержит запущенное приложение")), Is.True);
+        });
+    }
+
+    [Test, NonParallelizable]
+    public async Task Nested_dotnet_installation_disables_custom_output_cleanup()
+    {
+        var file = Write("output/dotnet/sdk/version.dat");
+        Write("output/result.bin");
+        var previous = Environment.GetEnvironmentVariable("DOTNET_ROOT");
+        try
+        {
+            Environment.SetEnvironmentVariable("DOTNET_ROOT", Path.Combine(_root, "output", "dotnet"));
+            var plan = await _service.ScanAsync([], [Path.Combine(_root, "output")], default);
+            Assert.That(plan.Artifacts.Single().CanClean, Is.False);
+            var report = await Clean(plan, ProjectArtifactKind.CustomOutput);
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.Errors, Is.Not.Empty);
+                Assert.That(File.Exists(file), Is.True);
+                Assert.That(_recycled, Is.Empty);
+            });
+        }
+        finally { Environment.SetEnvironmentVariable("DOTNET_ROOT", previous); }
     }
 
     private sealed class CancelProgress(CancellationTokenSource cancellation) : IProgress<OperationProgress>

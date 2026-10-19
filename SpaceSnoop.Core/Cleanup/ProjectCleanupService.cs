@@ -16,18 +16,83 @@ public sealed class ProjectCleanupService
 
     internal ProjectCleanupService(Action<string> recycle) => _recycle = recycle;
 
-    public Task<ProjectCleanupPlan> ScanAsync(string root, CancellationToken token) => Task.Run(() =>
+    public Task<ProjectCleanupPlan> ScanAsync(string root, CancellationToken token) => ScanAsync([root], [], token);
+
+    public Task<ProjectCleanupPlan> ScanAsync(IReadOnlyCollection<string> roots, IReadOnlyCollection<string> customOutputs,
+        CancellationToken token)
     {
-        root = Normalize(root);
-        ValidateRoot(root);
-        using var lease = CacheFileAccess.LockDirectory(root);
+        ArgumentNullException.ThrowIfNull(roots);
+        ArgumentNullException.ThrowIfNull(customOutputs);
+        var rootSnapshot = roots.ToArray();
+        var outputSnapshot = customOutputs.ToArray();
+        return Task.Run(() => Scan(rootSnapshot, outputSnapshot, token), token);
+    }
+
+    private ProjectCleanupPlan Scan(string[] rootSnapshot, string[] outputSnapshot, CancellationToken token)
+    {
+        var roots = CollapseRoots(rootSnapshot);
+        var outputs = CollapseRoots(outputSnapshot);
+        if (roots.Count == 0 && outputs.Count == 0) { throw new IOException("Добавьте хотя бы один корень проектов или output-каталог."); }
         var artifacts = new List<ProjectArtifactScan>();
         var errors = new List<string>();
-        var pending = new Stack<string>();
-        pending.Push(root);
-        while (pending.TryPop(out var directory))
+        var leases = new List<CacheFileAccess.DirectoryLease>();
+        try
+        {
+            foreach (var path in roots.Concat(outputs).Distinct(StringComparer.OrdinalIgnoreCase))
+            {
+                token.ThrowIfCancellationRequested();
+                leases.Add(CacheFileAccess.LockDirectory(path));
+            }
+            var scanOutputs = outputs.Where(output => !roots.Any(root => Inside(root, output))).ToArray();
+            foreach (var output in outputs.Except(scanOutputs, StringComparer.OrdinalIgnoreCase))
+            {
+                AddError(errors, $"«{output}»: output-каталог содержит корень поиска. Выберите отдельный каталог результатов.");
+            }
+            foreach (var root in roots) { Discover(root, scanOutputs, artifacts, errors, token); }
+            foreach (var output in scanOutputs)
+            {
+                token.ThrowIfCancellationRequested();
+                if (Inside(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory), output))
+                {
+                    AddError(errors, $"«{output}»: output-каталог содержит запущенное приложение.");
+                    continue;
+                }
+                if (Excluded(Path.GetFileName(output)) || output.Split(Path.DirectorySeparatorChar)
+                    .Any(segment => segment.ToLowerInvariant() is ".git" or ".hg" or ".svn"
+                        || segment.StartsWith(".SpaceSnoop-", StringComparison.OrdinalIgnoreCase)))
+                {
+                    AddError(errors, $"«{output}»: служебный каталог не является output-каталогом.");
+                    continue;
+                }
+                if (artifacts.Any(x => x.Kind == ProjectArtifactKind.Coverage
+                    ? x.Entries.Any(file => Inside(file.Path, output))
+                    : Inside(output, x.Path) || Inside(x.Path, output)))
+                {
+                    AddError(errors, $"«{output}»: output-каталог пересекается с уже найденной целью. Используйте отдельные строки найденных артефактов.");
+                    continue;
+                }
+                Measure(output, ProjectArtifactKind.CustomOutput, output, artifacts, token);
+            }
+            return new(_owner, roots.AsReadOnly(), outputs.AsReadOnly(),
+                leases.Select(x => x.Stamp).ToList().AsReadOnly(),
+                artifacts.OrderBy(x => x.ProjectDirectory, StringComparer.Ordinal).ThenBy(x => x.Path, StringComparer.Ordinal).ToList().AsReadOnly(),
+                errors.AsReadOnly());
+        }
+        finally
+        {
+            for (var index = leases.Count - 1; index >= 0; index--) { leases[index].Dispose(); }
+        }
+    }
+
+    private static void Discover(string root, IReadOnlyCollection<string> customOutputs,
+        List<ProjectArtifactScan> artifacts, List<string> errors, CancellationToken token)
+    {
+        var pending = new Stack<(string Path, string? Project)>();
+        pending.Push((root, null));
+        while (pending.TryPop(out var next))
         {
             token.ThrowIfCancellationRequested();
+            var directory = next.Path;
             try
             {
                 using var current = CacheFileAccess.LockDirectory(directory);
@@ -37,6 +102,12 @@ public sealed class ProjectCleanupService
                 var solution = entries.Any(x => (x.Attributes & (FileAttributes.Directory | FileAttributes.ReparsePoint)) == 0
                     && (x.Extension.Equals(".sln", StringComparison.OrdinalIgnoreCase)
                         || x.Extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase)));
+                var projectDirectory = project || solution ? directory : next.Project;
+                if (projectDirectory is not null)
+                {
+                    var coverage = entries.Where(x => (x.Attributes & FileAttributes.Directory) == 0 && IsCoverage(x.Name)).ToArray();
+                    if (coverage.Length > 0) { MeasureCoverage(directory, projectDirectory, coverage, artifacts, token); }
+                }
                 foreach (var entry in entries.Where(x => (x.Attributes & FileAttributes.Directory) != 0))
                 {
                     token.ThrowIfCancellationRequested();
@@ -49,6 +120,7 @@ public sealed class ProjectCleanupService
                     {
                         continue;
                     }
+                    if (customOutputs.Any(output => Inside(entry.FullName, output))) { continue; }
 
                     var kind = Kind(entry.Name);
                     if (kind != ProjectArtifactKind.None)
@@ -56,11 +128,11 @@ public sealed class ProjectCleanupService
                         if ((project || (solution && kind is ProjectArtifactKind.TestResults or ProjectArtifactKind.Benchmarks))
                             && !Inside(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory), entry.FullName))
                         {
-                            Measure(entry.FullName, kind, artifacts, token);
+                            Measure(entry.FullName, kind, projectDirectory!, artifacts, token);
                         }
                         continue;
                     }
-                    pending.Push(entry.FullName);
+                    pending.Push((entry.FullName, projectDirectory));
                 }
             }
             catch (Exception exception) when (FileError(exception))
@@ -69,9 +141,7 @@ public sealed class ProjectCleanupService
             }
         }
 
-        return new ProjectCleanupPlan(_owner, root, lease.Stamp,
-            artifacts.OrderBy(x => x.Path, StringComparer.Ordinal).ToList().AsReadOnly(), errors.AsReadOnly());
-    }, token);
+    }
 
     public Task<CleanupReport> CleanAsync(ProjectCleanupPlan plan, IReadOnlyCollection<string> selected,
         IProgress<OperationProgress>? progress, CancellationToken token)
@@ -84,7 +154,9 @@ public sealed class ProjectCleanupService
             return Task.FromResult(new CleanupReport(0, 0, 0, ["План устарел, уже использован или принадлежит другому сеансу. Повторите поиск."]));
         }
 
-        var targets = plan.Artifacts.Where(x => selected.Contains(x.Path, StringComparer.Ordinal)).ToArray();
+        var targets = plan.Artifacts.Where(x => selected.Contains(x.Id, StringComparer.Ordinal)
+            || (selected.Contains(x.Path, StringComparer.Ordinal)
+                && plan.Artifacts.Count(other => string.Equals(other.Path, x.Path, StringComparison.Ordinal)) == 1)).ToArray();
         if (targets.Length == 0 || targets.Length != selected.Distinct(StringComparer.Ordinal).Count()
             || targets.Any(x => !x.CanClean))
         {
@@ -109,13 +181,18 @@ public sealed class ProjectCleanupService
         var deleted = 0;
         var skipped = 0;
         var errors = new List<string>();
+        var leases = new List<CacheFileAccess.DirectoryLease>();
         try
         {
-            ValidateRoot(plan.Root);
-            using var rootLease = CacheFileAccess.LockDirectory(plan.Root);
-            if (!SameDirectory(rootLease.Stamp, plan.RootStamp))
+            foreach (var stamp in plan.RootStamps)
             {
-                throw new IOException("Выбранный корень заменён после поиска. Повторите поиск.");
+                ValidateRoot(stamp.Path);
+                var lease = CacheFileAccess.LockDirectory(stamp.Path);
+                leases.Add(lease);
+                if (!SameDirectory(lease.Stamp, stamp))
+                {
+                    throw new IOException("Выбранный корень заменён после поиска. Повторите поиск.");
+                }
             }
 
             foreach (var target in targets)
@@ -127,8 +204,9 @@ public sealed class ProjectCleanupService
                 string? staging = null;
                 try
                 {
-                    if (!Inside(target.Path, plan.Root) || Protected(target.Path)
-                        || Inside(Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory), target.Path))
+                    if (!plan.RootStamps.Any(root => Inside(target.Path, root.Path)) || Protected(target.Path)
+                        || target.Entries.Any(file => Protected(file.Path))
+                        || ContainsApplicationFiles(target, Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)))
                     {
                         throw new IOException("Каталог находится за границами выбранной области или защищён.");
                     }
@@ -138,7 +216,9 @@ public sealed class ProjectCleanupService
                         throw new IOException($"«{target.Path}»: каталог заменён после поиска.");
                     }
 
-                    staging = Path.Combine(Path.GetDirectoryName(target.Path)!, $".SpaceSnoop-{Path.GetFileName(target.Path)}-{Guid.NewGuid():N}");
+                    var stagingParent = plan.RootStamps.Any(root => string.Equals(root.Path, target.Path, StringComparison.OrdinalIgnoreCase))
+                        ? target.Path : Path.GetDirectoryName(target.Path)!;
+                    staging = Path.Combine(stagingParent, $".SpaceSnoop-{Path.GetFileName(target.Path)}-{Guid.NewGuid():N}");
                     Directory.CreateDirectory(staging);
                     createdDirectories.Add(staging);
                     using (var stagingLease = CacheFileAccess.LockDirectory(staging))
@@ -263,12 +343,18 @@ public sealed class ProjectCleanupService
         {
             AddError(errors, exception.Message);
         }
+        finally
+        {
+            for (var index = leases.Count - 1; index >= 0; index--) { leases[index].Dispose(); }
+        }
         return new(bytes, deleted, skipped, errors.AsReadOnly());
     }
 
-    private static void Measure(string path, ProjectArtifactKind kind, List<ProjectArtifactScan> artifacts, CancellationToken token)
+    private static void Measure(string path, ProjectArtifactKind kind, string projectDirectory,
+        List<ProjectArtifactScan> artifacts, CancellationToken token)
     {
         var files = new List<CacheFileStamp>();
+        var coverage = new List<CacheFileStamp>();
         var errors = new List<string>();
         CacheFileStamp root = default;
         var directories = new Stack<string>();
@@ -284,18 +370,18 @@ public sealed class ProjectCleanupService
                 foreach (var entry in new DirectoryInfo(current).EnumerateFileSystemInfos("*", Entries))
                 {
                     token.ThrowIfCancellationRequested();
-                    if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 || Excluded(entry.Name)
+                    if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 || Excluded(entry.Name) || Protected(entry.FullName)
                         || IsProject(entry.Extension) || entry.Extension.Equals(".sln", StringComparison.OrdinalIgnoreCase)
                         || entry.Extension.Equals(".slnx", StringComparison.OrdinalIgnoreCase))
                     {
-                        throw new IOException($"«{entry.FullName}»: ссылка или вложенный проект; каталог недоступен для очистки.");
+                        throw new IOException($"«{entry.FullName}»: ссылка, защищённый путь или вложенный проект; каталог недоступен для очистки.");
                     }
                     if ((entry.Attributes & FileAttributes.Directory) != 0)
                     {
                         var nestedKind = Kind(entry.Name);
                         if (nestedKind is ProjectArtifactKind.TestResults or ProjectArtifactKind.Benchmarks)
                         {
-                            Measure(entry.FullName, nestedKind, artifacts, token);
+                            Measure(entry.FullName, nestedKind, projectDirectory, artifacts, token);
                         }
                         else
                         {
@@ -305,7 +391,9 @@ public sealed class ProjectCleanupService
                     else
                     {
                         using var handle = CacheFileAccess.OpenFile(entry.FullName, false);
-                        files.Add(CacheFileAccess.Read(handle, entry.FullName));
+                        var stamp = CacheFileAccess.Read(handle, entry.FullName);
+                        if (kind != ProjectArtifactKind.TestResults && IsCoverage(entry.Name)) { coverage.Add(stamp); }
+                        else { files.Add(stamp); }
                     }
                 }
             }
@@ -314,8 +402,50 @@ public sealed class ProjectCleanupService
         {
             AddError(errors, exception.Message);
         }
-        artifacts.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly()));
+        artifacts.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly(), projectDirectory));
+        if (coverage.Count > 0)
+        {
+            artifacts.Add(new(ProjectArtifactKind.Coverage, path, root, coverage.AsReadOnly(), errors.AsReadOnly(), projectDirectory));
+        }
     }
+
+    private static void MeasureCoverage(string path, string projectDirectory, FileSystemInfo[] entries,
+        List<ProjectArtifactScan> artifacts, CancellationToken token)
+    {
+        using var lease = CacheFileAccess.LockDirectory(path);
+        var files = new List<CacheFileStamp>();
+        var errors = new List<string>();
+        foreach (var entry in entries)
+        {
+            token.ThrowIfCancellationRequested();
+            try
+            {
+                using var handle = CacheFileAccess.OpenFile(entry.FullName, false);
+                files.Add(CacheFileAccess.Read(handle, entry.FullName));
+            }
+            catch (Exception exception) when (FileError(exception)) { AddError(errors, exception.Message); }
+        }
+        artifacts.Add(new(ProjectArtifactKind.Coverage, path, lease.Stamp, files.AsReadOnly(), errors.AsReadOnly(), projectDirectory));
+    }
+
+    private static List<string> CollapseRoots(IEnumerable<string> paths)
+    {
+        var result = new List<string>();
+        foreach (var path in paths.Select(Normalize).Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x.Length).ThenBy(x => x, StringComparer.OrdinalIgnoreCase))
+        {
+            ValidateRoot(path);
+            if (!result.Any(root => Inside(path, root))) { result.Add(path); }
+        }
+        return result;
+    }
+
+    private static bool IsCoverage(string name) => name.Equals("lcov.info", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".cobertura.xml", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".opencover.xml", StringComparison.OrdinalIgnoreCase)
+        || name.EndsWith(".coverage", StringComparison.OrdinalIgnoreCase)
+        || (name.StartsWith("coverage", StringComparison.OrdinalIgnoreCase)
+            && Path.GetExtension(name).ToLowerInvariant() is ".xml" or ".json" or ".info" or ".lcov");
 
     private static string Normalize(string path)
     {
@@ -335,6 +465,11 @@ public sealed class ProjectCleanupService
             throw new IOException("Выберите отдельный каталог проектов, а не диск, домашний или системный каталог.");
         }
     }
+
+    internal static bool ContainsApplicationFiles(ProjectArtifactScan target, string appDirectory) =>
+        Inside(target.Path, appDirectory)
+        || (target.Kind != ProjectArtifactKind.Coverage && Inside(appDirectory, target.Path))
+        || target.Entries.Any(file => Inside(file.Path, appDirectory));
 
     private static bool Protected(string path)
     {

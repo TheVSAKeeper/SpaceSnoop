@@ -7,4 +7,6 @@ public enum ProjectArtifactKind
     Obj = 2,
     TestResults = 3,
     Benchmarks = 4,
+    Coverage = 5,
+    CustomOutput = 6,
 }

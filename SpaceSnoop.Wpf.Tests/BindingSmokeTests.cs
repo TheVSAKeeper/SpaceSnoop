@@ -5,6 +5,7 @@ using KeepShell.Testing;
 using KeepShell.Views.Controls;
 using Microsoft.Extensions.DependencyInjection;
 using SpaceSnoop.Core;
+using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Core.Duplicates;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Gallery;
@@ -22,6 +23,7 @@ using SpaceSnoop.Wpf.Views.Cleanup;
 using SpaceSnoop.Wpf.Views.Dialogs;
 using SpaceSnoop.Wpf.Views.Scan;
 using SpaceSnoop.Wpf.Views.Settings;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Automation.Peers;
@@ -242,10 +244,27 @@ public class BindingSmokeTests
             Settle();
             var view = Descendant<ProjectCleanupView>(_window)!;
             Assert.That(view.IsVisible, Is.True);
-            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly).ToArray();
-            Assert.That(paths.Select(x => x.Text), Is.EquivalentTo(page.Development.Projects.Artifacts.Select(x => x.Path)));
-            foreach (var path in paths)
+            var projects = page.Development.Projects;
+            Assert.That(((PropertyGroupDescription)projects.RowsView.GroupDescriptions.Single()).PropertyName,
+                Is.EqualTo(nameof(ProjectArtifactViewModel.ProjectDirectory)));
+            Assert.That(projects.RowsView.Groups!.Count, Is.GreaterThan(1));
+            var appRows = projects.Artifacts.Where(x => x.ProjectDirectory == @"C:\Sources\Projects\App").ToArray();
+            Assert.That(appRows.Select(x => x.ProjectBytes), Is.All.EqualTo(appRows.Sum(x => x.Bytes)));
+            Assert.That(projects.RowsView.SortDescriptions[0].PropertyName, Is.EqualTo(nameof(ProjectArtifactViewModel.ProjectBytes)));
+            Assert.That(projects.RowsView.SortDescriptions[0].Direction, Is.EqualTo(ListSortDirection.Descending));
+            projects.LargestFirst = false;
+            Assert.That(projects.RowsView.SortDescriptions[0].Direction, Is.EqualTo(ListSortDirection.Ascending));
+            projects.LargestFirst = true;
+            var list = Descendants<ListBox>(view).Single(x => x.Name == "ProjectArtifacts");
+            Assert.That(list.Items.Count, Is.EqualTo(projects.Artifacts.Count));
+            foreach (var artifact in projects.Artifacts)
             {
+                list.ScrollIntoView(artifact);
+                Settle();
+                var container = Descendants<ListBoxItem>(list).FirstOrDefault(x => ReferenceEquals(x.DataContext, artifact));
+                Assert.That(container, Is.Not.Null);
+                var path = Descendants<TextBox>(container!).Single(x => AutomationProperties.GetName(x) == "Путь проектных артефактов");
+                Assert.That(path.Text, Is.EqualTo(artifact.Path));
                 path.BringIntoView();
                 Settle();
                 Assert.That(path.IsVisible && path.IsEnabled && path.Focusable && path.IsTabStop, Is.True);
@@ -253,6 +272,24 @@ public class BindingSmokeTests
                 Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
                 Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
             }
+            var preview = Descendants<Expander>(list).First();
+            preview.IsExpanded = true;
+            Settle();
+            var previewList = Descendants<ListBox>(preview).First();
+            previewList.ScrollIntoView(previewList.Items[0]);
+            Settle();
+            var previewPath = Descendants<TextBox>(previewList).FirstOrDefault(x => AutomationProperties.GetName(x) == "Путь файла в снимке артефактов"
+                && x.Text.Length > 0);
+            Assert.That(previewPath, Is.Not.Null);
+            previewPath!.BringIntoView();
+            Settle();
+            var previewBounds = previewPath.TransformToAncestor(view).TransformBounds(new(previewPath.RenderSize));
+            Assert.That(previewBounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            Assert.That(Descendants<TextBlock>(view).Any(x => x.Text.StartsWith("C:\\Sources\\Projects", StringComparison.Ordinal)), Is.True);
+            projects.SearchText = "coverage";
+            Assert.That(projects.RowsView.Cast<ProjectArtifactViewModel>().Select(x => x.Kind),
+                Is.EquivalentTo(new[] { ProjectArtifactKind.Coverage }));
+            projects.SearchText = string.Empty;
             Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
         }
         finally
