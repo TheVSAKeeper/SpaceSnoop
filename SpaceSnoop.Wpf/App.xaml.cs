@@ -247,6 +247,7 @@ public partial class App : Application
         services.AddSingleton<DockerService>();
         services.AddSingleton<ArchiveService>();
         services.AddSingleton<CleanupService>();
+        services.AddSingleton<NuGetCleanupService>();
         services.AddSingleton<CompareDirectoriesUseCase>();
         services.AddSingleton<ExecuteSyncUseCase>();
 
@@ -326,6 +327,7 @@ public partial class App : Application
         services.AddSingleton<CleanupViewModel>();
         services.AddSingleton<ICleanupAutomation>(static provider => provider.GetRequiredService<CleanupViewModel>());
         services.AddSingleton<CleanupPageViewModel>();
+        services.AddSingleton<DeveloperCleanupViewModel>();
         services.AddSingleton<ChatViewModel>();
         services.AddSingleton<LogsViewModel>();
         services.AddSingleton<AboutViewModel>();

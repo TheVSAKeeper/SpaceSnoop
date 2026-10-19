@@ -1,0 +1,159 @@
+﻿<UserControl x:Class="SpaceSnoop.Wpf.Views.Cleanup.DeveloperCleanupView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Cleanup"
+             xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance vm:DeveloperCleanupViewModel}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0">
+        <StackPanel>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10">
+                <WrapPanel>
+                    <Button Style="{StaticResource Button.Secondary}" Command="{Binding RefreshCommand}"
+                            ToolTip="{Binding RefreshTooltip}" MinHeight="{DynamicResource Control.Height.Default}"
+                            Padding="12,6" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RefreshCw}"
+                                                      Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,6,0" />
+                            <TextBlock Text="Замерить" />
+                        </StackPanel>
+                    </Button>
+                    <Button Content="Рекомендуемые" Style="{StaticResource Button.Ghost}"
+                            Command="{Binding SelectRecommendedCommand}"
+                            ToolTip="Выбрать только HTTP Cache и Plugins Cache" Padding="10,6" />
+                    <Button Content="Снять выбор" Style="{StaticResource Button.Ghost}"
+                            Command="{Binding ClearSelectionCommand}" Padding="10,6" />
+                </WrapPanel>
+            </Border>
+            <Border Style="{StaticResource Card}" Margin="0,0,0,10"
+                    Visibility="{Binding HasCaches, Converter={StaticResource BoolToVisibility}}">
+                <WrapPanel VerticalAlignment="Center">
+                    <StackPanel Margin="0,0,28,6">
+                        <TextBlock Text="Найдено" Style="{StaticResource Caption}" />
+                        <TextBlock Text="{Binding TotalText}" Style="{StaticResource StatValue}"
+                                   FontSize="{DynamicResource Font.Size.L}" />
+                    </StackPanel>
+                    <StackPanel Margin="0,0,28,6">
+                        <TextBlock Text="Выбрано" Style="{StaticResource Caption}" />
+                        <TextBlock Text="{Binding SelectedText}" FontSize="{DynamicResource Font.Size.L}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource StatValue}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasSelectedBytes}" Value="True">
+                                            <Setter Property="Foreground" Value="{DynamicResource Accent.Text}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding SelectionText}" Style="{StaticResource Caption}" />
+                    </StackPanel>
+                    <StackPanel VerticalAlignment="Center">
+                        <Button Style="{StaticResource Button.Base}" Command="{Binding CleanCommand}"
+                                HorizontalAlignment="Left" Padding="16,6" MinHeight="{DynamicResource Control.Height.Default}"
+                                ToolTip="Файлы удаляются безвозвратно, мимо корзины">
+                            <StackPanel Orientation="Horizontal">
+                                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
+                                                          Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,6,0"
+                                                          Foreground="{DynamicResource State.ErrorText}" />
+                                <TextBlock Text="Очистить выбранное" />
+                            </StackPanel>
+                        </Button>
+                        <TextBlock Text="Безвозвратно · с подтверждением" Style="{StaticResource Caption}" Margin="0,4,0,0" />
+                    </StackPanel>
+                </WrapPanel>
+            </Border>
+            <Border Style="{StaticResource Card.Inset}" Margin="0,0,0,10"
+                    Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel>
+                    <TextBlock Text="Результат очистки" Style="{StaticResource SectionTitle}" Margin="0,0,0,6" />
+                    <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" Foreground="{DynamicResource Fg.Primary}" />
+                    <TextBlock Text="Размер удалённых данных может отличаться от прироста свободного места на диске."
+                               TextWrapping="Wrap" Style="{StaticResource Caption}" Margin="0,6,0,0" />
+                </StackPanel>
+            </Border>
+            <Border Style="{StaticResource Card}">
+                <StackPanel>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Package}"
+                                                  Width="18" Height="18" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                  Foreground="{DynamicResource Fg.Muted}" />
+                        <TextBlock Grid.Column="1" Text=".NET · NuGet" Style="{StaticResource SectionTitle}" />
+                    </Grid>
+                    <TextBlock Text="Перед очисткой остановите restore, сборки и операции NuGet в IDE."
+                               Style="{StaticResource TextBlock.Subtle}" TextWrapping="Wrap" Margin="0,0,0,10" />
+                    <ItemsControl ItemsSource="{Binding Caches}" IsEnabled="{Binding IsIdle}" Grid.IsSharedSizeScope="True">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="{x:Type vm:NuGetCacheViewModel}">
+                                <Border Padding="0,12" BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" SharedSizeGroup="NuGetNumbers" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox IsChecked="{Binding IsSelected}" IsEnabled="{Binding CanSelect}"
+                                                  VerticalAlignment="Top" Margin="0,4,12,0" AutomationProperties.Name="{Binding Name}" />
+                                        <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <iconPacks:PackIconLucide Kind="{Binding IconKind}" Width="16" Height="16"
+                                                                          VerticalAlignment="Center" Margin="0,0,8,0"
+                                                                          Foreground="{DynamicResource Fg.Muted}" />
+                                                <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="Medium"
+                                                           Foreground="{DynamicResource Fg.Primary}" TextWrapping="Wrap" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding Summary}" Margin="0,4,0,0" TextWrapping="Wrap">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource TextBlock.Subtle}">
+                                                        <Setter Property="Foreground" Value="{DynamicResource State.WarningText}" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsRecommended}" Value="True">
+                                                                <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                            <Expander Style="{StaticResource Expander.Section}" Margin="-6,0,0,-6"
+                                                      AutomationProperties.Name="{Binding Name, StringFormat=Подробности: {0}}">
+                                                <Expander.Header>
+                                                    <TextBlock Text="Путь и подробности" Style="{StaticResource Caption}" ToolTip="{Binding Path}" />
+                                                </Expander.Header>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding Description}" TextWrapping="Wrap"
+                                                               Style="{StaticResource TextBlock.Subtle}" Margin="0,0,0,6" />
+                                                    <TextBox Text="{Binding Path, Mode=OneWay}" IsReadOnly="True"
+                                                             TextWrapping="Wrap" BorderThickness="0" Padding="0"
+                                                             Background="Transparent" MinHeight="0" AutomationProperties.Name="Путь кэша" />
+                                                </StackPanel>
+                                            </Expander>
+                                            <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                                       Foreground="{DynamicResource State.WarningText}"
+                                                       Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,0">
+                                            <TextBlock Text="{Binding SizeText}" Style="{StaticResource TextBlock.Mono}"
+                                                       TextAlignment="Right" Foreground="{DynamicResource Fg.Primary}" />
+                                            <TextBlock Text="{Binding FilesText}" Style="{StaticResource Caption}" TextAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding StatusText}" TextWrapping="Wrap" Style="{StaticResource TextBlock.Subtle}" Margin="0,10,0,0" />
+                </StackPanel>
+            </Border>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

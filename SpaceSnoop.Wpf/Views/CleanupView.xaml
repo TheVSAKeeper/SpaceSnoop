@@ -21,6 +21,7 @@
                  Style="{StaticResource ListBox.Segmented}"
                  ItemsSource="{Binding Sections}"
                  SelectedIndex="{Binding SelectedSectionIndex}"
+                 IsEnabled="{Binding CanSwitchSection}"
                  HorizontalAlignment="Left"
                  Margin="0,0,0,12"
                  AutomationProperties.Name="Раздел очистки" />
@@ -40,6 +41,8 @@
 
             <views:DockerView DataContext="{Binding Docker}"
                               Visibility="{Binding DataContext.IsDockerActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
+            <cleanup:DeveloperCleanupView DataContext="{Binding Development}"
+                                          Visibility="{Binding DataContext.IsDevelopmentActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
         </Grid>
     </Grid>
 </UserControl>

@@ -514,4 +514,10 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 2406, Level = LogLevel.Warning, Message = "Очистка: запрос агента не подтверждён ({Consent})")]
     public static partial void CleanupRunDeclined(this ILogger logger, string consent);
+
+    [LoggerMessage(EventId = 2407, Level = LogLevel.Error, Message = "Очистка NuGet: ошибка")]
+    public static partial void DeveloperCleanupFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 2408, Level = LogLevel.Information, Message = "Очистка NuGet: удалено {Deleted} файлов, {Bytes} Б данных, пропущено {Skipped}, отмена {Cancelled}")]
+    public static partial void DeveloperCleanupFinished(this ILogger logger, int deleted, long bytes, int skipped, bool cancelled);
 }

@@ -18,6 +18,7 @@ using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using SpaceSnoop.Wpf.Views;
+using SpaceSnoop.Wpf.Views.Cleanup;
 using SpaceSnoop.Wpf.Views.Dialogs;
 using SpaceSnoop.Wpf.Views.Scan;
 using SpaceSnoop.Wpf.Views.Settings;
@@ -143,6 +144,81 @@ public class BindingSmokeTests
             Assert.That(_shell.CurrentSectionKey, Is.EqualTo(SectionKey.Cleanup));
             Assert.That(_services.GetRequiredService<CleanupPageViewModel>().IsDockerActive, Is.True);
             Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+    }
+
+    [Test]
+    public void Раздел_разработки_показывает_четыре_кэша_без_потери_биндингов()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+        var development = _services.GetRequiredService<DeveloperCleanupViewModel>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        development.ShowForAutomation();
+        page.SelectedSectionIndex = 2;
+        try
+        {
+            Settle();
+            Assert.Multiple(() =>
+            {
+                Assert.That(page.IsDevelopmentActive, Is.True);
+                Assert.That(page.Sections.Count, Is.EqualTo(3));
+                Assert.That(development.Caches.Count, Is.EqualTo(4));
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+        }
+        finally
+        {
+            page.SelectedSectionIndex = 0;
+        }
+    }
+
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Раскрытые_пути_кэшей_доступны_для_выделения_и_помещаются_по_ширине(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<DeveloperCleanupView>(_window)!;
+            var details = Descendants<Expander>(view).ToArray();
+            Assert.That(details, Has.Length.EqualTo(4));
+            foreach (var detail in details)
+            {
+                detail.IsExpanded = true;
+            }
+
+            Settle();
+            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly).ToArray();
+            Assert.That(paths.Select(x => x.Text), Is.EquivalentTo(page.Development.Caches.Select(x => x.Path)));
+            foreach (var path in paths)
+            {
+                path.BringIntoView();
+                Settle();
+                Assert.That(path.Focusable && path.IsTabStop && path.IsEnabled && path.IsVisible, Is.True,
+                    "Полный путь не допускает фокуса и выделения текста.");
+                var bounds = path.TransformToAncestor(view).TransformBounds(new(path.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1), "Путь выходит за ширину страницы.");
+            }
+
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+        finally
+        {
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
         }
     }
 

@@ -8,57 +8,84 @@ namespace SpaceSnoop.Wpf.ViewModels.Cleanup;
 public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader, IPageRefresh, IPageStatus
 {
     [ObservableProperty]
-    private bool _isDockerActive;
+    private int _selectedSectionIndex;
 
-    public CleanupPageViewModel(CleanupViewModel windows, DockerViewModel docker)
+    public CleanupPageViewModel(CleanupViewModel windows, DockerViewModel docker, DeveloperCleanupViewModel development)
     {
         Windows = windows;
         Docker = docker;
+        Development = development;
 
         Windows.PropertyChanged += OnSectionChanged;
         Docker.PropertyChanged += OnSectionChanged;
+        Development.PropertyChanged += OnSectionChanged;
     }
 
     public CleanupViewModel Windows { get; }
 
     public DockerViewModel Docker { get; }
 
+    public DeveloperCleanupViewModel Development { get; }
+
     public IReadOnlyList<SegmentOption> Sections { get; } =
     [
         new(PackIconLucideKind.Trash2, "Windows", "Временные файлы, кэши и корзина"),
         new(PackIconLucideKind.Container, "Docker", "Образы, контейнеры, тома и кэш сборки"),
+        new(PackIconLucideKind.Wrench, "Разработка", "Кэши .NET и NuGet"),
     ];
 
-    public int SelectedSectionIndex
+    public bool IsDockerActive
     {
-        get => IsDockerActive ? 1 : 0;
-        set => IsDockerActive = value == 1;
+        get => SelectedSectionIndex == 1;
+        set
+        {
+            if (value || IsDockerActive)
+            {
+                SelectedSectionIndex = value ? 1 : 0;
+            }
+        }
     }
 
-    public bool IsWindowsActive => !IsDockerActive;
+    public bool IsWindowsActive => SelectedSectionIndex == 0;
+
+    public bool IsDevelopmentActive => SelectedSectionIndex == 2;
+
+    public bool CanSwitchSection => !Windows.IsBusy && !Docker.IsBusy && !Development.IsBusy;
+
+    private IPageHeader ActiveHeader => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
+
+    private IPageStatus ActiveStatus => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
+
+    private IPageRefresh ActiveRefresh => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
 
     public string PageTitle => "Очистка";
 
-    public string PageDescription => IsDockerActive ? Docker.PageDescription : Windows.PageDescription;
+    public string PageDescription => ActiveHeader.PageDescription;
 
-    public string? RefreshTooltip => IsDockerActive ? Docker.RefreshTooltip : Windows.RefreshTooltip;
+    public string? RefreshTooltip => ActiveRefresh.RefreshTooltip;
 
-    public string? StatusCaption => IsDockerActive ? Docker.StatusCaption : Windows.StatusCaption;
+    public string? StatusCaption => ActiveStatus.StatusCaption;
 
-    public bool IsBusy => IsDockerActive ? Docker.IsBusy : Windows.IsBusy;
+    public bool IsBusy => ActiveStatus.IsBusy;
 
-    public bool IsIndeterminate => IsDockerActive ? Docker.IsIndeterminate : Windows.IsIndeterminate;
+    public bool IsIndeterminate => ActiveStatus.IsIndeterminate;
 
-    public double ProgressValue => IsDockerActive ? Docker.ProgressValue : Windows.ProgressValue;
+    public double ProgressValue => ActiveStatus.ProgressValue;
 
-    public double ProgressMax => IsDockerActive ? Docker.ProgressMax : Windows.ProgressMax;
+    public double ProgressMax => ActiveStatus.ProgressMax;
 
-    public ICommand? CancelCommand => IsDockerActive ? Docker.CancelCommand : Windows.CancelCommand;
+    public ICommand? CancelCommand => ActiveStatus.CancelCommand;
 
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
 
     public async Task EnsureLoadedAsync()
     {
+        if (IsDevelopmentActive)
+        {
+            await Development.EnsureLoadedAsync();
+            return;
+        }
+
         if (IsDockerActive)
         {
             await Docker.EnsureLoadedAsync();
@@ -73,10 +100,11 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
         IsDockerActive = true;
     }
 
-    async partial void OnIsDockerActiveChanged(bool value)
+    async partial void OnSelectedSectionIndexChanged(int value)
     {
         OnPropertyChanged(nameof(IsWindowsActive));
-        OnPropertyChanged(nameof(SelectedSectionIndex));
+        OnPropertyChanged(nameof(IsDockerActive));
+        OnPropertyChanged(nameof(IsDevelopmentActive));
         NotifyProxied();
 
         await EnsureLoadedAsync();
@@ -84,11 +112,16 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     private void OnSectionChanged(object? sender, PropertyChangedEventArgs args)
     {
-        var fromActive = IsDockerActive ? ReferenceEquals(sender, Docker) : ReferenceEquals(sender, Windows);
+        OnPropertyChanged(nameof(CanSwitchSection));
+        var fromActive = ReferenceEquals(sender, ActiveStatus);
 
         if (fromActive)
         {
             OnPropertyChanged(args.PropertyName);
+            if (args.PropertyName == nameof(IsBusy))
+            {
+                RefreshCommand.NotifyCanExecuteChanged();
+            }
         }
     }
 
@@ -102,11 +135,14 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
         OnPropertyChanged(nameof(ProgressValue));
         OnPropertyChanged(nameof(ProgressMax));
         OnPropertyChanged(nameof(CancelCommand));
+        RefreshCommand.NotifyCanExecuteChanged();
     }
 
-    [RelayCommand]
+    private bool CanRefresh() => !IsBusy;
+
+    [RelayCommand(CanExecute = nameof(CanRefresh))]
     private Task RefreshAsync()
     {
-        return IsDockerActive ? Docker.RefreshCommand.ExecuteAsync(null) : Windows.RefreshCommand.ExecuteAsync(null);
+        return ((IAsyncRelayCommand)ActiveRefresh.RefreshCommand).ExecuteAsync(null);
     }
 }
