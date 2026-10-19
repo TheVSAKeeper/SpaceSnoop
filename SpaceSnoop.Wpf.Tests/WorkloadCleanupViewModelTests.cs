@@ -152,7 +152,9 @@ public sealed class WorkloadCleanupViewModelTests
         var projects = new ProjectCleanupViewModel(new ProjectCleanupService(), new NoopDialogs(), new FakeFilePicker(),
             new FakeShellLauncher(), new FakeUiDispatcher(), new MemorySettings(), NullLogger<ProjectCleanupViewModel>.Instance);
         var parent = new DeveloperCleanupViewModel(new NuGetCleanupService(), new NoopDialogs(), new FakeUiDispatcher(),
-            NullLogger<DeveloperCleanupViewModel>.Instance, projects, workload);
+            NullLogger<DeveloperCleanupViewModel>.Instance, projects, workload,
+            new DotNetCleanViewModel(new DotNetCleanService(_root), new NoopDialogs(), new FakeFilePicker(),
+                new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<DotNetCleanViewModel>.Instance));
         parent.SelectedAreaIndex = 2;
         await parent.RefreshCommand.ExecuteAsync(null);
         var cleaning = workload.CleanCommand.ExecuteAsync(null);

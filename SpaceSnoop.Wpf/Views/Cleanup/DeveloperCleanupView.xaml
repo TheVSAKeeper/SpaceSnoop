@@ -177,5 +177,7 @@
                                     Visibility="{Binding DataContext.IsProjectsActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
         <cleanup:WorkloadCleanupView Grid.Row="1" DataContext="{Binding Workloads}"
                                      Visibility="{Binding DataContext.IsWorkloadsActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
+        <cleanup:DotNetCleanView Grid.Row="1" DataContext="{Binding DotNetClean}"
+                                 Visibility="{Binding DataContext.IsDotNetCleanActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
     </Grid>
 </UserControl>

@@ -12,8 +12,11 @@ public class GalleryStatesTests
         Assert.Multiple(() =>
         {
             Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentWorkloads));
+            Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentMsBuild));
             Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentWorkloads), Is.True);
+            Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentMsBuild), Is.True);
             Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentWorkloads), Is.False);
+            Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentMsBuild), Is.False);
         });
     }
 

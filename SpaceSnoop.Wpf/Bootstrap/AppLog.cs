@@ -532,4 +532,10 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 2412, Level = LogLevel.Information, Message = "Очистка workloads: исход {Outcome}, код {ExitCode}, журнал {LogPath}")]
     public static partial void WorkloadCleanupFinished(this ILogger logger, string outcome, int? exitCode, string logPath);
+
+    [LoggerMessage(EventId = 2413, Level = LogLevel.Error, Message = "Очистка dotnet clean: ошибка")]
+    public static partial void DotNetCleanFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 2414, Level = LogLevel.Information, Message = "Очистка dotnet clean: исход {Outcome}, код {ExitCode}, журнал {LogPath}")]
+    public static partial void DotNetCleanFinished(this ILogger logger, string outcome, int? exitCode, string logPath);
 }

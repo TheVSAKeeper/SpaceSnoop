@@ -17,6 +17,7 @@ public static class GalleryStates
     public const string Development = "development";
     public const string DevelopmentProjects = "development-projects";
     public const string DevelopmentWorkloads = "development-workloads";
+    public const string DevelopmentMsBuild = "development-msbuild";
 
     private const int ScanParallelism = 8;
     private const int ScanBranchTotal = 18;
@@ -57,7 +58,7 @@ public static class GalleryStates
 
     private static readonly string[] OperationDialogs = [GalleryDialogs.Delete, GalleryDialogs.Archive];
 
-    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker, Welcome, Advice, Development, DevelopmentProjects, DevelopmentWorkloads];
+    public static IReadOnlyList<string> All { get; } = [Idle, Busy, Done, Picker, Welcome, Advice, Development, DevelopmentProjects, DevelopmentWorkloads, DevelopmentMsBuild];
 
     public static string? Match(string state)
     {
@@ -75,7 +76,7 @@ public static class GalleryStates
         {
             Busy => BusyPages.Contains(page, StringComparer.Ordinal),
             Done => false,
-            Development or DevelopmentProjects or DevelopmentWorkloads => string.Equals(page, SectionKey.Cleanup, StringComparison.Ordinal),
+            Development or DevelopmentProjects or DevelopmentWorkloads or DevelopmentMsBuild => string.Equals(page, SectionKey.Cleanup, StringComparison.Ordinal),
             Picker or Welcome or Advice => string.Equals(page, SectionKey.Scan, StringComparison.Ordinal),
             _ => true,
         };
@@ -85,7 +86,7 @@ public static class GalleryStates
     {
         return state switch
         {
-            Picker or Welcome or Advice or Development or DevelopmentProjects or DevelopmentWorkloads => false,
+            Picker or Welcome or Advice or Development or DevelopmentProjects or DevelopmentWorkloads or DevelopmentMsBuild => false,
             Idle => true,
             _ => OperationDialogs.Contains(dialog, StringComparer.Ordinal),
         };
@@ -98,7 +99,7 @@ public static class GalleryStates
 
     public static async Task ApplyPageAsync(string page, string state, IServiceProvider services, GalleryFixture fixture)
     {
-        if (state is Development or DevelopmentProjects or DevelopmentWorkloads)
+        if (state is Development or DevelopmentProjects or DevelopmentWorkloads or DevelopmentMsBuild)
         {
             await SettleCleanupAsync(services).ConfigureAwait(true);
             services.GetRequiredService<DeveloperCleanupViewModel>().ShowForAutomation();
@@ -113,6 +114,12 @@ public static class GalleryStates
                 var development = services.GetRequiredService<DeveloperCleanupViewModel>();
                 development.Workloads.ShowForAutomation();
                 development.SelectedAreaIndex = 2;
+            }
+            if (state == DevelopmentMsBuild)
+            {
+                var development = services.GetRequiredService<DeveloperCleanupViewModel>();
+                development.DotNetClean.ShowForAutomation();
+                development.SelectedAreaIndex = 3;
             }
             services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 2;
             return;
@@ -178,11 +185,12 @@ public static class GalleryStates
 
     public static void ResetPage(string page, string state, IServiceProvider services)
     {
-        if (state is Development or DevelopmentProjects or DevelopmentWorkloads)
+        if (state is Development or DevelopmentProjects or DevelopmentWorkloads or DevelopmentMsBuild)
         {
             services.GetRequiredService<DeveloperCleanupViewModel>().SelectedAreaIndex = 0;
             services.GetRequiredService<ProjectCleanupViewModel>().ResetForAutomation();
             services.GetRequiredService<WorkloadCleanupViewModel>().ResetForAutomation();
+            services.GetRequiredService<DotNetCleanViewModel>().ResetForAutomation();
             services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 0;
             return;
         }

@@ -1300,6 +1300,51 @@ public class BindingSmokeTests
         }
     }
 
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Контекст_dotnet_clean_помещается_по_ширине_и_остаётся_безопасной_демонстрацией(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.Development.DotNetClean.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 3;
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<DotNetCleanView>(_window)!;
+            var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(page.Development.DotNetClean.IsTrusted, Is.False);
+                Assert.That(page.Development.DotNetClean.CleanCommand.CanExecute(null), Is.False);
+                Assert.That(fields.Any(x => x.Text.Contains("--disable-build-servers")), Is.True);
+                Assert.That(fields.Any(x => x.Text.Contains(@"C:\workspace\sample\Sample.csproj")), Is.True);
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+            foreach (var field in fields)
+            {
+                var bounds = field.TransformToAncestor(view).TransformBounds(new(field.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            }
+        }
+        finally
+        {
+            page.Development.SelectedAreaIndex = 0;
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+        }
+    }
+
     private void Settle()
     {
         _host.Settle();

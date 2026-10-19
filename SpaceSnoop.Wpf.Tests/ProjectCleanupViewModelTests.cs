@@ -267,7 +267,9 @@ public sealed class ProjectCleanupViewModelTests
         var parent = new DeveloperCleanupViewModel(new NuGetCleanupService(), new NoopDialogs(), new FakeUiDispatcher(),
             NullLogger<DeveloperCleanupViewModel>.Instance, vm,
             new WorkloadCleanupViewModel(new WorkloadCleanupService(_root), new NoopDialogs(), new FakeShellLauncher(),
-                new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance));
+                new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance),
+            new DotNetCleanViewModel(new DotNetCleanService(_root), new NoopDialogs(), new FakeFilePicker(),
+                new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<DotNetCleanViewModel>.Instance));
         vm.RootPath = _root;
         await vm.FindCommand.ExecuteAsync(null);
         vm.Artifacts[0].IsSelected = true;
