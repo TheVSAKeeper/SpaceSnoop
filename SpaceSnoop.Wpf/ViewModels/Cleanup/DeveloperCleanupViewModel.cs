@@ -17,6 +17,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     private bool _loaded;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyPropertyChangedFor(nameof(CanClean))]
     [NotifyPropertyChangedFor(nameof(CancelCommand))]
@@ -24,7 +25,14 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     [NotifyCanExecuteChangedFor(nameof(CleanCommand))]
     [NotifyCanExecuteChangedFor(nameof(SelectRecommendedCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearSelectionCommand))]
-    private bool _isBusy;
+    private bool _isNuGetBusy;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsNuGetActive))]
+    [NotifyPropertyChangedFor(nameof(IsProjectsActive))]
+    [NotifyPropertyChangedFor(nameof(RefreshTooltip))]
+    [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
+    private int _selectedAreaIndex;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusCaption))]
@@ -35,24 +43,46 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     private string? _resultText;
 
     public DeveloperCleanupViewModel(NuGetCleanupService service, IDialogService dialogs, IUiDispatcher uiDispatcher,
-        ILogger<DeveloperCleanupViewModel> logger)
+        ILogger<DeveloperCleanupViewModel> logger, ProjectCleanupViewModel projects)
     {
         _service = service;
         _dialogs = dialogs;
         _uiDispatcher = uiDispatcher;
         _logger = logger;
+        Projects = projects;
+        Projects.PropertyChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(IsBusy));
+            OnPropertyChanged(nameof(IsIdle));
+            OnPropertyChanged(nameof(CanClean));
+            OnPropertyChanged(nameof(CancelCommand));
+            OnPropertyChanged(nameof(StatusCaption));
+            RefreshCommand.NotifyCanExecuteChanged();
+            CleanCommand.NotifyCanExecuteChanged();
+            SelectRecommendedCommand.NotifyCanExecuteChanged();
+            ClearSelectionCommand.NotifyCanExecuteChanged();
+        };
     }
 
+    public ProjectCleanupViewModel Projects { get; }
+    public IReadOnlyList<SegmentOption> Areas { get; } =
+    [
+        new(PackIconLucideKind.Package, "Кэши NuGet", "Кэши текущего пользователя"),
+        new(PackIconLucideKind.Folder, "Проекты", "bin/obj, результаты тестов и бенчмарков"),
+    ];
+    public bool IsNuGetActive => SelectedAreaIndex == 0;
+    public bool IsProjectsActive => SelectedAreaIndex == 1;
+    public bool IsBusy => IsNuGetBusy || Projects.IsBusy;
     public ObservableCollection<NuGetCacheViewModel> Caches { get; } = [];
     public string PageTitle => "Разработка";
-    public string PageDescription => "Кэши .NET текущего пользователя. SDK, Runtime, инструменты и проекты сохраняются.";
-    public string? RefreshTooltip => "Определить пути NuGet и измерить кэши заново";
-    public string? StatusCaption => StatusText;
+    public string PageDescription => "Кэши NuGet и артефакты проектов .NET. SDK, Runtime и инструменты сохраняются.";
+    public string? RefreshTooltip => IsProjectsActive ? "Повторить поиск в выбранном каталоге проектов" : "Определить пути NuGet и измерить кэши заново";
+    public string? StatusCaption => Projects.IsBusy ? Projects.StatusText : StatusText;
     public bool IsIdle => !IsBusy;
     public bool IsIndeterminate => true;
     public double ProgressValue => 0;
     public double ProgressMax => 1;
-    public ICommand? CancelCommand => IsBusy ? CancelOperationCommand : null;
+    public ICommand? CancelCommand => Projects.IsBusy ? Projects.CancelCommand : IsNuGetBusy ? CancelOperationCommand : null;
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
     public bool HasResult => !string.IsNullOrEmpty(ResultText);
     public bool HasCaches => Caches.Count > 0;
@@ -61,6 +91,10 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     public string SelectionText => $"Категорий: {Caches.Count(x => x.IsSelected && x.CanSelect)} из {Caches.Count}";
     public bool HasSelectedBytes => Caches.Any(x => x.IsSelected && x.CanSelect && x.Bytes > 0);
     public bool CanClean => !IsBusy && _plan is not null && Caches.Any(x => x.IsSelected && x.CanSelect);
+
+    partial void OnIsNuGetBusyChanged(bool value) => Projects.IsHostBusy = value;
+
+    private bool CanRefresh() => IsIdle && (!IsProjectsActive || Projects.FindCommand.CanExecute(null));
 
     public Task EnsureLoadedAsync()
     {
@@ -73,7 +107,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         return RefreshAsync();
     }
 
-    [RelayCommand(CanExecute = nameof(IsIdle))]
+    [RelayCommand(CanExecute = nameof(CanRefresh))]
     private async Task RefreshAsync()
     {
         if (IsBusy)
@@ -81,7 +115,13 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             return;
         }
 
-        IsBusy = true;
+        if (IsProjectsActive)
+        {
+            await Projects.FindCommand.ExecuteAsync(null);
+            return;
+        }
+
+        IsNuGetBusy = true;
         _cancellation = new();
         ResultText = null;
         try
@@ -101,7 +141,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         {
             _cancellation.Dispose();
             _cancellation = null;
-            IsBusy = false;
+            IsNuGetBusy = false;
         }
     }
 
@@ -159,7 +199,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника.",
         };
 
-        IsBusy = true;
+        IsNuGetBusy = true;
         try
         {
             if (!await _dialogs.ShowAsync(confirmation))
@@ -200,7 +240,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         {
             _cancellation?.Dispose();
             _cancellation = null;
-            IsBusy = false;
+            IsNuGetBusy = false;
         }
     }
 
@@ -251,6 +291,8 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
 
     internal void ShowForAutomation()
     {
+        SelectedAreaIndex = 0;
+        Projects.ResetForAutomation();
         _uiDispatcher.Invoke(() =>
         {
             _loaded = true;

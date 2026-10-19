@@ -248,6 +248,7 @@ public partial class App : Application
         services.AddSingleton<ArchiveService>();
         services.AddSingleton<CleanupService>();
         services.AddSingleton<NuGetCleanupService>();
+        services.AddSingleton<ProjectCleanupService>();
         services.AddSingleton<CompareDirectoriesUseCase>();
         services.AddSingleton<ExecuteSyncUseCase>();
 
@@ -328,6 +329,7 @@ public partial class App : Application
         services.AddSingleton<ICleanupAutomation>(static provider => provider.GetRequiredService<CleanupViewModel>());
         services.AddSingleton<CleanupPageViewModel>();
         services.AddSingleton<DeveloperCleanupViewModel>();
+        services.AddSingleton<ProjectCleanupViewModel>();
         services.AddSingleton<ChatViewModel>();
         services.AddSingleton<LogsViewModel>();
         services.AddSingleton<AboutViewModel>();

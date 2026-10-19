@@ -17,6 +17,22 @@ internal static class CacheFileAccess
         return handle;
     }
 
+    internal static SafeFileHandle OpenDirectoryForDelete(string path)
+    {
+        var handle = CreateFile(path, 0x10080, 0, nint.Zero, 3, 0x02200000, nint.Zero);
+        CheckHandle(handle, path);
+        try
+        {
+            Read(handle, path);
+            return handle;
+        }
+        catch
+        {
+            handle.Dispose();
+            throw;
+        }
+    }
+
     internal static CacheFileStamp Read(SafeFileHandle handle, string path)
     {
         if (!GetFileInformationByHandle(handle, out var info))
@@ -60,6 +76,27 @@ internal static class CacheFileAccess
         if (!SetFileInformationByHandle(handle, 4, ref delete, 1))
         {
             throw Error(path);
+        }
+    }
+
+    internal static void Move(SafeFileHandle handle, string destination)
+    {
+        var name = Encoding.Unicode.GetBytes(destination + '\0');
+        var offset = IntPtr.Size == 8 ? 20 : 12;
+        var buffer = Marshal.AllocHGlobal(offset + name.Length);
+        try
+        {
+            Marshal.Copy(new byte[offset + name.Length], 0, buffer, offset + name.Length);
+            Marshal.WriteInt32(buffer, offset - 4, name.Length - 2);
+            Marshal.Copy(name, 0, buffer + offset, name.Length);
+            if (!SetFileInformationByHandle(handle, 3, buffer, (uint)(offset + name.Length)))
+            {
+                throw Error(destination);
+            }
+        }
+        finally
+        {
+            Marshal.FreeHGlobal(buffer);
         }
     }
 
@@ -159,4 +196,9 @@ internal static class CacheFileAccess
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass,
         ref byte information, uint size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass,
+        nint information, uint size);
 }

@@ -520,4 +520,10 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 2408, Level = LogLevel.Information, Message = "Очистка NuGet: удалено {Deleted} файлов, {Bytes} Б данных, пропущено {Skipped}, отмена {Cancelled}")]
     public static partial void DeveloperCleanupFinished(this ILogger logger, int deleted, long bytes, int skipped, bool cancelled);
+
+    [LoggerMessage(EventId = 2409, Level = LogLevel.Error, Message = "Очистка проектов: ошибка")]
+    public static partial void ProjectCleanupFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 2410, Level = LogLevel.Information, Message = "Очистка проектов: в корзине {Deleted} файлов, {Bytes} Б данных, пропущено {Skipped}, отмена {Cancelled}")]
+    public static partial void ProjectCleanupFinished(this ILogger logger, int deleted, long bytes, int skipped, bool cancelled);
 }

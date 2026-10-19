@@ -31,7 +31,7 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
     [
         new(PackIconLucideKind.Trash2, "Windows", "Временные файлы, кэши и корзина"),
         new(PackIconLucideKind.Container, "Docker", "Образы, контейнеры, тома и кэш сборки"),
-        new(PackIconLucideKind.Wrench, "Разработка", "Кэши .NET и NuGet"),
+        new(PackIconLucideKind.Wrench, "Разработка", "Кэши NuGet и артефакты проектов .NET"),
     ];
 
     public bool IsDockerActive

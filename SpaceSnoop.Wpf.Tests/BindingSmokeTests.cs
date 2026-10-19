@@ -222,6 +222,51 @@ public class BindingSmokeTests
         }
     }
 
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Проектные_артефакты_показывают_пути_и_выбор_без_выхода_за_ширину(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.Development.Projects.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 1;
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<ProjectCleanupView>(_window)!;
+            Assert.That(view.IsVisible, Is.True);
+            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly).ToArray();
+            Assert.That(paths.Select(x => x.Text), Is.EquivalentTo(page.Development.Projects.Artifacts.Select(x => x.Path)));
+            foreach (var path in paths)
+            {
+                path.BringIntoView();
+                Settle();
+                Assert.That(path.IsVisible && path.IsEnabled && path.Focusable && path.IsTabStop, Is.True);
+                var bounds = path.TransformToAncestor(view).TransformBounds(new(path.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            }
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+        finally
+        {
+            page.Development.SelectedAreaIndex = 0;
+            page.Development.Projects.ResetForAutomation();
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
     [Test]
     public void Всплывающая_настройка_подсветки_не_теряет_биндинги()
     {
