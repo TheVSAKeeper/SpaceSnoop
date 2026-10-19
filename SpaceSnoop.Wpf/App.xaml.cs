@@ -249,6 +249,7 @@ public partial class App : Application
         services.AddSingleton<CleanupService>();
         services.AddSingleton<NuGetCleanupService>();
         services.AddSingleton<ProjectCleanupService>();
+        services.AddSingleton(new WorkloadCleanupService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
         services.AddSingleton<CompareDirectoriesUseCase>();
         services.AddSingleton<ExecuteSyncUseCase>();
 
@@ -330,6 +331,7 @@ public partial class App : Application
         services.AddSingleton<CleanupPageViewModel>();
         services.AddSingleton<DeveloperCleanupViewModel>();
         services.AddSingleton<ProjectCleanupViewModel>();
+        services.AddSingleton<WorkloadCleanupViewModel>();
         services.AddSingleton<ChatViewModel>();
         services.AddSingleton<LogsViewModel>();
         services.AddSingleton<AboutViewModel>();

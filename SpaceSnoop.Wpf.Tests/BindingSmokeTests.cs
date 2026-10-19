@@ -197,7 +197,7 @@ public class BindingSmokeTests
             }
 
             Settle();
-            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly).ToArray();
+            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
             Assert.That(paths.Select(x => x.Text), Is.EquivalentTo(page.Development.Caches.Select(x => x.Path)));
             foreach (var path in paths)
             {
@@ -1217,6 +1217,50 @@ public class BindingSmokeTests
         }
 
         return null;
+    }
+
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Контекст_workloads_помещается_по_ширине_без_запуска_команды(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.Development.Workloads.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 2;
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<WorkloadCleanupView>(_window)!;
+            var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fields.Any(x => x.Text.Contains("maui-windows")), Is.True);
+                Assert.That(page.Development.Workloads.CleanCommand.CanExecute(null), Is.False);
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+            foreach (var field in fields)
+            {
+                Assert.That(field.Focusable && field.IsTabStop && field.IsEnabled, Is.True);
+                var bounds = field.TransformToAncestor(view).TransformBounds(new(field.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            }
+        }
+        finally
+        {
+            page.Development.ShowForAutomation();
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+        }
     }
 
     private void Settle()

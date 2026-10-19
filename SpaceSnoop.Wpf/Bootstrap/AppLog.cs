@@ -526,4 +526,10 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 2410, Level = LogLevel.Information, Message = "Очистка проектов: в корзине {Deleted} файлов, {Bytes} Б данных, пропущено {Skipped}, отмена {Cancelled}")]
     public static partial void ProjectCleanupFinished(this ILogger logger, int deleted, long bytes, int skipped, bool cancelled);
+
+    [LoggerMessage(EventId = 2411, Level = LogLevel.Error, Message = "Очистка workloads: проверка не выполнена")]
+    public static partial void WorkloadCleanupFailed(this ILogger logger, Exception exception);
+
+    [LoggerMessage(EventId = 2412, Level = LogLevel.Information, Message = "Очистка workloads: исход {Outcome}, код {ExitCode}, журнал {LogPath}")]
+    public static partial void WorkloadCleanupFinished(this ILogger logger, string outcome, int? exitCode, string logPath);
 }

@@ -49,10 +49,14 @@ public sealed class DeveloperCleanupViewModelTests
 
     private DeveloperCleanupViewModel Create(bool confirm = false) => new(
         new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("test-user", _paths))),
-        new NoopDialogs(showResult: confirm), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects());
+        new NoopDialogs(showResult: confirm), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance,
+        CreateProjects(), CreateWorkloads());
 
     private static ProjectCleanupViewModel CreateProjects() => new(new ProjectCleanupService(), new NoopDialogs(),
         new FakeFilePicker(), new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<ProjectCleanupViewModel>.Instance);
+
+    private WorkloadCleanupViewModel CreateWorkloads() => new(new WorkloadCleanupService(_root), new NoopDialogs(),
+        new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance);
 
     [Test]
     public async Task После_замера_выбраны_только_HTTP_и_plugins()
@@ -120,7 +124,7 @@ public sealed class DeveloperCleanupViewModelTests
     public async Task Ошибка_определения_путей_не_оставляет_исполнимый_план()
     {
         var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => throw new InvalidOperationException("SDK недоступен")),
-            new NoopDialogs(), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects());
+            new NoopDialogs(), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads());
         await vm.RefreshCommand.ExecuteAsync(null);
         Assert.That(vm.CanClean, Is.False);
         Assert.That(vm.IsBusy, Is.False);
@@ -134,7 +138,7 @@ public sealed class DeveloperCleanupViewModelTests
         var service = new NuGetCleanupService(_ => ++calls == 3
             ? throw new InvalidOperationException("повторный замер недоступен")
             : Task.FromResult(new NuGetCacheLocations("user", _paths)));
-        var vm = new DeveloperCleanupViewModel(service, new NoopDialogs(showResult: true), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects());
+        var vm = new DeveloperCleanupViewModel(service, new NoopDialogs(showResult: true), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads());
         await vm.RefreshCommand.ExecuteAsync(null);
         await vm.CleanCommand.ExecuteAsync(null);
         Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 2"));
@@ -152,7 +156,7 @@ public sealed class DeveloperCleanupViewModelTests
             return false;
         });
         var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
-            dialogs, new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects());
+            dialogs, new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads());
         await vm.RefreshCommand.ExecuteAsync(null);
         await vm.CleanCommand.ExecuteAsync(null);
         Assert.That(confirmation, Is.Not.Null);
@@ -164,7 +168,7 @@ public sealed class DeveloperCleanupViewModelTests
     {
         var dialogs = new PausedDialogs();
         var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
-            dialogs, new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects());
+            dialogs, new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads());
         await vm.RefreshCommand.ExecuteAsync(null);
         var rows = vm.Caches.ToArray();
         foreach (var row in rows)
@@ -211,7 +215,7 @@ public sealed class DeveloperCleanupViewModelTests
     {
         var dispatcher = new TrackingDispatcher();
         var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
-            new NoopDialogs(), dispatcher, NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects());
+            new NoopDialogs(), dispatcher, NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads());
         var changedOutsideDispatcher = false;
         vm.Caches.CollectionChanged += (_, _) => changedOutsideDispatcher |= !dispatcher.InsideInvoke;
         await Task.Run(() => vm.RefreshCommand.ExecuteAsync(null));

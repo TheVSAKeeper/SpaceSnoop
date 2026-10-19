@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Cleanup"
              xmlns:cleanup="clr-namespace:SpaceSnoop.Wpf.Views.Cleanup"
+             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -15,7 +16,13 @@
         </Grid.RowDefinitions>
         <ListBox Style="{StaticResource ListBox.Segmented}" ItemsSource="{Binding Areas}"
                  SelectedIndex="{Binding SelectedAreaIndex}" IsEnabled="{Binding IsIdle}"
-                 HorizontalAlignment="Left" Margin="0,0,0,12" AutomationProperties.Name="Область разработки" />
+                 HorizontalAlignment="Left" Margin="0,0,0,12" AutomationProperties.Name="Область разработки">
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <views:UniformRowPanel />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+        </ListBox>
     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Padding="0,0,12,0"
                   Visibility="{Binding IsNuGetActive, Converter={StaticResource BoolToVisibility}}">
         <StackPanel>
@@ -168,5 +175,7 @@
     </ScrollViewer>
         <cleanup:ProjectCleanupView Grid.Row="1" DataContext="{Binding Projects}"
                                     Visibility="{Binding DataContext.IsProjectsActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
+        <cleanup:WorkloadCleanupView Grid.Row="1" DataContext="{Binding Workloads}"
+                                     Visibility="{Binding DataContext.IsWorkloadsActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
     </Grid>
 </UserControl>

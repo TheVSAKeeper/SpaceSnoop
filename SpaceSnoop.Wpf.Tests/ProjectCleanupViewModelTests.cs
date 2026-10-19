@@ -132,7 +132,9 @@ public sealed class ProjectCleanupViewModelTests
         var dialogs = new PausedDialogs();
         var vm = Create(dialogs);
         var parent = new DeveloperCleanupViewModel(new NuGetCleanupService(), new NoopDialogs(), new FakeUiDispatcher(),
-            NullLogger<DeveloperCleanupViewModel>.Instance, vm);
+            NullLogger<DeveloperCleanupViewModel>.Instance, vm,
+            new WorkloadCleanupViewModel(new WorkloadCleanupService(_root), new NoopDialogs(), new FakeShellLauncher(),
+                new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance));
         vm.RootPath = _root;
         await vm.FindCommand.ExecuteAsync(null);
         vm.Artifacts[0].IsSelected = true;

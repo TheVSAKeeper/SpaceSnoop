@@ -6,6 +6,17 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class GalleryStatesTests
 {
+    [Test]
+    public void Состояние_workloads_показывает_страницу_очистки_без_запуска_cli()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentWorkloads));
+            Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentWorkloads), Is.True);
+            Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentWorkloads), Is.False);
+        });
+    }
+
     [TestCase(SectionKey.Scan)]
     [TestCase(SectionKey.Sync)]
     [TestCase(SectionKey.Overview)]

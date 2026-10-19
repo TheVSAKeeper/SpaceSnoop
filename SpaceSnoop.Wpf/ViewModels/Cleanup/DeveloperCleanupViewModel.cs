@@ -30,6 +30,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNuGetActive))]
     [NotifyPropertyChangedFor(nameof(IsProjectsActive))]
+    [NotifyPropertyChangedFor(nameof(IsWorkloadsActive))]
     [NotifyPropertyChangedFor(nameof(RefreshTooltip))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     private int _selectedAreaIndex;
@@ -43,15 +44,31 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     private string? _resultText;
 
     public DeveloperCleanupViewModel(NuGetCleanupService service, IDialogService dialogs, IUiDispatcher uiDispatcher,
-        ILogger<DeveloperCleanupViewModel> logger, ProjectCleanupViewModel projects)
+        ILogger<DeveloperCleanupViewModel> logger, ProjectCleanupViewModel projects, WorkloadCleanupViewModel workloads)
     {
         _service = service;
         _dialogs = dialogs;
         _uiDispatcher = uiDispatcher;
         _logger = logger;
         Projects = projects;
+        Workloads = workloads;
         Projects.PropertyChanged += (_, _) =>
         {
+            OnPropertyChanged(nameof(IsBusy));
+            OnPropertyChanged(nameof(IsIdle));
+            OnPropertyChanged(nameof(StatusCaption));
+            OnPropertyChanged(nameof(CanClean));
+            OnPropertyChanged(nameof(CancelCommand));
+            OnPropertyChanged(nameof(StatusCaption));
+            RefreshCommand.NotifyCanExecuteChanged();
+            CleanCommand.NotifyCanExecuteChanged();
+            SelectRecommendedCommand.NotifyCanExecuteChanged();
+            ClearSelectionCommand.NotifyCanExecuteChanged();
+            workloads.IsHostBusy = IsNuGetBusy || Projects.IsBusy;
+        };
+        Workloads.PropertyChanged += (_, _) =>
+        {
+            Projects.IsHostBusy = IsNuGetBusy || Workloads.IsBusy;
             OnPropertyChanged(nameof(IsBusy));
             OnPropertyChanged(nameof(IsIdle));
             OnPropertyChanged(nameof(CanClean));
@@ -65,24 +82,30 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     }
 
     public ProjectCleanupViewModel Projects { get; }
+    public WorkloadCleanupViewModel Workloads { get; }
     public IReadOnlyList<SegmentOption> Areas { get; } =
     [
         new(PackIconLucideKind.Package, "Кэши NuGet", "Кэши текущего пользователя"),
         new(PackIconLucideKind.Folder, "Проекты", "bin/obj, результаты тестов и бенчмарков"),
+        new(PackIconLucideKind.HardDrive, "Workloads", "Очистка хранилища workload"),
     ];
     public bool IsNuGetActive => SelectedAreaIndex == 0;
     public bool IsProjectsActive => SelectedAreaIndex == 1;
-    public bool IsBusy => IsNuGetBusy || Projects.IsBusy;
+    public bool IsWorkloadsActive => SelectedAreaIndex == 2;
+    public bool IsBusy => IsNuGetBusy || Projects.IsBusy || Workloads.IsBusy;
     public ObservableCollection<NuGetCacheViewModel> Caches { get; } = [];
     public string PageTitle => "Разработка";
-    public string PageDescription => "Кэши NuGet и артефакты проектов .NET. SDK, Runtime и инструменты сохраняются.";
-    public string? RefreshTooltip => IsProjectsActive ? "Повторить поиск в выбранном каталоге проектов" : "Определить пути NuGet и измерить кэши заново";
-    public string? StatusCaption => Projects.IsBusy ? Projects.StatusText : StatusText;
+    public string PageDescription => "Кэши NuGet, артефакты проектов и workloads .NET. SDK, Runtime и инструменты сохраняются.";
+    public string? RefreshTooltip => IsProjectsActive ? "Повторить поиск в выбранном каталоге проектов"
+        : IsWorkloadsActive ? "Определить активный SDK и workloads заново" : "Определить пути NuGet и измерить кэши заново";
+    public string? StatusCaption => Projects.IsBusy ? Projects.StatusText : Workloads.IsBusy ? Workloads.StatusText
+        : IsWorkloadsActive ? Workloads.StatusText : StatusText;
     public bool IsIdle => !IsBusy;
     public bool IsIndeterminate => true;
     public double ProgressValue => 0;
     public double ProgressMax => 1;
-    public ICommand? CancelCommand => Projects.IsBusy ? Projects.CancelCommand : IsNuGetBusy ? CancelOperationCommand : null;
+    public ICommand? CancelCommand => Projects.IsBusy ? Projects.CancelCommand : Workloads.IsBusy ? Workloads.CancelCommand
+        : IsNuGetBusy ? CancelOperationCommand : null;
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
     public bool HasResult => !string.IsNullOrEmpty(ResultText);
     public bool HasCaches => Caches.Count > 0;
@@ -92,7 +115,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     public bool HasSelectedBytes => Caches.Any(x => x.IsSelected && x.CanSelect && x.Bytes > 0);
     public bool CanClean => !IsBusy && _plan is not null && Caches.Any(x => x.IsSelected && x.CanSelect);
 
-    partial void OnIsNuGetBusyChanged(bool value) => Projects.IsHostBusy = value;
+    partial void OnIsNuGetBusyChanged(bool value)
+    {
+        Projects.IsHostBusy = value || Workloads.IsBusy;
+        Workloads.IsHostBusy = value || Projects.IsBusy;
+    }
 
     private bool CanRefresh() => IsIdle && (!IsProjectsActive || Projects.FindCommand.CanExecute(null));
 
@@ -118,6 +145,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         if (IsProjectsActive)
         {
             await Projects.FindCommand.ExecuteAsync(null);
+            return;
+        }
+        if (IsWorkloadsActive)
+        {
+            await Workloads.InspectCommand.ExecuteAsync(null);
             return;
         }
 
@@ -293,6 +325,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     {
         SelectedAreaIndex = 0;
         Projects.ResetForAutomation();
+        Workloads.ResetForAutomation();
         _uiDispatcher.Invoke(() =>
         {
             _loaded = true;
