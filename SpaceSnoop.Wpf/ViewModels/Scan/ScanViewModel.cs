@@ -137,6 +137,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         Treemap.DrilledInto += OnTreemapDrilledInto;
 
         _nodeFactory.AskAgentRequested += OnAskAgentRequested;
+        _nodeFactory.IgnoreRequested += OnIgnoreRequested;
+        _nodeFactory.UnignoreRequested += OnUnignoreRequested;
 
         Drives = new(logger);
 
@@ -174,6 +176,23 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             () => IsScanning);
 
         Marks.ItemsDeleted += Duplicates.RemoveDeleted;
+        Marks.ItemsDeleted += deleted =>
+        {
+            if (!HasIgnoredItems)
+            {
+                return;
+            }
+
+            var affected = _nodeFactory.Visibility.AffectedSpaces();
+            _nodeFactory.Visibility.RemoveDeleted(deleted);
+            RefreshVisibility(affected);
+        };
+        Roots.CollectionChanged += (_, _) =>
+        {
+            _nodeFactory.Visibility.RetainRoots(Roots);
+            OnPropertyChanged(nameof(HasIgnoredItems));
+            OnPropertyChanged(nameof(ResetIgnoredCaption));
+        };
         Roots.CollectionChanged += (_, _) => OnPropertyChanged(nameof(StaleResultCaption));
 
         ViewModes = BuildViewModes(preferences.DuplicatesEnabled);

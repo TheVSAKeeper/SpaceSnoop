@@ -36,7 +36,7 @@ public partial class ScanStructurePanel : UserControl
 
     private void OnTreeSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
-        if (DataContext is ScanViewModel vm)
+        if (DataContext is ScanViewModel { IsRefreshingVisibility: false } vm)
         {
             vm.SelectedNode = e.NewValue as ScanNodeViewModel;
         }

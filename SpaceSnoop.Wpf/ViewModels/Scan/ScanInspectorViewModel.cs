@@ -18,6 +18,7 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     private bool _compact;
     private bool _collapsedForCompact;
     private bool _reopenedAfterCompact;
+    private bool _showedIgnored;
 
     [ObservableProperty]
     private ScanNodeViewModel? _node;
@@ -181,6 +182,7 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         }
 
         Node = node;
+        _showedIgnored = node.IsIgnored;
         HasSelection = true;
 
         var space = node.Space;
@@ -189,8 +191,7 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         IsDirectory = node.IsDirectory;
         KindText = node.KindText;
 
-        var total = space?.TotalSize ?? 0;
-        TotalSizeText = SizeFormatter.Format(total);
+        TotalSizeText = node.SizeText;
 
         ApplyShares(node);
 
@@ -199,11 +200,11 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
 
         if (space is DirectorySpace dir)
         {
-            HasOwnSize = dir.Size > 0;
-            OwnSizeText = SizeFormatter.Format(dir.Size);
-            FileCountText = dir.TotalFileCount.ToString("N0");
-            DirCountText = dir.TotalDirectoryCount.ToString("N0");
-            BuildTopChildren(dir);
+            HasOwnSize = node.HasOwnSize;
+            OwnSizeText = node.OwnSizeText;
+            FileCountText = node.FileCountText;
+            DirCountText = node.VisibleDirectoryCount(dir).ToString("N0");
+            BuildTopChildren(dir, node);
         }
         else
         {
@@ -212,6 +213,18 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
             FileCountText = string.Empty;
             DirCountText = string.Empty;
             ClearTopChildren();
+        }
+    }
+
+    internal void RefreshVisibility(ScanNodeViewModel node, IReadOnlySet<SpaceBase> affected)
+    {
+        if (_showedIgnored != node.IsIgnored || (node.Space is { } space && affected.Contains(space)))
+        {
+            Show(node);
+        }
+        else
+        {
+            ApplyShares(node);
         }
     }
 
@@ -339,22 +352,23 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         DriveShareHint = node.DriveHint;
     }
 
-    private void BuildTopChildren(DirectorySpace dir)
+    private void BuildTopChildren(DirectorySpace dir, ScanNodeViewModel node)
     {
         var children = dir.SubDirectories
             .Cast<SpaceBase>()
             .Concat(dir.Files)
-            .OrderByDescending(static x => x.TotalSize)
+            .Where(node.IsVisible)
+            .OrderByDescending(node.VisibleSize)
             .ToList();
 
-        var max = children.Count > 0 ? children[0].TotalSize : 0;
+        var max = children.Count > 0 ? node.VisibleSize(children[0]) : 0;
 
         var top = children
             .Take(AppDefaults.TopChildrenLimit)
             .Select(child => new ScanInspectorChild(child.Name,
-                SizeFormatter.Format(child.TotalSize),
-                ShareFormatter.Format(dir.TotalSize > 0 ? (double)child.TotalSize / dir.TotalSize : 0),
-                max > 0 ? Math.Clamp((double)child.TotalSize / max, 0, 1) : 0,
+                SizeFormatter.Format(node.VisibleSize(child)),
+                ShareFormatter.Format(node.Weight > 0 ? node.VisibleSize(child) / node.Weight : 0),
+                max > 0 ? Math.Clamp((double)node.VisibleSize(child) / max, 0, 1) : 0,
                 child is DirectorySpace));
 
         TopChildren.ReplaceAll(top);

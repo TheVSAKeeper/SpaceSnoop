@@ -66,6 +66,18 @@ public sealed partial class ScanTreemapViewModel : ObservableObject
             : string.Empty;
     }
 
+    internal void RefreshVisibility(ScanVisibility visibility, IReadOnlySet<SpaceBase> affected)
+    {
+        if (TreemapRoot?.Space is not { } current || (!affected.Contains(current) && !visibility.IsIgnored(current)))
+        {
+            return;
+        }
+
+        var hidden = _treemapPath.Select(static node => node.Space).OfType<SpaceBase>()
+            .Where(visibility.IsIgnored).ToHashSet();
+        RefreshAfterDeletion(hidden);
+    }
+
     internal void RefreshAfterDeletion(HashSet<SpaceBase> deletedSet)
     {
         if (_treemapPath.Count == 0)

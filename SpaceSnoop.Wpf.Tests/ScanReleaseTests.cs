@@ -320,6 +320,235 @@ public class ScanReleaseTests
         }
     }
 
+    [Test]
+    public void Игнорирование_файла_пересчитывает_дерево_карту_и_инспектор_без_изменения_скана()
+    {
+        var root = ArrangeDisplayTree();
+        var branch = root.Children.Single(static node => node.Name == "branch");
+        branch.IsExpanded = true;
+        var large = branch.Children.Single(static node => node.Name == "large.bin");
+        var small = branch.Children.Single(static node => node.Name == "small.bin");
+        _scan.SelectedNode = branch;
+        large.IgnoreCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(branch.Children.Select(static node => node.Name), Is.EqualTo(new[] { "large.bin", "small.bin" }));
+            Assert.That(large.IsIgnored, Is.True);
+            Assert.That(large.Fraction, Is.Zero);
+            Assert.That(large.ShareText, Is.EqualTo("–"));
+            Assert.That(large.SizeText, Is.EqualTo(SizeFormatter.Format(900)));
+            Assert.That(branch.IsExpanded, Is.True);
+            Assert.That(small.Fraction, Is.EqualTo(1));
+            Assert.That(small.Share, Is.EqualTo(1));
+            Assert.That(root.Weight, Is.EqualTo(300));
+            Assert.That(branch.Weight, Is.EqualTo(100));
+            Assert.That(branch.Share, Is.EqualTo(1d / 3).Within(0.0001));
+            Assert.That(_scan.Treemap.TreemapTiles.Select(static node => node.Weight), Is.EqualTo(new[] { 200d, 100d }));
+            Assert.That(_scan.Inspector.TotalSizeText, Is.EqualTo(branch.SizeText));
+            Assert.That(_scan.Inspector.OwnSizeText, Is.EqualTo(SizeFormatter.Format(100)));
+            Assert.That(_scan.Inspector.TopChildren.Select(static node => node.Name), Is.EqualTo(new[] { "small.bin" }));
+            Assert.That(root.Space!.TotalSize, Is.EqualTo(1200));
+            Assert.That(((DirectorySpace)root.Space).TotalFileCount, Is.EqualTo(3));
+            Assert.That(root.FileCountText, Is.EqualTo("2"));
+            Assert.That(File.Exists(large.AbsolutePath), Is.True);
+        }
+    }
+
+    [Test]
+    public void Игнорирование_папки_после_её_файла_не_вычитает_размер_дважды_и_возвращает_карту_к_родителю()
+    {
+        var root = ArrangeDisplayTree();
+        var branch = root.Children.Single(static node => node.Name == "branch");
+        branch.IsExpanded = true;
+        _scan.Treemap.DrillIntoCommand.Execute(branch);
+        branch.Children[0].IgnoreCommand.Execute(null);
+        branch.IgnoreCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(root.Weight, Is.EqualTo(200));
+            Assert.That(root.Children, Does.Contain(branch));
+            Assert.That(branch.IsIgnored, Is.True);
+            Assert.That(branch.Children.All(static child => child.IsIgnored), Is.True);
+            Assert.That(_scan.Treemap.TreemapRoot, Is.SameAs(root));
+            Assert.That(_scan.SelectedNode, Is.SameAs(branch));
+            Assert.That(_scan.ResetIgnoredCaption, Is.EqualTo("Снять игнорирование (1)"));
+        }
+
+        _scan.ResetIgnoredCommand.Execute(null);
+        Assert.That(root.Weight, Is.EqualTo(1200));
+        Assert.That(root.Children, Has.Count.EqualTo(2));
+        Assert.That(_scan.HasIgnoredItems, Is.False);
+        Assert.That(branch.Children.All(static child => !child.IsIgnored), Is.True);
+    }
+
+    [Test]
+    public void Игнорирование_сохраняет_пометки_на_удаление_а_удаление_родителя_сбрасывает_игнорирование()
+    {
+        var root = ArrangeDisplayTree();
+        var branch = root.Children.Single(static node => node.Name == "branch");
+        branch.IsExpanded = true;
+        var large = branch.Children.Single(static node => node.Name == "large.bin");
+        large.MarkDeletedCommand.Execute(null);
+        large.IgnoreCommand.Execute(null);
+        Assert.That(_scan.MarkedCount, Is.EqualTo(1));
+        _scan.Marks.ApplyDeletionResult([branch.Space!]);
+
+        Assert.That(_scan.HasIgnoredItems, Is.False);
+        Assert.That(root.Weight, Is.EqualTo(200));
+        _scan.ResetIgnoredCommand.Execute(null);
+        Assert.That(root.Children.Select(static node => node.Name), Is.EqualTo(new[] { "other.bin" }));
+    }
+
+    [Test]
+    public void Игнорирование_всех_детей_даёт_пустую_карту_и_сохраняет_узлы_дерева()
+    {
+        var root = ArrangeDisplayTree();
+        foreach (var child in root.Children.ToArray())
+        {
+            child.IgnoreCommand.Execute(null);
+        }
+
+        Assert.That(root.Weight, Is.Zero);
+        Assert.That(_scan.Treemap.HasTreemapTiles, Is.False);
+        Assert.That(root.Children, Has.Count.EqualTo(2));
+        Assert.That(root.Children.All(static child => child.IsIgnored), Is.True);
+        root.IgnoreCommand.Execute(null);
+        Assert.That(_scan.Roots, Has.Count.EqualTo(1));
+        _scan.ResetIgnoredCommand.Execute(null);
+        Assert.That(_scan.Treemap.HasTreemapTiles, Is.True);
+        Assert.That(root.Weight, Is.EqualTo(1200));
+    }
+
+    [Test]
+    public void Повторный_скан_сбрасывает_игнорирование_заменённого_дерева()
+    {
+        var root = ArrangeDisplayTree();
+        root.Children[0].IgnoreCommand.Execute(null);
+        var fresh = new DiskSpaceCalculator().Calculate(new DirectoryInfo(root.AbsolutePath));
+        _scan.ApplyScanResult(fresh, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+        Assert.That(_scan.HasIgnoredItems, Is.False);
+        Assert.That(_scan.Roots[0].Weight, Is.EqualTo(1200));
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Игнорирование_и_возврат_не_обновляют_потомков_соседней_загруженной_ветви(bool otherRoot)
+    {
+        var root = ArrangeDisplayTree();
+        var domain = (DirectorySpace)root.Space!;
+        var unrelatedRoot = otherRoot
+            ? new DirectorySpace(Path.Combine(_root, "other"), null, DateTime.Today, DateTime.Today)
+            : domain;
+        var branch = new DirectorySpace("unrelated", unrelatedRoot, DateTime.Today, DateTime.Today);
+        var sample = new FileInfo(Path.Combine(_root, "target", "other.bin"));
+        branch.AddFiles(Enumerable.Repeat(sample, 1000).ToArray().AsSpan());
+        unrelatedRoot.Add(branch);
+        ScanNodeViewModel unrelatedRootVm;
+
+        if (otherRoot)
+        {
+            _scan.ApplyScanResult(unrelatedRoot, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+            unrelatedRootVm = _scan.Roots[0];
+        }
+        else
+        {
+            root.ReloadChildren();
+            unrelatedRootVm = root;
+        }
+
+        var unrelated = unrelatedRootVm.Children.Single(static child => child.Name == "unrelated");
+        unrelated.EnsureLoaded();
+        _scan.SelectedNode = unrelated;
+        _scan.Treemap.SetRoot(unrelatedRootVm);
+        _scan.Treemap.DrillIntoCommand.Execute(unrelated);
+        var events = 0;
+        unrelated.Children.CollectionChanged += (_, _) => events++;
+        unrelated.Children[0].PropertyChanged += (_, _) => events++;
+        _scan.Inspector.TopChildren.CollectionChanged += (_, _) => events++;
+        _scan.Treemap.TreemapTiles.CollectionChanged += (_, _) => events++;
+        var beforeRootShare = _scan.Inspector.ShareOfRoot;
+        var changed = root.Children.Single(static child => child.Name == "branch");
+        changed.EnsureLoaded();
+        changed.Children[0].IgnoreCommand.Execute(null);
+
+        Assert.That(events, Is.Zero);
+        Assert.That(_scan.Inspector.ShareOfRoot, otherRoot ? Is.EqualTo(beforeRootShare) : Is.GreaterThan(beforeRootShare));
+        _scan.ResetIgnoredCommand.Execute(null);
+        Assert.That(events, Is.Zero);
+        Assert.That(_scan.Inspector.ShareOfRoot, Is.EqualTo(beforeRootShare));
+    }
+
+    [Test]
+    public void Снятие_пометки_у_унаследованного_потомка_явно_возвращает_его_папку_и_сохраняет_узлы()
+    {
+        var root = ArrangeDisplayTree();
+        var branch = root.Children.Single(static child => child.Name == "branch");
+        branch.IsExpanded = true;
+        var large = branch.Children.Single(static child => child.Name == "large.bin");
+        _scan.SelectedNode = large;
+        branch.IgnoreCommand.Execute(null);
+
+        Assert.That(large.IsIgnored, Is.True);
+        Assert.That(large.CanIgnore, Is.False);
+        Assert.That(large.UnignoreCaption, Is.EqualTo("Снять игнорирование папки «branch»"));
+        Assert.That(_scan.SelectedNode, Is.SameAs(large));
+        large.UnignoreCommand.Execute(null);
+
+        Assert.That(branch.IsIgnored, Is.False);
+        Assert.That(large.IsIgnored, Is.False);
+        Assert.That(branch.Children.Single(static child => child.Name == "large.bin"), Is.SameAs(large));
+        Assert.That(root.Weight, Is.EqualTo(1200));
+        Assert.That(_scan.HasIgnoredItems, Is.False);
+    }
+
+    [TestCase(ScanSortField.Size, true)]
+    [TestCase(ScanSortField.Size, false)]
+    [TestCase(ScanSortField.FileCount, true)]
+    [TestCase(ScanSortField.FileCount, false)]
+    public void Игнорирование_и_снятие_пометки_сохраняют_порядок_папок_и_файлов(ScanSortField field, bool invert)
+    {
+        var root = ArrangeDisplayTree();
+        var domain = (DirectorySpace)root.Space!;
+        var other = new DirectorySpace("other", domain, DateTime.Today, DateTime.Today);
+        other.AddFiles(new[] { new FileInfo(Path.Combine(_root, "target", "other.bin")) }.AsSpan());
+        domain.Add(other);
+        _scan.Sort.State.Field = field;
+        _scan.Sort.State.Invert = invert;
+        root.ReloadChildren();
+        var branch = root.Children.Single(static child => child.Name == "branch");
+        branch.EnsureLoaded();
+        var beforeFolders = root.Children.ToArray();
+        var beforeFiles = branch.Children.ToArray();
+
+        branch.IgnoreCommand.Execute(null);
+        Assert.That(root.Children, Is.EqualTo(beforeFolders));
+        branch.UnignoreCommand.Execute(null);
+        Assert.That(root.Children, Is.EqualTo(beforeFolders));
+
+        var large = branch.Children.Single(static child => child.Name == "large.bin");
+        large.IgnoreCommand.Execute(null);
+        Assert.That(root.Children, Is.EqualTo(beforeFolders));
+        Assert.That(branch.Children, Is.EqualTo(beforeFiles));
+        large.UnignoreCommand.Execute(null);
+        Assert.That(root.Children, Is.EqualTo(beforeFolders));
+        Assert.That(branch.Children, Is.EqualTo(beforeFiles));
+    }
+
+    private ScanNodeViewModel ArrangeDisplayTree()
+    {
+        var path = Path.Combine(_root, "target");
+        var branch = Path.Combine(path, "branch");
+        Directory.CreateDirectory(branch);
+        File.WriteAllBytes(Path.Combine(branch, "large.bin"), new byte[900]);
+        File.WriteAllBytes(Path.Combine(branch, "small.bin"), new byte[100]);
+        File.WriteAllBytes(Path.Combine(path, "other.bin"), new byte[200]);
+        var space = new DiskSpaceCalculator().Calculate(new DirectoryInfo(path));
+        _scan.ApplyScanResult(space, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+        return _scan.Roots[0];
+    }
+
     private static SpaceBase Child(DirectorySpace dir, string name)
     {
         return dir.SubDirectories.Cast<SpaceBase>().Concat(dir.Files).Single(child => child.Name == name);

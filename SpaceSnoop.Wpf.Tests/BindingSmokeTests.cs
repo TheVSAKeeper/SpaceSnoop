@@ -94,6 +94,96 @@ public class BindingSmokeTests
         _sink = BindingErrorSink.Attach();
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Пометка_игнорирования_видна_в_дереве_и_снимается_из_меню_без_ошибок_биндинга(bool map)
+    {
+        _shell.TryNavigate(SectionKey.Scan);
+        var scan = _services.GetRequiredService<ScanViewModel>();
+        var previousMode = scan.ViewMode;
+        scan.ViewMode = ScanViewMode.Tree;
+        Settle();
+
+        var target = Descendants<TreeViewItem>(_window)
+            .First(static item => item.DataContext is ScanNodeViewModel { IsRoot: false });
+        var node = (ScanNodeViewModel)target.DataContext;
+        var beforeOrder = scan.Roots[0].Children.ToArray();
+        var wasMarked = node.IsMarkedDeleted;
+        target.IsSelected = true;
+        var menu = target.ContextMenu;
+        Assert.That(menu, Is.Not.Null);
+
+        try
+        {
+            node.MarkDeletedCommand.Execute(null);
+            menu.PlacementTarget = target;
+            menu.IsOpen = true;
+            Settle();
+            var hide = menu.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, node.IgnoreCommand));
+            Assert.That(hide.Command, Is.SameAs(node.IgnoreCommand));
+            hide.Command.Execute(null);
+            menu.IsOpen = false;
+            Settle();
+            Assert.That(node.IsIgnored, Is.True);
+            Assert.That(scan.Roots[0].Children, Is.EqualTo(beforeOrder));
+            var ignoredRow = Descendants<TreeViewItem>(_window).Single(item => ReferenceEquals(item.DataContext, node));
+            Assert.That(ignoredRow.IsSelected, Is.True);
+            Assert.That(Descendants<MahApps.Metro.IconPacks.PackIconLucide>(ignoredRow)
+                .Any(static icon => icon.Kind == MahApps.Metro.IconPacks.PackIconLucideKind.EyeOff && icon.IsVisible), Is.True);
+            Assert.That(scan.SelectedNode, Is.SameAs(node));
+            scan.ViewMode = map ? ScanViewMode.Treemap : ScanViewMode.Tree;
+            Settle();
+
+            var restore = (Button)ViewCapture.Find(_window, "ResetIgnoredButton")!;
+            Assert.That(restore.IsVisible, Is.True);
+            Assert.That(restore.Command, Is.SameAs(scan.ResetIgnoredCommand));
+            var delete = Descendants<Button>(Descendant<ScanToolbar>(_window)!)
+                .Single(button => ReferenceEquals(button.Command, scan.Marks.DeleteMarkedCommand));
+            Assert.That(delete.IsVisible, Is.True);
+            Assert.That(VisualTreeHelper.GetParent(restore), Is.SameAs(VisualTreeHelper.GetParent(delete)));
+            Assert.That(restore.ActualHeight, Is.EqualTo(delete.ActualHeight).Within(0.1));
+            Assert.That(scan.HasIgnoredItems, Is.True);
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+
+            var directory = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..", ".kc", "scratch", "scan-hidden-items");
+            Directory.CreateDirectory(directory);
+            var frame = Path.GetFullPath(Path.Combine(directory, map ? "ignored-map.png" : "ignored-tree.png"));
+            ViewCapture.Save(Descendant<ScanView>(_window)!, frame, 1);
+            TestContext.Out.WriteLine(frame);
+
+            scan.ViewMode = ScanViewMode.Tree;
+            Settle();
+            menu.PlacementTarget = Descendants<TreeViewItem>(_window).Single(item => ReferenceEquals(item.DataContext, node));
+            menu.IsOpen = true;
+            Settle();
+            var unignore = menu.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, node.UnignoreCommand));
+            Assert.That(unignore.Visibility, Is.EqualTo(Visibility.Visible));
+            unignore.Command.Execute(null);
+            menu.IsOpen = false;
+            Settle();
+            Assert.That(scan.HasIgnoredItems, Is.False);
+            Assert.That(restore.IsVisible, Is.False);
+            Assert.That(node.IsIgnored, Is.False);
+            Assert.That(scan.SelectedNode, Is.SameAs(node));
+            node.IgnoreCommand.Execute(null);
+            Settle();
+            restore.Command.Execute(null);
+            Settle();
+            Assert.That(node.IsIgnored, Is.False);
+            Assert.That(scan.HasIgnoredItems, Is.False);
+        }
+        finally
+        {
+            menu.IsOpen = false;
+            scan.ResetIgnoredCommand.Execute(null);
+            if (!wasMarked)
+            {
+                node.UnmarkDeletedCommand.Execute(null);
+            }
+            scan.ViewMode = previousMode;
+        }
+    }
+
     [OneTimeTearDown]
     public void OneTimeTearDown()
     {

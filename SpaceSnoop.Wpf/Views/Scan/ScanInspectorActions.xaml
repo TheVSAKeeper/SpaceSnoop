@@ -45,6 +45,26 @@
                 Margin="0,8,0,8" />
 
         <Button Style="{StaticResource InspectorAction}"
+                Command="{Binding Node.IgnoreCommand}"
+                Visibility="{Binding Node.CanIgnore, Converter={StaticResource BoolToVisibility}}"
+                ToolTip="Не учитывать размер в долях, подсветке и карте">
+            <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}"
+                                          Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                <TextBlock Text="Игнорировать" VerticalAlignment="Center" />
+            </StackPanel>
+        </Button>
+        <Button Style="{StaticResource InspectorAction}"
+                Command="{Binding Node.UnignoreCommand}"
+                Visibility="{Binding Node.IsIgnored, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Orientation="Horizontal">
+                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Eye}"
+                                          Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Node.UnignoreCaption}" VerticalAlignment="Center" TextWrapping="Wrap" />
+            </StackPanel>
+        </Button>
+
+        <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.MarkDeletedCommand}"
                 ToolTip="Пометить узел и всё вложенное на удаление"
                 Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource InverseBoolToVisibility}}">

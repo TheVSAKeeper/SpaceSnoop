@@ -17,17 +17,28 @@
                   VerticalAlignment="Center">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
                 <iconPacks:PackIconLucide Grid.Column="0"
                                           Style="{StaticResource NodeIcon}" />
-                <TextBlock Grid.Column="1"
+                <iconPacks:PackIconLucide Grid.Column="1"
+                                          Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}"
+                                          Width="13" Height="13" Margin="0,0,6,0"
+                                          VerticalAlignment="Center"
+                                          Foreground="{DynamicResource Fg.Muted}"
+                                          ToolTip="{Binding IgnoreHint}"
+                                          Visibility="{Binding IsIgnored, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Grid.Column="2"
                            behaviors:PathTrimmer.FullPath="{Binding Name}"
                            VerticalAlignment="Center"
                            TextTrimming="CharacterEllipsis">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsIgnored}" Value="True">
+                                    <Setter Property="Foreground" Value="{DynamicResource Fg.Muted}" />
+                                </DataTrigger>
                                 <DataTrigger Binding="{Binding IsMarkedDeleted}"
                                              Value="True">
                                     <Setter Property="TextDecorations"

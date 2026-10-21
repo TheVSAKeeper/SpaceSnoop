@@ -29,6 +29,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         _sort = sort;
         _factory = factory;
         _isMarkedDeleted = space.IsDeleted;
+        _isIgnored = factory.Visibility.IsIgnored(space);
 
         if (HasChildren)
         {
@@ -48,13 +49,13 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     public string Name => Space?.Name ?? string.Empty;
 
-    public string SizeText => Space is DirectorySpace dir ? dir.TotalSizeText : Space?.SizeText ?? string.Empty;
+    public string SizeText => Space is null ? string.Empty : SizeFormatter.Format(IsIgnored ? Space.TotalSize : (long)Weight);
 
     public double Fraction
     {
         get
         {
-            if (Space is null)
+            if (Space is null || IsIgnored)
             {
                 return 0;
             }
@@ -66,24 +67,27 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
             if (field > 0)
             {
-                return Math.Clamp(Space.TotalSize / field, 0, 1);
+                return Math.Clamp(Weight / field, 0, 1);
             }
 
             return 1;
         }
+        private set;
     }
 
-    public double Share => Space is null || field <= 0
-        ? 0
-        : Math.Clamp(Space.TotalSize / field, 0, 1);
+    public double Share
+    {
+        get => Space is null || IsIgnored || field <= 0 ? 0 : Math.Clamp(Weight / field, 0, 1);
+        private set;
+    }
 
     public SpaceBase? Root { get; }
 
     public bool IsRoot => Space is not null && ReferenceEquals(Space, Root);
 
-    public double ShareOfRoot => Space is null || Root is null || Root.TotalSize <= 0
+    public double ShareOfRoot => Space is null || Root is null || VisibleSize(Root) <= 0
         ? 0
-        : Math.Clamp((double)Space.TotalSize / Root.TotalSize, 0, 1);
+        : Math.Clamp(Weight / VisibleSize(Root), 0, 1);
 
     public DriveCapacity? Drive { get; }
 
@@ -97,17 +101,43 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         ? $"Диск {Drive!.Value.Name} – занято {SizeFormatter.Format(Drive.Value.UsedBytes)} из {SizeFormatter.Format(Drive.Value.TotalBytes)}"
         : string.Empty;
 
-    public double Weight => Space?.TotalSize ?? 0;
+    public double Weight => Space is null || IsIgnored ? 0 : VisibleSize(Space);
 
-    public string ShareText => ShareFormatter.Format(ShowsDriveShare ? DriveShare : Share);
+    internal long VisibleSize(SpaceBase space) => _factory?.Visibility.SizeOf(space) ?? space.TotalSize;
 
-    public string FileCountText => Space is DirectorySpace dir ? dir.TotalFileCount.ToString("N0") : string.Empty;
+    internal bool IsVisible(SpaceBase space) => _factory?.Visibility.IsIgnored(space) != true;
+
+    public string ShareText => IsIgnored ? "–" : ShareFormatter.Format(ShowsDriveShare ? DriveShare : Share);
+
+    public string FileCountText => Space is DirectorySpace dir
+        ? (IsIgnored ? dir.TotalFileCount : VisibleFileCount(dir)).ToString("N0") : string.Empty;
+
+    internal int VisibleFileCount(DirectorySpace dir) => _factory?.Visibility.FileCountOf(dir) ?? dir.TotalFileCount;
+
+    internal int VisibleDirectoryCount(DirectorySpace dir) => IsIgnored ? dir.TotalDirectoryCount
+        : _factory?.Visibility.DirectoryCountOf(dir) ?? dir.TotalDirectoryCount;
 
     public string AbsolutePath => Space?.AbsolutePath ?? string.Empty;
 
-    public string Tooltip => ShowsDriveShare
-        ? $"{Space!.GetTooltipText()}{Environment.NewLine}Доля диска: {ShareFormatter.Format(DriveShare)} – {DriveHint}"
-        : Space?.GetTooltipText() ?? string.Empty;
+    public string Tooltip
+    {
+        get
+        {
+            if (IsIgnored)
+            {
+                return $"{Space?.GetTooltipText()}{Environment.NewLine}{IgnoreHint}";
+            }
+
+            if (_factory?.Visibility.Count > 0)
+            {
+                return $"{Name}{Environment.NewLine}{AbsolutePath}{Environment.NewLine}Размер в отображении: {SizeText}";
+            }
+
+            return ShowsDriveShare
+                ? $"{Space!.GetTooltipText()}{Environment.NewLine}Доля диска: {ShareFormatter.Format(DriveShare)} – {DriveHint}"
+                : Space?.GetTooltipText() ?? string.Empty;
+        }
+    }
 
     public string ShareHint => ShowsDriveShare
         ? $"Доля диска: {ShareText} ({DriveHint})"
@@ -121,9 +151,12 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     public string KindText => IsDirectory ? "Каталог" : "Файл";
 
-    public bool HasOwnSize => Space is DirectorySpace { Size: > 0 };
+    public bool HasOwnSize => OwnSize > 0;
 
-    public string OwnSizeText => Space is DirectorySpace dir ? dir.SizeText : string.Empty;
+    public string OwnSizeText => Space is DirectorySpace ? SizeFormatter.Format(OwnSize) : string.Empty;
+
+    private long OwnSize => Space is DirectorySpace dir
+        ? IsIgnored ? dir.Size : _factory?.Visibility.OwnSizeOf(dir) ?? dir.Size : 0;
 
     public string CreationDateText => Space?.CreationDate.ToString("g") ?? string.Empty;
 
@@ -167,14 +200,63 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
         var items = EnumerateChildren(dir).ToList();
 
-        var localMax = items.Count > 0 ? items.Max(static x => x.TotalSize) : 0;
+        var localMax = items.Where(IsVisible).Select(VisibleSize).DefaultIfEmpty().Max();
+
+        var existing = Children.Where(static child => child.Space is not null).ToDictionary(static child => child.Space!);
 
         var ordered = items
             .OrderBy(static x => x, _sort)
-            .Select(item => _factory!.Create(item, localMax, dir.TotalSize, Root!, _sort));
+            .Select(item =>
+            {
+                var child = existing.GetValueOrDefault(item) ?? _factory!.Create(item, localMax, Weight, Root!, _sort);
+                child.Fraction = localMax;
+                child.Share = Weight;
+                return child;
+            });
 
         Children.ReplaceAll(ordered);
         _previewTiles = null;
+    }
+
+    internal void RefreshVisibility(IReadOnlySet<SpaceBase> affected, bool inheritedChange = false)
+    {
+        if (Space is null || (!inheritedChange && !affected.Contains(Space)))
+        {
+            return;
+        }
+
+        var changed = IsIgnored != (_factory?.Visibility.IsIgnored(Space) == true);
+        IsIgnored = _factory?.Visibility.IsIgnored(Space) == true;
+
+        if (IsRoot)
+        {
+            Fraction = Weight;
+            Share = Weight;
+        }
+
+        if (_loaded)
+        {
+            // TODO: десятки тысяч прямых детей требуют полной пересортировки; при заметных паузах – обновлять затронутые позиции.
+            if (!IsIgnored)
+            {
+                ReloadChildren();
+            }
+
+            foreach (var child in Children)
+            {
+                if (changed || inheritedChange || (child.Space is { } space && affected.Contains(space)))
+                {
+                    child.RefreshVisibility(affected, changed || inheritedChange);
+                }
+                else
+                {
+                    child.NotifyPropertiesChanged();
+                }
+            }
+        }
+
+        _previewTiles = null;
+        NotifyPropertiesChanged();
     }
 
     public void RefreshMarks()

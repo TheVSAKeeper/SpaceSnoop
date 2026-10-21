@@ -255,6 +255,8 @@
                            BasedOn="{StaticResource TreeViewItem.Default}">
                         <Setter Property="IsExpanded"
                                 Value="{Binding IsExpanded, Mode=TwoWay}" />
+                        <Setter Property="IsSelected"
+                                Value="{Binding IsSelected, Mode=OneWay}" />
                         <Setter Property="Padding"
                                 Value="2,2" />
                         <Setter Property="ContextMenu"

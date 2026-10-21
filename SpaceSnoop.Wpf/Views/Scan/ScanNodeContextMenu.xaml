@@ -46,6 +46,32 @@
             </MenuItem.Header>
         </MenuItem>
 
+        <MenuItem
+                  Command="{Binding PlacementTarget.DataContext.IgnoreCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  Visibility="{Binding PlacementTarget.DataContext.CanIgnore, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}"
+                  ToolTip="Не учитывать размер узла и его содержимого в долях, подсветке и карте. Узел останется в дереве.">
+            <MenuItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
+                                              Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}" />
+                    <TextBlock Text="Игнорировать" VerticalAlignment="Center" />
+                </StackPanel>
+            </MenuItem.Header>
+        </MenuItem>
+        <MenuItem
+                  Command="{Binding PlacementTarget.DataContext.UnignoreCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                  Visibility="{Binding PlacementTarget.DataContext.IsIgnored, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}"
+                  ToolTip="Снять пометку игнорирования и снова учитывать размер">
+            <MenuItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
+                                              Kind="{x:Static iconPacks:PackIconLucideKind.Eye}" />
+                    <TextBlock Text="{Binding PlacementTarget.DataContext.UnignoreCaption, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                               VerticalAlignment="Center" />
+                </StackPanel>
+            </MenuItem.Header>
+        </MenuItem>
+
         <Separator />
 
         <MenuItem

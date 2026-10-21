@@ -4,11 +4,15 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
 {
     public event Action<ScanNodeViewModel>? ArchiveRequested;
     public event Action<ScanNodeViewModel>? AskAgentRequested;
+    public event Action<ScanNodeViewModel>? IgnoreRequested;
+    public event Action<ScanNodeViewModel>? UnignoreRequested;
     internal event Action<ScanMarkSnapshot>? MarksChanged;
 
     internal Func<SpaceBase, SpaceBase, ScanMarkSnapshot>? MarkSnapshot { get; set; }
 
     public bool MarksPresent { get; set; }
+
+    public ScanVisibility Visibility { get; } = new();
 
     public bool RevealFiles => preferences.RevealFiles;
 
@@ -44,5 +48,15 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
     public void RequestAskAgent(ScanNodeViewModel node)
     {
         AskAgentRequested?.Invoke(node);
+    }
+
+    public void RequestIgnore(ScanNodeViewModel node)
+    {
+        IgnoreRequested?.Invoke(node);
+    }
+
+    public void RequestUnignore(ScanNodeViewModel node)
+    {
+        UnignoreRequested?.Invoke(node);
     }
 }

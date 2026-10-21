@@ -43,6 +43,11 @@
                        Foreground="{DynamicResource Accent.Text}" />
         </Border>
 
+        <TextBlock Text="{Binding Node.IgnoreHint}"
+                   Margin="0,8,0,0" TextWrapping="Wrap"
+                   Foreground="{DynamicResource Fg.Muted}"
+                   Visibility="{Binding Node.IsIgnored, Converter={StaticResource BoolToVisibility}}" />
+
         <TextBlock Text="{Binding Path}"
                    Margin="0,10,0,0"
                    TextWrapping="Wrap"
