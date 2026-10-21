@@ -5,17 +5,6 @@ namespace SpaceSnoop.Tests;
 [TestFixture]
 public class OperationProgressStateTests
 {
-    [Test]
-    public void Снимок_отдаёт_последний_отчёт()
-    {
-        var state = new OperationProgressState();
-
-        state.Report(new(1, @"C:\первый", 100));
-        state.Report(new(2, @"C:\второй", 300));
-
-        Assert.That(state.CreateSnapshot(), Is.EqualTo(new OperationProgress(2, @"C:\второй", 300)));
-    }
-
     [TestCase(5, 500)]
     [TestCase(9, 100)]
     public void Отставший_отчёт_счётчики_назад_не_откатывает(int completed, long bytes)
@@ -44,14 +33,17 @@ public class OperationProgressStateTests
         var state = new OperationProgressState();
         var counter = 0;
 
-        Parallel.For(0, Threads, _ =>
-        {
-            for (var index = 0; index < PerThread; index++)
+        Parallel.For(
+            0,
+            Threads,
+            _ =>
             {
-                var completed = Interlocked.Increment(ref counter);
-                state.Report(new(completed, @"C:\файл", (long)completed * 4096));
-            }
-        });
+                for (var index = 0; index < PerThread; index++)
+                {
+                    var completed = Interlocked.Increment(ref counter);
+                    state.Report(new(completed, @"C:\файл", (long)completed * 4096));
+                }
+            });
 
         var snapshot = state.CreateSnapshot();
 
@@ -72,5 +64,16 @@ public class OperationProgressStateTests
         state.Report(new(1, @"C:\новый", 100));
 
         Assert.That(state.CreateSnapshot(), Is.EqualTo(new OperationProgress(1, @"C:\новый", 100)));
+    }
+
+    [Test]
+    public void Снимок_отдаёт_последний_отчёт()
+    {
+        var state = new OperationProgressState();
+
+        state.Report(new(1, @"C:\первый", 100));
+        state.Report(new(2, @"C:\второй", 300));
+
+        Assert.That(state.CreateSnapshot(), Is.EqualTo(new OperationProgress(2, @"C:\второй", 300)));
     }
 }

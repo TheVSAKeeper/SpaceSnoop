@@ -105,7 +105,10 @@ public interface IAgentStreamParser
 
     string? FailureHint => null;
 
-    AgentEvent? Complete() => null;
+    AgentEvent? Complete()
+    {
+        return null;
+    }
 }
 
 public interface IAgentBackend

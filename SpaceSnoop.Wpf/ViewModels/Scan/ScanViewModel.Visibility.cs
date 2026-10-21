@@ -2,11 +2,10 @@
 
 public sealed partial class ScanViewModel
 {
-    internal bool IsRefreshingVisibility { get; private set; }
-
     public bool HasIgnoredItems => _nodeFactory.Visibility.Count > 0;
 
     public string ResetIgnoredCaption => $"Снять игнорирование ({_nodeFactory.Visibility.Count})";
+    internal bool IsRefreshingVisibility { get; private set; }
 
     private void OnIgnoreRequested(ScanNodeViewModel node)
     {
@@ -35,7 +34,7 @@ public sealed partial class ScanViewModel
     {
         var affected = new HashSet<SpaceBase>();
 
-        for (SpaceBase? current = space; current is not null; current = current.Parent)
+        for (var current = space; current is not null; current = current.Parent)
         {
             affected.Add(current);
         }

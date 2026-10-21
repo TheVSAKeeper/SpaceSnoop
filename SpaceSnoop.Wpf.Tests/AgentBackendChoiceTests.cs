@@ -5,31 +5,6 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class AgentBackendChoiceTests
 {
-    private static AgentBackendProbe Found(AgentBackendKind kind, string version = "1.0.0")
-    {
-        return new(kind, new($@"C:\cli\{kind}.exe", version));
-    }
-
-    private static AgentBackendProbe Missing(AgentBackendKind kind)
-    {
-        return new(kind, null);
-    }
-
-    [Test]
-    public void Ни_одного_CLI_не_найдено_и_предлагать_нечего()
-    {
-        var choice = AgentBackendChoice.From(
-            AgentBackendKind.Claude,
-            [Missing(AgentBackendKind.Claude), Missing(AgentBackendKind.Codex), Missing(AgentBackendKind.OpenCode)]);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(choice.NothingFound, Is.True);
-            Assert.That(choice.Suggested, Is.Null);
-            Assert.That(choice.Alternatives, Is.Empty);
-        });
-    }
-
     [Test]
     public void Выбранного_CLI_нет_и_единственный_найденный_становится_предложением()
     {
@@ -74,6 +49,21 @@ public class AgentBackendChoiceTests
     }
 
     [Test]
+    public void Ни_одного_CLI_не_найдено_и_предлагать_нечего()
+    {
+        var choice = AgentBackendChoice.From(
+            AgentBackendKind.Claude,
+            [Missing(AgentBackendKind.Claude), Missing(AgentBackendKind.Codex), Missing(AgentBackendKind.OpenCode)]);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(choice.NothingFound, Is.True);
+            Assert.That(choice.Suggested, Is.Null);
+            Assert.That(choice.Alternatives, Is.Empty);
+        });
+    }
+
+    [Test]
     public void Пустая_версия_считается_найденным_CLI()
     {
         var choice = AgentBackendChoice.From(
@@ -85,5 +75,15 @@ public class AgentBackendChoiceTests
             Assert.That(choice.CurrentFound, Is.True);
             Assert.That(choice.NothingFound, Is.False);
         });
+    }
+
+    private static AgentBackendProbe Found(AgentBackendKind kind, string version = "1.0.0")
+    {
+        return new(kind, new($@"C:\cli\{kind}.exe", version));
+    }
+
+    private static AgentBackendProbe Missing(AgentBackendKind kind)
+    {
+        return new(kind, null);
     }
 }

@@ -239,7 +239,8 @@
                                      HorizontalAlignment="Stretch"
                                      AutomationProperties.Name="Направление синхронизации" />
 
-                            <StackPanel Visibility="{Binding WinnerApplicable, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel
+                                Visibility="{Binding WinnerApplicable, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Text="Победитель"
                                            Style="{StaticResource TextBlock.Subtle}"
                                            Margin="0,12,0,4" />

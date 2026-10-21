@@ -1,6 +1,5 @@
 ﻿using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.ViewModels.Scan;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -20,13 +19,26 @@ public class ScanLookupTests
         Assert.That(ScanLookup.Find([root], path)?.Name, Is.EqualTo("node_modules"));
     }
 
-    [TestCase(@"C:\Data")]
-    [TestCase(@"C:\Data\projects")]
-    public void Сам_корень_и_промежуточный_каталог_тоже_находятся(string path)
+    [TestCase(@"C:\Data\projects\foo", "foo")]
+    [TestCase(@"C:\Data\projects\Foo", "Foo")]
+    [TestCase(@"C:\Data\projects\FOO", null)]
+    public void Каталоги_различающиеся_регистром_берутся_только_точным_совпадением(string path, string? expected)
     {
         var root = BuildTree();
+        var projects = root.SubDirectories[0];
+        projects.Add(new("Foo", projects, DateTime.Now, DateTime.Now));
+        projects.Add(new("foo", projects, DateTime.Now, DateTime.Now));
 
-        Assert.That(ScanLookup.Find([root], path), Is.Not.Null);
+        Assert.That(ScanLookup.Find([root], path)?.Name, Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Поиск_идёт_по_всем_корням()
+    {
+        var first = new DirectorySpace(@"C:\First", null, DateTime.Now, DateTime.Now);
+        var second = BuildTree();
+
+        Assert.That(ScanLookup.Find([first, second], @"C:\Data\projects"), Is.Not.Null);
     }
 
     [TestCase(@"C:\Data2\projects")]
@@ -40,6 +52,15 @@ public class ScanLookupTests
         var root = BuildTree();
 
         Assert.That(ScanLookup.Find([root], path), Is.Null);
+    }
+
+    [TestCase(@"C:\Data")]
+    [TestCase(@"C:\Data\projects")]
+    public void Сам_корень_и_промежуточный_каталог_тоже_находятся(string path)
+    {
+        var root = BuildTree();
+
+        Assert.That(ScanLookup.Find([root], path), Is.Not.Null);
     }
 
     [Test]
@@ -61,28 +82,6 @@ public class ScanLookupTests
         {
             directory.Delete(true);
         }
-    }
-
-    [Test]
-    public void Поиск_идёт_по_всем_корням()
-    {
-        var first = new DirectorySpace(@"C:\First", null, DateTime.Now, DateTime.Now);
-        var second = BuildTree();
-
-        Assert.That(ScanLookup.Find([first, second], @"C:\Data\projects"), Is.Not.Null);
-    }
-
-    [TestCase(@"C:\Data\projects\foo", "foo")]
-    [TestCase(@"C:\Data\projects\Foo", "Foo")]
-    [TestCase(@"C:\Data\projects\FOO", null)]
-    public void Каталоги_различающиеся_регистром_берутся_только_точным_совпадением(string path, string? expected)
-    {
-        var root = BuildTree();
-        var projects = root.SubDirectories[0];
-        projects.Add(new("Foo", projects, DateTime.Now, DateTime.Now));
-        projects.Add(new("foo", projects, DateTime.Now, DateTime.Now));
-
-        Assert.That(ScanLookup.Find([root], path)?.Name, Is.EqualTo(expected));
     }
 
     [Test]

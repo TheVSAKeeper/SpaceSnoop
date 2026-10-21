@@ -11,47 +11,11 @@ public class OpenCodeAgentBackendTests
     private static readonly string StepStart = Event("step_start", "part", """{"id":"prt_0","type":"step-start"}""");
 
     [Test]
-    public void Новый_разговор_запускается_подкомандой_run_своим_агентом_и_фиксированным_заголовком()
+    public void Аргументы_вызова_берутся_из_состояния_части()
     {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "привет" });
+        var line = Event("tool_use", "part", """{"id":"prt_3","type":"tool","tool":"spacesnoop_scan_directory","state":{"status":"completed","input":{"path":"C:\\Data"}}}""");
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(args.Take(6), Is.EqualTo(new[] { "run", "--format", "json", "--pure", "--agent", OpenCodeAgentBackend.AgentName }));
-            Assert.That(args, Does.Contain("--title"));
-            Assert.That(args, Does.Not.Contain("--session"));
-        }
-    }
-
-    [Test]
-    public void Продолжение_сессии_идёт_ключом_session_вместо_заголовка()
-    {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", ResumeSessionId = SessionId });
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(args, Does.Contain("--session"));
-            Assert.That(args, Does.Contain(SessionId));
-            Assert.That(args, Does.Not.Contain("--title"));
-        }
-    }
-
-    [TestCase("", ExpectedResult = false)]
-    [TestCase("opencode/big-pickle", ExpectedResult = true)]
-    public bool Модель_добавляется_только_когда_задана(string model)
-    {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", Model = model });
-
-        return args.Contains("--model") && args.Contains(model);
-    }
-
-    [TestCase("", ExpectedResult = false)]
-    [TestCase("high", ExpectedResult = true)]
-    public bool Глубина_рассуждений_уходит_вариантом_модели(string effort)
-    {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", Effort = effort });
-
-        return args.Contains("--variant") && args.Contains(effort);
+        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.EqualTo(AgentEvent.Tool("spacesnoop_scan_directory", """{"path":"C:\\Data"}""")));
     }
 
     [Test]
@@ -73,11 +37,38 @@ public class OpenCodeAgentBackendTests
     }
 
     [Test]
-    public void Оболочка_системы_запрещена_даже_без_настроенного_Mcp()
+    public void Вторая_текстовая_часть_отделяется_пустой_строкой()
     {
-        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест" }));
+        var parser = new OpenCodeAgentBackend.StreamParser();
+        parser.Parse(TextPart("prt_1", "Проверяю."));
 
-        Assert.That(agent.GetProperty("tools").GetProperty("bash").GetBoolean(), Is.False);
+        Assert.That(parser.Parse(TextPart("prt_2", "340 ГБ в node_modules.")), Is.EqualTo(AgentEvent.Chunk("\n\n340 ГБ в node_modules.")));
+    }
+
+    [Test]
+    public void Второе_начало_шага_второго_Started_не_даёт()
+    {
+        var parser = new OpenCodeAgentBackend.StreamParser();
+        parser.Parse(StepStart);
+
+        Assert.That(parser.Parse(Event("step_start", "part", """{"id":"prt_5","type":"step-start"}""")), Is.Null);
+    }
+
+    [Test]
+    public void Вызов_инструмента_даёт_событие_ToolCall_с_полным_именем()
+    {
+        var line = Event("tool_use", "part", """{"id":"prt_3","type":"tool","tool":"spacesnoop_scan_directory","state":{"status":"completed"}}""");
+
+        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.EqualTo(AgentEvent.Tool("spacesnoop_scan_directory")));
+    }
+
+    [TestCase("", ExpectedResult = false)]
+    [TestCase("high", ExpectedResult = true)]
+    public bool Глубина_рассуждений_уходит_вариантом_модели(string effort)
+    {
+        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", Effort = effort });
+
+        return args.Contains("--variant") && args.Contains(effort);
     }
 
     [Test]
@@ -91,6 +82,120 @@ public class OpenCodeAgentBackendTests
             Assert.That(agent.GetProperty("permission").GetProperty("spacesnoop_scan_directory").GetString(), Is.EqualTo("allow"));
             Assert.That(agent.GetProperty("tools").GetProperty("spacesnoop_sync_current").GetBoolean(), Is.False);
             Assert.That(agent.GetProperty("permission").GetProperty("spacesnoop_sync_current").GetString(), Is.EqualTo("deny"));
+        }
+    }
+
+    [Test]
+    public void Итог_хода_собирается_после_конца_потока_из_всех_шагов()
+    {
+        var parser = new OpenCodeAgentBackend.StreamParser();
+        parser.Parse(StepStart);
+        parser.Parse(StepFinish("prt_10", 24986, 14, 27, 0.25));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parser.Parse(StepFinish("prt_11", 31200, 120, 0, 0.5)), Is.Null);
+            Assert.That(parser.Complete(), Is.EqualTo(AgentEvent.Done(SessionId, 0.75, 31200 + 14 + 27 + 120)));
+        }
+    }
+
+    [TestCase("", ExpectedResult = false)]
+    [TestCase("opencode/big-pickle", ExpectedResult = true)]
+    public bool Модель_добавляется_только_когда_задана(string model)
+    {
+        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", Model = model });
+
+        return args.Contains("--model") && args.Contains(model);
+    }
+
+    [Test]
+    public void Начало_шага_даёт_событие_Started_с_идентификатором_сессии()
+    {
+        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(StepStart), Is.EqualTo(AgentEvent.Begin(SessionId)));
+    }
+
+    [Test]
+    public void Не_начавшийся_ход_итога_не_даёт()
+    {
+        Assert.That(new OpenCodeAgentBackend.StreamParser().Complete(), Is.Null);
+    }
+
+    [Test]
+    public void Новый_разговор_запускается_подкомандой_run_своим_агентом_и_фиксированным_заголовком()
+    {
+        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "привет" });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(args.Take(6), Is.EqualTo(new[] { "run", "--format", "json", "--pure", "--agent", OpenCodeAgentBackend.AgentName }));
+            Assert.That(args, Does.Contain("--title"));
+            Assert.That(args, Does.Not.Contain("--session"));
+        }
+    }
+
+    [Test]
+    public void Оболочка_системы_запрещена_даже_без_настроенного_Mcp()
+    {
+        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест" }));
+
+        Assert.That(agent.GetProperty("tools").GetProperty("bash").GetBoolean(), Is.False);
+    }
+
+    [Test]
+    public void Ошибка_без_текста_называется_хотя_бы_своим_типом()
+    {
+        var line = Event("error", "error", """{"name":"UnknownError"}""");
+
+        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.EqualTo(AgentEvent.Fail("UnknownError")));
+    }
+
+    [Test]
+    public void Ошибка_даёт_событие_Failed_и_запоминается_подсказкой()
+    {
+        var parser = new OpenCodeAgentBackend.StreamParser();
+        var line = Event("error", "error", """{"name":"APIError","data":{"message":"No provider available","statusCode":401}}""");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parser.Parse(line), Is.EqualTo(AgentEvent.Fail("No provider available")));
+            Assert.That(parser.FailureHint, Is.EqualTo("No provider available"));
+        }
+    }
+
+    [Test]
+    public void Повторно_присланная_часть_второго_события_не_даёт()
+    {
+        var parser = new OpenCodeAgentBackend.StreamParser();
+        parser.Parse(TextPart("prt_1", "Проверяю."));
+
+        Assert.That(parser.Parse(TextPart("prt_1", "Проверяю.")), Is.Null);
+    }
+
+    [Test]
+    public void Пользовательские_инструкции_и_публикация_сессии_отключены()
+    {
+        using var document = JsonDocument.Parse(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест" }));
+        var root = document.RootElement;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(root.GetProperty("share").GetString(), Is.EqualTo("disabled"));
+            Assert.That(root.GetProperty("autoupdate").GetBoolean(), Is.False);
+            Assert.That(root.GetProperty("snapshot").GetBoolean(), Is.False);
+            Assert.That(root.GetProperty("instructions").GetArrayLength(), Is.Zero);
+        }
+    }
+
+    [Test]
+    public void Продолжение_сессии_идёт_ключом_session_вместо_заголовка()
+    {
+        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", ResumeSessionId = SessionId });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(args, Does.Contain("--session"));
+            Assert.That(args, Does.Contain(SessionId));
+            Assert.That(args, Does.Not.Contain("--title"));
         }
     }
 
@@ -120,132 +225,11 @@ public class OpenCodeAgentBackendTests
     }
 
     [Test]
-    public void Токен_во_временный_файл_не_записывается()
-    {
-        var json = OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = Mcp() });
-
-        Assert.That(json, Does.Not.Contain("secret-token"));
-    }
-
-    [Test]
-    public void Пользовательские_инструкции_и_публикация_сессии_отключены()
-    {
-        using var document = JsonDocument.Parse(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест" }));
-        var root = document.RootElement;
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(root.GetProperty("share").GetString(), Is.EqualTo("disabled"));
-            Assert.That(root.GetProperty("autoupdate").GetBoolean(), Is.False);
-            Assert.That(root.GetProperty("snapshot").GetBoolean(), Is.False);
-            Assert.That(root.GetProperty("instructions").GetArrayLength(), Is.Zero);
-        }
-    }
-
-    [Test]
     public void Системный_промпт_уезжает_промптом_агента()
     {
         var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "куда делось место", SystemPrompt = "Ты помощник." }));
 
         Assert.That(agent.GetProperty("prompt").GetString(), Is.EqualTo("Ты помощник."));
-    }
-
-    [Test]
-    public void Начало_шага_даёт_событие_Started_с_идентификатором_сессии()
-    {
-        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(StepStart), Is.EqualTo(AgentEvent.Begin(SessionId)));
-    }
-
-    [Test]
-    public void Второе_начало_шага_второго_Started_не_даёт()
-    {
-        var parser = new OpenCodeAgentBackend.StreamParser();
-        parser.Parse(StepStart);
-
-        Assert.That(parser.Parse(Event("step_start", "part", """{"id":"prt_5","type":"step-start"}""")), Is.Null);
-    }
-
-    [Test]
-    public void Текстовая_часть_даёт_событие_Text()
-    {
-        var parser = new OpenCodeAgentBackend.StreamParser();
-
-        Assert.That(parser.Parse(TextPart("prt_1", "Нашёл главного пожирателя.")), Is.EqualTo(AgentEvent.Chunk("Нашёл главного пожирателя.")));
-    }
-
-    [Test]
-    public void Вторая_текстовая_часть_отделяется_пустой_строкой()
-    {
-        var parser = new OpenCodeAgentBackend.StreamParser();
-        parser.Parse(TextPart("prt_1", "Проверяю."));
-
-        Assert.That(parser.Parse(TextPart("prt_2", "340 ГБ в node_modules.")), Is.EqualTo(AgentEvent.Chunk("\n\n340 ГБ в node_modules.")));
-    }
-
-    [Test]
-    public void Повторно_присланная_часть_второго_события_не_даёт()
-    {
-        var parser = new OpenCodeAgentBackend.StreamParser();
-        parser.Parse(TextPart("prt_1", "Проверяю."));
-
-        Assert.That(parser.Parse(TextPart("prt_1", "Проверяю.")), Is.Null);
-    }
-
-    [Test]
-    public void Вызов_инструмента_даёт_событие_ToolCall_с_полным_именем()
-    {
-        var line = Event("tool_use", "part", """{"id":"prt_3","type":"tool","tool":"spacesnoop_scan_directory","state":{"status":"completed"}}""");
-
-        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.EqualTo(AgentEvent.Tool("spacesnoop_scan_directory")));
-    }
-
-    [Test]
-    public void Аргументы_вызова_берутся_из_состояния_части()
-    {
-        var line = Event("tool_use", "part", """{"id":"prt_3","type":"tool","tool":"spacesnoop_scan_directory","state":{"status":"completed","input":{"path":"C:\\Data"}}}""");
-
-        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.EqualTo(AgentEvent.Tool("spacesnoop_scan_directory", """{"path":"C:\\Data"}""")));
-    }
-
-    [Test]
-    public void Итог_хода_собирается_после_конца_потока_из_всех_шагов()
-    {
-        var parser = new OpenCodeAgentBackend.StreamParser();
-        parser.Parse(StepStart);
-        parser.Parse(StepFinish("prt_10", input: 24986, output: 14, reasoning: 27, cost: 0.25));
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(parser.Parse(StepFinish("prt_11", input: 31200, output: 120, reasoning: 0, cost: 0.5)), Is.Null);
-            Assert.That(parser.Complete(), Is.EqualTo(AgentEvent.Done(SessionId, costUsd: 0.75, tokens: 31200 + 14 + 27 + 120)));
-        }
-    }
-
-    [Test]
-    public void Не_начавшийся_ход_итога_не_даёт()
-    {
-        Assert.That(new OpenCodeAgentBackend.StreamParser().Complete(), Is.Null);
-    }
-
-    [Test]
-    public void Ошибка_даёт_событие_Failed_и_запоминается_подсказкой()
-    {
-        var parser = new OpenCodeAgentBackend.StreamParser();
-        var line = Event("error", "error", """{"name":"APIError","data":{"message":"No provider available","statusCode":401}}""");
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(parser.Parse(line), Is.EqualTo(AgentEvent.Fail("No provider available")));
-            Assert.That(parser.FailureHint, Is.EqualTo("No provider available"));
-        }
-    }
-
-    [Test]
-    public void Ошибка_без_текста_называется_хотя_бы_своим_типом()
-    {
-        var line = Event("error", "error", """{"name":"UnknownError"}""");
-
-        Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.EqualTo(AgentEvent.Fail("UnknownError")));
     }
 
     [TestCase("""{"type":"reasoning","sessionID":"ses_1","part":{"id":"prt_9","type":"reasoning","text":"…"}}""")]
@@ -257,6 +241,22 @@ public class OpenCodeAgentBackendTests
     public void Служебная_или_испорченная_строка_не_даёт_события(string line)
     {
         Assert.That(new OpenCodeAgentBackend.StreamParser().Parse(line), Is.Null);
+    }
+
+    [Test]
+    public void Текстовая_часть_даёт_событие_Text()
+    {
+        var parser = new OpenCodeAgentBackend.StreamParser();
+
+        Assert.That(parser.Parse(TextPart("prt_1", "Нашёл главного пожирателя.")), Is.EqualTo(AgentEvent.Chunk("Нашёл главного пожирателя.")));
+    }
+
+    [Test]
+    public void Токен_во_временный_файл_не_записывается()
+    {
+        var json = OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = Mcp() });
+
+        Assert.That(json, Does.Not.Contain("secret-token"));
     }
 
     private static AgentMcpConfig Mcp(params string[] denied)

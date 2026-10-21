@@ -19,7 +19,7 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
     public MftScanResult Calculate(DirectoryInfo directory, ScanProgress? progress, CancellationToken cancel = default)
     {
         var letter = MftReader.VolumeLetter(directory.FullName)
-                     ?? throw new InvalidOperationException($"Путь {directory.FullName} не лежит на локальном томе с буквой");
+            ?? throw new InvalidOperationException($"Путь {directory.FullName} не лежит на локальном томе с буквой");
 
         var table = MftReader.Read(letter, progress, cancel);
 
@@ -43,7 +43,8 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
 
         var statistics = table.Statistics;
 
-        var result = new MftScanResult(root,
+        var result = new MftScanResult(
+            root,
             totals.ExtraNames,
             totals.ExtraNameBytes,
             totals.UnknownSizeFiles,
@@ -58,11 +59,7 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
             statistics.StaleParents,
             statistics.Rehomed,
             MftReader.ResolveThreads(letter),
-            $"записей {statistics.RecordsScanned:N0}, занято {statistics.RecordsInUse:N0}, расширений {statistics.Extensions:N0}, " +
-            $"с несколькими именами {statistics.HardLinkedFiles:N0}, пропущено ссылок {statistics.SkippedLinks:N0}, " +
-            $"безымянных {statistics.Nameless:N0}, оторванных {statistics.Detached:N0}, повреждённых {statistics.Damaged:N0}, " +
-            $"неполных {statistics.Partial:N0}, без размера {totals.UnknownSizeFiles:N0}, " +
-            $"устаревших ссылок на родителя {statistics.StaleParents:N0}, переподвешено {statistics.Rehomed:N0}");
+            $"записей {statistics.RecordsScanned:N0}, занято {statistics.RecordsInUse:N0}, расширений {statistics.Extensions:N0}, " + $"с несколькими именами {statistics.HardLinkedFiles:N0}, пропущено ссылок {statistics.SkippedLinks:N0}, " + $"безымянных {statistics.Nameless:N0}, оторванных {statistics.Detached:N0}, повреждённых {statistics.Damaged:N0}, " + $"неполных {statistics.Partial:N0}, без размера {totals.UnknownSizeFiles:N0}, " + $"устаревших ссылок на родителя {statistics.StaleParents:N0}, переподвешено {statistics.Rehomed:N0}");
 
         _log.MftScanCompleted(directory.FullName, table.Entries.Length, result.ExtraNames, result.ExtraNameBytes, result.Report);
 
@@ -210,7 +207,7 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
 
             if (entry.IsDirectory)
             {
-                children.Add((child, new DirectorySpace(entry.Name!, node, entry.CreationTime, entry.LastAccessTime)));
+                children.Add((child, new(entry.Name!, node, entry.CreationTime, entry.LastAccessTime)));
                 continue;
             }
 

@@ -125,9 +125,11 @@ internal static partial class ReleaseChangelog
 
     internal static string BuildChangelog(IReadOnlyList<ReleaseNoteViewModel> entries)
     {
-        return string.Join($"{Environment.NewLine}{Environment.NewLine}", entries
-            .Select(static entry =>
-                $"## {entry.Title} · {entry.PublishedDate}{Environment.NewLine}{string.Join(Environment.NewLine, entry.Changes.Select(static change => FormatChange(change)))}"));
+        return string.Join(
+            $"{Environment.NewLine}{Environment.NewLine}",
+            entries
+                .Select(static entry =>
+                    $"## {entry.Title} · {entry.PublishedDate}{Environment.NewLine}{string.Join(Environment.NewLine, entry.Changes.Select(static change => FormatChange(change)))}"));
     }
 
     internal static string? ExtractCompareUrl(string? body)

@@ -1,5 +1,4 @@
 ﻿using KeepShell.Diagnostics;
-using KeepShell.ViewModels;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
@@ -54,32 +53,6 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
     [NotifyPropertyChangedFor(nameof(CancelCaption))]
     private bool _cancelPending;
 
-    public DeleteProgressDialogViewModel(
-        IReadOnlyList<SpaceBase> items,
-        bool permanent,
-        PerformanceMonitor monitor,
-        PerformanceOperations operations,
-        ShellPreferences preferences,
-        IUiDispatcher uiDispatcher,
-        ILogger logger)
-    {
-        _permanent = permanent;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
-        _logger = logger;
-        Items = new(items.Select(static item => new DeleteRowViewModel(item)));
-        _totalBytes = items.Sum(static item => item.TotalSize);
-        _diagnostics = new(permanent, Items.Count, _totalBytes, monitor, operations, preferences);
-
-        ActionVerb = permanent ? "удалены безвозвратно" : "перемещены в корзину";
-        IntroText = $"Будут {ActionVerb}: {Plural.Format(Items.Count, "объект", "объекта", "объектов")} · {SizeFormatter.Format(_totalBytes)}";
-        CountText = $"0 / {Items.Count}";
-        CancelHint = permanent
-            ? "Остановка сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
-            : $"Остановка сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
-        WidestSizeText = Items.Select(static row => row.SizeText).MaxBy(static text => text.Length) ?? string.Empty;
-        _freedText = SizeFormatter.Format(0);
-    }
-
     public ObservableCollection<DeleteRowViewModel> Items { get; }
 
     public string WidestSizeText { get; }
@@ -106,66 +79,31 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
     private int ChunkSize => Math.Clamp(_permanent ? 1 : AppDefaults.DeleteRecycleChunkSize, 1, Math.Max(Items.Count, 1));
 
-    protected override async Task ExecuteAsync(CancellationToken token)
+    public DeleteProgressDialogViewModel(
+        IReadOnlyList<SpaceBase> items,
+        bool permanent,
+        PerformanceMonitor monitor,
+        PerformanceOperations operations,
+        ShellPreferences preferences,
+        IUiDispatcher uiDispatcher,
+        ILogger logger)
     {
-        var progress = new DeleteProgressState(Items.Count);
-        _progress = progress;
-        _token = token;
-        var deletedItems = new List<SpaceBase>(Items.Count);
-        DeletedItems = deletedItems;
+        _permanent = permanent;
+        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _logger = logger;
+        Items = new(items.Select(static item => new DeleteRowViewModel(item)));
+        _totalBytes = items.Sum(static item => item.TotalSize);
+        _diagnostics = new(permanent, Items.Count, _totalBytes, monitor, operations, preferences);
 
-        try
-        {
-            await Task.Run(() => RunDeletion(deletedItems, progress, token), token);
-        }
-        finally
-        {
-            _progressTimer.Stop();
-            OnProgressTick();
-            _progress = null;
-            ClearPulse();
-        }
-    }
+        ActionVerb = permanent ? "удалены безвозвратно" : "перемещены в корзину";
+        IntroText = $"Будут {ActionVerb}: {Plural.Format(Items.Count, "объект", "объекта", "объектов")} · {SizeFormatter.Format(_totalBytes)}";
+        CountText = $"0 / {Items.Count}";
+        CancelHint = permanent
+            ? "Остановка сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
+            : $"Остановка сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
 
-    protected override void OnStarting()
-    {
-        _diagnostics.Start();
-        _progressTimer.Start();
-        _logger.DeletionStarted(_runId, Items.Count, SizeFormatter.Format(_totalBytes), _permanent);
-    }
-
-    protected override void OnFinished()
-    {
-        _progressTimer.Stop();
-        OnProgressTick();
-
-        _diagnostics.Finish(_processed, _freedBytes, !Cancelled && Failure is null);
-        DiagnosticsText = null;
-
-        if (Failure is { } failure)
-        {
-            _logger.DeletionFailed(failure, _runId, _processed, Items.Count);
-        }
-
-        _logger.DeletionFinished(_runId, Cancelled, _deleted, _failed, SizeFormatter.Format(_freedBytes));
-    }
-
-    protected override bool CanStart()
-    {
-        return base.CanStart() && Items.Count > 0;
-    }
-
-    protected override string BuildSummary()
-    {
-        if (Failure is { } failure)
-        {
-            return $"Ошибка: {failure.Message}";
-        }
-
-        var verb = _permanent ? "Удалено безвозвратно" : "Перемещено в корзину";
-        var head = Cancelled ? "Отменено." : "Готово.";
-        var errors = _failed > 0 ? $" Ошибок: {_failed}." : string.Empty;
-        return $"{head} {verb}: {_deleted} из {Items.Count}. Освобождено: {SizeFormatter.Format(_freedBytes)}.{errors}";
+        WidestSizeText = Items.Select(static row => row.SizeText).MaxBy(static text => text.Length) ?? string.Empty;
+        _freedText = SizeFormatter.Format(0);
     }
 
     internal void ShowRunningForAutomation(int done)
@@ -246,6 +184,68 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         }
 
         return end;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken token)
+    {
+        var progress = new DeleteProgressState(Items.Count);
+        _progress = progress;
+        _token = token;
+        var deletedItems = new List<SpaceBase>(Items.Count);
+        DeletedItems = deletedItems;
+
+        try
+        {
+            await Task.Run(() => RunDeletion(deletedItems, progress, token), token);
+        }
+        finally
+        {
+            _progressTimer.Stop();
+            OnProgressTick();
+            _progress = null;
+            ClearPulse();
+        }
+    }
+
+    protected override void OnStarting()
+    {
+        _diagnostics.Start();
+        _progressTimer.Start();
+        _logger.DeletionStarted(_runId, Items.Count, SizeFormatter.Format(_totalBytes), _permanent);
+    }
+
+    protected override void OnFinished()
+    {
+        _progressTimer.Stop();
+        OnProgressTick();
+
+        _diagnostics.Finish(_processed, _freedBytes, !Cancelled && Failure is null);
+        DiagnosticsText = null;
+
+        if (Failure is { } failure)
+        {
+            _logger.DeletionFailed(failure, _runId, _processed, Items.Count);
+        }
+
+        _logger.DeletionFinished(_runId, Cancelled, _deleted, _failed, SizeFormatter.Format(_freedBytes));
+    }
+
+    protected override bool CanStart()
+    {
+        return base.CanStart() && Items.Count > 0;
+    }
+
+    protected override string BuildSummary()
+    {
+        if (Failure is { } failure)
+        {
+            return $"Ошибка: {failure.Message}";
+        }
+
+        var verb = _permanent ? "Удалено безвозвратно" : "Перемещено в корзину";
+        var head = Cancelled ? "Отменено." : "Готово.";
+        var errors = _failed > 0 ? $" Ошибок: {_failed}." : string.Empty;
+        return $"{head} {verb}: {_deleted} из {Items.Count}. Освобождено: {SizeFormatter.Format(_freedBytes)}.{errors}";
     }
 
     private void OnProgressTick()

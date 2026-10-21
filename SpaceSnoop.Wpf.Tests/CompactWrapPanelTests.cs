@@ -1,5 +1,4 @@
 ﻿using SpaceSnoop.Wpf.Views;
-using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -30,27 +29,6 @@ public class CompactWrapPanelTests
         Assert.That(CompactWrapPanel.Plan(available, Widths, Optional, NoKeep), Is.EqualTo(expected));
     }
 
-    [TestCase(310, new[] { F, F, F, F })]
-    [TestCase(229, new[] { F, N, N, F })]
-    [TestCase(169, new[] { F, N, F, S })]
-    [TestCase(90, new[] { F, N, N, S })]
-    public void Предупреждение_не_снимается_а_если_не_влезает_уходит_на_вторую_строку(double available, CompactSlot[] expected)
-    {
-        bool[] optional = [false, true, false, false];
-        bool[] keep = [false, false, false, true];
-
-        Assert.That(CompactWrapPanel.Plan(available, Widths, optional, keep), Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void Скрытое_предупреждение_второй_строки_не_заводит()
-    {
-        double[] widths = [100, 80, 60, 0];
-        bool[] keep = [false, false, false, true];
-
-        Assert.That(CompactWrapPanel.Plan(150, widths, NoKeep, keep), Is.EqualTo(new[] { F, N, N, F }));
-    }
-
     [TestCase(false, 2, true)]
     [TestCase(true, 1, false)]
     public void Не_влезшее_в_одну_строку_не_видно_и_недоступно(bool singleLine, int rows, bool lastEnabled)
@@ -67,6 +45,23 @@ public class CompactWrapPanelTests
             Assert.That(panel.DesiredSize.Height, Is.EqualTo(20 * rows));
             Assert.That(last.IsEnabled, Is.EqualTo(lastEnabled));
             Assert.That(LayoutInformation.GetLayoutSlot(last).Width > 0, Is.EqualTo(lastEnabled));
+        }
+    }
+
+    [Test]
+    public void Первый_элемент_шире_панели_не_выходит_за_её_край()
+    {
+        var first = new TextBlock { Text = new('ж', 80), TextTrimming = TextTrimming.CharacterEllipsis };
+        var panel = new CompactWrapPanel { SingleLine = true, Children = { first } };
+
+        panel.Measure(new(120, double.PositiveInfinity));
+        panel.Arrange(new(new(120, panel.DesiredSize.Height)));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(panel.DesiredSize.Width, Is.LessThanOrEqualTo(120));
+            Assert.That(LayoutInformation.GetLayoutSlot(first).Right, Is.LessThanOrEqualTo(120), "Первый элемент вышел за край панели.");
+            Assert.That(first.RenderSize.Width, Is.LessThanOrEqualTo(120), "Первый элемент не ужат до ширины панели.");
         }
     }
 
@@ -93,20 +88,24 @@ public class CompactWrapPanelTests
         }
     }
 
-    [Test]
-    public void Первый_элемент_шире_панели_не_выходит_за_её_край()
+    [TestCase(310, new[] { F, F, F, F })]
+    [TestCase(229, new[] { F, N, N, F })]
+    [TestCase(169, new[] { F, N, F, S })]
+    [TestCase(90, new[] { F, N, N, S })]
+    public void Предупреждение_не_снимается_а_если_не_влезает_уходит_на_вторую_строку(double available, CompactSlot[] expected)
     {
-        var first = new TextBlock { Text = new string('ж', 80), TextTrimming = TextTrimming.CharacterEllipsis };
-        var panel = new CompactWrapPanel { SingleLine = true, Children = { first } };
+        bool[] optional = [false, true, false, false];
+        bool[] keep = [false, false, false, true];
 
-        panel.Measure(new(120, double.PositiveInfinity));
-        panel.Arrange(new(new Size(120, panel.DesiredSize.Height)));
+        Assert.That(CompactWrapPanel.Plan(available, Widths, optional, keep), Is.EqualTo(expected));
+    }
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(panel.DesiredSize.Width, Is.LessThanOrEqualTo(120));
-            Assert.That(LayoutInformation.GetLayoutSlot(first).Right, Is.LessThanOrEqualTo(120), "Первый элемент вышел за край панели.");
-            Assert.That(first.RenderSize.Width, Is.LessThanOrEqualTo(120), "Первый элемент не ужат до ширины панели.");
-        }
+    [Test]
+    public void Скрытое_предупреждение_второй_строки_не_заводит()
+    {
+        double[] widths = [100, 80, 60, 0];
+        bool[] keep = [false, false, false, true];
+
+        Assert.That(CompactWrapPanel.Plan(150, widths, NoKeep, keep), Is.EqualTo(new[] { F, N, N, F }));
     }
 }

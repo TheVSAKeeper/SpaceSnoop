@@ -2,18 +2,6 @@
 
 public sealed class DockerBucketViewModel
 {
-    public DockerBucketViewModel(DockerUsage usage)
-    {
-        Type = usage.Type;
-        SizeBytes = DockerSize.ToBytes(usage.Size);
-        ReclaimBytes = DockerSize.ToBytes(SizePart(usage.Reclaimable));
-
-        Title = DockerText.Category(usage.Type);
-        Count = usage.TotalCount;
-        SizeText = SizeFormatter.Format(SizeBytes);
-        ReclaimText = Reclaim(ReclaimBytes, SizeBytes);
-    }
-
     public string Title { get; }
     public string Type { get; }
 
@@ -32,6 +20,18 @@ public sealed class DockerBucketViewModel
     public double Fraction { get; private set; }
 
     public double ReclaimFraction { get; private set; }
+
+    public DockerBucketViewModel(DockerUsage usage)
+    {
+        Type = usage.Type;
+        SizeBytes = DockerSize.ToBytes(usage.Size);
+        ReclaimBytes = DockerSize.ToBytes(SizePart(usage.Reclaimable));
+
+        Title = DockerText.Category(usage.Type);
+        Count = usage.TotalCount;
+        SizeText = SizeFormatter.Format(SizeBytes);
+        ReclaimText = Reclaim(ReclaimBytes, SizeBytes);
+    }
 
     public static List<DockerBucketViewModel> Build(IEnumerable<DockerUsage> usages)
     {

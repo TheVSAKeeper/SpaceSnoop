@@ -17,15 +17,10 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class SettingsResetTests
 {
-    [OneTimeSetUp]
-    public void OneTimeSetUp()
-    {
-        PackScheme.Ensure();
-    }
-
     public static IEnumerable<ResetCase> Cases =>
     [
-        new("appearance",
+        new(
+            "appearance",
             store =>
             {
                 store.SetBool(SettingsKeys.ShowPageHeader, false);
@@ -51,7 +46,8 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.PerformanceHud), Is.EqualTo(AppDefaults.PerformanceHudDefault));
             }),
 
-        new("startup",
+        new(
+            "startup",
             store =>
             {
                 store.SetEnum(SettingsKeys.StartupPage, StartupPage.Logs);
@@ -71,7 +67,8 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.WarnIfNotAdmin), Is.EqualTo(AppDefaults.WarnIfNotAdminDefault));
             }),
 
-        new("scan",
+        new(
+            "scan",
             store =>
             {
                 store.SetBool(SettingsKeys.ScanMultithreading, false);
@@ -112,7 +109,8 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.ScanReturnMemoryAfterScan), Is.EqualTo(AppDefaults.ScanReturnMemoryAfterScanDefault));
             }),
 
-        new("sync",
+        new(
+            "sync",
             store =>
             {
                 store.SetBool(SettingsKeys.SyncPathSuggest, false);
@@ -129,7 +127,8 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.SyncRecycleOverwritten), Is.EqualTo(AppDefaults.SyncRecycleOverwrittenDefault));
             }),
 
-        new("delete",
+        new(
+            "delete",
             store =>
             {
                 store.SetBool(SettingsKeys.DeleteConfirm, false);
@@ -146,7 +145,8 @@ public class SettingsResetTests
                 Assert.That(store.GetEnum(SettingsKeys.DeleteMode, DeleteMode.Permanent), Is.EqualTo(AppDefaults.DeleteModeDefault));
             }),
 
-        new("archive",
+        new(
+            "archive",
             store =>
             {
                 store.SetBool(SettingsKeys.ArchiveDeleteOriginal, false);
@@ -163,7 +163,8 @@ public class SettingsResetTests
                 Assert.That(store.GetEnum(SettingsKeys.ArchiveCompression, CompressionLevel.NoCompression), Is.EqualTo(AppDefaults.ArchiveCompressionDefault));
             }),
 
-        new("update",
+        new(
+            "update",
             store =>
             {
                 store.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
@@ -180,7 +181,8 @@ public class SettingsResetTests
                 Assert.That(store.GetBool(SettingsKeys.UpdateAutoDownload), Is.EqualTo(AppDefaults.UpdateAutoDownloadDefault));
             }),
 
-        new("mcp",
+        new(
+            "mcp",
             store =>
             {
                 store.SetBool(SettingsKeys.McpEnabled, true);
@@ -196,11 +198,12 @@ public class SettingsResetTests
                 Assert.That(mcp.AllowMutations, Is.EqualTo(AppDefaults.McpAllowMutationsDefault));
 
                 Assert.That(store.GetBool(SettingsKeys.McpEnabled), Is.EqualTo(AppDefaults.McpEnabledDefault));
-                Assert.That(store.GetInt(SettingsKeys.McpPort, 0), Is.EqualTo(AppDefaults.McpPortDefault));
+                Assert.That(store.GetInt(SettingsKeys.McpPort), Is.EqualTo(AppDefaults.McpPortDefault));
                 Assert.That(store.GetBool(SettingsKeys.McpAllowMutations), Is.EqualTo(AppDefaults.McpAllowMutationsDefault));
             }),
 
-        new("agent",
+        new(
+            "agent",
             store =>
             {
                 store.SetBool(SettingsKeys.AgentEnabled, false);
@@ -224,66 +227,75 @@ public class SettingsResetTests
             }),
     ];
 
-    [TestCaseSource(nameof(Cases))]
-    public void Сброс_раздела_возвращает_его_настройки_к_умолчанию_и_доводит_их_до_хранилища(ResetCase testCase)
+    public static IEnumerable<string> FieldKeys => Build(new MemorySettings()).Fields.Select(entry => entry.Key).ToArray();
+
+    [OneTimeSetUp]
+    public void OneTimeSetUp()
+    {
+        PackScheme.Ensure();
+    }
+
+    [Test]
+    public void Все_разделы_страницы_настроек_имеют_решение_о_сбросе()
     {
         ISettingsStore store = new MemorySettings();
-        testCase.Seed(store);
+
+        Assert.DoesNotThrow(() => SettingsResetCatalog.EnsureExhaustive(SettingsViewModel.CreateSections(), Build(store).Plans));
+    }
+
+    [Test]
+    public void Изменённые_настройки_включают_кнопки_своих_строк()
+    {
+        ISettingsStore store = new MemorySettings();
+        SeedEverything(store);
 
         var bench = Build(store);
-        bench.Plans[testCase.Name].Reset();
 
         using (Assert.EnterMultipleScope())
         {
-            testCase.Verify(bench, store);
+            foreach (var field in bench.Fields.Where(field => field.Key != SettingsKeys.Theme))
+            {
+                Assert.That(field.ResetCommand.CanExecute(null), Is.True, $"«{field.Label}» изменена, а кнопка её строки спрятана: предикат умолчания не видит правку.");
+            }
         }
     }
 
     [Test]
-    public void Число_потоков_сбрасывается_к_новому_умолчанию_а_не_к_максимуму()
+    public void Каждая_настройка_раздела_сбрасывается_своей_строкой()
     {
         ISettingsStore store = new MemorySettings();
-        var ceiling = Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore;
-
-        store.SetInt(SettingsKeys.ScanParallelism, 1);
+        SeedEverything(store);
 
         var bench = Build(store);
-        var scan = bench.Scan;
-
-        Assert.That(scan.MaxParallelism, Is.EqualTo(1), "Затравка не доехала – сбрасывать нечего.");
-
-        bench.Plans["scan"].Reset();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(Math.Min(ceiling, AppDefaults.ScanParallelismDefaultCeiling)));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(scan.DefaultParallelism));
+            foreach (var plan in bench.Plans.Values)
+            {
+                Assert.That(plan.Restored, Is.EqualTo(plan.Fields.Select(field => field.Label).ToArray()), $"Раздел «{plan.SectionKey}» перечисляет в тосте не то, что сбрасывает.");
+            }
+
+            foreach (var plan in bench.Plans.Values)
+            {
+                plan.Reset();
+            }
+
+            foreach (var field in bench.Fields.Where(field => field.Key != SettingsKeys.Theme))
+            {
+                Assert.That(field.IsDefault, Is.True, $"После сброса всех разделов «{field.Label}» осталась изменённой.");
+            }
         }
     }
 
-    [Test]
-    public void Число_потоков_выше_потолка_нормализуется_в_хранилище_а_не_только_в_памяти()
+    [TestCaseSource(nameof(FieldKeys))]
+    public void Кнопка_строки_молчит_пока_настройка_стоит_на_заводском_значении(string key)
     {
-        ISettingsStore store = new MemorySettings();
-        var ceiling = Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore;
-
-        store.SetInt(SettingsKeys.ScanParallelism, ceiling * 4);
-
-        var bench = Build(store);
-        var scan = bench.Scan;
+        var field = Build(new MemorySettings()).Field(key);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(ceiling));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(ceiling), "Кламп конструктора не доехал до хранилища: сброс к тому же числу окажется молчаливым no-op.");
-        }
-
-        bench.Plans["scan"].Reset();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(scan.DefaultParallelism));
+            Assert.That(field.IsDefault, Is.True, $"Хранилище пустое, а «{field.Label}» считается изменённой: предикат сравнивает не с тем умолчанием.");
+            Assert.That(field.ResetCommand.CanExecute(null), Is.False, $"Строка «{field.Label}» предлагает вернуть значение, которое и так заводское.");
         }
     }
 
@@ -299,7 +311,33 @@ public class SettingsResetTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(mcp.Port, Is.EqualTo(AppDefaults.McpPortMax));
-            Assert.That(store.GetInt(SettingsKeys.McpPort, 0), Is.EqualTo(AppDefaults.McpPortMax));
+            Assert.That(store.GetInt(SettingsKeys.McpPort), Is.EqualTo(AppDefaults.McpPortMax));
+        }
+    }
+
+    [Test]
+    public void Раздел_без_решения_о_сбросе_роняет_сборку_страницы_настроек_а_не_отдаёт_мёртвую_кнопку()
+    {
+        var plans = Build(new MemorySettings()).Plans;
+
+        var withNewSection = new SettingsSectionList(
+            new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, string.Empty),
+            new SettingsSection("шпионаж", "Шпионаж", PackIconLucideKind.Eye, string.Empty));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => SettingsResetCatalog.EnsureExhaustive(withNewSection, plans));
+
+        Assert.That(exception.Message, Does.Contain("шпионаж"));
+    }
+
+    [Test]
+    public void Разделу_расположения_данных_сбрасывать_нечего_и_он_об_этом_говорит()
+    {
+        var plan = Build(new MemorySettings()).Plans["storage"];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(plan.CanReset, Is.False, "Сброс расположения данных перенёс бы файлы и перезапустил приложение.");
+            Assert.That(plan.Hint, Is.Not.Empty, "Выключенная кнопка обязана объяснить себя, а не молчать.");
         }
     }
 
@@ -341,6 +379,21 @@ public class SettingsResetTests
         }
     }
 
+    [TestCaseSource(nameof(Cases))]
+    public void Сброс_раздела_возвращает_его_настройки_к_умолчанию_и_доводит_их_до_хранилища(ResetCase testCase)
+    {
+        ISettingsStore store = new MemorySettings();
+        testCase.Seed(store);
+
+        var bench = Build(store);
+        bench.Plans[testCase.Name].Reset();
+
+        using (Assert.EnterMultipleScope())
+        {
+            testCase.Verify(bench, store);
+        }
+    }
+
     [Test]
     public void Сброс_синхронизации_возвращает_к_умолчанию_и_политику_git_папок()
     {
@@ -349,73 +402,10 @@ public class SettingsResetTests
 
         Build(store).Plans["sync"].Reset();
 
-        Assert.That(store.GetEnum(SettingsKeys.SyncGitFolders, GitFolderPromptChoice.Skip), Is.EqualTo(AppDefaults.SyncGitFoldersDefault),
+        Assert.That(
+            store.GetEnum(SettingsKeys.SyncGitFolders, GitFolderPromptChoice.Skip),
+            Is.EqualTo(AppDefaults.SyncGitFoldersDefault),
             "Политика git-папок живёт мимо держателей настроек, и сброс раздела о ней забыл.");
-    }
-
-    [Test]
-    public void Разделу_расположения_данных_сбрасывать_нечего_и_он_об_этом_говорит()
-    {
-        var plan = Build(new MemorySettings()).Plans["storage"];
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(plan.CanReset, Is.False, "Сброс расположения данных перенёс бы файлы и перезапустил приложение.");
-            Assert.That(plan.Hint, Is.Not.Empty, "Выключенная кнопка обязана объяснить себя, а не молчать.");
-        }
-    }
-
-    [Test]
-    public void Раздел_без_решения_о_сбросе_роняет_сборку_страницы_настроек_а_не_отдаёт_мёртвую_кнопку()
-    {
-        var plans = Build(new MemorySettings()).Plans;
-
-        var withNewSection = new SettingsSectionList(
-            new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, string.Empty),
-            new SettingsSection("шпионаж", "Шпионаж", PackIconLucideKind.Eye, string.Empty));
-
-        var exception = Assert.Throws<InvalidOperationException>(() => SettingsResetCatalog.EnsureExhaustive(withNewSection, plans));
-
-        Assert.That(exception.Message, Does.Contain("шпионаж"));
-    }
-
-    [Test]
-    public void Все_разделы_страницы_настроек_имеют_решение_о_сбросе()
-    {
-        ISettingsStore store = new MemorySettings();
-
-        Assert.DoesNotThrow(() => SettingsResetCatalog.EnsureExhaustive(SettingsViewModel.CreateSections(), Build(store).Plans));
-    }
-
-    public static IEnumerable<string> FieldKeys => Build(new MemorySettings()).Fields.Select(entry => entry.Key).ToArray();
-
-    [TestCaseSource(nameof(FieldKeys))]
-    public void Кнопка_строки_молчит_пока_настройка_стоит_на_заводском_значении(string key)
-    {
-        var field = Build(new MemorySettings()).Field(key);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(field.IsDefault, Is.True, $"Хранилище пустое, а «{field.Label}» считается изменённой: предикат сравнивает не с тем умолчанием.");
-            Assert.That(field.ResetCommand.CanExecute(null), Is.False, $"Строка «{field.Label}» предлагает вернуть значение, которое и так заводское.");
-        }
-    }
-
-    [Test]
-    public void Изменённые_настройки_включают_кнопки_своих_строк()
-    {
-        ISettingsStore store = new MemorySettings();
-        SeedEverything(store);
-
-        var bench = Build(store);
-
-        using (Assert.EnterMultipleScope())
-        {
-            foreach (var field in bench.Fields.Where(field => field.Key != SettingsKeys.Theme))
-            {
-                Assert.That(field.ResetCommand.CanExecute(null), Is.True, $"«{field.Label}» изменена, а кнопка её строки спрятана: предикат умолчания не видит правку.");
-            }
-        }
     }
 
     [Test]
@@ -430,7 +420,7 @@ public class SettingsResetTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(bench.Scan.MaxParallelism, Is.EqualTo(bench.Scan.DefaultParallelism));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism, 0), Is.EqualTo(bench.Scan.DefaultParallelism), "Сброс строки не доехал до хранилища.");
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(bench.Scan.DefaultParallelism), "Сброс строки не доехал до хранилища.");
             Assert.That(bench.Scan.MftEnabled, Is.True, "Сброс одной строки задел соседнюю настройку того же раздела.");
             Assert.That(bench.Scan.RevealFiles, Is.True, "Сброс одной строки задел соседнюю настройку того же раздела.");
             Assert.That(bench.Reset.Select(field => field.Key), Is.EqualTo(new[] { SettingsKeys.ScanParallelism }), "Команда строки доложила не о той настройке или сразу о нескольких.");
@@ -438,29 +428,50 @@ public class SettingsResetTests
     }
 
     [Test]
-    public void Каждая_настройка_раздела_сбрасывается_своей_строкой()
+    public void Число_потоков_выше_потолка_нормализуется_в_хранилище_а_не_только_в_памяти()
     {
         ISettingsStore store = new MemorySettings();
-        SeedEverything(store);
+        var ceiling = Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore;
+
+        store.SetInt(SettingsKeys.ScanParallelism, ceiling * 4);
 
         var bench = Build(store);
+        var scan = bench.Scan;
 
         using (Assert.EnterMultipleScope())
         {
-            foreach (var plan in bench.Plans.Values)
-            {
-                Assert.That(plan.Restored, Is.EqualTo(plan.Fields.Select(field => field.Label).ToArray()), $"Раздел «{plan.SectionKey}» перечисляет в тосте не то, что сбрасывает.");
-            }
+            Assert.That(scan.MaxParallelism, Is.EqualTo(ceiling));
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(ceiling), "Кламп конструктора не доехал до хранилища: сброс к тому же числу окажется молчаливым no-op.");
+        }
 
-            foreach (var plan in bench.Plans.Values)
-            {
-                plan.Reset();
-            }
+        bench.Plans["scan"].Reset();
 
-            foreach (var field in bench.Fields.Where(field => field.Key != SettingsKeys.Theme))
-            {
-                Assert.That(field.IsDefault, Is.True, $"После сброса всех разделов «{field.Label}» осталась изменённой.");
-            }
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism));
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(scan.DefaultParallelism));
+        }
+    }
+
+    [Test]
+    public void Число_потоков_сбрасывается_к_новому_умолчанию_а_не_к_максимуму()
+    {
+        ISettingsStore store = new MemorySettings();
+        var ceiling = Environment.ProcessorCount * AppDefaults.ScanParallelismPerCore;
+
+        store.SetInt(SettingsKeys.ScanParallelism, 1);
+
+        var bench = Build(store);
+        var scan = bench.Scan;
+
+        Assert.That(scan.MaxParallelism, Is.EqualTo(1), "Затравка не доехала – сбрасывать нечего.");
+
+        bench.Plans["scan"].Reset();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(scan.MaxParallelism, Is.EqualTo(Math.Min(ceiling, AppDefaults.ScanParallelismDefaultCeiling)));
+            Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(scan.DefaultParallelism));
         }
     }
 
@@ -523,11 +534,20 @@ public class SettingsResetTests
         var agent = new AgentPreferences(store);
         var reset = new List<SettingsResetField>();
 
-        var plans = SettingsResetCatalog.Build(theme, shell, scan, operations, update, mcp, agent, store, field =>
-        {
-            reset.Add(field);
-            field.Apply();
-        });
+        var plans = SettingsResetCatalog.Build(
+            theme,
+            shell,
+            scan,
+            operations,
+            update,
+            mcp,
+            agent,
+            store,
+            field =>
+            {
+                reset.Add(field);
+                field.Apply();
+            });
 
         return new(shell, scan, operations, update, mcp, agent, plans, reset);
     }

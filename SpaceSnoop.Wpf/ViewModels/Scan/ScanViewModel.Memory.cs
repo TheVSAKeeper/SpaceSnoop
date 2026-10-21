@@ -5,6 +5,11 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanViewModel
 {
+    internal static bool ShouldReturnScanMemory(long loadBytes, long thresholdBytes)
+    {
+        return thresholdBytes > 0 && loadBytes >= thresholdBytes;
+    }
+
     private async Task ScanAfterRescanPromptAsync(string path)
     {
         var prompt = new RescanPrompt(_dialogs, Preferences);
@@ -29,7 +34,7 @@ public sealed partial class ScanViewModel
         }
 
         var collect = Stopwatch.StartNew();
-        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, blocking: true, compacting: false);
+        GC.Collect(GC.MaxGeneration, GCCollectionMode.Forced, true, false);
         _logger.ScanPreviousReleased(directory.FullName, collect.ElapsedMilliseconds);
 
         return true;
@@ -68,15 +73,10 @@ public sealed partial class ScanViewModel
         return true;
     }
 
-    internal static bool ShouldReturnScanMemory(long loadBytes, long thresholdBytes)
-    {
-        return thresholdBytes > 0 && loadBytes >= thresholdBytes;
-    }
-
     private async Task ReturnScanMemoryAsync(DirectorySpace result, Action<string> reportPhase, CancellationToken cancellationToken)
     {
         if (!Preferences.ReturnMemoryAfterScan
-            || (long)result.TotalFileCount + result.TotalDirectoryCount < AppDefaults.ScanMemoryReturnMinNodes)
+            || ((long)result.TotalFileCount + result.TotalDirectoryCount) < AppDefaults.ScanMemoryReturnMinNodes)
         {
             return;
         }
@@ -103,7 +103,8 @@ public sealed partial class ScanViewModel
 
         pressure = GC.GetGCMemoryInfo();
 
-        if (version != _scanVersion || cancellationToken.IsCancellationRequested
+        if (version != _scanVersion
+            || cancellationToken.IsCancellationRequested
             || !ShouldReturnScanMemory(pressure.MemoryLoadBytes, pressure.HighMemoryLoadThresholdBytes))
         {
             return;
@@ -111,14 +112,16 @@ public sealed partial class ScanViewModel
 
         reportPhase("Возврат памяти после сканирования");
 
-        await Task.Run(() =>
-        {
-            var collect = Stopwatch.StartNew();
-            GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, blocking: true, compacting: true);
-            var memory = GC.GetGCMemoryInfo();
+        await Task.Run(
+            () =>
+            {
+                var collect = Stopwatch.StartNew();
+                GC.Collect(GC.MaxGeneration, GCCollectionMode.Aggressive, true, true);
+                var memory = GC.GetGCMemoryInfo();
 
-            _logger.ScanMemoryReturned(collect.ElapsedMilliseconds, memory.HeapSizeBytes, memory.TotalCommittedBytes);
-        }, CancellationToken.None);
+                _logger.ScanMemoryReturned(collect.ElapsedMilliseconds, memory.HeapSizeBytes, memory.TotalCommittedBytes);
+            },
+            CancellationToken.None);
 
         await _performance.FlushFramesAsync();
     }

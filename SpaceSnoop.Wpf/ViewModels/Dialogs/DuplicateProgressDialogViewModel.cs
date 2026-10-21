@@ -1,15 +1,11 @@
-﻿using KeepShell.Services.Platform;
-using KeepShell.ViewModels;
-using SpaceSnoop.Core.Duplicates;
-
-namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
+﻿namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
 
 public readonly record struct DuplicateRequest(
     DirectorySpace Root,
     DuplicateOptions Options,
     CancellationToken External = default);
 
-public sealed partial class DuplicateProgressDialogViewModel : OperationDialogViewModelBase
+public sealed class DuplicateProgressDialogViewModel : OperationDialogViewModelBase
 {
     internal const int ProgressPollIntervalMs = 120;
 
@@ -20,18 +16,6 @@ public sealed partial class DuplicateProgressDialogViewModel : OperationDialogVi
     private readonly ILogger _logger;
     private readonly OperationProgressState _progress = new();
     private readonly IUiTimer _progressTimer;
-
-    public DuplicateProgressDialogViewModel(DuplicateRequest request, DuplicateFinder finder, IUiDispatcher uiDispatcher, ILogger logger)
-    {
-        _request = request;
-        _finder = finder;
-        _logger = logger;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
-
-        RootPath = request.Root.AbsolutePath;
-        ThresholdText = $"от {SizeFormatter.Format(request.Options.MinSize)}";
-        PlanText = $"{RootPath} · {ThresholdText}";
-    }
 
     public override string Title => "Поиск дубликатов";
 
@@ -54,6 +38,18 @@ public sealed partial class DuplicateProgressDialogViewModel : OperationDialogVi
     protected override bool CloseResult => Report is { Groups.Count: > 0 };
 
     protected override bool HasFailedItems => Report is { Errors.Count: > 0 };
+
+    public DuplicateProgressDialogViewModel(DuplicateRequest request, DuplicateFinder finder, IUiDispatcher uiDispatcher, ILogger logger)
+    {
+        _request = request;
+        _finder = finder;
+        _logger = logger;
+        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+
+        RootPath = request.Root.AbsolutePath;
+        ThresholdText = $"от {SizeFormatter.Format(request.Options.MinSize)}";
+        PlanText = $"{RootPath} · {ThresholdText}";
+    }
 
     protected override async Task ExecuteAsync(CancellationToken token)
     {

@@ -43,7 +43,7 @@ internal static class MftLayout
         var count = BinaryPrimitives.ReadUInt16LittleEndian(record[6..]);
         var sectors = record.Length / bytesPerSector;
 
-        if (count != sectors + 1 || offset < UpdateSequenceMinOffset || offset + count * 2 > record.Length)
+        if (count != sectors + 1 || offset < UpdateSequenceMinOffset || (offset + (count * 2)) > record.Length)
         {
             return false;
         }
@@ -52,9 +52,9 @@ internal static class MftLayout
 
         for (var index = 1; index < count; index++)
         {
-            var end = index * bytesPerSector - 2;
+            var end = (index * bytesPerSector) - 2;
 
-            if (end < 0 || end + 2 > record.Length)
+            if (end < 0 || (end + 2) > record.Length)
             {
                 return false;
             }
@@ -66,7 +66,7 @@ internal static class MftLayout
                 return false;
             }
 
-            record.Slice(offset + index * 2, 2).CopyTo(tail);
+            record.Slice(offset + (index * 2), 2).CopyTo(tail);
         }
 
         return true;
@@ -97,7 +97,7 @@ internal static class MftLayout
             var countSize = header & 0x0F;
             var offsetSize = (header >> 4) & 0x0F;
 
-            if (countSize == 0 || position + countSize + offsetSize > data.Length)
+            if (countSize == 0 || (position + countSize + offsetSize) > data.Length)
             {
                 truncated = true;
                 break;

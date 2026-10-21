@@ -26,12 +26,7 @@ public interface IAgentTranscript : IDisposable
 
 public sealed class AgentTranscript : IAgentTranscript
 {
-    private static readonly JsonSerializerOptions Options = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
-    };
+    private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) } };
 
     private readonly object _gate = new();
     private readonly ILogger _logger;
@@ -39,15 +34,15 @@ public sealed class AgentTranscript : IAgentTranscript
 
     private StreamWriter? _writer;
 
+    public string Path { get; }
+
     public AgentTranscript(string path, string? token, ILogger logger)
     {
         Path = path;
         _token = token;
         _logger = logger;
-        _writer = new(path, append: false, new UTF8Encoding(true)) { AutoFlush = true };
+        _writer = new(path, false, new UTF8Encoding(true)) { AutoFlush = true };
     }
-
-    public string Path { get; }
 
     public void Write(AgentTranscriptKind kind, string text)
     {

@@ -30,6 +30,14 @@ public sealed partial class ScanMarksViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(DeleteHint))]
     private string _markedSizeText = string.Empty;
 
+    internal event Action<IReadOnlySet<SpaceBase>>? ItemsDeleted;
+
+    public bool HasMarked => MarkedCount > 0;
+
+    public string DeleteHint => HasMarked
+        ? $"Переместить в корзину: {MarkedCount} {Plural.Word(MarkedCount, "объект", "объекта", "объектов")}, ≈{MarkedSizeText}"
+        : "Пометьте файлы и папки через меню правой кнопки мыши или панель «Детали», чтобы удалить их в корзину";
+
     internal ScanMarksViewModel(
         IDialogService dialogs,
         DeleteProgressDialogFactory deleteDialogFactory,
@@ -63,53 +71,9 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         nodeFactory.MarksChanged += RecountMarked;
     }
 
-    internal event Action<IReadOnlySet<SpaceBase>>? ItemsDeleted;
-
-    public bool HasMarked => MarkedCount > 0;
-
-    public string DeleteHint => HasMarked
-        ? $"Переместить в корзину: {MarkedCount} {Plural.Word(MarkedCount, "объект", "объекта", "объектов")}, ≈{MarkedSizeText}"
-        : "Пометьте файлы и папки через меню правой кнопки мыши или панель «Детали», чтобы удалить их в корзину";
-
     internal void RecountMarked()
     {
         Recount(ScanTreeEditor.CollectMarked(_roots));
-    }
-
-    private ScanMarkSnapshot CaptureMarks(SpaceBase root, SpaceBase space)
-    {
-        var scope = ScanTreeEditor.FindMarkScope(root, space);
-
-        if (ReferenceEquals(scope, root) && !scope.IsDeleted)
-        {
-            var occurrences = _roots.Count(node => ReferenceEquals(node.Space, root));
-
-            if (occurrences == 0)
-            {
-                return new(root, scope, 0, 0);
-            }
-
-            var others = ScanTreeEditor.CollectMarked(_roots.Where(node => !ReferenceEquals(node.Space, root)));
-            return new(root, scope, (MarkedCount - others.Count) / occurrences,
-                (_markedBytes - others.Sum(static item => item.TotalSize)) / occurrences);
-        }
-
-        return ScanTreeEditor.CaptureMarks(root, scope, _nodeFactory.MarksPresent);
-    }
-
-    private void RecountMarked(ScanMarkSnapshot before)
-    {
-        var occurrences = _roots.Count(root => ReferenceEquals(root.Space, before.Root));
-
-        if (occurrences == 0)
-        {
-            return;
-        }
-
-        var marked = ScanTreeEditor.CollectMarked(before.Scope);
-        var bytes = marked.Sum(static item => item.TotalSize);
-        ApplyMarkedTotals(MarkedCount + ((marked.Count - before.Count) * occurrences),
-            _markedBytes + ((bytes - before.Bytes) * occurrences));
     }
 
     internal void RecountMarkedAfterScan(ScanNodeViewModel freshRoot, List<SpaceBase> transferred)
@@ -117,19 +81,6 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         var marked = ScanTreeEditor.CollectMarked(_roots, freshRoot);
         marked.AddRange(transferred);
         Recount(marked);
-    }
-
-    private void Recount(List<SpaceBase> marked)
-    {
-        ApplyMarkedTotals(marked.Count, marked.Sum(static item => item.TotalSize));
-    }
-
-    private void ApplyMarkedTotals(int count, long bytes)
-    {
-        _markedBytes = bytes;
-        _nodeFactory.MarksPresent = count > 0;
-        MarkedCount = count;
-        MarkedSizeText = count > 0 ? SizeFormatter.Format(bytes) : string.Empty;
     }
 
     internal void ApplyDeletionResult(IReadOnlyList<SpaceBase> deletedItems)
@@ -198,6 +149,59 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         ItemsDeleted?.Invoke(deletedSet);
         RecountMarked();
         _reloadDrives();
+    }
+
+    private ScanMarkSnapshot CaptureMarks(SpaceBase root, SpaceBase space)
+    {
+        var scope = ScanTreeEditor.FindMarkScope(root, space);
+
+        if (ReferenceEquals(scope, root) && !scope.IsDeleted)
+        {
+            var occurrences = _roots.Count(node => ReferenceEquals(node.Space, root));
+
+            if (occurrences == 0)
+            {
+                return new(root, scope, 0, 0);
+            }
+
+            var others = ScanTreeEditor.CollectMarked(_roots.Where(node => !ReferenceEquals(node.Space, root)));
+            return new(
+                root,
+                scope,
+                (MarkedCount - others.Count) / occurrences,
+                (_markedBytes - others.Sum(static item => item.TotalSize)) / occurrences);
+        }
+
+        return ScanTreeEditor.CaptureMarks(root, scope, _nodeFactory.MarksPresent);
+    }
+
+    private void RecountMarked(ScanMarkSnapshot before)
+    {
+        var occurrences = _roots.Count(root => ReferenceEquals(root.Space, before.Root));
+
+        if (occurrences == 0)
+        {
+            return;
+        }
+
+        var marked = ScanTreeEditor.CollectMarked(before.Scope);
+        var bytes = marked.Sum(static item => item.TotalSize);
+        ApplyMarkedTotals(
+            MarkedCount + ((marked.Count - before.Count) * occurrences),
+            _markedBytes + ((bytes - before.Bytes) * occurrences));
+    }
+
+    private void Recount(List<SpaceBase> marked)
+    {
+        ApplyMarkedTotals(marked.Count, marked.Sum(static item => item.TotalSize));
+    }
+
+    private void ApplyMarkedTotals(int count, long bytes)
+    {
+        _markedBytes = bytes;
+        _nodeFactory.MarksPresent = count > 0;
+        MarkedCount = count;
+        MarkedSizeText = count > 0 ? SizeFormatter.Format(bytes) : string.Empty;
     }
 
     private bool CanDeleteMarked()

@@ -6,7 +6,7 @@ public static class SettingsBlock
         "Key",
         typeof(string),
         typeof(SettingsBlock),
-        new PropertyMetadata(null));
+        new(null));
 
     public static void SetKey(DependencyObject element, string value)
     {

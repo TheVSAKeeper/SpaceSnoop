@@ -3,7 +3,6 @@ using KeepShell.Diagnostics;
 using KeepShell.Testing;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.Diagnostics;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -46,12 +45,27 @@ public class DiagnosticsBundleTests
     }
 
     [Test]
-    public void Пара_имя_значение_глушится_и_без_объявленного_токена()
+    public void Занятый_файл_настроек_доезжает_до_человека_строкой_об_отказе_чтения()
     {
-        var entries = Build(Secrets(null), [new("wpf-20260920.log", "2026-09-20 18:00:11.234 +03:00 [INF] Запрос token=eyJhbGciOiJIUzI1 завершился")]);
+        var path = Path.Combine(_root, TomlSettingsFile.PrimaryFileName);
+        File.WriteAllText(path, "[wpf]");
 
-        Assert.That(Text(entries, "logs/wpf-20260920.log"),
-            Is.EqualTo($"2026-09-20 18:00:11.234 +03:00 [INF] Запрос token={DiagnosticsSecrets.Mask} завершился"));
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, path);
+
+        using var holder = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
+
+        var bundle = Bundle(Secrets(null), source.Collect().ToList());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Not.Contain(SpaceSnoopBundleSource.SettingsEntry));
+            Assert.That(
+                Text(bundle.Entries, SpaceSnoopBundleSource.SettingsFailureEntry),
+                Does.Contain("занят другой программой"));
+
+            Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
+        }
     }
 
     [Test]
@@ -75,6 +89,36 @@ public class DiagnosticsBundleTests
     }
 
     [Test]
+    public void Непрочитанные_настройки_не_роняют_вклад_и_называются_человеку()
+    {
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, Path.Combine(_root, "нет-такого.toml"));
+
+        var bundle = Bundle(Secrets(null), source.Collect().ToList());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Not.Contain(SpaceSnoopBundleSource.SettingsEntry));
+            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Contain(SpaceSnoopBundleSource.OperationsEntry));
+            Assert.That(
+                Text(bundle.Entries, SpaceSnoopBundleSource.SettingsFailureEntry),
+                Does.Contain("Настройки приложения в пакет не попали").And.Contain("Файла настроек ещё нет"));
+
+            Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
+        }
+    }
+
+    [Test]
+    public void Пара_имя_значение_глушится_и_без_объявленного_токена()
+    {
+        var entries = Build(Secrets(null), [new("wpf-20260920.log", "2026-09-20 18:00:11.234 +03:00 [INF] Запрос token=eyJhbGciOiJIUzI1 завершился")]);
+
+        Assert.That(
+            Text(entries, "logs/wpf-20260920.log"),
+            Is.EqualTo($"2026-09-20 18:00:11.234 +03:00 [INF] Запрос token={DiagnosticsSecrets.Mask} завершился"));
+    }
+
+    [Test]
     public void Прикладной_вклад_несёт_настройки_и_прогон()
     {
         var settings = new MemorySettings();
@@ -88,50 +132,12 @@ public class DiagnosticsBundleTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(entries.Select(static entry => entry.Name),
+            Assert.That(
+                entries.Select(static entry => entry.Name),
                 Does.Contain(SpaceSnoopBundleSource.SettingsEntry).And.Contain(SpaceSnoopBundleSource.OperationsEntry));
+
             Assert.That(Text(entries, SpaceSnoopBundleSource.SettingsEntry), Does.Not.Contain(Token));
             Assert.That(Text(entries, SpaceSnoopBundleSource.OperationsEntry), Does.Contain("Сканирование"));
-        }
-    }
-
-    [Test]
-    public void Непрочитанные_настройки_не_роняют_вклад_и_называются_человеку()
-    {
-        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
-        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, Path.Combine(_root, "нет-такого.toml"));
-
-        var bundle = Bundle(Secrets(null), source.Collect().ToList());
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Not.Contain(SpaceSnoopBundleSource.SettingsEntry));
-            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Contain(SpaceSnoopBundleSource.OperationsEntry));
-            Assert.That(Text(bundle.Entries, SpaceSnoopBundleSource.SettingsFailureEntry),
-                Does.Contain("Настройки приложения в пакет не попали").And.Contain("Файла настроек ещё нет"));
-            Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
-        }
-    }
-
-    [Test]
-    public void Занятый_файл_настроек_доезжает_до_человека_строкой_об_отказе_чтения()
-    {
-        var path = Path.Combine(_root, TomlSettingsFile.PrimaryFileName);
-        File.WriteAllText(path, "[wpf]");
-
-        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
-        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, path);
-
-        using var holder = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.None);
-
-        var bundle = Bundle(Secrets(null), source.Collect().ToList());
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(bundle.Entries.Select(static entry => entry.Name), Does.Not.Contain(SpaceSnoopBundleSource.SettingsEntry));
-            Assert.That(Text(bundle.Entries, SpaceSnoopBundleSource.SettingsFailureEntry),
-                Does.Contain("занят другой программой"));
-            Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
         }
     }
 

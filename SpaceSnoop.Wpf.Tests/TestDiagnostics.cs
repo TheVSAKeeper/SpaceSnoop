@@ -7,6 +7,6 @@ internal static class TestDiagnostics
 {
     public static PerformanceMonitor Monitor()
     {
-        return new(new DiagnosticsOptions(), new FakeUiDispatcher(), NullLogger<PerformanceMonitor>.Instance);
+        return new(new(), new FakeUiDispatcher(), NullLogger<PerformanceMonitor>.Instance);
     }
 }

@@ -2,6 +2,10 @@
 
 public sealed partial class CleanupViewModel
 {
+    bool ICleanupAutomation.IsBusy => IsBusy;
+
+    bool ICleanupAutomation.IsModalBusy => _modals.HasActive;
+
     internal void ShowBusyForAutomation(IReadOnlyList<CleanupMeasurement> measured)
     {
         _measureCts = new();
@@ -41,10 +45,6 @@ public sealed partial class CleanupViewModel
         }
     }
 
-    bool ICleanupAutomation.IsBusy => IsBusy;
-
-    bool ICleanupAutomation.IsModalBusy => _modals.HasActive;
-
     async Task<CleanupOutcome> ICleanupAutomation.CleanFromAutomationAsync(
         IReadOnlyList<string> targetIds,
         CancellationToken cancellationToken)
@@ -57,7 +57,13 @@ public sealed partial class CleanupViewModel
 
             if (await MeasureForAutomationAsync(rows, cancellationToken))
             {
-                return new(CleanupConsent.Stale, 0, 0, 0, false, false,
+                return new(
+                    CleanupConsent.Stale,
+                    0,
+                    0,
+                    0,
+                    false,
+                    false,
                     "Порог возраста файлов меняли во время подготовки – очистки не было, повторите вызов.");
             }
         }
@@ -81,19 +87,27 @@ public sealed partial class CleanupViewModel
         {
             _logger.CleanupRunDeclined(consent.ToString());
 
-            return new(consent, 0, 0, 0, false, false, consent switch
-            {
-                CleanupConsent.Declined => "Человек отказал в очистке.",
-                CleanupConsent.Busy => "В окне приложения открыт другой диалог – подтверждение показать нельзя.",
-                _ => "Человек не ответил на подтверждение вовремя.",
-            });
+            return new(
+                consent,
+                0,
+                0,
+                0,
+                false,
+                false,
+                consent switch
+                {
+                    CleanupConsent.Declined => "Человек отказал в очистке.",
+                    CleanupConsent.Busy => "В окне приложения открыт другой диалог – подтверждение показать нельзя.",
+                    _ => "Человек не ответил на подтверждение вовремя.",
+                });
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
         var dialog = await RunConfirmedAsync(ready, bytes, files, cancellationToken, true);
 
-        return new(CleanupConsent.Granted,
+        return new(
+            CleanupConsent.Granted,
             dialog.FreedBytes,
             dialog.Deleted,
             dialog.Skipped,

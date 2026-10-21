@@ -1,9 +1,9 @@
-﻿using System.Globalization;
-using System.Text.Json;
-using System.Text.RegularExpressions;
-using SpaceSnoop.Core;
+﻿using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Core.Export;
+using System.Globalization;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace SpaceSnoop.Tests;
 
@@ -46,26 +46,11 @@ public partial class ScanExportTests
         }
     }
 
-    [Test]
-    public Task ToJson_MatchesContractSnapshot()
+    [TestCase(0, ScanExport.MinDepth)]
+    [TestCase(99, ScanExport.MaxDepth)]
+    public void Build_ClampsDepthAndReportsAppliedValue(int requested, int expected)
     {
-        return Verify(Scrub(ScanExport.ToJson(Build(Options))), "json");
-    }
-
-    [Test]
-    public void ToJson_WritesGeneratedAtWithLocalOffset()
-    {
-        var stamp = JsonDocument.Parse(ScanExport.ToJson(Build(Options))).RootElement
-            .GetProperty("generatedAt")
-            .GetString();
-
-        var parsed = DateTimeOffset.TryParse(stamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var value);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(parsed, Is.True, stamp);
-            Assert.That(value.Offset, Is.EqualTo(DateTimeOffset.Now.Offset));
-        }
+        Assert.That(Build(Options with { Depth = requested }).Options.Depth, Is.EqualTo(expected));
     }
 
     [Test]
@@ -88,30 +73,41 @@ public partial class ScanExportTests
     {
         var model = Build(Options with { Depth = depth });
 
-        Assert.That(model.Directories.Select(x => x.Path), expectsNested
-            ? Does.Contain(Path.Combine("big", "deep"))
-            : Does.Not.Contain(Path.Combine("big", "deep")));
+        Assert.That(
+            model.Directories.Select(x => x.Path),
+            expectsNested
+                ? Does.Contain(Path.Combine("big", "deep"))
+                : Does.Not.Contain(Path.Combine("big", "deep")));
     }
 
     [Test]
-    public void Build_TruncatesToLargestAndReportsOmitted()
+    public void Build_TopKDirectoriesPreservesTiesAndOmittedCounts()
     {
-        var model = Build(Options, 2);
+        const int count = 50;
+        const int take = 5;
+        var root = new DirectorySpace(@"C:\synthetic", null, default, default);
+        var sizes = Enumerable.Range(0, count).Select(i => i % 5 * 10L).ToArray();
+        var children = sizes.Select((size, i) =>
+            {
+                var child = new DirectorySpace($"d{i}", root, default, default);
+                child.SetScanned([FileSpace.Create(new ScanEntry("f.bin", size, default, default, FileAttributes.Normal, false), child)], []);
+                return child;
+            })
+            .ToArray();
+
+        root.SetScanned([], children);
+        root.AggregateTotals();
+
+        var model = ScanExport.Build(root, root.Name, Options, entryLimit: take);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(model.Files.Select(x => x.Bytes), Is.EqualTo(new[] { 5000L, 700L }));
-            Assert.That(model.OmittedFiles, Is.EqualTo(2));
-            Assert.That(model.Directories, Has.Count.EqualTo(2));
-            Assert.That(model.OmittedDirectories, Is.EqualTo(2));
+            Assert.That(model.Directories.Select(x => x.TotalBytes), Is.EqualTo(sizes.OrderDescending().Take(take)));
+            Assert.That(model.Directories.Select(x => x.Path).Distinct().Count(), Is.EqualTo(take));
+            Assert.That(model.OmittedDirectories, Is.EqualTo(count - take));
+            Assert.That(model.OmittedFiles, Is.EqualTo(count - take));
+            Assert.That(model.Totals.Directories, Is.EqualTo(count));
         }
-    }
-
-    [TestCase(0, ScanExport.MinDepth)]
-    [TestCase(99, ScanExport.MaxDepth)]
-    public void Build_ClampsDepthAndReportsAppliedValue(int requested, int expected)
-    {
-        Assert.That(Build(Options with { Depth = requested }).Options.Depth, Is.EqualTo(expected));
     }
 
     [TestCase(0, false)]
@@ -142,30 +138,39 @@ public partial class ScanExportTests
     }
 
     [Test]
-    public void Build_TopKDirectoriesPreservesTiesAndOmittedCounts()
+    public void Build_TruncatesToLargestAndReportsOmitted()
     {
-        const int count = 50;
-        const int take = 5;
-        var root = new DirectorySpace(@"C:\synthetic", null, default, default);
-        var sizes = Enumerable.Range(0, count).Select(i => i % 5 * 10L).ToArray();
-        var children = sizes.Select((size, i) =>
-        {
-            var child = new DirectorySpace($"d{i}", root, default, default);
-            child.SetScanned([FileSpace.Create(new ScanEntry("f.bin", size, default, default, FileAttributes.Normal, false), child)], []);
-            return child;
-        }).ToArray();
-        root.SetScanned([], children);
-        root.AggregateTotals();
-
-        var model = ScanExport.Build(root, root.Name, Options, entryLimit: take);
+        var model = Build(Options, 2);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(model.Directories.Select(x => x.TotalBytes), Is.EqualTo(sizes.OrderDescending().Take(take)));
-            Assert.That(model.Directories.Select(x => x.Path).Distinct().Count(), Is.EqualTo(take));
-            Assert.That(model.OmittedDirectories, Is.EqualTo(count - take));
-            Assert.That(model.OmittedFiles, Is.EqualTo(count - take));
-            Assert.That(model.Totals.Directories, Is.EqualTo(count));
+            Assert.That(model.Files.Select(x => x.Bytes), Is.EqualTo(new[] { 5000L, 700L }));
+            Assert.That(model.OmittedFiles, Is.EqualTo(2));
+            Assert.That(model.Directories, Has.Count.EqualTo(2));
+            Assert.That(model.OmittedDirectories, Is.EqualTo(2));
+        }
+    }
+
+    [Test]
+    public Task ToJson_MatchesContractSnapshot()
+    {
+        return Verify(Scrub(ScanExport.ToJson(Build(Options))), "json");
+    }
+
+    [Test]
+    public void ToJson_WritesGeneratedAtWithLocalOffset()
+    {
+        var stamp = JsonDocument.Parse(ScanExport.ToJson(Build(Options)))
+            .RootElement
+            .GetProperty("generatedAt")
+            .GetString();
+
+        var parsed = DateTimeOffset.TryParse(stamp, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var value);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parsed, Is.True, stamp);
+            Assert.That(value.Offset, Is.EqualTo(DateTimeOffset.Now.Offset));
         }
     }
 
@@ -176,7 +181,8 @@ public partial class ScanExportTests
 
     private string Scrub(string json)
     {
-        return GeneratedAt().Replace(json, "\"generatedAt\": \"{time}\"")
+        return GeneratedAt()
+            .Replace(json, "\"generatedAt\": \"{time}\"")
             .Replace(JsonEncode(_root), "{root}", StringComparison.Ordinal)
             .Replace(_root, "{root}", StringComparison.Ordinal);
     }

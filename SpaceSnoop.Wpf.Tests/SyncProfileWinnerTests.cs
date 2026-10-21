@@ -1,20 +1,10 @@
 ﻿using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 public class SyncProfileWinnerTests
 {
-    [TestCase(0, SyncWinner.Newest)]
-    [TestCase(1, SyncWinner.Left)]
-    [TestCase(2, SyncWinner.Right)]
-    [TestCase(99, SyncWinner.Newest)]
-    public void WinnerFromIndex_Мапит_индекс_в_победителя(int index, SyncWinner expected)
-    {
-        Assert.That(SyncProfile.WinnerFromIndex(index), Is.EqualTo(expected));
-    }
-
     [TestCase(SyncWinner.Newest, 0)]
     [TestCase(SyncWinner.Left, 1)]
     [TestCase(SyncWinner.Right, 2)]
@@ -34,5 +24,14 @@ public class SyncProfileWinnerTests
         var source = SyncProfile.MirrorSource(mode, winner, "L", "R");
 
         Assert.That(source, Is.EqualTo(expected));
+    }
+
+    [TestCase(0, SyncWinner.Newest)]
+    [TestCase(1, SyncWinner.Left)]
+    [TestCase(2, SyncWinner.Right)]
+    [TestCase(99, SyncWinner.Newest)]
+    public void WinnerFromIndex_Мапит_индекс_в_победителя(int index, SyncWinner expected)
+    {
+        Assert.That(SyncProfile.WinnerFromIndex(index), Is.EqualTo(expected));
     }
 }

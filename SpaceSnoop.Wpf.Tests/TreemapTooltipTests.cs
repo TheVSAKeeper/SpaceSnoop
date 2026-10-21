@@ -10,6 +10,19 @@ public class TreemapTooltipTests
 
     private static readonly Rect Room = new(0, 0, 1000, 800);
 
+    [TestCase(400, 300, TestName = "в середине")]
+    [TestCase(400, 700, TestName = "у нижнего края")]
+    [TestCase(10, 700, TestName = "в левом нижнем углу")]
+    [TestCase(990, 790, TestName = "в правом нижнем углу")]
+    public void Курсор_никогда_не_попадает_внутрь_тела_подсказки(double x, double y)
+    {
+        var cursor = new Point(x, y);
+        var placement = TreemapTooltip.Place(cursor, Popup, Room, new(1, 1));
+        var body = new Rect(placement.DeviceTopLeft, Popup);
+
+        Assert.That(body.Contains(cursor), Is.False, $"сторона {placement.Side}, тело {body}");
+    }
+
     [Test]
     public void При_запасе_места_подсказка_встаёт_под_курсором()
     {
@@ -24,28 +37,18 @@ public class TreemapTooltipTests
     }
 
     [Test]
-    public void У_нижнего_края_подсказка_уходит_вверх()
+    public void Размер_подсказки_приводится_к_логическим_единицам_до_выбора_стороны()
     {
-        var placement = TreemapTooltip.Place(new(400, 700), Popup, Room, new(1, 1));
+        var dpi = new DpiScale(2.25, 2.25);
+        var popupDevice = new Size(Popup.Width * dpi.DpiScaleX, Popup.Height * dpi.DpiScaleY);
+
+        var placement = TreemapTooltip.Place(new(400, 700), popupDevice, Room, dpi);
 
         Assert.Multiple(() =>
         {
             Assert.That(placement.Side, Is.EqualTo(TooltipSide.Above));
-            Assert.That(placement.DeviceTopLeft.Y, Is.EqualTo(496));
+            Assert.That(placement.DeviceTopLeft.Y, Is.EqualTo(496 * 2.25).Within(0.001));
         });
-    }
-
-    [TestCase(400, 300, TestName = "в середине")]
-    [TestCase(400, 700, TestName = "у нижнего края")]
-    [TestCase(10, 700, TestName = "в левом нижнем углу")]
-    [TestCase(990, 790, TestName = "в правом нижнем углу")]
-    public void Курсор_никогда_не_попадает_внутрь_тела_подсказки(double x, double y)
-    {
-        var cursor = new Point(x, y);
-        var placement = TreemapTooltip.Place(cursor, Popup, Room, new(1, 1));
-        var body = new Rect(placement.DeviceTopLeft, Popup);
-
-        Assert.That(body.Contains(cursor), Is.False, $"сторона {placement.Side}, тело {body}");
     }
 
     [Test]
@@ -65,17 +68,14 @@ public class TreemapTooltipTests
     }
 
     [Test]
-    public void Размер_подсказки_приводится_к_логическим_единицам_до_выбора_стороны()
+    public void У_нижнего_края_подсказка_уходит_вверх()
     {
-        var dpi = new DpiScale(2.25, 2.25);
-        var popupDevice = new Size(Popup.Width * dpi.DpiScaleX, Popup.Height * dpi.DpiScaleY);
-
-        var placement = TreemapTooltip.Place(new(400, 700), popupDevice, Room, dpi);
+        var placement = TreemapTooltip.Place(new(400, 700), Popup, Room, new(1, 1));
 
         Assert.Multiple(() =>
         {
             Assert.That(placement.Side, Is.EqualTo(TooltipSide.Above));
-            Assert.That(placement.DeviceTopLeft.Y, Is.EqualTo(496 * 2.25).Within(0.001));
+            Assert.That(placement.DeviceTopLeft.Y, Is.EqualTo(496));
         });
     }
 }

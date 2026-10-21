@@ -1,5 +1,4 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
+﻿using KeepShell.Testing;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Platform;
 using SpaceSnoop.Wpf.Converters;
@@ -8,6 +7,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -38,7 +38,7 @@ public class ThemeTilesTests
     public void Палитра_темы_несёт_все_цвета_превью(AppTheme theme)
     {
         var palette = ThemeSwatchBrushConverter.PaletteOf(theme);
-        var missing = PreviewKeys.Where(key => palette?[key] is not System.Windows.Media.Brush).ToArray();
+        var missing = PreviewKeys.Where(key => palette?[key] is not Brush).ToArray();
 
         Assert.That(missing, Is.Empty, $"В палитре «{theme}» нет кистей превью: {string.Join(", ", missing)}.");
     }
@@ -77,10 +77,8 @@ public class ThemeTilesTests
 
         var first = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
         first.Focus();
-        first.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(first)!, 0, Key.Right)
-        {
-            RoutedEvent = Keyboard.KeyDownEvent,
-        });
+        first.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(first)!, 0, Key.Right) { RoutedEvent = Keyboard.KeyDownEvent });
+
         host.Settle();
 
         Assert.That(list.SelectedIndex, Is.EqualTo(1));
@@ -88,13 +86,10 @@ public class ThemeTilesTests
 
     private static VisualTestHost Show(out ListBox list)
     {
-        list = new()
-        {
-            Style = (Style)Application.Current.FindResource("ListBox.ThemeTiles"),
-            ItemsSource = SettingsOptions.Themes,
-        };
+        list = new() { Style = (Style)Application.Current.FindResource("ListBox.ThemeTiles"), ItemsSource = SettingsOptions.Themes };
 
-        var host = VisualTestHost.Show(new Window { Content = list }, 640, 240, keyboardFocus: true);
+        var host = VisualTestHost.Show(new() { Content = list }, 640, 240, true);
+
         host.Settle();
 
         return host;

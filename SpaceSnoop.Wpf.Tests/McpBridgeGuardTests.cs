@@ -4,18 +4,12 @@ using Microsoft.Extensions.Logging.Abstractions;
 using ModelContextProtocol;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
-using SpaceSnoop.Core.Docker;
-using SpaceSnoop.Core.Duplicates;
 using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Core.Export;
-using SpaceSnoop.Core.UseCases;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.Mcp;
-using SpaceSnoop.Wpf.ViewModels;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Settings;
-using SpaceSnoop.Wpf.ViewModels.Sync;
 using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -52,20 +46,21 @@ public class McpBridgeGuardTests
 
         var scanPreferences = new ScanPreferences(settings);
 
-        _bridge = new(settings,
+        _bridge = new(
+            settings,
             _sync,
             _scan,
             _preferences,
             scanPreferences,
-            new ScanRunner(new(), new(), scanPreferences, NullLogger<ScanRunner>.Instance),
-            new DuplicateFinder(),
-            new DockerService(),
-            new CleanupService(),
+            new(new(), new(), scanPreferences, NullLogger<ScanRunner>.Instance),
+            new(),
+            new(),
+            new(),
             _cleanup,
-            new ToastNotifier(new(), new ShellPreferences(settings)),
+            new(new(), new(settings)),
             _monitor,
             _operations,
-            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
+            new(NullLogger<DirectoryComparer>.Instance),
             new FakeAppNavigator(),
             NullLogger<McpBridge>.Instance);
     }
@@ -79,6 +74,350 @@ public class McpBridgeGuardTests
         {
             Directory.Delete(_root, true);
         }
+    }
+
+    [Test]
+    public void MCP_переводит_отказ_устаревшего_плана_в_ошибку_с_тем_же_текстом()
+    {
+        const string message = "план уже исполнен, выполните сравнение заново.";
+
+        AllowMutations(true);
+        _sync.HasComparison = true;
+        _sync.SyncException = new SyncPlanStaleException(message);
+
+        var exception = Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(false, 20, CancellationToken.None));
+
+        Assert.That(exception?.Message, Is.EqualTo(message));
+    }
+
+    [Test]
+    public async Task Замер_корзины_отдаёт_доступность_и_порог_возраста()
+    {
+        var json = await _bridge.Cleanup.ScanAsync(["RecycleBin"], CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json, Does.Contain("\"minimumAgeHours\": 24"));
+            Assert.That(json, Does.Contain("RecycleBin"));
+            Assert.That(json, Does.Contain("\"availabilityHint\""));
+        });
+    }
+
+    [Test]
+    public void Замер_неизвестной_корзины_называет_доступные()
+    {
+        var exception = Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.ScanAsync(["ЧужаяКорзина"], CancellationToken.None));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(exception!.Message, Does.Contain("ЧужаяКорзина"));
+            Assert.That(exception.Message, Does.Contain("TempFiles"));
+        });
+    }
+
+    [Test]
+    public void Занятая_страница_скана_отбивает_показ_до_обхода()
+    {
+        _scan.ScanningProbe = static () => true;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None))?.Message,
+                Does.Contain("сейчас занята"));
+
+            Assert.That(_scan.ApplyCalls, Is.Zero);
+            Assert.That(_scan.PageCalls, Is.Empty);
+        });
+    }
+
+    [TestCase(true, false, "занята другой операцией")]
+    [TestCase(false, true, "другой диалог")]
+    public void Занятое_окно_отбивает_очистку_до_замера(bool pageBusy, bool modalBusy, string expected)
+    {
+        AllowMutations(true);
+        _cleanup.IsBusy = pageBusy;
+        _cleanup.IsModalBusy = modalBusy;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.RunAsync(["Prefetch"], false, CancellationToken.None))?.Message,
+                Does.Contain(expected));
+
+            Assert.That(_cleanup.CleanCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Корень_скана_ссылка_отбивается_понятным_текстом()
+    {
+        var link = Path.Combine(Path.GetTempPath(), "ss_guard_link_" + Guid.NewGuid().ToString("N"));
+
+        try
+        {
+            Directory.CreateSymbolicLink(link, _root);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Assert.Ignore("не удалось создать символьную ссылку");
+        }
+
+        try
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(link, 2, 20, true, CancellationToken.None))?.Message,
+                    Does.Contain("ссылка на другое место"));
+
+                Assert.That(_scan.PageCalls, Is.Empty);
+
+                Assert.That(
+                    Assert.ThrowsAsync<McpException>(() => _bridge.Scan.OpenScanAsync(link, true, CancellationToken.None))?.Message,
+                    Does.Contain("ссылка на другое место"));
+
+                Assert.That(() => _bridge.Scan.OpenScanAsync(link, false, CancellationToken.None), Throws.Nothing);
+                Assert.That(_scan.SelectCalls, Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
+    }
+
+    [TestCase(CleanupConsent.Declined, "Человек отказал в очистке.", "отказал")]
+    [TestCase(CleanupConsent.TimedOut, "Человек не ответил на подтверждение вовремя.", "не ответил")]
+    [TestCase(CleanupConsent.Nothing, "Очищать нечего: названные корзины пусты или недоступны.", "нечего")]
+    [TestCase(CleanupConsent.Stale, "Порог возраста файлов меняли во время подготовки.", "Порог возраста")]
+    public void Неподтверждённая_очистка_возвращает_ошибку_а_не_отчёт(CleanupConsent consent, string status, string expected)
+    {
+        var tools = ToolsOverRunnableTarget();
+        _cleanup.Outcome = new(consent, 0, 0, 0, false, false, status);
+
+        Assert.That(
+            Assert.ThrowsAsync<McpException>(() => tools.RunAsync([RunnableTargetId], false, CancellationToken.None))?.Message,
+            Does.Contain(expected));
+    }
+
+    [Test]
+    public async Task Обход_без_показа_идёт_мимо_занятой_страницы()
+    {
+        _scan.ScanningProbe = static () => true;
+
+        var json = await _bridge.Scan.ScanAsync(_root, 2, 20, false, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json, Does.Contain("файл.txt"));
+            Assert.That(_scan.ApplyCalls, Is.Zero);
+            Assert.That(_scan.PageCalls, Is.Empty);
+        });
+    }
+
+    [Test]
+    public void Очистка_без_разрешения_не_доходит_до_страницы()
+    {
+        AllowMutations(false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.RunAsync(["Prefetch"], false, CancellationToken.None))?.Message,
+                Does.Contain(MutationsBlocked));
+
+            Assert.That(_cleanup.CleanCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Очистка_без_целей_называет_доступные()
+    {
+        AllowMutations(true);
+
+        Assert.That(
+            Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.RunAsync([], false, CancellationToken.None))?.Message,
+            Does.Contain("TempFiles"));
+    }
+
+    [Test]
+    public async Task План_очистки_ничего_не_запускает()
+    {
+        AllowMutations(true);
+
+        var json = await _bridge.Cleanup.RunAsync(["Prefetch"], true, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json, Does.Contain("\"dryRun\": true"));
+            Assert.That(json, Does.Contain("Prefetch"));
+            Assert.That(_cleanup.CleanCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void План_синхронизации_без_сравнения_отбивается()
+    {
+        Assert.That(
+            Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(true, 20, CancellationToken.None))?.Message,
+            Does.Contain("сравнение ещё не выполнялось"));
+    }
+
+    [Test]
+    public async Task Подтверждённая_очистка_отчитывается_освобождённым()
+    {
+        var tools = ToolsOverRunnableTarget();
+
+        var json = await tools.RunAsync([RunnableTargetId], false, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_cleanup.CleanCalls, Is.EqualTo(1));
+            Assert.That(_cleanup.LastIds, Is.EquivalentTo(new[] { RunnableTargetId }));
+            Assert.That(json, Does.Contain("\"freedBytes\": 1024"));
+            Assert.That(json, Does.Contain("\"consent\": \"Granted\""));
+        });
+    }
+
+    [Test]
+    public void Поиск_дубликатов_без_сканирования_отбивается_с_причиной()
+    {
+        _scan.ScanRoot = null;
+
+        Assert.That(
+            Assert.ThrowsAsync<McpException>(() => _bridge.Scan.FindDuplicatesAsync(1, 10, CancellationToken.None))?.Message,
+            Does.Contain("результата ещё нет"));
+    }
+
+    [Test]
+    public async Task Показ_снимает_прежний_корень_страницы_до_обхода()
+    {
+        await _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None);
+
+        Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}", $"apply {_root}" }));
+    }
+
+    [Test]
+    public void Пометка_на_удаление_без_разрешения_не_доходит_до_страницы()
+    {
+        AllowMutations(false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Assert.Throws<McpException>(() => _bridge.Scan.MarkForDeletion([_root], true))?.Message, Does.Contain(MutationsBlocked));
+            Assert.That(_scan.MarkCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Пустой_список_корзин_не_считается_запросом_всех()
+    {
+        var exception = Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.ScanAsync([" "], CancellationToken.None));
+
+        Assert.That(exception!.Message, Does.Contain("TempFiles"));
+    }
+
+    [Test]
+    public void Пустой_список_путей_не_доходит_до_страницы()
+    {
+        AllowMutations(true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Assert.Throws<McpException>(() => _bridge.Scan.MarkForDeletion([], true))?.Message, Does.Contain("пуст"));
+            Assert.That(_scan.MarkCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Синхронизация_без_разрешения_не_доходит_до_страницы()
+    {
+        AllowMutations(false);
+        _sync.HasComparison = true;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(false, 20, CancellationToken.None))?.Message,
+                Does.Contain(MutationsBlocked));
+
+            Assert.That(_sync.SyncCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Состояние_MCP_помечает_исполненный_план()
+    {
+        _sync.HasComparison = true;
+        _sync.PlanFreshness = SyncPlanFreshness.PartiallyApplied;
+
+        var state = new McpStateReader(_scan, _sync, new(new FakeAppNavigator())).ReadSyncState();
+
+        Assert.That(state.PlanFreshness, Is.EqualTo(SyncPlanFreshness.PartiallyApplied));
+    }
+
+    [TestCase(false, false, false, "выполните сравнение")]
+    [TestCase(true, true, false, "занята другой операцией")]
+    [TestCase(true, false, true, "спорные элементы")]
+    public void Состояние_страницы_синхронизации_отбивает_запуск(bool hasComparison, bool isBusy, bool hasConflicts, string expected)
+    {
+        AllowMutations(true);
+        _sync.HasComparison = hasComparison;
+        _sync.IsBusy = isBusy;
+        _sync.HasPendingConflicts = hasConflicts;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(false, 20, CancellationToken.None))?.Message, Does.Contain(expected));
+            Assert.That(_sync.SyncCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Список_путей_сверх_лимита_не_доходит_до_страницы()
+    {
+        AllowMutations(true);
+        var paths = Enumerable.Repeat(_root, AppDefaults.McpEntryLimitMax + 1).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(Assert.Throws<McpException>(() => _bridge.Scan.MarkForDeletion(paths, true))?.Message, Does.Contain("не больше"));
+            Assert.That(_scan.MarkCalls, Is.Zero);
+        });
+    }
+
+    [Test]
+    public void Страница_занявшаяся_во_время_обхода_не_получает_чужое_дерево()
+    {
+        var checks = 0;
+        _scan.ScanningProbe = () => checks++ > 0;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None))?.Message,
+                Does.Contain("пока шёл обход").And.Contain("результат не показан"));
+
+            Assert.That(_scan.ApplyCalls, Is.Zero);
+            Assert.That(_scan.SelectCalls, Is.Zero);
+            Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}" }));
+        });
+    }
+
+    [Test]
+    public async Task Сухой_прогон_помечает_исполненный_план_устаревшим()
+    {
+        _sync.HasComparison = true;
+        _sync.PlanFreshness = SyncPlanFreshness.Applied;
+        _sync.PlanBuilder = () => new()
+        {
+            LeftPath = _root, RightPath = _root, Options = new(SyncMode.LeftToRight, SyncWinner.None, false, string.Empty), Actions = PlannedActions.Empty,
+        };
+
+        var json = await _bridge.Sync.SyncCurrentAsync(true, 20, CancellationToken.None);
+
+        Assert.That(json, Does.Contain("\"planFreshness\": \"Applied\""));
     }
 
     [Test]
@@ -107,50 +446,14 @@ public class McpBridgeGuardTests
     }
 
     [Test]
-    public void Пометка_на_удаление_без_разрешения_не_доходит_до_страницы()
+    public void Упавшая_очистка_возвращает_ошибку_а_не_отчёт()
     {
-        AllowMutations(false);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.Throws<McpException>(() => _bridge.Scan.MarkForDeletion([_root], true))?.Message, Does.Contain(MutationsBlocked));
-            Assert.That(_scan.MarkCalls, Is.Zero);
-        });
-    }
-
-    [Test]
-    public void Поиск_дубликатов_без_сканирования_отбивается_с_причиной()
-    {
-        _scan.ScanRoot = null;
+        var tools = ToolsOverRunnableTarget();
+        _cleanup.Outcome = new(CleanupConsent.Granted, 0, 0, 1, false, true, "Ошибка: отказано в доступе.");
 
         Assert.That(
-            Assert.ThrowsAsync<McpException>(() => _bridge.Scan.FindDuplicatesAsync(1, 10, CancellationToken.None))?.Message,
-            Does.Contain("результата ещё нет"));
-    }
-
-    [Test]
-    public void Пустой_список_путей_не_доходит_до_страницы()
-    {
-        AllowMutations(true);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.Throws<McpException>(() => _bridge.Scan.MarkForDeletion([], true))?.Message, Does.Contain("пуст"));
-            Assert.That(_scan.MarkCalls, Is.Zero);
-        });
-    }
-
-    [Test]
-    public void Список_путей_сверх_лимита_не_доходит_до_страницы()
-    {
-        AllowMutations(true);
-        var paths = Enumerable.Repeat(_root, AppDefaults.McpEntryLimitMax + 1).ToList();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.Throws<McpException>(() => _bridge.Scan.MarkForDeletion(paths, true))?.Message, Does.Contain("не больше"));
-            Assert.That(_scan.MarkCalls, Is.Zero);
-        });
+            Assert.ThrowsAsync<McpException>(() => tools.RunAsync([RunnableTargetId], false, CancellationToken.None))?.Message,
+            Does.Contain("отказано в доступе"));
     }
 
     [Test]
@@ -160,310 +463,11 @@ public class McpBridgeGuardTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ArchiveDirectoryAsync(_root, false, false, CancellationToken.None))?.Message,
+            Assert.That(
+                Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ArchiveDirectoryAsync(_root, false, false, CancellationToken.None))?.Message,
                 Does.Contain(MutationsBlocked));
 
             Assert.That(_scan.ArchiveCalls, Is.Zero);
-        });
-    }
-
-    [Test]
-    public void Синхронизация_без_разрешения_не_доходит_до_страницы()
-    {
-        AllowMutations(false);
-        _sync.HasComparison = true;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(false, 20, CancellationToken.None))?.Message,
-                Does.Contain(MutationsBlocked));
-
-            Assert.That(_sync.SyncCalls, Is.Zero);
-        });
-    }
-
-    [TestCase(false, false, false, "выполните сравнение")]
-    [TestCase(true, true, false, "занята другой операцией")]
-    [TestCase(true, false, true, "спорные элементы")]
-    public void Состояние_страницы_синхронизации_отбивает_запуск(bool hasComparison, bool isBusy, bool hasConflicts, string expected)
-    {
-        AllowMutations(true);
-        _sync.HasComparison = hasComparison;
-        _sync.IsBusy = isBusy;
-        _sync.HasPendingConflicts = hasConflicts;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(false, 20, CancellationToken.None))?.Message, Does.Contain(expected));
-            Assert.That(_sync.SyncCalls, Is.Zero);
-        });
-    }
-
-    [Test]
-    public void План_синхронизации_без_сравнения_отбивается()
-    {
-        Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(true, 20, CancellationToken.None))?.Message,
-            Does.Contain("сравнение ещё не выполнялось"));
-    }
-
-    [Test]
-    public void Состояние_MCP_помечает_исполненный_план()
-    {
-        _sync.HasComparison = true;
-        _sync.PlanFreshness = SyncPlanFreshness.PartiallyApplied;
-
-        var state = new McpStateReader(_scan, _sync, new McpNavigator(new FakeAppNavigator())).ReadSyncState();
-
-        Assert.That(state.PlanFreshness, Is.EqualTo(SyncPlanFreshness.PartiallyApplied));
-    }
-
-    [Test]
-    public async Task Сухой_прогон_помечает_исполненный_план_устаревшим()
-    {
-        _sync.HasComparison = true;
-        _sync.PlanFreshness = SyncPlanFreshness.Applied;
-        _sync.PlanBuilder = () => new SyncPlanExportModel
-        {
-            LeftPath = _root,
-            RightPath = _root,
-            Options = new(SyncMode.LeftToRight, SyncWinner.None, false, string.Empty),
-            Actions = PlannedActions.Empty,
-        };
-
-        var json = await _bridge.Sync.SyncCurrentAsync(true, 20, CancellationToken.None);
-
-        Assert.That(json, Does.Contain("\"planFreshness\": \"Applied\""));
-    }
-
-    [Test]
-    public void MCP_переводит_отказ_устаревшего_плана_в_ошибку_с_тем_же_текстом()
-    {
-        const string message = "план уже исполнен, выполните сравнение заново.";
-
-        AllowMutations(true);
-        _sync.HasComparison = true;
-        _sync.SyncException = new SyncPlanStaleException(message);
-
-        var exception = Assert.ThrowsAsync<McpException>(() => _bridge.Sync.SyncCurrentAsync(false, 20, CancellationToken.None));
-
-        Assert.That(exception?.Message, Is.EqualTo(message));
-    }
-
-    [Test]
-    public void Занятая_страница_скана_отбивает_показ_до_обхода()
-    {
-        _scan.ScanningProbe = static () => true;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None))?.Message,
-                Does.Contain("сейчас занята"));
-
-            Assert.That(_scan.ApplyCalls, Is.Zero);
-            Assert.That(_scan.PageCalls, Is.Empty);
-        });
-    }
-
-    [Test]
-    public void Страница_занявшаяся_во_время_обхода_не_получает_чужое_дерево()
-    {
-        var checks = 0;
-        _scan.ScanningProbe = () => checks++ > 0;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None))?.Message,
-                Does.Contain("пока шёл обход").And.Contain("результат не показан"));
-
-            Assert.That(_scan.ApplyCalls, Is.Zero);
-            Assert.That(_scan.SelectCalls, Is.Zero);
-            Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}" }));
-        });
-    }
-
-    [Test]
-    public async Task Обход_без_показа_идёт_мимо_занятой_страницы()
-    {
-        _scan.ScanningProbe = static () => true;
-
-        var json = await _bridge.Scan.ScanAsync(_root, 2, 20, false, CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(json, Does.Contain("файл.txt"));
-            Assert.That(_scan.ApplyCalls, Is.Zero);
-            Assert.That(_scan.PageCalls, Is.Empty);
-        });
-    }
-
-    [Test]
-    public async Task Показ_снимает_прежний_корень_страницы_до_обхода()
-    {
-        await _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None);
-
-        Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}", $"apply {_root}" }));
-    }
-
-    [Test]
-    public void Корень_скана_ссылка_отбивается_понятным_текстом()
-    {
-        var link = Path.Combine(Path.GetTempPath(), "ss_guard_link_" + Guid.NewGuid().ToString("N"));
-
-        try
-        {
-            Directory.CreateSymbolicLink(link, _root);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Assert.Ignore("не удалось создать символьную ссылку");
-        }
-
-        try
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.ScanAsync(link, 2, 20, true, CancellationToken.None))?.Message,
-                    Does.Contain("ссылка на другое место"));
-
-                Assert.That(_scan.PageCalls, Is.Empty);
-
-                Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Scan.OpenScanAsync(link, true, CancellationToken.None))?.Message,
-                    Does.Contain("ссылка на другое место"));
-
-                Assert.That(() => _bridge.Scan.OpenScanAsync(link, false, CancellationToken.None), Throws.Nothing);
-                Assert.That(_scan.SelectCalls, Is.EqualTo(1));
-            });
-        }
-        finally
-        {
-            Directory.Delete(link);
-        }
-    }
-
-    [Test]
-    public void Замер_неизвестной_корзины_называет_доступные()
-    {
-        var exception = Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.ScanAsync(["ЧужаяКорзина"], CancellationToken.None));
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(exception!.Message, Does.Contain("ЧужаяКорзина"));
-            Assert.That(exception.Message, Does.Contain("TempFiles"));
-        });
-    }
-
-    [Test]
-    public async Task Замер_корзины_отдаёт_доступность_и_порог_возраста()
-    {
-        var json = await _bridge.Cleanup.ScanAsync(["RecycleBin"], CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(json, Does.Contain("\"minimumAgeHours\": 24"));
-            Assert.That(json, Does.Contain("RecycleBin"));
-            Assert.That(json, Does.Contain("\"availabilityHint\""));
-        });
-    }
-
-    [Test]
-    public void Пустой_список_корзин_не_считается_запросом_всех()
-    {
-        var exception = Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.ScanAsync([" "], CancellationToken.None));
-
-        Assert.That(exception!.Message, Does.Contain("TempFiles"));
-    }
-
-    [Test]
-    public void Очистка_без_разрешения_не_доходит_до_страницы()
-    {
-        AllowMutations(false);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.RunAsync(["Prefetch"], false, CancellationToken.None))?.Message,
-                Does.Contain(MutationsBlocked));
-
-            Assert.That(_cleanup.CleanCalls, Is.Zero);
-        });
-    }
-
-    [TestCase(true, false, "занята другой операцией")]
-    [TestCase(false, true, "другой диалог")]
-    public void Занятое_окно_отбивает_очистку_до_замера(bool pageBusy, bool modalBusy, string expected)
-    {
-        AllowMutations(true);
-        _cleanup.IsBusy = pageBusy;
-        _cleanup.IsModalBusy = modalBusy;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.RunAsync(["Prefetch"], false, CancellationToken.None))?.Message,
-                Does.Contain(expected));
-
-            Assert.That(_cleanup.CleanCalls, Is.Zero);
-        });
-    }
-
-    [Test]
-    public void Очистка_без_целей_называет_доступные()
-    {
-        AllowMutations(true);
-
-        Assert.That(Assert.ThrowsAsync<McpException>(() => _bridge.Cleanup.RunAsync([], false, CancellationToken.None))?.Message,
-            Does.Contain("TempFiles"));
-    }
-
-    [Test]
-    public async Task План_очистки_ничего_не_запускает()
-    {
-        AllowMutations(true);
-
-        var json = await _bridge.Cleanup.RunAsync(["Prefetch"], true, CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(json, Does.Contain("\"dryRun\": true"));
-            Assert.That(json, Does.Contain("Prefetch"));
-            Assert.That(_cleanup.CleanCalls, Is.Zero);
-        });
-    }
-
-    [TestCase(CleanupConsent.Declined, "Человек отказал в очистке.", "отказал")]
-    [TestCase(CleanupConsent.TimedOut, "Человек не ответил на подтверждение вовремя.", "не ответил")]
-    [TestCase(CleanupConsent.Nothing, "Очищать нечего: названные корзины пусты или недоступны.", "нечего")]
-    [TestCase(CleanupConsent.Stale, "Порог возраста файлов меняли во время подготовки.", "Порог возраста")]
-    public void Неподтверждённая_очистка_возвращает_ошибку_а_не_отчёт(CleanupConsent consent, string status, string expected)
-    {
-        var tools = ToolsOverRunnableTarget();
-        _cleanup.Outcome = new(consent, 0, 0, 0, false, false, status);
-
-        Assert.That(Assert.ThrowsAsync<McpException>(() => tools.RunAsync([RunnableTargetId], false, CancellationToken.None))?.Message,
-            Does.Contain(expected));
-    }
-
-    [Test]
-    public void Упавшая_очистка_возвращает_ошибку_а_не_отчёт()
-    {
-        var tools = ToolsOverRunnableTarget();
-        _cleanup.Outcome = new(CleanupConsent.Granted, 0, 0, 1, false, true, "Ошибка: отказано в доступе.");
-
-        Assert.That(Assert.ThrowsAsync<McpException>(() => tools.RunAsync([RunnableTargetId], false, CancellationToken.None))?.Message,
-            Does.Contain("отказано в доступе"));
-    }
-
-    [Test]
-    public async Task Подтверждённая_очистка_отчитывается_освобождённым()
-    {
-        var tools = ToolsOverRunnableTarget();
-
-        var json = await tools.RunAsync([RunnableTargetId], false, CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(_cleanup.CleanCalls, Is.EqualTo(1));
-            Assert.That(_cleanup.LastIds, Is.EquivalentTo(new[] { RunnableTargetId }));
-            Assert.That(json, Does.Contain("\"freedBytes\": 1024"));
-            Assert.That(json, Does.Contain("\"consent\": \"Granted\""));
         });
     }
 
@@ -481,8 +485,9 @@ public class McpBridgeGuardTests
 
         var settings = new MemorySettings();
 
-        return new(settings,
-            new CleanupService(),
+        return new(
+            settings,
+            new(),
             age =>
             [
                 new()
@@ -497,8 +502,8 @@ public class McpBridgeGuardTests
             ],
             _preferences,
             _cleanup,
-            new McpNavigator(new FakeAppNavigator()),
-            new ToastNotifier(new(), new ShellPreferences(settings)),
+            new(new FakeAppNavigator()),
+            new(new(), new(settings)),
             NullLogger<McpBridge>.Instance);
     }
 

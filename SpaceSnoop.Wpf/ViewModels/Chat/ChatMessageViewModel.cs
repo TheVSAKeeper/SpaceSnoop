@@ -8,25 +8,6 @@ public sealed partial class ChatMessageViewModel : ObservableObject
 {
     private readonly StringBuilder _builder = new();
 
-    public ChatMessageViewModel(ChatRole role, string text = "")
-    {
-        Role = role;
-
-        if (text.Length > 0)
-        {
-            _builder.Append(text);
-            _text = text;
-        }
-
-        ToolCalls.CollectionChanged += OnToolCallsChanged;
-    }
-
-    public ChatRole Role { get; }
-
-    public bool IsUser => Role == ChatRole.User;
-
-    public string AuthorName => IsUser ? "Вы" : AgentPersona.Name;
-
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasText), nameof(LooksTruncated))]
     private string _text = string.Empty;
@@ -51,6 +32,20 @@ public sealed partial class ChatMessageViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(HasTranscript))]
     private string? _transcriptPath;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUsage), nameof(UsageText))]
+    private double _costUsd;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUsage), nameof(UsageText))]
+    private long _tokens;
+
+    public ChatRole Role { get; }
+
+    public bool IsUser => Role == ChatRole.User;
+
+    public string AuthorName => IsUser ? "Вы" : AgentPersona.Name;
+
     public bool HasText => Text.Length > 0;
 
     public bool ShowStatus => IsStreaming;
@@ -65,14 +60,6 @@ public sealed partial class ChatMessageViewModel : ObservableObject
 
     public string StatusText => ToolCalls.Count > 0 ? AgentPersona.WorkingOn(ToolCalls[^1].Text) : AgentPersona.Thinking;
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUsage), nameof(UsageText))]
-    private double _costUsd;
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasUsage), nameof(UsageText))]
-    private long _tokens;
-
     public bool HasUsage => CostUsd > 0 || Tokens > 0;
 
     public string UsageText => CostUsd > 0
@@ -82,6 +69,19 @@ public sealed partial class ChatMessageViewModel : ObservableObject
     public ObservableCollection<ChatToolCall> ToolCalls { get; } = [];
 
     public ObservableCollection<ChatToolBadge> ToolBadges { get; } = [];
+
+    public ChatMessageViewModel(ChatRole role, string text = "")
+    {
+        Role = role;
+
+        if (text.Length > 0)
+        {
+            _builder.Append(text);
+            _text = text;
+        }
+
+        ToolCalls.CollectionChanged += OnToolCallsChanged;
+    }
 
     public static ChatMessageViewModel Restore(ChatMessageRecord record)
     {

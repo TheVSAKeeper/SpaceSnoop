@@ -41,7 +41,8 @@ public static class PerformanceText
     {
         if (current is { } running)
         {
-            return new($"Сейчас идёт: {running.Name}",
+            return new(
+                $"Сейчас идёт: {running.Name}",
                 Elapsed(running.Elapsed),
                 Volume(running),
                 RunningRate(running),
@@ -51,7 +52,8 @@ public static class PerformanceText
 
         if (last is { } finished)
         {
-            return new($"Последний прогон: {finished.Name}",
+            return new(
+                $"Последний прогон: {finished.Name}",
                 Elapsed(finished.Elapsed),
                 Volume(finished),
                 Rate(finished) ?? "скорость: прогон слишком короткий",
@@ -59,7 +61,8 @@ public static class PerformanceText
                 TraversalDetail(finished));
         }
 
-        return new("Последний прогон",
+        return new(
+            "Последний прогон",
             "нет прогонов",
             "сканирование и синхронизация ещё не запускались",
             "после прогона здесь будут объём и скорость");

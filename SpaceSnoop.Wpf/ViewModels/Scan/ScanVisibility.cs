@@ -9,8 +9,6 @@ public sealed class ScanVisibility
 
     public int Count => _ignored.Count;
 
-    internal IReadOnlySet<SpaceBase> AffectedSpaces() => _excludedBytes.Keys.ToHashSet();
-
     public bool IsIgnored(SpaceBase space)
     {
         if (_ignored.Count == 0)
@@ -18,7 +16,7 @@ public sealed class ScanVisibility
             return false;
         }
 
-        for (SpaceBase? current = space; current is not null; current = current.Parent)
+        for (var current = space; current is not null; current = current.Parent)
         {
             if (_ignored.Contains(current))
             {
@@ -29,15 +27,35 @@ public sealed class ScanVisibility
         return false;
     }
 
-    public long SizeOf(SpaceBase space) => Math.Max(0, space.TotalSize - _excludedBytes.GetValueOrDefault(space));
+    public long SizeOf(SpaceBase space)
+    {
+        return Math.Max(0, space.TotalSize - _excludedBytes.GetValueOrDefault(space));
+    }
 
-    public long OwnSizeOf(DirectorySpace space) => Math.Max(0, space.Size - _ignored
-        .Where(item => item is FileSpace && ReferenceEquals(item.Parent, space))
-        .Sum(static item => item.TotalSize));
+    public long OwnSizeOf(DirectorySpace space)
+    {
+        return Math.Max(
+            0,
+            space.Size
+            - _ignored
+                .Where(item => item is FileSpace && ReferenceEquals(item.Parent, space))
+                .Sum(static item => item.TotalSize));
+    }
 
-    public int FileCountOf(DirectorySpace space) => Math.Max(0, space.TotalFileCount - _excludedFiles.GetValueOrDefault(space));
+    public int FileCountOf(DirectorySpace space)
+    {
+        return Math.Max(0, space.TotalFileCount - _excludedFiles.GetValueOrDefault(space));
+    }
 
-    public int DirectoryCountOf(DirectorySpace space) => Math.Max(0, space.TotalDirectoryCount - _excludedDirectories.GetValueOrDefault(space));
+    public int DirectoryCountOf(DirectorySpace space)
+    {
+        return Math.Max(0, space.TotalDirectoryCount - _excludedDirectories.GetValueOrDefault(space));
+    }
+
+    internal IReadOnlySet<SpaceBase> AffectedSpaces()
+    {
+        return _excludedBytes.Keys.ToHashSet();
+    }
 
     internal bool Ignore(SpaceBase space)
     {
@@ -52,7 +70,10 @@ public sealed class ScanVisibility
         return true;
     }
 
-    internal SpaceBase? IgnoredAncestor(SpaceBase space) => Ancestors(space).FirstOrDefault(_ignored.Contains);
+    internal SpaceBase? IgnoredAncestor(SpaceBase space)
+    {
+        return Ancestors(space).FirstOrDefault(_ignored.Contains);
+    }
 
     internal SpaceBase? Restore(SpaceBase space)
     {
@@ -119,11 +140,14 @@ public sealed class ScanVisibility
         }
     }
 
-    private static bool IsWithin(SpaceBase item, SpaceBase parent) => Ancestors(item).Contains(parent);
+    private static bool IsWithin(SpaceBase item, SpaceBase parent)
+    {
+        return Ancestors(item).Contains(parent);
+    }
 
     private static IEnumerable<SpaceBase> Ancestors(SpaceBase item)
     {
-        for (SpaceBase? current = item; current is not null; current = current.Parent)
+        for (var current = item; current is not null; current = current.Parent)
         {
             yield return current;
         }

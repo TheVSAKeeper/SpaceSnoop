@@ -8,7 +8,6 @@ using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.Views;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -49,11 +48,7 @@ public class DeleteDialogLayoutTests
         ThemeManager.Apply(AppThemes.LightKey);
         ViewLocator.InstallIntoApplication();
 
-        _logging = KeepShellLogging.Bootstrap(new()
-        {
-            LogsDirectory = Path.Combine(_root, "logs"),
-            FileNamePrefix = AppInfo.LogFilePrefix,
-        });
+        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
 
         _services = App.ConfigureServices(settings, _logging);
         _window = _services.GetRequiredService<MainWindow>();
@@ -61,7 +56,7 @@ public class DeleteDialogLayoutTests
 
         // Фикстура проверяет, что список берёт клавиатурный фокус, а Focus() в неактивируемом окне
         // отвечает false – ей нужен настоящий фокус, и хост вернёт активное окно человеку сам.
-        _host = VisualTestHost.Show(_window, WindowWidth, WindowHeight, keyboardFocus: true);
+        _host = VisualTestHost.Show(_window, WindowWidth, WindowHeight, true);
         _host.Settle();
     }
 
@@ -86,9 +81,140 @@ public class DeleteDialogLayoutTests
     }
 
     [Test]
+    public void Значок_идущей_строки_крутится_только_при_разрешённых_анимациях()
+    {
+        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), false);
+
+        _ = _modals.ShowAsync(dialog);
+        _host.Settle();
+
+        try
+        {
+            var (_, _, panel) = Parts();
+            var row = dialog.Items[0];
+
+            row.State = DeleteRowState.Deleting;
+            _host.Settle();
+
+            var rotation = Rotation(panel, row);
+
+            Assert.That(rotation, Is.Not.Null, "У значка идущей строки нет поворота – крутить нечего.");
+
+            var animated = SystemParameters.ClientAreaAnimation;
+
+            TestContext.Out.WriteLine($"Анимации клиентской области: {animated}; поворот значка анимирован: {rotation!.HasAnimatedProperties}.");
+
+            Assert.That(
+                rotation.HasAnimatedProperties,
+                Is.EqualTo(animated),
+                animated
+                    ? "Значок идущей строки не крутится, хотя анимации в системе разрешены."
+                    : "Анимации в системе выключены, а значок идущей строки всё равно крутится – настройку никто не спросил.");
+        }
+        finally
+        {
+            _modals.RequestCancel();
+            _host.Settle();
+        }
+    }
+
+    [Test]
+    public void Идущее_удаление_не_теряет_биндингов()
+    {
+        using var sink = BindingErrorSink.Attach();
+
+        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), false);
+
+        _ = _modals.ShowAsync(dialog);
+        _host.Settle();
+
+        try
+        {
+            dialog.ShowRunningForAutomation(2);
+            _host.Settle();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(dialog.BatchCaption, Is.Not.Null, "Подпись пачки не подставилась – проверять её разметку не на чем.");
+                Assert.That(dialog.ChunkElapsedText, Is.Not.Null, "Время текущей операции не подставилось – строка секунд в кадр не попадёт.");
+                Assert.That(dialog.IsChunkStalled, Is.True, "Затянувшаяся пачка не включила пульс – полоса на кадре останется в процентах.");
+                Assert.That(sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, sink.Errors));
+            }
+        }
+        finally
+        {
+            dialog.ClearForAutomation();
+            _modals.RequestCancel();
+            _host.Settle();
+        }
+    }
+
+    [Test]
+    public void Клавиатура_и_колесо_берут_экран_а_не_три_строки()
+    {
+        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), false);
+
+        _ = _modals.ShowAsync(dialog);
+        _host.Settle();
+
+        try
+        {
+            var (list, scroll, panel) = Parts();
+            var viewport = scroll.ViewportHeight;
+
+            list.Focus();
+
+            Assert.That(
+                Keyboard.FocusedElement,
+                Is.SameAs(list),
+                $"Клавиатурный фокус держит {Describe(Keyboard.FocusedElement)}, а не список – "
+                + "PageDown и End до него не дойдут никогда.");
+
+            Press(list, Key.PageDown);
+            var page = scroll.VerticalOffset;
+
+            Press(list, Key.End);
+            var end = scroll.VerticalOffset;
+
+            Press(list, Key.Home);
+            var home = scroll.VerticalOffset;
+
+            Wheel(panel, -Mouse.MouseWheelDeltaForOneLine);
+            var wheel = scroll.VerticalOffset;
+
+            TestContext.Out.WriteLine($"Видимая область {viewport:N1}: PageDown → {page:N1}, End → {end:N1}, Home → {home:N1}, щелчок колеса → {wheel:N1}.");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(
+                    page,
+                    Is.GreaterThan(viewport - 2).And.LessThanOrEqualTo(viewport),
+                    $"PageDown сдвинул список на {page:N1} при видимой области {viewport:N1} – это не экран.");
+
+                Assert.That(
+                    end,
+                    Is.EqualTo(scroll.ScrollableHeight),
+                    $"End остановился на {end:N1} вместо конца списка {scroll.ScrollableHeight:N1}.");
+
+                Assert.That(home, Is.Zero, $"Home остановился на {home:N1} вместо начала списка.");
+
+                Assert.That(
+                    wheel,
+                    Is.GreaterThan(viewport - 2).And.LessThanOrEqualTo(viewport),
+                    $"Щелчок колеса дал {wheel:N1} строк при видимой области {viewport:N1} – шаг снова считанные строки.");
+            }
+        }
+        finally
+        {
+            _modals.RequestCancel();
+            _host.Settle();
+        }
+    }
+
+    [Test]
     public void Список_диалога_удаления_раскладывает_только_видимое_и_переиспользует_строки()
     {
-        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), permanent: false);
+        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), false);
 
         _ = _modals.ShowAsync(dialog);
         _host.Settle();
@@ -138,11 +264,13 @@ public class DeleteDialogLayoutTests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(
-                    opened, Has.Count.LessThanOrEqualTo(budget),
+                    opened,
+                    Has.Count.LessThanOrEqualTo(budget),
                     $"При открытии реализовано {opened.Count} строк из {Rows} – список раскладывается целиком.");
 
                 Assert.That(
-                    realized, Has.Count.LessThanOrEqualTo(budget),
+                    realized,
+                    Has.Count.LessThanOrEqualTo(budget),
                     $"За {Pages} экранов прокрутки создано {realized.Count} контейнеров при бюджете {budget} – "
                     + "строки не переиспользуются, режим Recycling не работает.");
             }
@@ -161,7 +289,7 @@ public class DeleteDialogLayoutTests
         const int Later = 4000;
         const int AfterManual = 100;
 
-        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), permanent: false);
+        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), false);
 
         _ = _modals.ShowAsync(dialog);
         _host.Settle();
@@ -178,8 +306,7 @@ public class DeleteDialogLayoutTests
 
             var followed = scroll.VerticalOffset;
 
-            TestContext.Out.WriteLine(
-                $"Строка {Followed} из {Rows}: видимая область {viewport:N1}, смещение стало {followed:N1}.");
+            TestContext.Out.WriteLine($"Строка {Followed} из {Rows}: видимая область {viewport:N1}, смещение стало {followed:N1}.");
 
             using (Assert.EnterMultipleScope())
             {
@@ -219,139 +346,6 @@ public class DeleteDialogLayoutTests
                 $"После ручной прокрутки на {manual:N1} список уехал на {scroll.VerticalOffset:N1} – следование выдёргивает его из-под человека.");
 
             Assert.That(list.Items, Has.Count.EqualTo(Rows));
-        }
-        finally
-        {
-            _modals.RequestCancel();
-            _host.Settle();
-        }
-    }
-
-    [Test]
-    public void Идущее_удаление_не_теряет_биндингов()
-    {
-        using var sink = BindingErrorSink.Attach();
-
-        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), permanent: false);
-
-        _ = _modals.ShowAsync(dialog);
-        _host.Settle();
-
-        try
-        {
-            dialog.ShowRunningForAutomation(2);
-            _host.Settle();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(dialog.BatchCaption, Is.Not.Null, "Подпись пачки не подставилась – проверять её разметку не на чем.");
-                Assert.That(dialog.ChunkElapsedText, Is.Not.Null, "Время текущей операции не подставилось – строка секунд в кадр не попадёт.");
-                Assert.That(dialog.IsChunkStalled, Is.True, "Затянувшаяся пачка не включила пульс – полоса на кадре останется в процентах.");
-                Assert.That(sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, sink.Errors));
-            }
-        }
-        finally
-        {
-            dialog.ClearForAutomation();
-            _modals.RequestCancel();
-            _host.Settle();
-        }
-    }
-
-    [Test]
-    public void Клавиатура_и_колесо_берут_экран_а_не_три_строки()
-    {
-        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), permanent: false);
-
-        _ = _modals.ShowAsync(dialog);
-        _host.Settle();
-
-        try
-        {
-            var (list, scroll, panel) = Parts();
-            var viewport = scroll.ViewportHeight;
-
-            list.Focus();
-
-            Assert.That(
-                Keyboard.FocusedElement,
-                Is.SameAs(list),
-                $"Клавиатурный фокус держит {Describe(Keyboard.FocusedElement)}, а не список – "
-                + "PageDown и End до него не дойдут никогда.");
-
-            Press(list, System.Windows.Input.Key.PageDown);
-            var page = scroll.VerticalOffset;
-
-            Press(list, System.Windows.Input.Key.End);
-            var end = scroll.VerticalOffset;
-
-            Press(list, System.Windows.Input.Key.Home);
-            var home = scroll.VerticalOffset;
-
-            Wheel(panel, -Mouse.MouseWheelDeltaForOneLine);
-            var wheel = scroll.VerticalOffset;
-
-            TestContext.Out.WriteLine(
-                $"Видимая область {viewport:N1}: PageDown → {page:N1}, End → {end:N1}, Home → {home:N1}, щелчок колеса → {wheel:N1}.");
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(
-                    page,
-                    Is.GreaterThan(viewport - 2).And.LessThanOrEqualTo(viewport),
-                    $"PageDown сдвинул список на {page:N1} при видимой области {viewport:N1} – это не экран.");
-
-                Assert.That(
-                    end,
-                    Is.EqualTo(scroll.ScrollableHeight),
-                    $"End остановился на {end:N1} вместо конца списка {scroll.ScrollableHeight:N1}.");
-
-                Assert.That(home, Is.Zero, $"Home остановился на {home:N1} вместо начала списка.");
-
-                Assert.That(
-                    wheel,
-                    Is.GreaterThan(viewport - 2).And.LessThanOrEqualTo(viewport),
-                    $"Щелчок колеса дал {wheel:N1} строк при видимой области {viewport:N1} – шаг снова считанные строки.");
-            }
-        }
-        finally
-        {
-            _modals.RequestCancel();
-            _host.Settle();
-        }
-    }
-
-    [Test]
-    public void Значок_идущей_строки_крутится_только_при_разрешённых_анимациях()
-    {
-        var dialog = _services.GetRequiredService<DeleteProgressDialogFactory>().Create(BuildItems(), permanent: false);
-
-        _ = _modals.ShowAsync(dialog);
-        _host.Settle();
-
-        try
-        {
-            var (_, _, panel) = Parts();
-            var row = dialog.Items[0];
-
-            row.State = DeleteRowState.Deleting;
-            _host.Settle();
-
-            var rotation = Rotation(panel, row);
-
-            Assert.That(rotation, Is.Not.Null, "У значка идущей строки нет поворота – крутить нечего.");
-
-            var animated = SystemParameters.ClientAreaAnimation;
-
-            TestContext.Out.WriteLine(
-                $"Анимации клиентской области: {animated}; поворот значка анимирован: {rotation!.HasAnimatedProperties}.");
-
-            Assert.That(
-                rotation.HasAnimatedProperties,
-                Is.EqualTo(animated),
-                animated
-                    ? "Значок идущей строки не крутится, хотя анимации в системе разрешены."
-                    : "Анимации в системе выключены, а значок идущей строки всё равно крутится – настройку никто не спросил.");
         }
         finally
         {
@@ -423,29 +417,20 @@ public class DeleteDialogLayoutTests
 
     private void Press(UIElement target, Key key)
     {
-        target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(_window), 0, key)
-        {
-            RoutedEvent = Keyboard.KeyDownEvent,
-        });
+        target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(_window), 0, key) { RoutedEvent = Keyboard.KeyDownEvent });
 
         _host.Settle();
     }
 
     private void Wheel(UIElement target, int delta)
     {
-        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta)
-        {
-            RoutedEvent = UIElement.PreviewMouseWheelEvent,
-        };
+        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
 
         target.RaiseEvent(preview);
 
         if (!preview.Handled)
         {
-            target.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta)
-            {
-                RoutedEvent = UIElement.MouseWheelEvent,
-            });
+            target.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta) { RoutedEvent = UIElement.MouseWheelEvent });
         }
 
         _host.Settle();

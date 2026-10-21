@@ -76,7 +76,9 @@ public static class MarkdownParser
                 continue;
             }
 
-            if (symbol == '*' && index + 1 < text.Length && text[index + 1] == '*'
+            if (symbol == '*'
+                && (index + 1) < text.Length
+                && text[index + 1] == '*'
                 && TryReadDelimited(text, index, "**", out var bold, out var afterBold))
             {
                 Flush(spans, buffer);
@@ -206,16 +208,12 @@ public static class MarkdownParser
             digits++;
         }
 
-        if (digits == 0 || digits + 1 >= trimmed.Length || trimmed[digits] is not ('.' or ')') || trimmed[digits + 1] != ' ')
+        if (digits == 0 || (digits + 1) >= trimmed.Length || trimmed[digits] is not ('.' or ')') || trimmed[digits + 1] != ' ')
         {
             return false;
         }
 
-        block = new(MarkdownBlockKind.Ordered, ParseInline(trimmed[(digits + 2)..].Trim()))
-        {
-            Level = level,
-            Marker = trimmed[..digits],
-        };
+        block = new(MarkdownBlockKind.Ordered, ParseInline(trimmed[(digits + 2)..].Trim())) { Level = level, Marker = trimmed[..digits] };
 
         return true;
     }

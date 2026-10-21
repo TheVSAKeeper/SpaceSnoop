@@ -1,6 +1,5 @@
 ﻿using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 
@@ -22,6 +21,17 @@ public class SyncLogHeaderTests
         Assert.That(header, Is.EqualTo(expected));
     }
 
+    [TestCase(0, false)]
+    [TestCase(1, true)]
+    [TestCase(20, true)]
+    [TestCase(100, true)]
+    public void Записанный_заголовок_подсвечивается_ровно_при_реальных_ошибках(int errors, bool expected)
+    {
+        var header = SyncLog.FormatHeader(SyncLogOrigin.Scheduled, "Профиль", Report(5, errors), SyncVerifyState.None, Stamp);
+
+        Assert.That(SyncLog.LineHasErrors(header), Is.EqualTo(expected));
+    }
+
     [TestCase(SyncLogOrigin.Scheduled)]
     [TestCase(SyncLogOrigin.Overview)]
     [TestCase(SyncLogOrigin.Manual)]
@@ -33,6 +43,20 @@ public class SyncLogHeaderTests
         Assert.That(SyncLog.MatchesOrigin(header, origin), Is.True);
     }
 
+    [TestCase("резерв, расхождений: 0")]
+    [TestCase("резерв: 5 успешно, 0 ошибок")]
+    public void Имя_профиля_не_управляет_подсветкой(string name)
+    {
+        var clean = SyncLog.FormatHeader(SyncLogOrigin.Scheduled, name, Report(5, 0), SyncVerifyState.None, Stamp);
+        var failed = SyncLog.FormatHeader(SyncLogOrigin.Scheduled, name, Report(5, 3), SyncVerifyState.None, Stamp);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(SyncLog.LineHasErrors(clean), Is.False);
+            Assert.That(SyncLog.LineHasErrors(failed), Is.True);
+        });
+    }
+
     [TestCase(SyncLogOrigin.Overview)]
     [TestCase(SyncLogOrigin.Manual)]
     [TestCase(SyncLogOrigin.Mcp)]
@@ -41,30 +65,6 @@ public class SyncLogHeaderTests
         var header = SyncLog.FormatHeader(origin, "Профиль", Report(1, 0), SyncVerifyState.None, Stamp);
 
         Assert.That(SyncLog.MatchesOrigin(header, SyncLogOrigin.Scheduled), Is.False);
-    }
-
-    [Test]
-    public void Ручной_запуск_и_запуск_агентом_не_путаются_между_собой()
-    {
-        var manual = SyncLog.FormatHeader(SyncLogOrigin.Manual, null, Report(1, 0), SyncVerifyState.None, Stamp);
-        var mcp = SyncLog.FormatHeader(SyncLogOrigin.Mcp, null, Report(1, 0), SyncVerifyState.None, Stamp);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(SyncLog.MatchesOrigin(mcp, SyncLogOrigin.Manual), Is.False);
-            Assert.That(SyncLog.MatchesOrigin(manual, SyncLogOrigin.Mcp), Is.False);
-        });
-    }
-
-    [TestCase(0, false)]
-    [TestCase(1, true)]
-    [TestCase(20, true)]
-    [TestCase(100, true)]
-    public void Записанный_заголовок_подсвечивается_ровно_при_реальных_ошибках(int errors, bool expected)
-    {
-        var header = SyncLog.FormatHeader(SyncLogOrigin.Scheduled, "Профиль", Report(5, errors), SyncVerifyState.None, Stamp);
-
-        Assert.That(SyncLog.LineHasErrors(header), Is.EqualTo(expected));
     }
 
     [TestCase(SyncVerifyState.None, 0, "[2026-08-04 19:32:05] Автосинхронизация [Профиль]: 5 успешно, 0 ошибок")]
@@ -90,17 +90,16 @@ public class SyncLogHeaderTests
         Assert.That(SyncLog.LineHasErrors(header), Is.EqualTo(expected));
     }
 
-    [TestCase("резерв, расхождений: 0")]
-    [TestCase("резерв: 5 успешно, 0 ошибок")]
-    public void Имя_профиля_не_управляет_подсветкой(string name)
+    [Test]
+    public void Ручной_запуск_и_запуск_агентом_не_путаются_между_собой()
     {
-        var clean = SyncLog.FormatHeader(SyncLogOrigin.Scheduled, name, Report(5, 0), SyncVerifyState.None, Stamp);
-        var failed = SyncLog.FormatHeader(SyncLogOrigin.Scheduled, name, Report(5, 3), SyncVerifyState.None, Stamp);
+        var manual = SyncLog.FormatHeader(SyncLogOrigin.Manual, null, Report(1, 0), SyncVerifyState.None, Stamp);
+        var mcp = SyncLog.FormatHeader(SyncLogOrigin.Mcp, null, Report(1, 0), SyncVerifyState.None, Stamp);
 
         Assert.Multiple(() =>
         {
-            Assert.That(SyncLog.LineHasErrors(clean), Is.False);
-            Assert.That(SyncLog.LineHasErrors(failed), Is.True);
+            Assert.That(SyncLog.MatchesOrigin(mcp, SyncLogOrigin.Manual), Is.False);
+            Assert.That(SyncLog.MatchesOrigin(manual, SyncLogOrigin.Mcp), Is.False);
         });
     }
 

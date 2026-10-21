@@ -5,17 +5,16 @@ using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using System.Collections.ObjectModel;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
 public class ScanMarkRecountTests
 {
+    private readonly ObservableCollection<ScanNodeViewModel> _roots = [];
     private string _directory = null!;
     private ScanNodeFactory _factory = null!;
     private ScanMarksViewModel _marks = null!;
-    private readonly ObservableCollection<ScanNodeViewModel> _roots = [];
 
     [SetUp]
     public void SetUp()
@@ -25,14 +24,86 @@ public class ScanMarkRecountTests
         var settings = new MemorySettings();
         _factory = new(new(settings), new(settings), new FakeShellLauncher());
         _roots.Clear();
-        _marks = new(null!, null!, null!, NullLogger.Instance, _factory, _roots, null!, null!,
-            () => null, _ => { }, () => { }, () => false, () => { });
+        _marks = new(
+            null!,
+            null!,
+            null!,
+            NullLogger.Instance,
+            _factory,
+            _roots,
+            null!,
+            null!,
+            () => null,
+            _ =>
+            {
+            },
+            () =>
+            {
+            },
+            () => false,
+            () =>
+            {
+            });
     }
 
     [TearDown]
     public void TearDown()
     {
         Directory.Delete(_directory, true);
+    }
+
+    [Test]
+    public void Команда_снятого_дерева_не_меняет_счётчик_нового_результата()
+    {
+        var previous = AddTree("root");
+        var oldNode = Node(previous.Files.Single(), previous);
+        _roots.Clear();
+        AddTree("fresh");
+
+        oldNode.MarkDeletedCommand.Execute(null);
+
+        CheckTotals(0, 0);
+    }
+
+    [Test]
+    public void Ошибочный_узел_не_создаёт_пометку_и_не_теряет_пометки_детей()
+    {
+        var root = AddTree("root");
+        root.Error();
+        var rootNode = Node(root, root);
+        rootNode.MarkDeletedCommand.Execute(null);
+        CheckTotals(0, 0);
+        Node(root.Files.Single(), root).MarkDeletedCommand.Execute(null);
+        CheckTotals(1, 16);
+        rootNode.MarkDeletedCommand.Execute(null);
+        CheckTotals(1, 16);
+    }
+
+    [Test]
+    public void Повторный_корень_в_коллекции_сохраняет_кратность_пересчёта()
+    {
+        var root = AddTree("root");
+        _roots.Add(_roots.Single());
+        _marks.RecountMarked();
+
+        Node(root.Files.Single(), root).MarkDeletedCommand.Execute(null);
+        CheckTotals(2, 32);
+        Node(root, root).MarkDeletedCommand.Execute(null);
+        CheckTotals(2, 416);
+    }
+
+    [Test]
+    public void Пометка_каталога_поглощает_прежние_пометки_его_файлов()
+    {
+        var root = AddTree("root");
+        var branch = root.SubDirectories.Single();
+        Node(branch.Files[0], root).MarkDeletedCommand.Execute(null);
+        Node(root.Files.Single(), root).MarkDeletedCommand.Execute(null);
+        CheckTotals(2, 80);
+
+        Node(branch, root).MarkDeletedCommand.Execute(null);
+
+        CheckTotals(2, 208);
     }
 
     [Test]
@@ -52,17 +123,49 @@ public class ScanMarkRecountTests
     }
 
     [Test]
-    public void Пометка_каталога_поглощает_прежние_пометки_его_файлов()
+    public void Помеченный_предок_учитывается_и_через_ошибочную_ветвь()
     {
         var root = AddTree("root");
         var branch = root.SubDirectories.Single();
-        Node(branch.Files[0], root).MarkDeletedCommand.Execute(null);
-        Node(root.Files.Single(), root).MarkDeletedCommand.Execute(null);
-        CheckTotals(2, 80);
+        branch.Error();
+        Node(root, root).MarkDeletedCommand.Execute(null);
+        CheckTotals(1, 208);
+        var file = Node(branch.Files[0], root);
+        file.MarkDeletedCommand.Execute(null);
+        CheckTotals(1, 208);
+        file.UnmarkDeletedCommand.Execute(null);
+        CheckTotals(1, 208);
+        Node(root, root).UnmarkDeletedCommand.Execute(null);
+        CheckTotals(0, 0);
+    }
 
-        Node(branch, root).MarkDeletedCommand.Execute(null);
+    [Test]
+    public void Последовательность_команд_совпадает_с_полным_пересчётом_после_каждого_шага()
+    {
+        var first = AddTree("first");
+        var second = AddTree("second");
+        var branch = first.SubDirectories.Single();
+        ScanNodeViewModel[] targets =
+        [
+            Node(first, first), Node(branch, first), Node(branch.Files[0], first),
+            Node(branch.Files[1], first), Node(first.Files.Single(), first), Node(second, second),
+            Node(second.SubDirectories.Single(), second), Node(second.Files.Single(), second),
+        ];
 
-        CheckTotals(2, 208);
+        for (var index = 0; index < 128; index++)
+        {
+            var node = targets[((index * 17) + (index / 7)) % targets.Length];
+            var command = (((index * 7) + (index / 5)) % 4) switch
+            {
+                0 => node.MarkDeletedCommand,
+                1 => node.UnmarkDeletedCommand,
+                2 => node.MarkContentsDeletedCommand,
+                _ => node.UnmarkContentsCommand,
+            };
+
+            command.Execute(null);
+            CheckAgainstTree();
+        }
     }
 
     [Test]
@@ -99,88 +202,6 @@ public class ScanMarkRecountTests
         CheckTotals(1, 16);
         rootNode.UnmarkContentsCommand.Execute(null);
         CheckTotals(0, 0);
-    }
-
-    [Test]
-    public void Ошибочный_узел_не_создаёт_пометку_и_не_теряет_пометки_детей()
-    {
-        var root = AddTree("root");
-        root.Error();
-        var rootNode = Node(root, root);
-        rootNode.MarkDeletedCommand.Execute(null);
-        CheckTotals(0, 0);
-        Node(root.Files.Single(), root).MarkDeletedCommand.Execute(null);
-        CheckTotals(1, 16);
-        rootNode.MarkDeletedCommand.Execute(null);
-        CheckTotals(1, 16);
-    }
-
-    [Test]
-    public void Команда_снятого_дерева_не_меняет_счётчик_нового_результата()
-    {
-        var previous = AddTree("root");
-        var oldNode = Node(previous.Files.Single(), previous);
-        _roots.Clear();
-        AddTree("fresh");
-
-        oldNode.MarkDeletedCommand.Execute(null);
-
-        CheckTotals(0, 0);
-    }
-
-    [Test]
-    public void Помеченный_предок_учитывается_и_через_ошибочную_ветвь()
-    {
-        var root = AddTree("root");
-        var branch = root.SubDirectories.Single();
-        branch.Error();
-        Node(root, root).MarkDeletedCommand.Execute(null);
-        CheckTotals(1, 208);
-        var file = Node(branch.Files[0], root);
-        file.MarkDeletedCommand.Execute(null);
-        CheckTotals(1, 208);
-        file.UnmarkDeletedCommand.Execute(null);
-        CheckTotals(1, 208);
-        Node(root, root).UnmarkDeletedCommand.Execute(null);
-        CheckTotals(0, 0);
-    }
-
-    [Test]
-    public void Повторный_корень_в_коллекции_сохраняет_кратность_пересчёта()
-    {
-        var root = AddTree("root");
-        _roots.Add(_roots.Single());
-        _marks.RecountMarked();
-
-        Node(root.Files.Single(), root).MarkDeletedCommand.Execute(null);
-        CheckTotals(2, 32);
-        Node(root, root).MarkDeletedCommand.Execute(null);
-        CheckTotals(2, 416);
-    }
-
-    [Test]
-    public void Последовательность_команд_совпадает_с_полным_пересчётом_после_каждого_шага()
-    {
-        var first = AddTree("first");
-        var second = AddTree("second");
-        var branch = first.SubDirectories.Single();
-        ScanNodeViewModel[] targets = [Node(first, first), Node(branch, first), Node(branch.Files[0], first),
-            Node(branch.Files[1], first), Node(first.Files.Single(), first), Node(second, second),
-            Node(second.SubDirectories.Single(), second), Node(second.Files.Single(), second)];
-
-        for (var index = 0; index < 128; index++)
-        {
-            var node = targets[((index * 17) + (index / 7)) % targets.Length];
-            var command = (((index * 7) + (index / 5)) % 4) switch
-            {
-                0 => node.MarkDeletedCommand,
-                1 => node.UnmarkDeletedCommand,
-                2 => node.MarkContentsDeletedCommand,
-                _ => node.UnmarkContentsCommand,
-            };
-            command.Execute(null);
-            CheckAgainstTree();
-        }
     }
 
     private DirectorySpace AddTree(string name)

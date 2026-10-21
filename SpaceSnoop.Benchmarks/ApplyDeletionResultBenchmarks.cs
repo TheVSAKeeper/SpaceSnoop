@@ -4,7 +4,6 @@ using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.ViewModels.Scan;
-using SpaceSnoop.Wpf.ViewModels.Sync;
 using System.Collections.ObjectModel;
 
 namespace SpaceSnoop.Benchmarks;
@@ -64,23 +63,29 @@ public class ApplyDeletionResultBenchmarks
 
         _marks = new(
             new BenchDialogService(),
-            new DeleteProgressDialogFactory(
+            new(
                 _shell.Monitor,
                 _shell.Operations,
                 _shell.Preferences,
                 _shell.Dispatcher,
                 NullLogger<DeleteProgressDialogViewModel>.Instance),
-            new OperationPreferences(_shell.Settings),
+            new(_shell.Settings),
             NullLogger.Instance,
             factory,
             roots,
             summary,
             treemap,
             static () => null,
-            static _ => { },
-            static () => { },
+            static _ =>
+            {
+            },
+            static () =>
+            {
+            },
             static () => false,
-            static () => { });
+            static () =>
+            {
+            });
     }
 
     [Benchmark(Baseline = true)]

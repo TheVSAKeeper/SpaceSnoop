@@ -107,18 +107,18 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     [ObservableProperty]
     private double _intensity = AppDefaults.IntensityDefault;
 
+    public RangeObservableCollection<ScanInspectorChild> TopChildren { get; } = [];
+
+    public bool HasTopChildren => TopChildren.Count > 0;
+
+    public double InspectorWidth { get; private set; } = DefaultInspectorWidth;
+
     public ScanInspectorViewModel(ISettingsStore settings, IClipboardService clipboard)
     {
         _settings = settings;
         _clipboard = clipboard;
         LoadSettings();
     }
-
-    public RangeObservableCollection<ScanInspectorChild> TopChildren { get; } = [];
-
-    public bool HasTopChildren => TopChildren.Count > 0;
-
-    public double InspectorWidth { get; private set; } = DefaultInspectorWidth;
 
     public void SetInspectorWidth(double width)
     {
@@ -216,18 +216,6 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         }
     }
 
-    internal void RefreshVisibility(ScanNodeViewModel node, IReadOnlySet<SpaceBase> affected)
-    {
-        if (_showedIgnored != node.IsIgnored || (node.Space is { } space && affected.Contains(space)))
-        {
-            Show(node);
-        }
-        else
-        {
-            ApplyShares(node);
-        }
-    }
-
     public void Clear()
     {
         Node = null;
@@ -255,6 +243,18 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         CreationDateText = string.Empty;
         LastAccessText = string.Empty;
         ClearTopChildren();
+    }
+
+    internal void RefreshVisibility(ScanNodeViewModel node, IReadOnlySet<SpaceBase> affected)
+    {
+        if (_showedIgnored != node.IsIgnored || (node.Space is { } space && affected.Contains(space)))
+        {
+            Show(node);
+        }
+        else
+        {
+            ApplyShares(node);
+        }
     }
 
     [RelayCommand]
@@ -365,7 +365,8 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
 
         var top = children
             .Take(AppDefaults.TopChildrenLimit)
-            .Select(child => new ScanInspectorChild(child.Name,
+            .Select(child => new ScanInspectorChild(
+                child.Name,
                 SizeFormatter.Format(node.VisibleSize(child)),
                 ShareFormatter.Format(node.Weight > 0 ? node.VisibleSize(child) / node.Weight : 0),
                 max > 0 ? Math.Clamp((double)node.VisibleSize(child) / max, 0, 1) : 0,

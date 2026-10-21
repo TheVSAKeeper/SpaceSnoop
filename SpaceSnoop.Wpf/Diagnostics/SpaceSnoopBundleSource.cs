@@ -29,13 +29,11 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
 
         yield return new(name, text);
 
-        yield return new(OperationsEntry, JsonSerializer.Serialize(
-            new
-            {
-                Operation = operations.Current,
-                LastRun = operations.Last,
-            },
-            Json));
+        yield return new(
+            OperationsEntry,
+            JsonSerializer.Serialize(
+                new { Operation = operations.Current, LastRun = operations.Last },
+                Json));
     }
 
     private static string Note(string reason)

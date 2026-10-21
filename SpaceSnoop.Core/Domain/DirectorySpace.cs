@@ -16,18 +16,6 @@ public class DirectorySpace : SpaceBase
     private long _totalSize;
 
     /// <summary>
-    /// Инициализирует новый экземпляр класса DirectorySpace.
-    /// </summary>
-    /// <param name="name">Название директории.</param>
-    /// <param name="parent">Родительская директория.</param>
-    /// <param name="creationDate">Дата создания директории.</param>
-    /// <param name="lastAccessTime">Время последнего доступа к директории.</param>
-    public DirectorySpace(string name, SpaceBase? parent, DateTime creationDate, DateTime lastAccessTime)
-        : base(name, parent, creationDate, lastAccessTime)
-    {
-    }
-
-    /// <summary>
     /// Общий размер всех файлов в директории, включая подкаталоги.
     /// </summary>
     public override long TotalSize => _totalSize;
@@ -71,6 +59,18 @@ public class DirectorySpace : SpaceBase
     /// <summary>
     /// Инициализирует новый экземпляр класса DirectorySpace.
     /// </summary>
+    /// <param name="name">Название директории.</param>
+    /// <param name="parent">Родительская директория.</param>
+    /// <param name="creationDate">Дата создания директории.</param>
+    /// <param name="lastAccessTime">Время последнего доступа к директории.</param>
+    public DirectorySpace(string name, SpaceBase? parent, DateTime creationDate, DateTime lastAccessTime)
+        : base(name, parent, creationDate, lastAccessTime)
+    {
+    }
+
+    /// <summary>
+    /// Инициализирует новый экземпляр класса DirectorySpace.
+    /// </summary>
     /// <param name="info">Системная информация.</param>
     /// <param name="parent">Родительская директория.</param>
     public static DirectorySpace Create(DirectoryInfo info, DirectorySpace? parent)
@@ -90,11 +90,11 @@ public class DirectorySpace : SpaceBase
     public override string GetTooltipText()
     {
         return $"""
-                {base.GetTooltipText()}
-                Общий размер: {TotalSizeText}
-                Размер файлов в директории: {SizeText}
-                Вложенных файлов: {TotalFileCount:N0} · каталогов: {TotalDirectoryCount:N0}
-                """;
+            {base.GetTooltipText()}
+            Общий размер: {TotalSizeText}
+            Размер файлов в директории: {SizeText}
+            Вложенных файлов: {TotalFileCount:N0} · каталогов: {TotalDirectoryCount:N0}
+            """;
     }
 
     /// <summary>
@@ -137,61 +137,6 @@ public class DirectorySpace : SpaceBase
         Size += file.Length;
         PropagateAddition(file.Length);
         return space;
-    }
-
-    internal void SetScanned(List<FileSpace> files, DirectorySpace[] subDirectories)
-    {
-        _files = files.ToArray();
-        _subDirectories = subDirectories;
-
-        var size = 0L;
-
-        foreach (var file in _files)
-        {
-            size += file.Size;
-        }
-
-        Size = size;
-        _totalSize = size;
-        Invalidate();
-    }
-
-    internal void AggregateTotals()
-    {
-        var stack = new Stack<(DirectorySpace Node, bool Ascending)>();
-        stack.Push((this, false));
-
-        while (stack.Count > 0)
-        {
-            var (node, ascending) = stack.Pop();
-
-            if (ascending)
-            {
-                var total = node.Size;
-                var fileCount = node._files.Length;
-                var directoryCount = node._subDirectories.Length;
-
-                foreach (var subDirectory in node._subDirectories)
-                {
-                    total += subDirectory._totalSize;
-                    fileCount += subDirectory.TotalFileCount;
-                    directoryCount += subDirectory.TotalDirectoryCount;
-                }
-
-                node._totalSize = total;
-                node._maxTotalSize = UnknownSize;
-                node._totalFileCount = fileCount;
-                node._totalDirectoryCount = directoryCount;
-                continue;
-            }
-
-            stack.Push((node, true));
-
-            foreach (var subDirectory in node._subDirectories)
-            {
-                stack.Push((subDirectory, false));
-            }
-        }
     }
 
     /// <summary>
@@ -253,6 +198,61 @@ public class DirectorySpace : SpaceBase
         }
 
         Parent = new DirectorySpace(parent.FullName, null, parent.CreationTime, parent.LastAccessTime);
+    }
+
+    internal void SetScanned(List<FileSpace> files, DirectorySpace[] subDirectories)
+    {
+        _files = files.ToArray();
+        _subDirectories = subDirectories;
+
+        var size = 0L;
+
+        foreach (var file in _files)
+        {
+            size += file.Size;
+        }
+
+        Size = size;
+        _totalSize = size;
+        Invalidate();
+    }
+
+    internal void AggregateTotals()
+    {
+        var stack = new Stack<(DirectorySpace Node, bool Ascending)>();
+        stack.Push((this, false));
+
+        while (stack.Count > 0)
+        {
+            var (node, ascending) = stack.Pop();
+
+            if (ascending)
+            {
+                var total = node.Size;
+                var fileCount = node._files.Length;
+                var directoryCount = node._subDirectories.Length;
+
+                foreach (var subDirectory in node._subDirectories)
+                {
+                    total += subDirectory._totalSize;
+                    fileCount += subDirectory.TotalFileCount;
+                    directoryCount += subDirectory.TotalDirectoryCount;
+                }
+
+                node._totalSize = total;
+                node._maxTotalSize = UnknownSize;
+                node._totalFileCount = fileCount;
+                node._totalDirectoryCount = directoryCount;
+                continue;
+            }
+
+            stack.Push((node, true));
+
+            foreach (var subDirectory in node._subDirectories)
+            {
+                stack.Push((subDirectory, false));
+            }
+        }
     }
 
     /// <summary>

@@ -1,4 +1,6 @@
-﻿namespace SpaceSnoop.Wpf.ViewModels.Scan;
+﻿using System.IO;
+
+namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 internal static class DuplicateText
 {
@@ -6,14 +8,14 @@ internal static class DuplicateText
 
     internal static string Name(string path)
     {
-        var name = System.IO.Path.GetFileName(path);
+        var name = Path.GetFileName(path);
 
         return name.Length > 0 ? name : path;
     }
 
     internal static string Directory(string path, string? root)
     {
-        var directory = System.IO.Path.GetDirectoryName(path) ?? string.Empty;
+        var directory = Path.GetDirectoryName(path) ?? string.Empty;
 
         if (directory.Length == 0)
         {
@@ -23,7 +25,7 @@ internal static class DuplicateText
         if (root is { Length: > 0 } && directory.StartsWith(root, StringComparison.OrdinalIgnoreCase))
         {
             directory = directory[root.Length..]
-                .TrimStart(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         }
 
         return directory.Length == 0 ? ScanRoot : directory;

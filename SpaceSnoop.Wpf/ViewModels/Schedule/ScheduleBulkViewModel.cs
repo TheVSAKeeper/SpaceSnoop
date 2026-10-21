@@ -37,13 +37,6 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
 
     private CancellationTokenSource? _cts;
 
-    internal ScheduleBulkViewModel(ScheduleViewModel owner, IDialogService dialogs, ILogger logger)
-    {
-        _owner = owner;
-        _dialogs = dialogs;
-        _logger = logger;
-    }
-
     public IReadOnlyList<SegmentOption> Modes => _owner.Modes;
 
     public IReadOnlyList<SegmentOption> Winners => _owner.Winners;
@@ -55,6 +48,13 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
     public bool HasSelection => SelectedCount > 0;
 
     public string SelectionSummary => $"Выбрано профилей: {SelectedCount} из {_owner.Profiles.Count}";
+
+    internal ScheduleBulkViewModel(ScheduleViewModel owner, IDialogService dialogs, ILogger logger)
+    {
+        _owner = owner;
+        _dialogs = dialogs;
+        _logger = logger;
+    }
 
     public void NotifySelectionChanged()
     {
@@ -226,10 +226,7 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Удалить профили", ConfirmChoiceKind.Destructive),
-            ])
-        {
-            Warning = "Профили удаляются мимо корзины – восстановить их нельзя.",
-        };
+            ]) { Warning = "Профили удаляются мимо корзины – восстановить их нельзя." };
 
         if (!await _dialogs.ShowAsync(confirm))
         {
@@ -238,14 +235,16 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
 
         var detached = new List<SyncProfileViewModel>();
 
-        var removed = await RunBatchAsync(targets, async profile =>
-        {
-            var taskName = profile.TaskName;
-            await Task.Run(() => _owner.Scheduler.Remove(taskName), CancellationToken.None);
-            detached.Add(profile);
+        var removed = await RunBatchAsync(
+            targets,
+            async profile =>
+            {
+                var taskName = profile.TaskName;
+                await Task.Run(() => _owner.Scheduler.Remove(taskName), CancellationToken.None);
+                detached.Add(profile);
 
-            return true;
-        });
+                return true;
+            });
 
         foreach (var profile in detached)
         {
@@ -290,11 +289,13 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
             _ => "справа",
         };
 
-        return _dialogs.ConfirmWarning("Смена направления", $"""
-                                                              У выбранных профилей с включённым «Зеркалом» ({mirrored}) смена направления меняет сторону удаления: лишнее будет уходить в корзину {side}.
+        return _dialogs.ConfirmWarning(
+            "Смена направления",
+            $"""
+            У выбранных профилей с включённым «Зеркалом» ({mirrored}) смена направления меняет сторону удаления: лишнее будет уходить в корзину {side}.
 
-                                                              Сменить направление?
-                                                              """);
+            Сменить направление?
+            """);
     }
 
     private void SetMirror(bool value)
@@ -328,33 +329,35 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
 
         var rejected = 0;
 
-        var run = await RunBatchAsync(targets, async profile =>
-        {
-            var attempt = profile.EnableAttempt;
-
-            if (!await profile.ValidateEnableAsync(value))
+        var run = await RunBatchAsync(
+            targets,
+            async profile =>
             {
-                rejected++;
-                return false;
-            }
+                var attempt = profile.EnableAttempt;
 
-            if (!_owner.Profiles.Contains(profile) || profile.EnableAttempt != attempt)
-            {
-                return false;
-            }
+                if (!await profile.ValidateEnableAsync(value))
+                {
+                    rejected++;
+                    return false;
+                }
 
-            var request = profile.BuildScheduleRequest(value);
-            var outcome = await Task.Run(() => _owner.Scheduler.Apply(request), CancellationToken.None);
+                if (!_owner.Profiles.Contains(profile) || profile.EnableAttempt != attempt)
+                {
+                    return false;
+                }
 
-            if (outcome.Ok)
-            {
-                profile.CommitEnabled(value);
-            }
+                var request = profile.BuildScheduleRequest(value);
+                var outcome = await Task.Run(() => _owner.Scheduler.Apply(request), CancellationToken.None);
 
-            profile.ApplyScheduleOutcome(outcome);
+                if (outcome.Ok)
+                {
+                    profile.CommitEnabled(value);
+                }
 
-            return outcome.Ok;
-        });
+                profile.ApplyScheduleOutcome(outcome);
+
+                return outcome.Ok;
+            });
 
         _owner.Persist();
 
@@ -370,15 +373,17 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
 
     private Task<BatchRun> RewriteTasksAsync(SyncProfileViewModel[] targets)
     {
-        return RunBatchAsync(targets, async profile =>
-        {
-            var request = profile.BuildScheduleRequest();
-            var outcome = await Task.Run(() => _owner.Scheduler.Apply(request), CancellationToken.None);
+        return RunBatchAsync(
+            targets,
+            async profile =>
+            {
+                var request = profile.BuildScheduleRequest();
+                var outcome = await Task.Run(() => _owner.Scheduler.Apply(request), CancellationToken.None);
 
-            profile.ApplyScheduleOutcome(outcome);
+                profile.ApplyScheduleOutcome(outcome);
 
-            return outcome.Ok;
-        });
+                return outcome.Ok;
+            });
     }
 
     private async Task<BatchRun> RunBatchAsync(SyncProfileViewModel[] targets, Func<SyncProfileViewModel, Task<bool>> step)

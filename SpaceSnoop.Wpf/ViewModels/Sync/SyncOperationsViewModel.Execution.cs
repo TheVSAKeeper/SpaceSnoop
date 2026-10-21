@@ -1,5 +1,4 @@
-﻿using KeepShell.Services;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 namespace SpaceSnoop.Wpf.ViewModels.Sync;
 
@@ -8,7 +7,7 @@ public sealed partial class SyncOperationsViewModel
     [RelayCommand(CanExecute = nameof(CanSync))]
     private async Task SyncAsync()
     {
-        if (_result is null)
+        if (Result is null)
         {
             return;
         }
@@ -19,7 +18,7 @@ public sealed partial class SyncOperationsViewModel
             return;
         }
 
-        if (_result.HasPendingResolution())
+        if (Result.HasPendingResolution())
         {
             _dialogs.Warning("Неподтверждённые элементы", "Разрешите все неподтверждённые элементы перед синхронизацией.");
             return;
@@ -29,14 +28,14 @@ public sealed partial class SyncOperationsViewModel
 
         while (true)
         {
-            if (_result is not { } current)
+            if (Result is not { } current)
             {
                 return;
             }
 
             var confirm = await _ledger.BuildSyncConfirmationAsync(current, hashes);
 
-            if (confirm is null || !ReferenceEquals(_result, current))
+            if (confirm is null || !ReferenceEquals(Result, current))
             {
                 return;
             }
@@ -48,7 +47,7 @@ public sealed partial class SyncOperationsViewModel
                 return;
             }
 
-            if (_session.IsBusy || !ReferenceEquals(_result, current) || current.CountPlannedActions() != shown)
+            if (_session.IsBusy || !ReferenceEquals(Result, current) || current.CountPlannedActions() != shown)
             {
                 return;
             }
@@ -60,7 +59,7 @@ public sealed partial class SyncOperationsViewModel
 
             await HashCommand.ExecuteAsync(null);
 
-            if (!_ledger.HasActionableChanges() || _result is not { } hashed || hashed.HasPendingResolution())
+            if (!_ledger.HasActionableChanges() || Result is not { } hashed || hashed.HasPendingResolution())
             {
                 return;
             }
@@ -71,7 +70,7 @@ public sealed partial class SyncOperationsViewModel
 
     private async Task<SyncRunResult?> ExecuteSyncAsync(bool interactive, CancellationToken external = default)
     {
-        if (_result is null)
+        if (Result is null)
         {
             return null;
         }
@@ -87,7 +86,7 @@ public sealed partial class SyncOperationsViewModel
             throw new SyncPlanStaleException(refusal);
         }
 
-        var result = _result;
+        var result = Result;
         var planned = _ledger.CurrentPlan;
         var stopwatch = Stopwatch.StartNew();
 
@@ -98,25 +97,26 @@ public sealed partial class SyncOperationsViewModel
 
         var request = new ExecuteSyncRequest(result, SyncConflictPolicy.None, SyncDeleteUi.Interactive, verify, recycleOverwritten);
 
-        var report = await _session.RunAsync("Синхронизация:",
+        var report = await _session.RunAsync(
+            "Синхронизация:",
             (token, progress) => _sync.Execute(request, token, progress),
             planned.Total,
             external,
             planned.CopyBytes,
-            selfThrottled: true);
+            true);
 
         stopwatch.Stop();
 
         var afterSync = _planState.AfterSync(report, _session.LastOperationCancelled || external.IsCancellationRequested);
-        var same = ReferenceEquals(_result, result);
+        var same = ReferenceEquals(Result, result);
 
         if (same)
         {
             ApplyPlanState(afterSync);
         }
-        else if (_result is { } replaced
-                 && await Task.Run(() => SharesRoot(replaced, result), CancellationToken.None)
-                 && ReferenceEquals(_result, replaced))
+        else if (Result is { } replaced
+            && await Task.Run(() => SharesRoot(replaced, result), CancellationToken.None)
+            && ReferenceEquals(Result, replaced))
         {
             ApplyPlanState(afterSync);
         }
@@ -151,8 +151,8 @@ public sealed partial class SyncOperationsViewModel
 
         if (same)
         {
-            _lastReport = report;
-            _outcomes = SyncOutcomes.Build(result, report.Errors, report.Mismatches);
+            LastReport = report;
+            Outcomes = SyncOutcomes.Build(result, report.Errors, report.Mismatches);
             RaiseComparisonChanged(SyncComparisonChange.Applied);
         }
 

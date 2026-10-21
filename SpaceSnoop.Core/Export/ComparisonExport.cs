@@ -175,7 +175,7 @@ public static class ComparisonExport
     private static ComparisonExportEntry FromFile(FileComparison file)
     {
         var compared = file.TypeConflict == FileTypeConflict.None
-                       && file.Status is ComparisonStatus.Modified or ComparisonStatus.Conflict;
+            && file.Status is ComparisonStatus.Modified or ComparisonStatus.Conflict;
 
         double? delta = compared && file is { LeftModified: { } left, RightModified: { } right }
             ? Math.Round((left - right).TotalSeconds, 1)

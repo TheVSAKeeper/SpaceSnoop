@@ -1,7 +1,4 @@
-﻿using KeepShell.Services.Platform;
-using SpaceSnoop.Core.Cleanup;
-
-namespace SpaceSnoop.Wpf.Bootstrap;
+﻿namespace SpaceSnoop.Wpf.Bootstrap;
 
 public sealed class CleanupProgressDialogFactory(
     CleanupService service,

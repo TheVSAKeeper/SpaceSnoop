@@ -8,10 +8,7 @@ internal static class NuGetCacheDiscovery
 {
     internal static readonly IReadOnlyDictionary<NuGetCacheKind, string> Names = new Dictionary<NuGetCacheKind, string>
     {
-        [NuGetCacheKind.HttpCache] = "http-cache",
-        [NuGetCacheKind.Temp] = "temp",
-        [NuGetCacheKind.PluginsCache] = "plugins-cache",
-        [NuGetCacheKind.GlobalPackages] = "global-packages",
+        [NuGetCacheKind.HttpCache] = "http-cache", [NuGetCacheKind.Temp] = "temp", [NuGetCacheKind.PluginsCache] = "plugins-cache", [NuGetCacheKind.GlobalPackages] = "global-packages",
     };
 
     internal static async Task<NuGetCacheLocations> DiscoverAsync(CancellationToken token)
@@ -29,6 +26,7 @@ internal static class NuGetCacheDiscovery
                 WorkingDirectory = home,
             },
         };
+
         foreach (var argument in new[] { "nuget", "locals", "all", "--list", "--force-english-output" })
         {
             process.StartInfo.ArgumentList.Add(argument);

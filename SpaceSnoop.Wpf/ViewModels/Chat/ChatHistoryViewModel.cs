@@ -26,6 +26,20 @@ public sealed partial class ChatHistoryViewModel : ObservableObject
     [ObservableProperty]
     private ChatConversationViewModel? _currentConversation;
 
+    public ObservableCollection<ChatConversationViewModel> Conversations { get; } = [];
+
+    public bool HasConversations => Conversations.Count > 0;
+
+    public string HistoryToggleHint => IsHistoryVisible ? "Скрыть прошлые разговоры" : "Показать прошлые разговоры";
+
+    internal string? SessionId { get; set; }
+
+    internal bool SessionDropped { get; set; }
+
+    internal bool ResumedFromDisk { get; set; }
+
+    private bool CanManageConversation => !_isBusy();
+
     internal ChatHistoryViewModel(
         ChatHistoryStore history,
         IDialogService dialogs,
@@ -48,20 +62,6 @@ public sealed partial class ChatHistoryViewModel : ObservableObject
         _notifyMessagesChanged = notifyMessagesChanged;
         _isHistoryVisible = preferences.HistoryVisible;
     }
-
-    internal string? SessionId { get; set; }
-
-    internal bool SessionDropped { get; set; }
-
-    internal bool ResumedFromDisk { get; set; }
-
-    public ObservableCollection<ChatConversationViewModel> Conversations { get; } = [];
-
-    public bool HasConversations => Conversations.Count > 0;
-
-    public string HistoryToggleHint => IsHistoryVisible ? "Скрыть прошлые разговоры" : "Показать прошлые разговоры";
-
-    private bool CanManageConversation => !_isBusy();
 
     internal void NotifyBusyChanged()
     {

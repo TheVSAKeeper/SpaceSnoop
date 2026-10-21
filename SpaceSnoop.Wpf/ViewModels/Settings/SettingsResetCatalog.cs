@@ -1,7 +1,4 @@
-﻿using SpaceSnoop.Wpf.ViewModels.Scan;
-using SpaceSnoop.Wpf.ViewModels.Sync;
-
-namespace SpaceSnoop.Wpf.ViewModels.Settings;
+﻿namespace SpaceSnoop.Wpf.ViewModels.Settings;
 
 public static class SettingsResetCatalog
 {
@@ -34,166 +31,278 @@ public static class SettingsResetCatalog
 
         SettingsResetPlan[] plans =
         [
-            new("appearance",
+            new(
+                "appearance",
                 "Вернуть раздел к заводским значениям: тема как в системе, масштаб 100 %, заголовок страницы и уведомления включены, строка производительности скрыта.",
                 [
-                    Field(SettingsKeys.Theme, "тема оформления", SettingsOptions.LabelOf(SettingsOptions.Themes, AppDefaults.ThemeDefault),
+                    Field(
+                        SettingsKeys.Theme,
+                        "тема оформления",
+                        SettingsOptions.LabelOf(SettingsOptions.Themes, AppDefaults.ThemeDefault),
                         () => theme.Current == AppDefaults.ThemeDefault,
                         () => theme.ApplyCommand.Execute(AppDefaults.ThemeDefault)),
-                    Field(SettingsKeys.FontScale, "масштаб шрифта", $"{FontScaleManager.DefaultScale * 100:F0} %",
+                    Field(
+                        SettingsKeys.FontScale,
+                        "масштаб шрифта",
+                        $"{FontScaleManager.DefaultScale * 100:F0} %",
                         () => Math.Abs(shell.FontScale - FontScaleManager.DefaultScale) < ScaleTolerance,
                         () => shell.FontScale = FontScaleManager.DefaultScale),
-                    Field(SettingsKeys.ShowPageHeader, "заголовок страницы", Flag(AppDefaults.ShowPageHeaderDefault),
+                    Field(
+                        SettingsKeys.ShowPageHeader,
+                        "заголовок страницы",
+                        Flag(AppDefaults.ShowPageHeaderDefault),
                         () => shell.ShowPageHeader == AppDefaults.ShowPageHeaderDefault,
                         () => shell.ShowPageHeader = AppDefaults.ShowPageHeaderDefault),
-                    Field(SettingsKeys.EnableToastNotifications, "всплывающие уведомления", Flag(AppDefaults.ToastNotificationsDefault),
+                    Field(
+                        SettingsKeys.EnableToastNotifications,
+                        "всплывающие уведомления",
+                        Flag(AppDefaults.ToastNotificationsDefault),
                         () => shell.EnableToastNotifications == AppDefaults.ToastNotificationsDefault,
                         () => shell.EnableToastNotifications = AppDefaults.ToastNotificationsDefault),
-                    Field(SettingsKeys.PerformanceHud, "производительность в строке состояния", Flag(AppDefaults.PerformanceHudDefault),
+                    Field(
+                        SettingsKeys.PerformanceHud,
+                        "производительность в строке состояния",
+                        Flag(AppDefaults.PerformanceHudDefault),
                         () => shell.ShowPerformanceHud == AppDefaults.PerformanceHudDefault,
                         () => shell.ShowPerformanceHud = AppDefaults.PerformanceHudDefault),
                 ],
                 []),
 
-            new("startup",
+            new(
+                "startup",
                 "Вернуть раздел к заводским значениям: стартовая страница «Сканирование», боковое меню развёрнуто, предупреждение о правах администратора включено.",
                 [
-                    Field(SettingsKeys.StartupPage, "стартовая страница", SettingsOptions.LabelOf(SettingsOptions.StartupPages, AppDefaults.StartupPageDefault),
+                    Field(
+                        SettingsKeys.StartupPage,
+                        "стартовая страница",
+                        SettingsOptions.LabelOf(SettingsOptions.StartupPages, AppDefaults.StartupPageDefault),
                         () => shell.StartupPage == AppDefaults.StartupPageDefault,
                         () => shell.StartupPage = AppDefaults.StartupPageDefault),
-                    Field(SettingsKeys.NavCollapsed, "свёрнутое боковое меню", Flag(AppDefaults.NavCollapsedDefault),
+                    Field(
+                        SettingsKeys.NavCollapsed,
+                        "свёрнутое боковое меню",
+                        Flag(AppDefaults.NavCollapsedDefault),
                         () => shell.NavCollapsed == AppDefaults.NavCollapsedDefault,
                         () => shell.NavCollapsed = AppDefaults.NavCollapsedDefault),
-                    Field(SettingsKeys.WarnIfNotAdmin, "предупреждение о правах администратора", Flag(AppDefaults.WarnIfNotAdminDefault),
+                    Field(
+                        SettingsKeys.WarnIfNotAdmin,
+                        "предупреждение о правах администратора",
+                        Flag(AppDefaults.WarnIfNotAdminDefault),
                         () => shell.WarnIfNotAdministrator == AppDefaults.WarnIfNotAdminDefault,
                         () => shell.WarnIfNotAdministrator = AppDefaults.WarnIfNotAdminDefault),
                 ],
                 []),
 
-            new("scan",
+            new(
+                "scan",
                 $"Вернуть раздел к заводским значениям. Число потоков вернётся к {scan.DefaultParallelism}; максимум этой машины – {scan.ParallelismCeiling}.",
                 [
-                    Field(SettingsKeys.ScanMultithreading, "многопоточный обход", Flag(AppDefaults.ScanMultithreadingDefault),
+                    Field(
+                        SettingsKeys.ScanMultithreading,
+                        "многопоточный обход",
+                        Flag(AppDefaults.ScanMultithreadingDefault),
                         () => scan.UseMultithreading == AppDefaults.ScanMultithreadingDefault,
                         () => scan.UseMultithreading = AppDefaults.ScanMultithreadingDefault),
-                    Field(SettingsKeys.ScanParallelism, "число параллельных потоков", $"{scan.DefaultParallelism}",
+                    Field(
+                        SettingsKeys.ScanParallelism,
+                        "число параллельных потоков",
+                        $"{scan.DefaultParallelism}",
                         () => scan.MaxParallelism == scan.DefaultParallelism,
                         () => scan.MaxParallelism = scan.DefaultParallelism),
-                    Field(SettingsKeys.ScanMediaAware, "учёт типа носителя", Flag(AppDefaults.ScanMediaAwareDefault),
+                    Field(
+                        SettingsKeys.ScanMediaAware,
+                        "учёт типа носителя",
+                        Flag(AppDefaults.ScanMediaAwareDefault),
                         () => scan.MediaAware == AppDefaults.ScanMediaAwareDefault,
                         () => scan.MediaAware = AppDefaults.ScanMediaAwareDefault),
-                    Field(SettingsKeys.ScanMftEnabled, "чтение таблицы NTFS", Flag(AppDefaults.ScanMftEnabledDefault),
+                    Field(
+                        SettingsKeys.ScanMftEnabled,
+                        "чтение таблицы NTFS",
+                        Flag(AppDefaults.ScanMftEnabledDefault),
                         () => scan.MftEnabled == AppDefaults.ScanMftEnabledDefault,
                         () => scan.MftEnabled = AppDefaults.ScanMftEnabledDefault),
-                    Field(SettingsKeys.ScanMftRootOnly, "только диск целиком", Flag(AppDefaults.ScanMftRootOnlyDefault),
+                    Field(
+                        SettingsKeys.ScanMftRootOnly,
+                        "только диск целиком",
+                        Flag(AppDefaults.ScanMftRootOnlyDefault),
                         () => scan.MftRootOnly == AppDefaults.ScanMftRootOnlyDefault,
                         () => scan.MftRootOnly = AppDefaults.ScanMftRootOnlyDefault),
-                    Field(SettingsKeys.ScanReleaseBeforeRescan, "освобождение прежнего результата", Flag(AppDefaults.ScanReleaseBeforeRescanDefault),
+                    Field(
+                        SettingsKeys.ScanReleaseBeforeRescan,
+                        "освобождение прежнего результата",
+                        Flag(AppDefaults.ScanReleaseBeforeRescanDefault),
                         () => scan.ReleaseBeforeRescan == AppDefaults.ScanReleaseBeforeRescanDefault,
                         () => scan.ReleaseBeforeRescan = AppDefaults.ScanReleaseBeforeRescanDefault),
-                    Field(SettingsKeys.ScanConfirmRescan, "предупреждение перед повторным сканом", Flag(AppDefaults.ScanConfirmRescanDefault),
+                    Field(
+                        SettingsKeys.ScanConfirmRescan,
+                        "предупреждение перед повторным сканом",
+                        Flag(AppDefaults.ScanConfirmRescanDefault),
                         () => scan.ConfirmRescan == AppDefaults.ScanConfirmRescanDefault,
                         () => scan.ConfirmRescan = AppDefaults.ScanConfirmRescanDefault),
-                    Field(SettingsKeys.ScanReturnMemoryAfterScan, "возврат памяти системе", Flag(AppDefaults.ScanReturnMemoryAfterScanDefault),
+                    Field(
+                        SettingsKeys.ScanReturnMemoryAfterScan,
+                        "возврат памяти системе",
+                        Flag(AppDefaults.ScanReturnMemoryAfterScanDefault),
                         () => scan.ReturnMemoryAfterScan == AppDefaults.ScanReturnMemoryAfterScanDefault,
                         () => scan.ReturnMemoryAfterScan = AppDefaults.ScanReturnMemoryAfterScanDefault),
-                    Field(SettingsKeys.ScanIntensity, "интенсивность подсветки", $"{AppDefaults.IntensityDefault:F0}",
+                    Field(
+                        SettingsKeys.ScanIntensity,
+                        "интенсивность подсветки",
+                        $"{AppDefaults.IntensityDefault:F0}",
                         () => Math.Abs(scan.Intensity - AppDefaults.IntensityDefault) < ScaleTolerance,
                         () => scan.Intensity = AppDefaults.IntensityDefault),
-                    Field(SettingsKeys.ScanRevealFiles, "открытие файлов в проводнике", Flag(AppDefaults.ScanRevealFilesDefault),
+                    Field(
+                        SettingsKeys.ScanRevealFiles,
+                        "открытие файлов в проводнике",
+                        Flag(AppDefaults.ScanRevealFilesDefault),
                         () => scan.RevealFiles == AppDefaults.ScanRevealFilesDefault,
                         () => scan.RevealFiles = AppDefaults.ScanRevealFilesDefault),
                 ],
                 []),
 
-            new("sync",
+            new(
+                "sync",
                 "Вернуть раздел к заводским значениям. Исключения по умолчанию и список группируемых каталогов останутся как есть – это введённые вами строки, и сброс их не выбрасывает.",
                 [
-                    Field(SettingsKeys.SyncPathSuggest, "автодополнение путей", Flag(AppDefaults.SyncPathSuggestDefault),
+                    Field(
+                        SettingsKeys.SyncPathSuggest,
+                        "автодополнение путей",
+                        Flag(AppDefaults.SyncPathSuggestDefault),
                         () => operations.SyncPathSuggest == AppDefaults.SyncPathSuggestDefault,
                         () => operations.SyncPathSuggest = AppDefaults.SyncPathSuggestDefault),
-                    Field(SettingsKeys.SyncRecycleOverwritten, "затираемый файл – в корзину", Flag(AppDefaults.SyncRecycleOverwrittenDefault),
+                    Field(
+                        SettingsKeys.SyncRecycleOverwritten,
+                        "затираемый файл – в корзину",
+                        Flag(AppDefaults.SyncRecycleOverwrittenDefault),
                         () => operations.RecycleOverwritten == AppDefaults.SyncRecycleOverwrittenDefault,
                         () => operations.RecycleOverwritten = AppDefaults.SyncRecycleOverwrittenDefault),
                     // TODO: политику git-папок пишет ещё и запрос на странице синхронизации, мимо холдеров,
                     // поэтому кнопка её строки досчитывается только при следующем заходе на страницу настроек:
                     // страница пересобирается, и новая кнопка спрашивает CanExecute заново. Заводить событие
                     // хранилища – когда мимо холдеров начнёт писаться вторая настройка страницы.
-                    Field(SettingsKeys.SyncGitFolders, "git-папки", SettingsOptions.LabelOf(SettingsOptions.GitFolders, AppDefaults.SyncGitFoldersDefault),
+                    Field(
+                        SettingsKeys.SyncGitFolders,
+                        "git-папки",
+                        SettingsOptions.LabelOf(SettingsOptions.GitFolders, AppDefaults.SyncGitFoldersDefault),
                         () => settings.GetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault) == AppDefaults.SyncGitFoldersDefault,
                         () => settings.SetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault)),
                 ],
                 ["исключения по умолчанию", "группируемые каталоги"]),
 
-            new("delete",
+            new(
+                "delete",
                 "Вернуть раздел к заводским значениям: подтверждение включено, помеченное уходит в корзину.",
                 [
-                    Field(SettingsKeys.DeleteConfirm, "подтверждение перед удалением", Flag(AppDefaults.DeleteConfirmDefault),
+                    Field(
+                        SettingsKeys.DeleteConfirm,
+                        "подтверждение перед удалением",
+                        Flag(AppDefaults.DeleteConfirmDefault),
                         () => operations.ConfirmBeforeDelete == AppDefaults.DeleteConfirmDefault,
                         () => operations.ConfirmBeforeDelete = AppDefaults.DeleteConfirmDefault),
-                    Field(SettingsKeys.DeleteMode, "куда удалять помеченные элементы", SettingsOptions.LabelOf(SettingsOptions.DeleteModes, AppDefaults.DeleteModeDefault),
+                    Field(
+                        SettingsKeys.DeleteMode,
+                        "куда удалять помеченные элементы",
+                        SettingsOptions.LabelOf(SettingsOptions.DeleteModes, AppDefaults.DeleteModeDefault),
                         () => operations.DeleteMode == AppDefaults.DeleteModeDefault,
                         () => operations.DeleteMode = AppDefaults.DeleteModeDefault),
                 ],
                 []),
 
-            new("archive",
+            new(
+                "archive",
                 "Вернуть раздел к заводским значениям: оптимальное сжатие, оригинал после упаковки уходит в корзину.",
                 [
-                    Field(SettingsKeys.ArchiveCompression, "уровень сжатия .zip", SettingsOptions.LabelOf(SettingsOptions.CompressionLevels, AppDefaults.ArchiveCompressionDefault),
+                    Field(
+                        SettingsKeys.ArchiveCompression,
+                        "уровень сжатия .zip",
+                        SettingsOptions.LabelOf(SettingsOptions.CompressionLevels, AppDefaults.ArchiveCompressionDefault),
                         () => operations.ArchiveCompression == AppDefaults.ArchiveCompressionDefault,
                         () => operations.ArchiveCompression = AppDefaults.ArchiveCompressionDefault),
-                    Field(SettingsKeys.ArchiveDeleteOriginal, "оригинал в корзину после упаковки", Flag(AppDefaults.ArchiveDeleteOriginalDefault),
+                    Field(
+                        SettingsKeys.ArchiveDeleteOriginal,
+                        "оригинал в корзину после упаковки",
+                        Flag(AppDefaults.ArchiveDeleteOriginalDefault),
                         () => operations.DeleteOriginalAfterArchive == AppDefaults.ArchiveDeleteOriginalDefault,
                         () => operations.DeleteOriginalAfterArchive = AppDefaults.ArchiveDeleteOriginalDefault),
                 ],
                 []),
 
-            new("update",
+            new(
+                "update",
                 "Вернуть раздел к заводским значениям. Репозиторий обновлений останется как есть – это введённая вами строка; заводское значение подставит кнопка под полем.",
                 [
-                    Field(SettingsKeys.UpdateCheckOnStartup, "проверка обновлений при запуске", Flag(AppDefaults.UpdateCheckOnStartupDefault),
+                    Field(
+                        SettingsKeys.UpdateCheckOnStartup,
+                        "проверка обновлений при запуске",
+                        Flag(AppDefaults.UpdateCheckOnStartupDefault),
                         () => update.CheckOnStartup == AppDefaults.UpdateCheckOnStartupDefault,
                         () => update.CheckOnStartup = AppDefaults.UpdateCheckOnStartupDefault),
-                    Field(SettingsKeys.UpdateAutoDownload, "автоматическое скачивание", Flag(AppDefaults.UpdateAutoDownloadDefault),
+                    Field(
+                        SettingsKeys.UpdateAutoDownload,
+                        "автоматическое скачивание",
+                        Flag(AppDefaults.UpdateAutoDownloadDefault),
                         () => update.AutoDownload == AppDefaults.UpdateAutoDownloadDefault,
                         () => update.AutoDownload = AppDefaults.UpdateAutoDownloadDefault),
                 ],
                 ["репозиторий обновлений"]),
 
-            new("storage",
+            new(
+                "storage",
                 "Сбрасывать в этом разделе нечего: расположение данных – это перенос файлов и перезапуск приложения, такое делают галкой осознанно, а не сбросом раздела. Остальное здесь – пути и кнопки, а не настройки.",
                 [],
                 []),
 
-            new("mcp",
+            new(
+                "mcp",
                 $"Вернуть раздел к заводским значениям. Токен доступа не сбрасывается – новый оборвал бы все уже настроенные клиенты. Порт вернётся к {AppDefaults.McpPortDefault}, поэтому строку подключения придётся раздать заново.",
                 [
-                    Field(SettingsKeys.McpEnabled, "доступ для агентов", Flag(AppDefaults.McpEnabledDefault),
+                    Field(
+                        SettingsKeys.McpEnabled,
+                        "доступ для агентов",
+                        Flag(AppDefaults.McpEnabledDefault),
                         () => mcp.Enabled == AppDefaults.McpEnabledDefault,
                         () => mcp.Enabled = AppDefaults.McpEnabledDefault),
-                    Field(SettingsKeys.McpAllowMutations, "изменяющие операции", Flag(AppDefaults.McpAllowMutationsDefault),
+                    Field(
+                        SettingsKeys.McpAllowMutations,
+                        "изменяющие операции",
+                        Flag(AppDefaults.McpAllowMutationsDefault),
                         () => mcp.AllowMutations == AppDefaults.McpAllowMutationsDefault,
                         () => mcp.AllowMutations = AppDefaults.McpAllowMutationsDefault),
-                    Field(SettingsKeys.McpPort, "порт", $"{AppDefaults.McpPortDefault}",
+                    Field(
+                        SettingsKeys.McpPort,
+                        "порт",
+                        $"{AppDefaults.McpPortDefault}",
                         () => mcp.Port == AppDefaults.McpPortDefault,
                         () => mcp.Port = AppDefaults.McpPortDefault),
                 ],
                 ["токен доступа"]),
 
-            new("agent",
+            new(
+                "agent",
                 "Вернуть раздел к заводским значениям. Согласие, модель, глубина рассуждений и путь к CLI не сбрасываются: они свои у каждого CLI, и сброс задел бы только выбранный, оставив остальные как были.",
                 [
-                    Field(SettingsKeys.AgentEnabled, "страница чата", Flag(AppDefaults.AgentEnabledDefault),
+                    Field(
+                        SettingsKeys.AgentEnabled,
+                        "страница чата",
+                        Flag(AppDefaults.AgentEnabledDefault),
                         () => agent.Enabled == AppDefaults.AgentEnabledDefault,
                         () => agent.Enabled = AppDefaults.AgentEnabledDefault),
-                    Field(SettingsKeys.AgentHistoryVisible, "видимость истории", Flag(AppDefaults.AgentHistoryVisibleDefault),
+                    Field(
+                        SettingsKeys.AgentHistoryVisible,
+                        "видимость истории",
+                        Flag(AppDefaults.AgentHistoryVisibleDefault),
                         () => agent.HistoryVisible == AppDefaults.AgentHistoryVisibleDefault,
                         () => agent.HistoryVisible = AppDefaults.AgentHistoryVisibleDefault),
-                    Field(SettingsKeys.AgentTranscript, "запись транскрипта", Flag(AppDefaults.AgentTranscriptDefault),
+                    Field(
+                        SettingsKeys.AgentTranscript,
+                        "запись транскрипта",
+                        Flag(AppDefaults.AgentTranscriptDefault),
                         () => agent.Transcript == AppDefaults.AgentTranscriptDefault,
                         () => agent.Transcript = AppDefaults.AgentTranscriptDefault),
-                    Field(SettingsKeys.AgentBackend, "выбранный CLI", SettingsOptions.LabelOf(AppDefaults.AgentBackendDefault),
+                    Field(
+                        SettingsKeys.AgentBackend,
+                        "выбранный CLI",
+                        SettingsOptions.LabelOf(AppDefaults.AgentBackendDefault),
                         () => agent.Backend == AppDefaults.AgentBackendDefault,
                         () => agent.Backend = AppDefaults.AgentBackendDefault),
                 ],

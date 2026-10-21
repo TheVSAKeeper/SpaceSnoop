@@ -6,12 +6,6 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class ScanLinkNoteTests
 {
-    [Test]
-    public void Снятый_двойной_счёт_показывается_размером()
-    {
-        Assert.That(ScanLinkNote.Describe(13L * 1024 * 1024 * 1024), Does.Contain("13").And.Contain("ГБ"));
-    }
-
     [TestCase(0L)]
     [TestCase(-1L)]
     public void Без_повторных_имён_примечания_нет(long extraNameBytes)
@@ -26,6 +20,12 @@ public class ScanLinkNoteTests
 
         Assert.That(hint, Does.Contain("≈13 ГБ").And.Contain(ScanLinkNote.Hint));
     }
+
+    [Test]
+    public void Снятый_двойной_счёт_показывается_размером()
+    {
+        Assert.That(ScanLinkNote.Describe(13L * 1024 * 1024 * 1024), Does.Contain("13").And.Contain("ГБ"));
+    }
 }
 
 [TestFixture]
@@ -35,19 +35,11 @@ public class ScanVolumeNoteTests
     private const long Used = 34L * 1024 * 1024 * 1024;
 
     [Test]
-    public void Логический_объём_выше_занятого_объясняется_примечанием()
+    public void Каталог_на_томе_примечания_не_получает()
     {
-        var note = ScanVolumeNote.Describe(@"C:\", Used + (7L * 1024 * 1024 * 1024), new DriveCapacity("C:", Total, Used));
+        var note = ScanVolumeNote.Describe(@"C:\Downloads", Used * 2, new DriveCapacity("C:", Total, Used));
 
-        Assert.That(note, Does.Contain("7").And.Contain("ГБ"));
-    }
-
-    [Test]
-    public void Подсказка_называет_разницу_и_её_причины()
-    {
-        var hint = ScanVolumeNote.Explain("≈7 ГБ");
-
-        Assert.That(hint, Does.Contain("≈7 ГБ").And.Contain(ScanVolumeNote.Hint));
+        Assert.That(note, Is.Null);
     }
 
     [TestCase(@"C:")]
@@ -61,11 +53,11 @@ public class ScanVolumeNoteTests
     }
 
     [Test]
-    public void Каталог_на_томе_примечания_не_получает()
+    public void Логический_объём_выше_занятого_объясняется_примечанием()
     {
-        var note = ScanVolumeNote.Describe(@"C:\Downloads", Used * 2, new DriveCapacity("C:", Total, Used));
+        var note = ScanVolumeNote.Describe(@"C:\", Used + (7L * 1024 * 1024 * 1024), new DriveCapacity("C:", Total, Used));
 
-        Assert.That(note, Is.Null);
+        Assert.That(note, Does.Contain("7").And.Contain("ГБ"));
     }
 
     [Test]
@@ -77,17 +69,25 @@ public class ScanVolumeNoteTests
     }
 
     [Test]
-    public void Превышение_в_пределах_порога_молчит()
+    public void Объём_меньше_занятого_молчит()
     {
-        var note = ScanVolumeNote.Describe(@"C:\", Used + (long)(Used * AppDefaults.ScanVolumeNoteFraction / 2), new DriveCapacity("C:", Total, Used));
+        var note = ScanVolumeNote.Describe(@"C:\", Used / 2, new DriveCapacity("C:", Total, Used));
 
         Assert.That(note, Is.Null);
     }
 
     [Test]
-    public void Объём_меньше_занятого_молчит()
+    public void Подсказка_называет_разницу_и_её_причины()
     {
-        var note = ScanVolumeNote.Describe(@"C:\", Used / 2, new DriveCapacity("C:", Total, Used));
+        var hint = ScanVolumeNote.Explain("≈7 ГБ");
+
+        Assert.That(hint, Does.Contain("≈7 ГБ").And.Contain(ScanVolumeNote.Hint));
+    }
+
+    [Test]
+    public void Превышение_в_пределах_порога_молчит()
+    {
+        var note = ScanVolumeNote.Describe(@"C:\", Used + (long)(Used * AppDefaults.ScanVolumeNoteFraction / 2), new DriveCapacity("C:", Total, Used));
 
         Assert.That(note, Is.Null);
     }
@@ -97,9 +97,11 @@ public class ScanVolumeNoteTests
 public class ScanDropNoteTests
 {
     [Test]
-    public void Полный_скан_о_потерях_молчит()
+    public void Неполно_прочитанная_запись_не_называется_пропавшей()
     {
-        Assert.That(ScanDropNote.Describe(0, 0, 0), Is.Null);
+        var hint = ScanDropNote.Explain(0, 0, 0, 5);
+
+        Assert.That(hint, Does.Contain("прочитаны не полностью").And.Not.Contain("нет в дереве"));
     }
 
     [TestCase(3L, 0L, 0L, "3")]
@@ -112,14 +114,6 @@ public class ScanDropNoteTests
     }
 
     [Test]
-    public void Подсказка_разделяет_пропавшее_и_непрочитанный_размер()
-    {
-        var hint = ScanDropNote.Explain(2, 4096, 3, 0);
-
-        Assert.That(hint, Does.Contain("нет в дереве").And.Contain("размер не прочитан").And.Contain(ScanDropNote.Hint));
-    }
-
-    [Test]
     public void Подсказка_без_потерянных_байт_их_не_называет()
     {
         var hint = ScanDropNote.Explain(2, 0, 0, 0);
@@ -128,10 +122,16 @@ public class ScanDropNoteTests
     }
 
     [Test]
-    public void Неполно_прочитанная_запись_не_называется_пропавшей()
+    public void Подсказка_разделяет_пропавшее_и_непрочитанный_размер()
     {
-        var hint = ScanDropNote.Explain(0, 0, 0, 5);
+        var hint = ScanDropNote.Explain(2, 4096, 3, 0);
 
-        Assert.That(hint, Does.Contain("прочитаны не полностью").And.Not.Contain("нет в дереве"));
+        Assert.That(hint, Does.Contain("нет в дереве").And.Contain("размер не прочитан").And.Contain(ScanDropNote.Hint));
+    }
+
+    [Test]
+    public void Полный_скан_о_потерях_молчит()
+    {
+        Assert.That(ScanDropNote.Describe(0, 0, 0), Is.Null);
     }
 }

@@ -1,5 +1,4 @@
-﻿using KeepShell.Services.Modal;
-using KeepShell.Services.Platform;
+﻿using KeepShell.Services.Platform;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core.Docker;
 using SpaceSnoop.Wpf.ViewModels.Docker;
@@ -12,26 +11,24 @@ public sealed class DockerViewModelTests
     private const string BasePath = @"C:\Docker\wsl";
 
     [Test]
-    public async Task Успешное_сжатие_оставляет_статус_о_необходимости_запустить_Docker()
-    {
-        var vm = CreateViewModel(diskpart: Success("DiskPart successfully compacted the virtual disk file."));
-
-        await vm.Compact.RunCommand.ExecuteAsync(null);
-
-        Assert.That(vm.StatusText, Is.EqualTo("Готово. Запустите Docker заново."));
-        Assert.That(vm.IsBusy, Is.False);
-        Assert.That(vm.CancelCommand, Is.Null);
-    }
-
-    [Test]
     public async Task Запоздавший_доклад_о_стадии_не_перетирает_итог()
     {
         var dispatcher = new DeferringUiDispatcher();
-        var vm = CreateViewModel(diskpart: Success("DiskPart successfully compacted the virtual disk file."), dispatcher: dispatcher);
+        var vm = CreateViewModel(Success("DiskPart successfully compacted the virtual disk file."), dispatcher: dispatcher);
 
         await vm.Compact.RunCommand.ExecuteAsync(null);
 
         dispatcher.RunPending();
+
+        Assert.That(vm.StatusText, Is.EqualTo("Готово. Запустите Docker заново."));
+    }
+
+    [Test]
+    public async Task Исчерпанный_таймаут_не_отменяет_первую_проверку_состояния()
+    {
+        var vm = CreateViewModel(Success("DiskPart successfully compacted the virtual disk file."), TimeSpan.Zero);
+
+        await vm.Compact.RunCommand.ExecuteAsync(null);
 
         Assert.That(vm.StatusText, Is.EqualTo("Готово. Запустите Docker заново."));
     }
@@ -47,13 +44,15 @@ public sealed class DockerViewModelTests
     }
 
     [Test]
-    public async Task Исчерпанный_таймаут_не_отменяет_первую_проверку_состояния()
+    public async Task Успешное_сжатие_оставляет_статус_о_необходимости_запустить_Docker()
     {
-        var vm = CreateViewModel(diskpart: Success("DiskPart successfully compacted the virtual disk file."), stopTimeout: TimeSpan.Zero);
+        var vm = CreateViewModel(diskpart: Success("DiskPart successfully compacted the virtual disk file."));
 
         await vm.Compact.RunCommand.ExecuteAsync(null);
 
         Assert.That(vm.StatusText, Is.EqualTo("Готово. Запустите Docker заново."));
+        Assert.That(vm.IsBusy, Is.False);
+        Assert.That(vm.CancelCommand, Is.Null);
     }
 
     private static DockerViewModel CreateViewModel(
@@ -69,17 +68,13 @@ public sealed class DockerViewModelTests
             ("diskpart", "") => diskpart,
             _ => throw new AssertionException($"Неожиданная команда: {fileName} {arguments}"),
         });
+
         var fileSystem = new FakeFileSystem([new(1000, 800), new(1000, 600)]);
         var service = new DockerService(
             runner,
             fileSystem,
             new StaticSettingsProvider(new(BasePath, true, null)),
-            new DockerCompactOptions
-            {
-                ProcessTimeout = TimeSpan.FromSeconds(1),
-                StopTimeout = stopTimeout ?? TimeSpan.FromSeconds(1),
-                StatusPollInterval = TimeSpan.Zero,
-            },
+            new() { ProcessTimeout = TimeSpan.FromSeconds(1), StopTimeout = stopTimeout ?? TimeSpan.FromSeconds(1), StatusPollInterval = TimeSpan.Zero },
             administratorCheck: () => true);
 
         return new(service, new NoopDialogs(showResult: true), dispatcher ?? new FakeUiDispatcher(), NullLogger<DockerViewModel>.Instance);

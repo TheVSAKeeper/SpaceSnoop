@@ -8,20 +8,26 @@ public partial class ScanView : UserControl, IView<ScanViewModel>
 {
     public const int MinTreeRows = 6;
 
+    private const double RailWidth = 46;
+
+    private const double MinPanelWidth = ScanInspectorViewModel.MinInspectorWidth;
+
     public static readonly DependencyProperty IsCompactProperty = DependencyProperty.Register(
         nameof(IsCompact),
         typeof(bool),
         typeof(ScanView),
         new(false));
 
-    private const double RailWidth = 46;
-
-    private const double MinPanelWidth = ScanInspectorViewModel.MinInspectorWidth;
-
     private ScanViewModel? _vm;
     private bool _hooked;
     private bool _fitting;
     private bool _fitQueued;
+
+    public bool IsCompact
+    {
+        get => (bool)GetValue(IsCompactProperty);
+        private set => SetValue(IsCompactProperty, value);
+    }
 
     public ScanView()
     {
@@ -32,12 +38,6 @@ public partial class ScanView : UserControl, IView<ScanViewModel>
         DataContextChanged += OnDataContextChanged;
         ContentArea.IsVisibleChanged += (_, _) => QueueFit();
         Structure.HeaderBar.SizeChanged += (_, _) => QueueFit();
-    }
-
-    public bool IsCompact
-    {
-        get => (bool)GetValue(IsCompactProperty);
-        private set => SetValue(IsCompactProperty, value);
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

@@ -57,7 +57,7 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         }
 
         var hasNonIdentical = comparison.Files.Any(x => x.Status != ComparisonStatus.Identical)
-                              || comparison.SubDirectories.Any(x => x.Status != ComparisonStatus.Identical);
+            || comparison.SubDirectories.Any(x => x.Status != ComparisonStatus.Identical);
 
         return hasNonIdentical ? ComparisonStatus.Modified : ComparisonStatus.Identical;
     }
@@ -80,11 +80,7 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         cancel.ThrowIfCancellationRequested();
 
         var name = leftDir?.Name ?? rightDir!.Name;
-        var comparison = new DirectoryComparison(name, relativePath)
-        {
-            LeftModified = leftDir is { Exists: true } ? leftDir.LastWriteTime : null,
-            RightModified = rightDir is { Exists: true } ? rightDir.LastWriteTime : null,
-        };
+        var comparison = new DirectoryComparison(name, relativePath) { LeftModified = leftDir is { Exists: true } ? leftDir.LastWriteTime : null, RightModified = rightDir is { Exists: true } ? rightDir.LastWriteTime : null };
 
         var leftLinks = new HashSet<string>(rules.Left);
         var rightLinks = new HashSet<string>(rules.Right);
@@ -101,7 +97,17 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         var typeConflicts = CollectTypeConflicts(leftFiles, rightFiles, leftDirs, rightDirs, leftLinks, rightLinks, rules);
 
         CompareFiles(comparison, leftFiles, rightFiles, typeConflicts, relativePath, rules);
-        CompareSubDirectories(comparison, leftDirs, rightDirs, typeConflicts, relativePath, rules, skips, progress, ref processed, cancel);
+        CompareSubDirectories(
+            comparison,
+            leftDirs,
+            rightDirs,
+            typeConflicts,
+            relativePath,
+            rules,
+            skips,
+            progress,
+            ref processed,
+            cancel);
 
         comparison.Status = DetermineDirectoryStatus(comparison, leftDir, rightDir);
 

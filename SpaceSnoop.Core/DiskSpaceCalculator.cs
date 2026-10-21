@@ -14,10 +14,7 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
 {
     private static readonly EnumerationOptions Enumeration = new()
     {
-        AttributesToSkip = 0,
-        IgnoreInaccessible = false,
-        RecurseSubdirectories = false,
-        ReturnSpecialDirectories = false,
+        AttributesToSkip = 0, IgnoreInaccessible = false, RecurseSubdirectories = false, ReturnSpecialDirectories = false,
     };
 
     private readonly ILogger _log = logger ?? NullLogger<DiskSpaceCalculator>.Instance;
@@ -123,7 +120,8 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     /// <summary>
     /// Объясняет, почему каталог нельзя взять корнем скана: он ссылка на другой каталог (junction, symlink), которую обход
     /// пропустил бы внутри дерева, либо точка повторного разбора, вид которой не удалось прочитать.
-    /// Том, смонтированный в папку, ссылкой не считается: корнем скана он допустим. Недоступный для чтения атрибутов путь ссылкой не считается.
+    /// Том, смонтированный в папку, ссылкой не считается: корнем скана он допустим. Недоступный для чтения атрибутов путь
+    /// ссылкой не считается.
     /// </summary>
     /// <param name="directory">Проверяемый каталог.</param>
     /// <returns>Текст отказа для человека или <c>null</c>, если каталог можно сканировать.</returns>
@@ -150,6 +148,34 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
     public static bool IsReparsePoint(DirectoryInfo directory)
     {
         return IsReparsePoint(directory, out _);
+    }
+
+    internal static string ToEnumerationPath(string path)
+    {
+        if (!Path.IsPathFullyQualified(path)
+            || path.Contains('/')
+            || path.StartsWith(@"\\?\", StringComparison.Ordinal)
+            || path.StartsWith(@"\\.\", StringComparison.Ordinal)
+            || path.StartsWith(@"\??\", StringComparison.Ordinal))
+        {
+            return path;
+        }
+
+        return path.StartsWith(@"\\", StringComparison.Ordinal)
+            ? string.Concat(@"\\?\UNC\", path.AsSpan(2))
+            : string.Concat(@"\\?\", path);
+    }
+
+    internal static string FromEnumerationPath(string path)
+    {
+        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
+        {
+            return string.Concat(@"\\", path.AsSpan(8));
+        }
+
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) && Path.IsPathFullyQualified(path.AsSpan(4))
+            ? path[4..]
+            : path;
     }
 
     private static bool IsReparsePoint(DirectoryInfo directory, out string path)
@@ -184,38 +210,12 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         return new(directory.Name, null, directory.CreationTime, directory.LastAccessTime);
     }
 
-    internal static string ToEnumerationPath(string path)
-    {
-        if (!Path.IsPathFullyQualified(path)
-            || path.Contains('/')
-            || path.StartsWith(@"\\?\", StringComparison.Ordinal)
-            || path.StartsWith(@"\\.\", StringComparison.Ordinal)
-            || path.StartsWith(@"\??\", StringComparison.Ordinal))
-        {
-            return path;
-        }
-
-        return path.StartsWith(@"\\", StringComparison.Ordinal)
-            ? string.Concat(@"\\?\UNC\", path.AsSpan(2))
-            : string.Concat(@"\\?\", path);
-    }
-
-    internal static string FromEnumerationPath(string path)
-    {
-        if (path.StartsWith(@"\\?\UNC\", StringComparison.Ordinal))
-        {
-            return string.Concat(@"\\", path.AsSpan(8));
-        }
-
-        return path.StartsWith(@"\\?\", StringComparison.Ordinal) && Path.IsPathFullyQualified(path.AsSpan(4))
-            ? path[4..]
-            : path;
-    }
-
     private static FileSystemEnumerable<ScanEntry> Enumerate(string path)
     {
-        return new(path,
-            static (ref FileSystemEntry entry) => new ScanEntry(entry.FileName.ToString(),
+        return new(
+            path,
+            static (ref entry) => new(
+                entry.FileName.ToString(),
                 entry.Length,
                 entry.CreationTimeUtc.LocalDateTime,
                 entry.LastAccessTimeUtc.LocalDateTime,
@@ -252,11 +252,7 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         {
             for (var index = 0; index < degree; index++)
             {
-                var thread = new Thread(() => Work(run, progress, cancel))
-                {
-                    IsBackground = true,
-                    Name = "SpaceSnoop scan",
-                };
+                var thread = new Thread(() => Work(run, progress, cancel)) { IsBackground = true, Name = "SpaceSnoop scan" };
 
                 thread.Start();
                 threads[index] = thread;
@@ -344,7 +340,7 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
                 {
                     var linkPath = Path.Join(path, entry.Name);
 
-                    if (ReparsePoint.IsLink(linkPath, whenUnknown: entry.IsDirectory))
+                    if (ReparsePoint.IsLink(linkPath, entry.IsDirectory))
                     {
                         _log.ScanReparsePointSkipped(FromEnumerationPath(linkPath));
                         continue;
@@ -423,11 +419,6 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         private int _pending = 1;
         private ExceptionDispatchInfo? _failure;
 
-        public ScanRun(CancellationToken cancel)
-        {
-            _stop = CancellationTokenSource.CreateLinkedTokenSource(cancel);
-        }
-
         public BlockingCollection<ScanChild> Queue { get; } = new(new ConcurrentQueue<ScanChild>());
 
         public SkipJournal Skips { get; } = new();
@@ -435,6 +426,11 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         public CancellationToken Token => _stop.Token;
 
         public ExceptionDispatchInfo? Failure => _failure;
+
+        public ScanRun(CancellationToken cancel)
+        {
+            _stop = CancellationTokenSource.CreateLinkedTokenSource(cancel);
+        }
 
         public void Expect(int count)
         {

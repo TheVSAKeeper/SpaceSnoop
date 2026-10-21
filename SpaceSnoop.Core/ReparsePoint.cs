@@ -36,17 +36,17 @@ internal static class ReparsePoint
     public static bool IsMountedVolume(string path)
     {
         return TryGetTag(path, out var tag)
-               && tag == MountPointTag
-               && TryReadMountTarget(path) is { } target
-               && IsVolumeTarget(target);
+            && tag == MountPointTag
+            && TryReadMountTarget(path) is { } target
+            && IsVolumeTarget(target);
     }
 
     internal static bool IsVolumeTarget(string substituteName)
     {
-        return substituteName.Length > VolumePrefix.Length + VolumeSuffix.Length
-               && substituteName.StartsWith(VolumePrefix, StringComparison.OrdinalIgnoreCase)
-               && substituteName.EndsWith(VolumeSuffix, StringComparison.Ordinal)
-               && Guid.TryParse(substituteName.AsSpan(VolumePrefix.Length, substituteName.Length - VolumePrefix.Length - VolumeSuffix.Length), out _);
+        return substituteName.Length > (VolumePrefix.Length + VolumeSuffix.Length)
+            && substituteName.StartsWith(VolumePrefix, StringComparison.OrdinalIgnoreCase)
+            && substituteName.EndsWith(VolumeSuffix, StringComparison.Ordinal)
+            && Guid.TryParse(substituteName.AsSpan(VolumePrefix.Length, substituteName.Length - VolumePrefix.Length - VolumeSuffix.Length), out _);
     }
 
     private static string? TryReadMountTarget(string path)
@@ -70,7 +70,7 @@ internal static class ReparsePoint
         var length = BinaryPrimitives.ReadUInt16LittleEndian(buffer.AsSpan(10));
         var start = MountPointHeaderSize + offset;
 
-        return start + length > returned ? null : Encoding.Unicode.GetString(buffer, start, length);
+        return (start + length) > returned ? null : Encoding.Unicode.GetString(buffer, start, length);
     }
 
     private static bool TryGetTag(string path, out uint tag)

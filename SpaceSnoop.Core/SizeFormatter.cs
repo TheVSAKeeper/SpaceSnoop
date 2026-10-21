@@ -29,7 +29,7 @@ public static class SizeFormatter
         var i = 0;
         var value = (decimal)size;
 
-        while (value >= SizeUnit && i < SizeSuffixes.Length - 1)
+        while (value >= SizeUnit && i < (SizeSuffixes.Length - 1))
         {
             value /= SizeUnit;
             i++;

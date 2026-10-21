@@ -12,7 +12,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Sync/SyncLedgerStyles.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Sync/SyncLedgerStyles.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>

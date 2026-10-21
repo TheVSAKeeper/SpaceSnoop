@@ -1,5 +1,4 @@
-﻿using KeepShell.Services;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 
 namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
@@ -16,14 +15,6 @@ public sealed partial class ScanSortViewModel : ObservableObject
     [ObservableProperty]
     private bool _invert = AppDefaults.ScanSortInvertDefault;
 
-    internal ScanSortViewModel(ISettingsStore settings, Action resort)
-    {
-        _settings = settings;
-        _resort = resort;
-
-        Load();
-    }
-
     public ObservableCollection<ScanSortOption> Options { get; } =
     [
         new("По имени", ScanSortField.Name),
@@ -34,6 +25,14 @@ public sealed partial class ScanSortViewModel : ObservableObject
     ];
 
     internal ScanSortState State { get; } = new();
+
+    internal ScanSortViewModel(ISettingsStore settings, Action resort)
+    {
+        _settings = settings;
+        _resort = resort;
+
+        Load();
+    }
 
     partial void OnSelectedOptionChanged(ScanSortOption? value)
     {
@@ -66,7 +65,7 @@ public sealed partial class ScanSortViewModel : ObservableObject
 
         Invert = invert;
         SelectedOption = Options.FirstOrDefault(option => option.Field == field)
-                         ?? Options.First(option => option.Field == AppDefaults.ScanSortModeDefault);
+            ?? Options.First(option => option.Field == AppDefaults.ScanSortModeDefault);
 
         _suppressPersist = false;
     }

@@ -2,27 +2,32 @@
 
 public sealed class StretchWrapPanel : Panel
 {
-    public static readonly DependencyProperty StretchProperty = DependencyProperty.RegisterAttached("Stretch",
+    public static readonly DependencyProperty StretchProperty = DependencyProperty.RegisterAttached(
+        "Stretch",
         typeof(bool),
         typeof(StretchWrapPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsParentMeasure | FrameworkPropertyMetadataOptions.AffectsParentArrange));
 
-    public static readonly DependencyProperty ItemWidthProperty = DependencyProperty.Register(nameof(ItemWidth),
+    public static readonly DependencyProperty ItemWidthProperty = DependencyProperty.Register(
+        nameof(ItemWidth),
         typeof(double),
         typeof(StretchWrapPanel),
         new FrameworkPropertyMetadata(340d, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsArrange));
 
-    public static readonly DependencyProperty MaxItemWidthProperty = DependencyProperty.Register(nameof(MaxItemWidth),
+    public static readonly DependencyProperty MaxItemWidthProperty = DependencyProperty.Register(
+        nameof(MaxItemWidth),
         typeof(double),
         typeof(StretchWrapPanel),
         new FrameworkPropertyMetadata(double.PositiveInfinity, FrameworkPropertyMetadataOptions.AffectsMeasure | FrameworkPropertyMetadataOptions.AffectsArrange));
 
-    public static readonly DependencyProperty StretchWidthProperty = DependencyProperty.RegisterAttached("StretchWidth",
+    public static readonly DependencyProperty StretchWidthProperty = DependencyProperty.RegisterAttached(
+        "StretchWidth",
         typeof(double),
         typeof(StretchWrapPanel),
         new FrameworkPropertyMetadata(double.NaN, FrameworkPropertyMetadataOptions.AffectsParentMeasure | FrameworkPropertyMetadataOptions.AffectsParentArrange));
 
-    public static readonly DependencyProperty StandaloneProperty = DependencyProperty.RegisterAttached("Standalone",
+    public static readonly DependencyProperty StandaloneProperty = DependencyProperty.RegisterAttached(
+        "Standalone",
         typeof(bool),
         typeof(StretchWrapPanel),
         new FrameworkPropertyMetadata(false, FrameworkPropertyMetadataOptions.AffectsParentMeasure | FrameworkPropertyMetadataOptions.AffectsParentArrange));
@@ -78,8 +83,8 @@ public sealed class StretchWrapPanel : Panel
         for (var i = 0; i < widths.Count; i++)
         {
             var alone = standalone is not null && standalone[i];
-            var overflow = rowWidth + widths[i] > lineWidth;
-            var groupOverflow = alone && i + 1 < widths.Count && rowWidth + widths[i] + widths[i + 1] > lineWidth;
+            var overflow = (rowWidth + widths[i]) > lineWidth;
+            var groupOverflow = alone && (i + 1) < widths.Count && (rowWidth + widths[i] + widths[i + 1]) > lineWidth;
 
             if ((overflow || groupOverflow) && i > start)
             {
@@ -90,7 +95,7 @@ public sealed class StretchWrapPanel : Panel
 
             rowWidth += widths[i];
 
-            if (alone && (overflow || groupOverflow) && i + 1 < widths.Count)
+            if (alone && (overflow || groupOverflow) && (i + 1) < widths.Count)
             {
                 rows.Add((start, i - start + 1));
                 start = i + 1;
@@ -130,7 +135,7 @@ public sealed class StretchWrapPanel : Panel
             var rowWidth = 0d;
             var rowHeight = 0d;
 
-            for (var i = start; i < start + count; i++)
+            for (var i = start; i < (start + count); i++)
             {
                 rowWidth += widths[i];
                 rowHeight = Math.Max(rowHeight, heights[i]);
@@ -160,7 +165,7 @@ public sealed class StretchWrapPanel : Panel
             var rowHeight = 0d;
             var stretchCount = 0;
 
-            for (var i = start; i < start + count; i++)
+            for (var i = start; i < (start + count); i++)
             {
                 var child = InternalChildren[i];
                 rowHeight = Math.Max(rowHeight, child.DesiredSize.Height);
@@ -181,7 +186,7 @@ public sealed class StretchWrapPanel : Panel
                 ? Math.Max(0, finalSize.Width - fixedWidth) / 2
                 : 0d;
 
-            for (var i = start; i < start + count; i++)
+            for (var i = start; i < (start + count); i++)
             {
                 var child = InternalChildren[i];
                 var width = GetStretch(child) ? Math.Min(MaxItemWidth, StretchBase(child) + extra) : child.DesiredSize.Width;

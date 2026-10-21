@@ -42,6 +42,7 @@ public sealed class FirstFitPanel : Panel
         var constraint = vertical
             ? new Size(availableSize.Width, double.PositiveInfinity)
             : new Size(double.PositiveInfinity, availableSize.Height);
+
         var extents = new double[children.Count];
 
         for (var i = 0; i < children.Count; i++)

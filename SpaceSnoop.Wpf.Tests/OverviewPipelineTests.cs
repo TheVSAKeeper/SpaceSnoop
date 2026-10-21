@@ -1,13 +1,8 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
-using KeepShell.ViewModels;
+﻿using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
-using SpaceSnoop.Core.UseCases;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
-using SpaceSnoop.Wpf.Bootstrap.Storage;
-using SpaceSnoop.Wpf.ViewModels;
 using SpaceSnoop.Wpf.ViewModels.Overview;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -30,6 +25,21 @@ public class OverviewPipelineTests
         {
             Directory.Delete(_root, true);
         }
+    }
+
+    [TestCase(0, true, false, ExpectedResult = false)]
+    [TestCase(0, false, true, ExpectedResult = true)]
+    [TestCase(1, false, true, ExpectedResult = false)]
+    [TestCase(1, true, false, ExpectedResult = true)]
+    [TestCase(2, true, false, ExpectedResult = false)]
+    [TestCase(2, false, true, ExpectedResult = false)]
+    [TestCase(2, false, false, ExpectedResult = true)]
+    public bool SourceMissing_зависит_от_направления(int mode, bool leftExists, bool rightExists)
+    {
+        var left = leftExists ? Make("left") : Path.Combine(_root, "noleft");
+        var right = rightExists ? Make("right") : Path.Combine(_root, "noright");
+
+        return SyncProfile.SourceMissing(left, right, HeadlessSync.MapMode(mode));
     }
 
     [Test]
@@ -68,48 +78,18 @@ public class OverviewPipelineTests
     }
 
     [Test]
-    public void Пустой_путь_даёт_Unavailable()
-    {
-        var profile = new SyncProfile { Left = string.Empty, Right = Make("right") };
-
-        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
-    }
-
-    [Test]
-    public void Тот_же_отсутствующий_каталог_как_источник_справа_налево_даёт_Unavailable()
-    {
-        var profile = new SyncProfile { Left = Make("left"), Right = Path.Combine(_root, "missing"), Mode = 1 };
-
-        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
-    }
-
-    [TestCase(0, true, false, ExpectedResult = false)]
-    [TestCase(0, false, true, ExpectedResult = true)]
-    [TestCase(1, false, true, ExpectedResult = false)]
-    [TestCase(1, true, false, ExpectedResult = true)]
-    [TestCase(2, true, false, ExpectedResult = false)]
-    [TestCase(2, false, true, ExpectedResult = false)]
-    [TestCase(2, false, false, ExpectedResult = true)]
-    public bool SourceMissing_зависит_от_направления(int mode, bool leftExists, bool rightExists)
-    {
-        var left = leftExists ? Make("left") : Path.Combine(_root, "noleft");
-        var right = rightExists ? Make("right") : Path.Combine(_root, "noright");
-
-        return SyncProfile.SourceMissing(left, right, HeadlessSync.MapMode(mode));
-    }
-
-    [Test]
     public async Task Отмена_во_время_предпроверки_последней_строки_отменяет_сравнение_всех()
     {
         var settings = new MemorySettings();
         SyncProfileStore.Save(settings, [new() { Id = "one", Name = "Один", Left = Path.Combine(_root, "missing"), Right = Make("right") }]);
 
-        var overview = new OverviewViewModel(settings,
+        var overview = new OverviewViewModel(
+            settings,
             new NoopDialogs(),
-            new ToastNotifier(new ToastHostViewModel(), new ShellPreferences(settings)),
+            new(new(), new(settings)),
             NullLogger<OverviewViewModel>.Instance,
-            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
-            new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
+            new(NullLogger<DirectoryComparer>.Instance),
+            new(NullLogger<SyncEngine>.Instance),
             new FakeAppNavigator());
 
         var batch = overview.Batch;
@@ -136,12 +116,13 @@ public class OverviewPipelineTests
         var settings = new MemorySettings();
         var navigator = new FakeAppNavigator();
 
-        var overview = new OverviewViewModel(settings,
+        var overview = new OverviewViewModel(
+            settings,
             new NoopDialogs(),
-            new ToastNotifier(new ToastHostViewModel(), new ShellPreferences(settings)),
+            new(new(), new(settings)),
             NullLogger<OverviewViewModel>.Instance,
-            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
-            new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
+            new(NullLogger<DirectoryComparer>.Instance),
+            new(NullLogger<SyncEngine>.Instance),
             navigator);
 
         overview.CreateProfileCommand.Execute(null);
@@ -151,6 +132,22 @@ public class OverviewPipelineTests
             Assert.That(overview.Rows.HasRows, Is.False);
             Assert.That(navigator.LastSection, Is.EqualTo(SectionKey.Schedule));
         }
+    }
+
+    [Test]
+    public void Пустой_путь_даёт_Unavailable()
+    {
+        var profile = new SyncProfile { Left = string.Empty, Right = Make("right") };
+
+        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
+    }
+
+    [Test]
+    public void Тот_же_отсутствующий_каталог_как_источник_справа_налево_даёт_Unavailable()
+    {
+        var profile = new SyncProfile { Left = Make("left"), Right = Path.Combine(_root, "missing"), Mode = 1 };
+
+        Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }
 
     private string Make(string name)

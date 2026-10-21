@@ -114,7 +114,7 @@ public sealed partial class AgentModelSelector : ObservableObject
 
         if (model.Length > 0 && !models.Exists(option => string.Equals(option.Id, model, StringComparison.OrdinalIgnoreCase)))
         {
-            models.Add(new AgentModelOption(model, model, "Задана вручную"));
+            models.Add(new(model, model, "Задана вручную"));
         }
 
         ModelOptions = models;

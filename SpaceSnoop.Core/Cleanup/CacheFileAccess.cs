@@ -7,12 +7,22 @@ namespace SpaceSnoop.Core.Cleanup;
 
 internal static class CacheFileAccess
 {
-    internal static DirectoryLease LockDirectory(string path) => new(path);
+    internal static DirectoryLease LockDirectory(string path)
+    {
+        return new(path);
+    }
 
     internal static SafeFileHandle OpenFile(string path, bool deleting)
     {
-        var handle = CreateFile(path, deleting ? 0x10080u : 0x80u,
-            deleting ? 0u : 7u, nint.Zero, 3, 0x00200000, nint.Zero);
+        var handle = CreateFile(
+            path,
+            deleting ? 0x10080u : 0x80u,
+            deleting ? 0u : 7u,
+            nint.Zero,
+            3,
+            0x00200000,
+            nint.Zero);
+
         CheckHandle(handle, path);
         return handle;
     }
@@ -52,6 +62,7 @@ internal static class CacheFileAccess
             buffer.EnsureCapacity((int)length + 1);
             length = GetFinalPathNameByHandle(handle, buffer, (uint)buffer.Capacity, 0);
         }
+
         if (length == 0 || length >= buffer.Capacity)
         {
             throw Error(path);
@@ -64,10 +75,14 @@ internal static class CacheFileAccess
             throw new IOException($"«{path}»: путь является псевдонимом другого каталога или файла.");
         }
 
-        return new(path, info.Volume, ((ulong)info.IndexHigh << 32) | info.IndexLow,
+        return new(
+            path,
+            info.Volume,
+            ((ulong)info.IndexHigh << 32) | info.IndexLow,
             checked((long)(((ulong)info.SizeHigh << 32) | info.SizeLow)),
             ((ulong)info.WrittenHigh << 32) | info.WrittenLow,
-            ((ulong)info.CreatedHigh << 32) | info.CreatedLow, info.Attributes);
+            ((ulong)info.CreatedHigh << 32) | info.CreatedLow,
+            info.Attributes);
     }
 
     internal static void Delete(SafeFileHandle handle, string path)
@@ -112,12 +127,49 @@ internal static class CacheFileAccess
         throw error;
     }
 
-    private static IOException Error(string path) =>
-        new($"«{path}»: {new Win32Exception(Marshal.GetLastWin32Error()).Message}");
+    private static IOException Error(string path)
+    {
+        return new($"«{path}»: {new Win32Exception(Marshal.GetLastWin32Error()).Message}");
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string path,
+        uint access,
+        uint share,
+        nint security,
+        uint disposition,
+        uint flags,
+        nint template);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out NativeFileInfo info);
+
+    [DllImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint GetFinalPathNameByHandle(SafeFileHandle handle, StringBuilder path, uint size, uint flags);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(
+        SafeFileHandle handle,
+        int informationClass,
+        ref byte information,
+        uint size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(
+        SafeFileHandle handle,
+        int informationClass,
+        nint information,
+        uint size);
 
     internal sealed class DirectoryLease : IDisposable
     {
         private readonly List<SafeFileHandle> _handles = [];
+
+        internal CacheFileStamp Stamp { get; }
 
         internal DirectoryLease(string path)
         {
@@ -150,8 +202,6 @@ internal static class CacheFileAccess
             }
         }
 
-        internal CacheFileStamp Stamp { get; }
-
         public void Dispose()
         {
             for (var index = _handles.Count - 1; index >= 0; index--)
@@ -180,25 +230,4 @@ internal static class CacheFileAccess
         internal uint IndexHigh;
         internal uint IndexLow;
     }
-
-    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern SafeFileHandle CreateFile(string path, uint access, uint share,
-        nint security, uint disposition, uint flags, nint template);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out NativeFileInfo info);
-
-    [DllImport("kernel32.dll", EntryPoint = "GetFinalPathNameByHandleW", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern uint GetFinalPathNameByHandle(SafeFileHandle handle, StringBuilder path, uint size, uint flags);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass,
-        ref byte information, uint size);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass,
-        nint information, uint size);
 }

@@ -7,19 +7,6 @@ namespace SpaceSnoop.Tests;
 public class SyncPlanFreshnessStateTests
 {
     [Test]
-    public void Default_IsNotExecutableAndNamesMissingComparison()
-    {
-        var state = default(SyncPlanFreshnessState);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(state.Freshness, Is.EqualTo(SyncPlanFreshness.None));
-            Assert.That(state.IsExecutable, Is.False);
-            Assert.That(state.RefusalMessage, Does.Contain("Сравнение ещё не выполнялось"));
-        }
-    }
-
-    [Test]
     public void AfterComparison_IsExecutableWithoutRefusal()
     {
         var state = default(SyncPlanFreshnessState).AfterComparison();
@@ -29,6 +16,21 @@ public class SyncPlanFreshnessStateTests
             Assert.That(state.Freshness, Is.EqualTo(SyncPlanFreshness.Fresh));
             Assert.That(state.IsExecutable, Is.True);
             Assert.That(state.RefusalMessage, Is.Null);
+        }
+    }
+
+    [Test]
+    public void AfterComparison_ReturnsExecutabilityToStalePlan()
+    {
+        var stale = default(SyncPlanFreshnessState).AfterComparison().AfterSync(new(), false);
+        var fresh = stale.AfterComparison();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stale.IsExecutable, Is.False);
+            Assert.That(fresh.IsExecutable, Is.True);
+            Assert.That(fresh.ErrorCount, Is.Zero);
+            Assert.That(fresh.MismatchCount, Is.Zero);
         }
     }
 
@@ -89,17 +91,15 @@ public class SyncPlanFreshnessStateTests
     }
 
     [Test]
-    public void AfterComparison_ReturnsExecutabilityToStalePlan()
+    public void Default_IsNotExecutableAndNamesMissingComparison()
     {
-        var stale = default(SyncPlanFreshnessState).AfterComparison().AfterSync(new(), false);
-        var fresh = stale.AfterComparison();
+        var state = default(SyncPlanFreshnessState);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(stale.IsExecutable, Is.False);
-            Assert.That(fresh.IsExecutable, Is.True);
-            Assert.That(fresh.ErrorCount, Is.Zero);
-            Assert.That(fresh.MismatchCount, Is.Zero);
+            Assert.That(state.Freshness, Is.EqualTo(SyncPlanFreshness.None));
+            Assert.That(state.IsExecutable, Is.False);
+            Assert.That(state.RefusalMessage, Does.Contain("Сравнение ещё не выполнялось"));
         }
     }
 }

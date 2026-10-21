@@ -1,5 +1,4 @@
-﻿using SpaceSnoop.Core.Docker;
-using SpaceSnoop.Wpf.ViewModels.Docker;
+﻿using SpaceSnoop.Wpf.ViewModels.Docker;
 using System.Globalization;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -19,6 +18,35 @@ public sealed class DockerBucketViewModelTests
     public void TearDown()
     {
         CultureInfo.CurrentCulture = _culture;
+    }
+
+    [Test]
+    public void Возврат_всего_объёма_даёт_сто_процентов()
+    {
+        var bucket = new DockerBucketViewModel(new("Containers", 3, 0, "2.942MB", "2.942MB (100%)"));
+
+        Assert.That(bucket.ReclaimText, Is.EqualTo("2,8 МБ (100 %)"));
+    }
+
+    [Test]
+    public void Возвращаемое_никогда_не_длиннее_самой_полосы()
+    {
+        var buckets = DockerBucketViewModel.Build([new("Containers", 3, 0, "2.942MB", "2.942MB (100%)")]);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(buckets[0].Fraction, Is.EqualTo(1).Within(0.001));
+            Assert.That(buckets[0].ReclaimFraction, Is.LessThanOrEqualTo(buckets[0].Fraction));
+            Assert.That(buckets[0].HasReclaim, Is.True);
+        }
+    }
+
+    [TestCase("16.14MB (0%)", "16.14MB")]
+    [TestCase("17.77GB", "17.77GB")]
+    [TestCase("  0B (0%) ", "0B")]
+    public void Доля_в_скобках_отрезается_перед_разбором(string reclaimable, string expected)
+    {
+        Assert.That(DockerBucketViewModel.SizePart(reclaimable), Is.EqualTo(expected));
     }
 
     [Test]
@@ -44,22 +72,6 @@ public sealed class DockerBucketViewModelTests
     }
 
     [Test]
-    public void Возврат_всего_объёма_даёт_сто_процентов()
-    {
-        var bucket = new DockerBucketViewModel(new("Containers", 3, 0, "2.942MB", "2.942MB (100%)"));
-
-        Assert.That(bucket.ReclaimText, Is.EqualTo("2,8 МБ (100 %)"));
-    }
-
-    [TestCase("16.14MB (0%)", "16.14MB")]
-    [TestCase("17.77GB", "17.77GB")]
-    [TestCase("  0B (0%) ", "0B")]
-    public void Доля_в_скобках_отрезается_перед_разбором(string reclaimable, string expected)
-    {
-        Assert.That(DockerBucketViewModel.SizePart(reclaimable), Is.EqualTo(expected));
-    }
-
-    [Test]
     public void Полоса_меряется_самой_крупной_категорией()
     {
         var buckets = DockerBucketViewModel.Build(
@@ -73,19 +85,6 @@ public sealed class DockerBucketViewModelTests
             Assert.That(buckets[1].Fraction, Is.EqualTo(1).Within(0.001));
             Assert.That(buckets[0].Fraction, Is.EqualTo(0.149).Within(0.001));
             Assert.That(buckets[1].ReclaimFraction, Is.EqualTo(0.886).Within(0.001));
-        }
-    }
-
-    [Test]
-    public void Возвращаемое_никогда_не_длиннее_самой_полосы()
-    {
-        var buckets = DockerBucketViewModel.Build([new("Containers", 3, 0, "2.942MB", "2.942MB (100%)")]);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(buckets[0].Fraction, Is.EqualTo(1).Within(0.001));
-            Assert.That(buckets[0].ReclaimFraction, Is.LessThanOrEqualTo(buckets[0].Fraction));
-            Assert.That(buckets[0].HasReclaim, Is.True);
         }
     }
 

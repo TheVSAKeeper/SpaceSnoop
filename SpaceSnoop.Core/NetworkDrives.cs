@@ -59,7 +59,8 @@ public static class NetworkDrives
             return null;
         }
 
-        return new($"{char.ToUpperInvariant(keyName[0])}:",
+        return new(
+            $"{char.ToUpperInvariant(keyName[0])}:",
             remotePath,
             NullIfEmpty(readValue("UserName")),
             NullIfEmpty(readValue("ProviderName")));
@@ -129,10 +130,7 @@ public static class NetworkDrives
     {
         var resource = new NetResource
         {
-            dwType = ResourceTypeDisk,
-            lpLocalName = drive.LocalName,
-            lpRemoteName = drive.RemotePath,
-            lpProvider = drive.ProviderName,
+            dwType = ResourceTypeDisk, lpLocalName = drive.LocalName, lpRemoteName = drive.RemotePath, lpProvider = drive.ProviderName,
         };
 
         var code = WNetAddConnection2(ref resource, null, drive.UserName, 0);

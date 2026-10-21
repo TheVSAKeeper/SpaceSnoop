@@ -1,5 +1,5 @@
-﻿using System.Runtime.CompilerServices;
-using DiffEngine;
+﻿using DiffEngine;
+using System.Runtime.CompilerServices;
 
 namespace SpaceSnoop.Tests;
 

@@ -1,38 +1,11 @@
 ﻿using KeepShell.Diagnostics;
+
 namespace SpaceSnoop.Wpf.Mcp;
 
 public sealed class McpBridge
 {
     private readonly McpNavigator _navigator;
     private readonly McpStateReader _state;
-
-    public McpBridge(
-        ISettingsStore settings,
-        ISyncAutomation sync,
-        IScanAutomation scan,
-        McpPreferences preferences,
-        ScanPreferences scanPreferences,
-        ScanRunner runner,
-        DuplicateFinder duplicates,
-        DockerService docker,
-        CleanupService cleanup,
-        ICleanupAutomation cleanupAutomation,
-        ToastNotifier notifier,
-        PerformanceMonitor performance,
-        PerformanceOperations operations,
-        CompareDirectoriesUseCase compare,
-        IAppNavigator navigator,
-        ILogger<McpBridge> logger)
-    {
-        _navigator = new(navigator);
-        _state = new(scan, sync, _navigator);
-
-        Scan = new(scan, scanPreferences, runner, duplicates, preferences, notifier, _navigator, _state, operations, logger);
-        Sync = new(sync, compare, preferences, notifier, _navigator, _state, logger);
-        Insight = new(settings, preferences, docker, performance, operations, _navigator, _state, logger);
-        Cleanup = new(settings, cleanup, static age => CleanupCatalog.BuildDefault(age), preferences, cleanupAutomation, _navigator, notifier, logger);
-        Capture = new(_navigator, logger);
-    }
 
     public event Action<string>? NavigationDeferred
     {
@@ -55,6 +28,45 @@ public sealed class McpBridge
     internal McpCleanupTools Cleanup { get; }
 
     internal McpCaptureTools Capture { get; }
+
+    public McpBridge(
+        ISettingsStore settings,
+        ISyncAutomation sync,
+        IScanAutomation scan,
+        McpPreferences preferences,
+        ScanPreferences scanPreferences,
+        ScanRunner runner,
+        DuplicateFinder duplicates,
+        DockerService docker,
+        CleanupService cleanup,
+        ICleanupAutomation cleanupAutomation,
+        ToastNotifier notifier,
+        PerformanceMonitor performance,
+        PerformanceOperations operations,
+        CompareDirectoriesUseCase compare,
+        IAppNavigator navigator,
+        ILogger<McpBridge> logger)
+    {
+        _navigator = new(navigator);
+        _state = new(scan, sync, _navigator);
+
+        Scan = new(
+            scan,
+            scanPreferences,
+            runner,
+            duplicates,
+            preferences,
+            notifier,
+            _navigator,
+            _state,
+            operations,
+            logger);
+
+        Sync = new(sync, compare, preferences, notifier, _navigator, _state, logger);
+        Insight = new(settings, preferences, docker, performance, operations, _navigator, _state, logger);
+        Cleanup = new(settings, cleanup, static age => CleanupCatalog.BuildDefault(age), preferences, cleanupAutomation, _navigator, notifier, logger);
+        Capture = new(_navigator, logger);
+    }
 
     public string DescribeContext()
     {

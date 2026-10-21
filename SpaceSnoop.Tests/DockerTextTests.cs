@@ -5,16 +5,6 @@ namespace SpaceSnoop.Tests;
 [TestFixture]
 public class DockerTextTests
 {
-    [TestCase("Images", "Образы")]
-    [TestCase("Containers", "Контейнеры")]
-    [TestCase("Local Volumes", "Тома")]
-    [TestCase("Build Cache", "Кэш сборки")]
-    [TestCase("Something Else", "Something Else")]
-    public void Category_TranslatesKnownBuckets(string type, string expected)
-    {
-        Assert.That(DockerText.Category(type), Is.EqualTo(expected));
-    }
-
     [TestCase("7 weeks ago", "7 недель назад")]
     [TestCase("18 hours ago", "18 часов назад")]
     [TestCase("1 day ago", "1 день назад")]
@@ -39,6 +29,24 @@ public class DockerTextTests
         Assert.That(DockerText.Age(since), Is.EqualTo(expected));
     }
 
+    [TestCase("Images", "Образы")]
+    [TestCase("Containers", "Контейнеры")]
+    [TestCase("Local Volumes", "Тома")]
+    [TestCase("Build Cache", "Кэш сборки")]
+    [TestCase("Something Else", "Something Else")]
+    public void Category_TranslatesKnownBuckets(string type, string expected)
+    {
+        Assert.That(DockerText.Category(type), Is.EqualTo(expected));
+    }
+
+    [TestCase("ce337cbe340c74c43d96e5191279aceae151c1f56c81570b52ded6bed85dfdd3", "ce337cbe340c")]
+    [TestCase("data-vol", "data-vol")]
+    [TestCase("0d4ccd469bdd", "0d4ccd469bdd")]
+    public void ShortName_TrimsAnonymousVolumeOnly(string name, string expected)
+    {
+        Assert.That(DockerText.ShortName(name), Is.EqualTo(expected));
+    }
+
     [TestCase("Up 2 hours", "Работает 2 часа")]
     [TestCase("Up About an hour", "Работает около часа")]
     [TestCase("Up 5 minutes (healthy)", "Работает 5 минут, здоров")]
@@ -55,13 +63,5 @@ public class DockerTextTests
     public void Status_TranslatesContainerState(string status, string expected)
     {
         Assert.That(DockerText.Status(status), Is.EqualTo(expected));
-    }
-
-    [TestCase("ce337cbe340c74c43d96e5191279aceae151c1f56c81570b52ded6bed85dfdd3", "ce337cbe340c")]
-    [TestCase("data-vol", "data-vol")]
-    [TestCase("0d4ccd469bdd", "0d4ccd469bdd")]
-    public void ShortName_TrimsAnonymousVolumeOnly(string name, string expected)
-    {
-        Assert.That(DockerText.ShortName(name), Is.EqualTo(expected));
     }
 }

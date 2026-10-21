@@ -49,7 +49,8 @@ public sealed class ScanRunner(
 
             if (!scan.IsComplete)
             {
-                logger.MftScanIncomplete(directory.FullName,
+                logger.MftScanIncomplete(
+                    directory.FullName,
                     scan.DroppedObjects,
                     scan.DroppedBytes,
                     scan.PartialRecords,
@@ -57,8 +58,10 @@ public sealed class ScanRunner(
                     scan.Report);
             }
 
-            return new(scan.Root,
-                new(true,
+            return new(
+                scan.Root,
+                new(
+                    true,
                     scan.Threads,
                     scan.ExtraNameBytes,
                     scan.DroppedObjects,
@@ -86,12 +89,12 @@ public readonly record struct ScanNotes(
     long UnknownSizeFiles,
     long PartialRecords)
 {
+    public bool HasDrops => DroppedObjects > 0 || UnknownSizeFiles > 0 || PartialRecords > 0;
+
+    public string Engine => UsedMft ? "mft" : "directories";
+
     public static ScanNotes ForTraversal(int parallelism)
     {
         return new(false, Math.Max(1, parallelism), 0, 0, 0, 0, 0);
     }
-
-    public bool HasDrops => DroppedObjects > 0 || UnknownSizeFiles > 0 || PartialRecords > 0;
-
-    public string Engine => UsedMft ? "mft" : "directories";
 }

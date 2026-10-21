@@ -37,7 +37,7 @@ public class DeleteDialogRowsBenchmarks
     {
         var dialog = new DeleteProgressDialogViewModel(
             _items,
-            permanent: false,
+            false,
             _shell.Monitor,
             _shell.Operations,
             _shell.Preferences,

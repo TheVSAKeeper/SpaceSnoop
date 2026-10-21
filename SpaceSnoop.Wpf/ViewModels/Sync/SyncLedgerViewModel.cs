@@ -14,16 +14,8 @@ public sealed class SyncLedgerViewModel : ObservableObject
     private FreshnessSummary _freshness;
     private PlannedActions _plan = PlannedActions.Empty;
     private SyncPlanFreshnessState _planState = new(SyncPlanFreshness.Fresh);
-    private int _total;
     private (long? Left, long? Right) _free;
     private int _freeVersion;
-
-    internal SyncLedgerViewModel(SyncGitViewModel git, Func<SyncDirection> direction)
-    {
-        _git = git;
-        _direction = direction;
-        _git.StateChanged += NotifyNewerBadgeChanged;
-    }
 
     public bool HasResult => _result is not null;
 
@@ -59,7 +51,7 @@ public sealed class SyncLedgerViewModel : ObservableObject
 
     public double ConflictFraction => Fraction(ComparisonStatus.Conflict);
 
-    public bool SyncIsDestructive => _plan.Deletes + _plan.DirDeletes > 0;
+    public bool SyncIsDestructive => (_plan.Deletes + _plan.DirDeletes) > 0;
 
     public string CompareCommandHint => HasResult
         ? "Пересчитать различия заново. Файлы не трогает."
@@ -77,8 +69,7 @@ public sealed class SyncLedgerViewModel : ObservableObject
 
     public string PlanTrashText => SizeFormatter.Format(_plan.DeleteBytes);
 
-    public string PlanVolumeHint => ConfirmDialogViewModel.AsText(
-        SyncPlanNarrative.BuildPlanLines(_plan, null, SyncPlanNarrative.BuildReceivers(_result, _plan, _free)));
+    public string PlanVolumeHint => ConfirmDialogViewModel.AsText(SyncPlanNarrative.BuildPlanLines(_plan, null, SyncPlanNarrative.BuildReceivers(_result, _plan, _free)));
 
     public bool HasConflicts => ConflictCount > 0;
 
@@ -106,20 +97,27 @@ public sealed class SyncLedgerViewModel : ObservableObject
     public string NewerBadgeTooltip => GitDecidesNewer
         ? $"Свежее по коммитам git: слева {SyncGitViewModel.FormatStamp(_git.LeftState?.CommittedAt?.LocalDateTime)}, справа {SyncGitViewModel.FormatStamp(_git.RightState?.CommittedAt?.LocalDateTime)}."
         : $"Свежее по новейшему изменённому файлу: слева {SyncGitViewModel.FormatStamp(_freshness.LeftChangedMax)}, справа {SyncGitViewModel.FormatStamp(_freshness.RightChangedMax)}.{Environment.NewLine}"
-          + $"Изменённых новее: слева {_freshness.LeftNewer:N0}, справа {_freshness.RightNewer:N0}.";
+        + $"Изменённых новее: слева {_freshness.LeftNewer:N0}, справа {_freshness.RightNewer:N0}.";
 
     public string CompositionHint =>
         $"Состав различий ({DifferingTotal:N0} файлов): только слева {LeftOnlyCount:N0}, только справа {RightOnlyCount:N0}, изменены {ModifiedCount:N0}, конфликты {ConflictCount:N0}.{Environment.NewLine}"
         + $"Каталоги: только слева {LeftOnlyDirCount:N0}, только справа {RightOnlyDirCount:N0}, изменены {ModifiedDirCount:N0}, одинаковые {IdenticalDirCount:N0}.{Environment.NewLine}"
         + $"Одинаковых файлов {IdenticalCount:N0} – в полосу не входят.";
 
-    internal int Total => _total;
+    internal int Total { get; private set; }
 
     internal PlannedActions CurrentPlan => _result?.CountPlannedActions() ?? PlannedActions.Empty;
 
     private NewerSide EffectiveNewerSide => SyncPlanNarrative.CombineNewer(_freshness.Verdict, _git.GitInSync, _git.GitNewerSign);
 
     private bool GitDecidesNewer => _git.GitInSync || _git.GitNewerSign != 0;
+
+    internal SyncLedgerViewModel(SyncGitViewModel git, Func<SyncDirection> direction)
+    {
+        _git = git;
+        _direction = direction;
+        _git.StateChanged += NotifyNewerBadgeChanged;
+    }
 
     internal bool HasActionableChanges()
     {
@@ -146,7 +144,7 @@ public sealed class SyncLedgerViewModel : ObservableObject
             _dirStats = SyncPlanNarrative.NewZeroStats();
             _freshness = default;
             _plan = PlannedActions.Empty;
-            _total = 0;
+            Total = 0;
         }
         else
         {
@@ -156,32 +154,11 @@ public sealed class SyncLedgerViewModel : ObservableObject
             _dirStats = result.GetDirectoryStatistics();
             _freshness = SyncFreshness.Compute(result.Root);
             _plan = result.CountPlannedActions();
-            _total = stats.Values.Sum();
+            Total = stats.Values.Sum();
             RefreshFreeSpace(result, _plan);
         }
 
         NotifyLedgerChanged();
-    }
-
-    private void RefreshFreeSpace(ComparisonResult result, PlannedActions plan)
-    {
-        var version = ++_freeVersion;
-        var scheduler = SynchronizationContext.Current is null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
-
-        _ = ReadFreeAsync(result, plan).ContinueWith(read =>
-            {
-                if (version != _freeVersion)
-                {
-                    return;
-                }
-
-                _free = read.Result;
-                OnPropertyChanged(nameof(PlanVolumeHint));
-                OnPropertyChanged(nameof(SyncCommandHint));
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.OnlyOnRanToCompletion,
-            scheduler);
     }
 
     internal void RefreshAfterSync(IReadOnlyDictionary<object, SyncOutcome> outcomes)
@@ -194,7 +171,7 @@ public sealed class SyncLedgerViewModel : ObservableObject
         var (files, dirs) = SyncPlanNarrative.CountRemaining(_result.Root, outcomes);
         _stats = files;
         _dirStats = dirs;
-        _total = files.Values.Sum();
+        Total = files.Values.Sum();
         _freshness = default;
         _plan = PlannedActions.Empty;
         NotifyLedgerChanged();
@@ -219,9 +196,10 @@ public sealed class SyncLedgerViewModel : ObservableObject
         if (offerHashes)
         {
             lines.Add(new ConfirmGapLine());
-            lines.Add(new ConfirmTextLine(
-                "Изменённые отличаются размером или датой. «Сверить хеши» сравнит их содержимым.",
-                ConfirmTextTone.Muted));
+            lines.Add(
+                new ConfirmTextLine(
+                    "Изменённые отличаются размером или датой. «Сверить хеши» сравнит их содержимым.",
+                    ConfirmTextTone.Muted));
         }
 
         var choices = new List<ConfirmChoice> { new("Отмена", ConfirmChoiceKind.Dismissive) };
@@ -233,11 +211,30 @@ public sealed class SyncLedgerViewModel : ObservableObject
 
         choices.Add(new("Синхронизировать", deletes > 0 ? ConfirmChoiceKind.Destructive : ConfirmChoiceKind.Primary));
 
-        return new($"Синхронизация {direction.Text}", direction.IconKind, lines, choices)
-        {
-            Summary = SyncPlanNarrative.DescribePlanVolume(planned),
-            Warning = BuildSyncWarning(current, deletes),
-        };
+        return new($"Синхронизация {direction.Text}", direction.IconKind, lines, choices) { Summary = SyncPlanNarrative.DescribePlanVolume(planned), Warning = BuildSyncWarning(current, deletes) };
+    }
+
+    private void RefreshFreeSpace(ComparisonResult result, PlannedActions plan)
+    {
+        var version = ++_freeVersion;
+        var scheduler = SynchronizationContext.Current is null ? TaskScheduler.Default : TaskScheduler.FromCurrentSynchronizationContext();
+
+        _ = ReadFreeAsync(result, plan)
+            .ContinueWith(
+                read =>
+                {
+                    if (version != _freeVersion)
+                    {
+                        return;
+                    }
+
+                    _free = read.Result;
+                    OnPropertyChanged(nameof(PlanVolumeHint));
+                    OnPropertyChanged(nameof(SyncCommandHint));
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnRanToCompletion,
+                scheduler);
     }
 
     private static async Task<(long? Left, long? Right)> ReadFreeAsync(ComparisonResult result, PlannedActions plan)

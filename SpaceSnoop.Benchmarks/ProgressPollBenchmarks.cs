@@ -1,7 +1,6 @@
 ﻿using BenchmarkDotNet.Attributes;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 
 namespace SpaceSnoop.Benchmarks;
@@ -33,7 +32,9 @@ public class ProgressPollBenchmarks
             new(new(), _shell.Preferences),
             _shell.Operations,
             _shell.Dispatcher,
-            static _ => { });
+            static _ =>
+            {
+            });
 
         _paths = new string[PathCount];
 

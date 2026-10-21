@@ -10,12 +10,6 @@ public sealed class CodexAgentBackend : AgentBackendBase
 
     private readonly ILogger<CodexAgentBackend> _logger;
 
-    public CodexAgentBackend(AgentPreferences preferences, ILogger<CodexAgentBackend> logger)
-        : base(preferences, logger)
-    {
-        _logger = logger;
-    }
-
     public override AgentBackendKind Kind => AgentBackendKind.Codex;
 
     public override string DisplayName => "Codex";
@@ -58,34 +52,10 @@ public sealed class CodexAgentBackend : AgentBackendBase
         }
     }
 
-    protected override AgentLaunch CreateLaunch(AgentRequest request)
+    public CodexAgentBackend(AgentPreferences preferences, ILogger<CodexAgentBackend> logger)
+        : base(preferences, logger)
     {
-        var environment = new Dictionary<string, string>();
-
-        if (request.Mcp is { } mcp)
-        {
-            environment[TokenVariable] = mcp.Token;
-        }
-
-        return new()
-        {
-            Arguments = BuildArguments(request),
-            Stdin = BuildStdin(request),
-            Environment = environment,
-        };
-    }
-
-    protected override IAgentStreamParser CreateParser()
-    {
-        return new StreamParser();
-    }
-
-    protected override void InspectLine(string line)
-    {
-        if (ParseStreamError(line) is { } message)
-        {
-            _logger.AgentStreamError(message);
-        }
+        _logger = logger;
     }
 
     internal static string BuildStdin(AgentRequest request)
@@ -109,7 +79,8 @@ public sealed class CodexAgentBackend : AgentBackendBase
 
         args.Add("-");
 
-        args.AddRange([
+        args.AddRange(
+        [
             "--json",
             "--skip-git-repo-check",
             "--ignore-user-config",
@@ -180,6 +151,31 @@ public sealed class CodexAgentBackend : AgentBackendBase
         catch (JsonException)
         {
             return null;
+        }
+    }
+
+    protected override AgentLaunch CreateLaunch(AgentRequest request)
+    {
+        var environment = new Dictionary<string, string>();
+
+        if (request.Mcp is { } mcp)
+        {
+            environment[TokenVariable] = mcp.Token;
+        }
+
+        return new() { Arguments = BuildArguments(request), Stdin = BuildStdin(request), Environment = environment };
+    }
+
+    protected override IAgentStreamParser CreateParser()
+    {
+        return new StreamParser();
+    }
+
+    protected override void InspectLine(string line)
+    {
+        if (ParseStreamError(line) is { } message)
+        {
+            _logger.AgentStreamError(message);
         }
     }
 
@@ -315,7 +311,7 @@ public sealed class CodexAgentBackend : AgentBackendBase
                 tokens = ReadTokens(usage, "input_tokens") + ReadTokens(usage, "output_tokens");
             }
 
-            return AgentEvent.Done(sessionId: null, costUsd: 0, tokens);
+            return AgentEvent.Done(null, 0, tokens);
         }
 
         private static AgentEvent ParseFailed(JsonElement root)

@@ -23,12 +23,6 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
     private AgentCliInfo? _cached;
     private int _cacheGeneration;
 
-    protected AgentBackendBase(AgentPreferences preferences, ILogger logger)
-    {
-        _preferences = preferences;
-        _logger = logger;
-    }
-
     public abstract AgentBackendKind Kind { get; }
 
     public abstract string DisplayName { get; }
@@ -41,11 +35,21 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
 
     public abstract string MissingCliHint { get; }
 
-    public virtual string ModelHint => "Модель, которой нет в списке: слаг уходит в CLI как есть и появляется отдельным пунктом выше. Пусто – модель, выбранная по умолчанию в самом CLI.";
-
     protected abstract IReadOnlyList<string> ExtraDirectories { get; }
 
+    protected abstract AgentLaunch CreateLaunch(AgentRequest request);
+
+    protected abstract IAgentStreamParser CreateParser();
+
+    public virtual string ModelHint => "Модель, которой нет в списке: слаг уходит в CLI как есть и появляется отдельным пунктом выше. Пусто – модель, выбранная по умолчанию в самом CLI.";
+
     internal Func<IReadOnlyList<string>, string?, IReadOnlyList<string>, AgentCliInfo?> DetectCli { get; init; } = AgentCli.Detect;
+
+    protected AgentBackendBase(AgentPreferences preferences, ILogger logger)
+    {
+        _preferences = preferences;
+        _logger = logger;
+    }
 
     public virtual IReadOnlyList<AgentModelOption> LoadModels()
     {
@@ -56,27 +60,6 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
     {
         Dispose(true);
         GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (!disposing)
-        {
-            return;
-        }
-
-        Process[] live;
-
-        lock (_live)
-        {
-            live = [.. _live];
-            _live.Clear();
-        }
-
-        foreach (var process in live)
-        {
-            TryKill(process);
-        }
     }
 
     public AgentCliInfo? Detect()
@@ -181,6 +164,27 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
         return string.IsNullOrEmpty(token) ? text : text.Replace(token, "<токен>");
     }
 
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+        {
+            return;
+        }
+
+        Process[] live;
+
+        lock (_live)
+        {
+            live = [.. _live];
+            _live.Clear();
+        }
+
+        foreach (var process in live)
+        {
+            TryKill(process);
+        }
+    }
+
     protected static string TempConfigPath(string extension)
     {
         return Path.Combine(Path.GetTempPath(), $"spacesnoop-mcp-{Guid.NewGuid():N}.{extension}");
@@ -189,10 +193,6 @@ public abstract class AgentBackendBase : IAgentBackend, IDisposable
     protected virtual void InspectLine(string line)
     {
     }
-
-    protected abstract AgentLaunch CreateLaunch(AgentRequest request);
-
-    protected abstract IAgentStreamParser CreateParser();
 
     private static async Task WriteTempFilesAsync(
         AgentLaunch launch,

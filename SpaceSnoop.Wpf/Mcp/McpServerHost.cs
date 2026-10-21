@@ -25,6 +25,8 @@ public sealed partial class McpServerHost : ObservableObject, IDisposable
     [ObservableProperty]
     private string? _lastError;
 
+    public bool IsRunning => Endpoint is not null;
+
     public McpServerHost(McpPreferences preferences, McpBridge bridge, ScanPreferences scan, ILogger<McpServerHost> logger)
     {
         _preferences = preferences;
@@ -33,8 +35,6 @@ public sealed partial class McpServerHost : ObservableObject, IDisposable
         _logger = logger;
         _preferences.PropertyChanged += OnPreferencesChanged;
     }
-
-    public bool IsRunning => Endpoint is not null;
 
     public void Apply()
     {

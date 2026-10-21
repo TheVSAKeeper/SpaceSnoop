@@ -12,34 +12,6 @@ public sealed partial class ScheduleViewModel : ObservableObject, IPageHeader, I
     private bool _migrated;
     private bool _persisting;
 
-    public ScheduleViewModel(
-        ISettingsStore settings,
-        IDialogService dialogs,
-        IFilePicker filePicker,
-        IShellLauncher shell,
-        IScheduleRunner scheduler,
-        ILogger<ScheduleViewModel> logger)
-    {
-        Settings = settings;
-        _dialogs = dialogs;
-        FilePicker = filePicker;
-        Shell = shell;
-        Scheduler = scheduler;
-        _logger = logger;
-
-        Bulk = new(this, dialogs, logger);
-
-        ReloadProfiles();
-
-        Profiles.CollectionChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(HasProfiles));
-            Bulk.NotifySelectionChanged();
-        };
-
-        Settings.Changed += OnSettingsChanged;
-    }
-
     public ISettingsStore Settings { get; }
 
     public IFilePicker FilePicker { get; }
@@ -72,6 +44,34 @@ public sealed partial class ScheduleViewModel : ObservableObject, IPageHeader, I
     public string? RefreshTooltip => "Обновить статусы и историю";
 
     ICommand IPageRefresh.RefreshCommand => RefreshStatusesCommand;
+
+    public ScheduleViewModel(
+        ISettingsStore settings,
+        IDialogService dialogs,
+        IFilePicker filePicker,
+        IShellLauncher shell,
+        IScheduleRunner scheduler,
+        ILogger<ScheduleViewModel> logger)
+    {
+        Settings = settings;
+        _dialogs = dialogs;
+        FilePicker = filePicker;
+        Shell = shell;
+        Scheduler = scheduler;
+        _logger = logger;
+
+        Bulk = new(this, dialogs, logger);
+
+        ReloadProfiles();
+
+        Profiles.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(HasProfiles));
+            Bulk.NotifySelectionChanged();
+        };
+
+        Settings.Changed += OnSettingsChanged;
+    }
 
     public void Refresh()
     {

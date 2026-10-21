@@ -20,6 +20,8 @@ internal sealed class BackgroundScanProbe : IDisposable
     private bool _stopped;
     private bool _disposed;
 
+    public ScanProgress Progress { get; } = new();
+
     public BackgroundScanProbe(PerformanceOperations operations, long? totalBytes, int parallelism)
     {
         _operations = operations;
@@ -27,20 +29,6 @@ internal sealed class BackgroundScanProbe : IDisposable
         _parallelism = Math.Max(1, parallelism);
         _timer = new(_ => Publish(), null, ReportInterval, ReportInterval);
         Publish();
-    }
-
-    public ScanProgress Progress { get; } = new();
-
-    internal static PerformanceOperation Describe(ScanProgressSnapshot snapshot, TimeSpan elapsed, long? totalBytes, int parallelism)
-    {
-        return new(OperationName,
-            snapshot.FilesScanned,
-            snapshot.BytesScanned,
-            elapsed,
-            TotalBytes: totalBytes,
-            Basis: totalBytes.HasValue ? EtaBasis.Bytes : EtaBasis.None,
-            Traversal: new(snapshot.DirectoriesScanned, snapshot.DirectoriesFailed, Math.Max(1, parallelism)),
-            LogicalBytes: true);
     }
 
     public PerformanceOperation Finish(bool releaseMeasurement = true)
@@ -95,6 +83,19 @@ internal sealed class BackgroundScanProbe : IDisposable
             _reported = null;
             return _operations.ReleaseAfterRenderAsync(reported);
         }
+    }
+
+    internal static PerformanceOperation Describe(ScanProgressSnapshot snapshot, TimeSpan elapsed, long? totalBytes, int parallelism)
+    {
+        return new(
+            OperationName,
+            snapshot.FilesScanned,
+            snapshot.BytesScanned,
+            elapsed,
+            TotalBytes: totalBytes,
+            Basis: totalBytes.HasValue ? EtaBasis.Bytes : EtaBasis.None,
+            Traversal: new(snapshot.DirectoriesScanned, snapshot.DirectoriesFailed, Math.Max(1, parallelism)),
+            LogicalBytes: true);
     }
 
     internal bool Publish()

@@ -60,6 +60,8 @@ internal sealed class ScanAutomationDouble : IScanAutomation
 
     public bool IsScanning => ScanningProbe();
 
+    public List<string> PageCalls { get; } = [];
+
     public long MarkedBytes()
     {
         return MarkedByteCount;
@@ -100,8 +102,6 @@ internal sealed class ScanAutomationDouble : IScanAutomation
     {
         SelectCalls++;
     }
-
-    public List<string> PageCalls { get; } = [];
 
     public void ReleaseBeforeScan(string path)
     {

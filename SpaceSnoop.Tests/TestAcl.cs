@@ -11,9 +11,11 @@ public static class TestAcl
     public static void DenyEnumeration(string path)
     {
         var security = new DirectoryInfo(path).GetAccessControl();
-        security.AddAccessRule(new(WindowsIdentity.GetCurrent().User!,
-            FileSystemRights.ListDirectory | FileSystemRights.ReadData,
-            AccessControlType.Deny));
+        security.AddAccessRule(
+            new(
+                WindowsIdentity.GetCurrent().User!,
+                FileSystemRights.ListDirectory | FileSystemRights.ReadData,
+                AccessControlType.Deny));
 
         new DirectoryInfo(path).SetAccessControl(security);
         RequireUnreadable(path);
@@ -22,9 +24,11 @@ public static class TestAcl
     public static void AllowEnumeration(string path)
     {
         var security = new DirectoryInfo(path).GetAccessControl();
-        security.RemoveAccessRuleAll(new(WindowsIdentity.GetCurrent().User!,
-            FileSystemRights.ListDirectory | FileSystemRights.ReadData,
-            AccessControlType.Deny));
+        security.RemoveAccessRuleAll(
+            new(
+                WindowsIdentity.GetCurrent().User!,
+                FileSystemRights.ListDirectory | FileSystemRights.ReadData,
+                AccessControlType.Deny));
 
         new DirectoryInfo(path).SetAccessControl(security);
     }

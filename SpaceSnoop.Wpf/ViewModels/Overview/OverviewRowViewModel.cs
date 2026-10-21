@@ -58,13 +58,6 @@ public sealed partial class OverviewRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(StatusText))]
     private string? _error;
 
-    public OverviewRowViewModel(SyncProfile profile, Action<SyncProfile, ComparisonResult?> openInSync, Action persist)
-    {
-        Profile = profile;
-        _openInSync = openInSync;
-        _persist = persist;
-    }
-
     public SyncProfile Profile { get; }
 
     public ComparisonResult? Comparison { get; set; }
@@ -185,8 +178,8 @@ public sealed partial class OverviewRowViewModel : ObservableObject
     public int DiffCount => LeftOnlyCount + RightOnlyCount + ModifiedCount + ConflictCount;
 
     public bool IsUnchanged =>
-        Status == OverviewRunStatus.Compared && DiffCount == 0
-        || Status == OverviewRunStatus.Synced && SyncErrors == 0 && SyncCopied == 0 && SyncDeleted == 0 && !SyncNotConverged;
+        (Status == OverviewRunStatus.Compared && DiffCount == 0)
+        || (Status == OverviewRunStatus.Synced && SyncErrors == 0 && SyncCopied == 0 && SyncDeleted == 0 && !SyncNotConverged);
 
     public int GroupOrder => IsUnchanged ? 1 : 0;
 
@@ -273,6 +266,13 @@ public sealed partial class OverviewRowViewModel : ObservableObject
         _ => PackIconLucideKind.Minus,
     };
 
+    public OverviewRowViewModel(SyncProfile profile, Action<SyncProfile, ComparisonResult?> openInSync, Action persist)
+    {
+        Profile = profile;
+        _openInSync = openInSync;
+        _persist = persist;
+    }
+
     public void ApplyStatistics(IReadOnlyDictionary<ComparisonStatus, int> files, IReadOnlyDictionary<ComparisonStatus, int> directories)
     {
         LeftOnlyCount = files.GetValueOrDefault(ComparisonStatus.LeftOnly);
@@ -281,8 +281,8 @@ public sealed partial class OverviewRowViewModel : ObservableObject
         ConflictCount = files.GetValueOrDefault(ComparisonStatus.Conflict);
         IdenticalCount = files.GetValueOrDefault(ComparisonStatus.Identical);
         DirDiffCount = directories.GetValueOrDefault(ComparisonStatus.LeftOnly)
-                       + directories.GetValueOrDefault(ComparisonStatus.RightOnly)
-                       + directories.GetValueOrDefault(ComparisonStatus.Modified);
+            + directories.GetValueOrDefault(ComparisonStatus.RightOnly)
+            + directories.GetValueOrDefault(ComparisonStatus.Modified);
 
         OnPropertyChanged(nameof(DiffCount));
         OnPropertyChanged(nameof(IsUnchanged));
@@ -383,5 +383,4 @@ public sealed partial class OverviewRowViewModel : ObservableObject
     {
         _openInSync(Profile, Status == OverviewRunStatus.Compared ? Comparison : null);
     }
-
 }

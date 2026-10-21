@@ -5,7 +5,6 @@ using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.ViewModels.Scan;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -14,6 +13,64 @@ public class RescanPromptTests
 {
     private static readonly string Scanned = Path.Combine(Path.GetTempPath(), "SpaceSnoopRescan", "scanned");
     private static readonly string Other = Path.Combine(Path.GetTempPath(), "SpaceSnoopRescan", "other");
+
+    [Test]
+    public void Диалог_ставит_отказ_первым_а_Enter_сканирует_заново()
+    {
+        var confirm = RescanPrompt.BuildConfirm(Scanned);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(confirm.Choices[0].Kind, Is.EqualTo(ConfirmChoiceKind.Dismissive));
+            Assert.That(confirm.Choices.Any(static choice => choice.IsDestructive), Is.False);
+            Assert.That(confirm.TryAccept(), Is.True);
+            Assert.That(confirm.Chosen?.Caption, Is.EqualTo("Сканировать заново"));
+            Assert.That(confirm.Summary, Is.EqualTo(Scanned));
+        }
+    }
+
+    [TestCase(0, false, true, TestName = "Отказ в диалоге – скан не стартует")]
+    [TestCase(2, true, true, TestName = "Согласие – скан стартует, предупреждение остаётся")]
+    [TestCase(1, true, false, TestName = "Больше не спрашивать – скан стартует, предупреждение выключено")]
+    public async Task Ответ_в_диалоге_решает_старт_и_судьбу_предупреждения(int choiceIndex, bool expectProceed, bool expectConfirmAfter)
+    {
+        var (preferences, settings) = Preferences(true, true);
+        var roots = Roots(preferences, false);
+        var dialogs = new NoopDialogs(
+            show: viewModel =>
+            {
+                var confirm = (ConfirmDialogViewModel)viewModel;
+                var choice = confirm.Choices[choiceIndex];
+                confirm.ChooseCommand.Execute(choice);
+
+                return !choice.IsDismissive;
+            });
+
+        var proceed = await new RescanPrompt(dialogs, preferences).ConfirmAsync(roots, Scanned, false);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(proceed, Is.EqualTo(expectProceed));
+            Assert.That(preferences.ConfirmRescan, Is.EqualTo(expectConfirmAfter));
+            Assert.That(((ISettingsStore)settings).GetBool(SettingsKeys.ScanConfirmRescan, true), Is.EqualTo(expectConfirmAfter));
+        }
+    }
+
+    [Test]
+    public async Task Пометки_в_другом_дереве_не_гасят_предупреждение()
+    {
+        var (preferences, _) = Preferences(true, true);
+        var factory = new ScanNodeFactory(preferences, new(new MemorySettings()), new FakeShellLauncher());
+        var marked = new DirectorySpace(Other, null, DateTime.Now, DateTime.Now);
+        marked.Delete();
+        var roots = new[] { factory.CreateRoot(new DirectorySpace(Scanned, null, DateTime.Now, DateTime.Now), new()), factory.CreateRoot(marked, new()) };
+
+        var dialogs = new NoopDialogs(showResult: true);
+
+        await new RescanPrompt(dialogs, preferences).ConfirmAsync(roots, Scanned, true);
+
+        Assert.That(dialogs.ShowCount, Is.EqualTo(1));
+    }
 
     [TestCase(false, false, false, true, true, true, TestName = "Тот же путь без пометок – предупреждение")]
     [TestCase(true, false, false, true, true, true, TestName = "Тот же путь с разделителем на конце – предупреждение")]
@@ -46,66 +103,6 @@ public class RescanPromptTests
         {
             Assert.That(dialogs.ShowCount, Is.EqualTo(expectAsk ? 1 : 0));
             Assert.That(proceed, Is.True);
-        }
-    }
-
-    [Test]
-    public async Task Пометки_в_другом_дереве_не_гасят_предупреждение()
-    {
-        var (preferences, _) = Preferences(true, true);
-        var factory = new ScanNodeFactory(preferences, new(new MemorySettings()), new FakeShellLauncher());
-        var marked = new DirectorySpace(Other, null, DateTime.Now, DateTime.Now);
-        marked.Delete();
-        var roots = new[]
-        {
-            factory.CreateRoot(new DirectorySpace(Scanned, null, DateTime.Now, DateTime.Now), new()),
-            factory.CreateRoot(marked, new()),
-        };
-        var dialogs = new NoopDialogs(showResult: true);
-
-        await new RescanPrompt(dialogs, preferences).ConfirmAsync(roots, Scanned, marksPresent: true);
-
-        Assert.That(dialogs.ShowCount, Is.EqualTo(1));
-    }
-
-    [TestCase(0, false, true, TestName = "Отказ в диалоге – скан не стартует")]
-    [TestCase(2, true, true, TestName = "Согласие – скан стартует, предупреждение остаётся")]
-    [TestCase(1, true, false, TestName = "Больше не спрашивать – скан стартует, предупреждение выключено")]
-    public async Task Ответ_в_диалоге_решает_старт_и_судьбу_предупреждения(int choiceIndex, bool expectProceed, bool expectConfirmAfter)
-    {
-        var (preferences, settings) = Preferences(true, true);
-        var roots = Roots(preferences, false);
-        var dialogs = new NoopDialogs(show: viewModel =>
-        {
-            var confirm = (ConfirmDialogViewModel)viewModel;
-            var choice = confirm.Choices[choiceIndex];
-            confirm.ChooseCommand.Execute(choice);
-
-            return !choice.IsDismissive;
-        });
-
-        var proceed = await new RescanPrompt(dialogs, preferences).ConfirmAsync(roots, Scanned, false);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(proceed, Is.EqualTo(expectProceed));
-            Assert.That(preferences.ConfirmRescan, Is.EqualTo(expectConfirmAfter));
-            Assert.That(((ISettingsStore)settings).GetBool(SettingsKeys.ScanConfirmRescan, true), Is.EqualTo(expectConfirmAfter));
-        }
-    }
-
-    [Test]
-    public void Диалог_ставит_отказ_первым_а_Enter_сканирует_заново()
-    {
-        var confirm = RescanPrompt.BuildConfirm(Scanned);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(confirm.Choices[0].Kind, Is.EqualTo(ConfirmChoiceKind.Dismissive));
-            Assert.That(confirm.Choices.Any(static choice => choice.IsDestructive), Is.False);
-            Assert.That(confirm.TryAccept(), Is.True);
-            Assert.That(confirm.Chosen?.Caption, Is.EqualTo("Сканировать заново"));
-            Assert.That(confirm.Summary, Is.EqualTo(Scanned));
         }
     }
 

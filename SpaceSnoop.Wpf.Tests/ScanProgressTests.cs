@@ -1,12 +1,14 @@
-﻿using SpaceSnoop.Wpf.ViewModels.Scan;
+﻿using SpaceSnoop.Wpf.Diagnostics;
+using SpaceSnoop.Wpf.ViewModels.Scan;
 using System.Globalization;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
 public class ScanProgressTests
 {
+    private CultureInfo _culture = CultureInfo.CurrentCulture;
+
     [SetUp]
     public void SetUp()
     {
@@ -20,34 +22,29 @@ public class ScanProgressTests
         CultureInfo.CurrentCulture = _culture;
     }
 
-    private CultureInfo _culture = CultureInfo.CurrentCulture;
-
     [Test]
-    public void Оценка_объёма_есть_только_у_корня_диска()
+    public async Task Завершение_измерения_не_освобождает_чужой_слот()
     {
-        var directory = Directory.CreateTempSubdirectory("spacesnoop-estimate");
+        using var monitor = TestDiagnostics.Monitor();
+        var operations = new PerformanceOperations(monitor);
+        var owner = new PerformanceOperation("Синхронизация", 0, 0, TimeSpan.Zero);
+        operations.TryReport(owner, null);
+        var progress = new ScanProgressViewModel(operations, new FakeUiDispatcher());
 
-        try
-        {
-            var root = new DirectoryInfo(Path.GetPathRoot(directory.FullName)!);
+        progress.Begin(new(Path.GetTempPath()), @"C:\", 1);
+        progress.Finish(releaseMeasurement: false);
+        progress.ReportPhase("Показ результата сканирования");
+        await progress.CompleteMeasurementAsync();
 
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(ScanProgressViewModel.EstimateTotalBytes(directory), Is.Null);
-                Assert.That(ScanProgressViewModel.EstimateTotalBytes(root), Is.Not.Null.And.GreaterThan(0));
-            }
-        }
-        finally
-        {
-            directory.Delete(true);
-        }
+        Assert.That(operations.Current, Is.SameAs(owner));
+        operations.Release(owner);
     }
 
     [Test]
     public async Task Измерение_начинается_сразу_и_покрывает_показ_и_возврат_памяти()
     {
         using var monitor = TestDiagnostics.Monitor();
-        var operations = new SpaceSnoop.Wpf.Diagnostics.PerformanceOperations(monitor);
+        var operations = new PerformanceOperations(monitor);
         var progress = new ScanProgressViewModel(operations, new FakeUiDispatcher());
         progress.ReportPhase("Подготовка сканирования");
         Assert.That(operations.Current?.Name, Is.EqualTo("Подготовка сканирования"));
@@ -65,35 +62,6 @@ public class ScanProgressTests
 
         await progress.CompleteMeasurementAsync();
         Assert.That(operations.Current, Is.Null);
-    }
-
-    [Test]
-    public async Task Завершение_измерения_не_освобождает_чужой_слот()
-    {
-        using var monitor = TestDiagnostics.Monitor();
-        var operations = new SpaceSnoop.Wpf.Diagnostics.PerformanceOperations(monitor);
-        var owner = new SpaceSnoop.Wpf.Diagnostics.PerformanceOperation("Синхронизация", 0, 0, TimeSpan.Zero);
-        operations.TryReport(owner, null);
-        var progress = new ScanProgressViewModel(operations, new FakeUiDispatcher());
-
-        progress.Begin(new(Path.GetTempPath()), @"C:\", 1);
-        progress.Finish(releaseMeasurement: false);
-        progress.ReportPhase("Показ результата сканирования");
-        await progress.CompleteMeasurementAsync();
-
-        Assert.That(operations.Current, Is.SameAs(owner));
-        operations.Release(owner);
-    }
-
-    [TestCase(0L, 0L, false)]
-    [TestCase(100L, 0L, false)]
-    [TestCase(0L, 100L, false)]
-    [TestCase(99L, 100L, false)]
-    [TestCase(100L, 100L, true)]
-    [TestCase(101L, 100L, true)]
-    public void Уплотнение_после_скана_требует_высокой_нагрузки_памяти(long load, long threshold, bool expected)
-    {
-        Assert.That(ScanViewModel.ShouldReturnScanMemory(load, threshold), Is.EqualTo(expected));
     }
 
     [Test]
@@ -116,28 +84,23 @@ public class ScanProgressTests
     }
 
     [Test]
-    public void Строка_хода_говорит_считаем_от_старта_до_первого_учтённого_файла()
+    public void Оценка_объёма_есть_только_у_корня_диска()
     {
-        var dispatcher = new FakeUiDispatcher();
-        var viewModel = new ScanProgressViewModel(new(TestDiagnostics.Monitor()), dispatcher);
-        var timer = dispatcher.Timers.Single();
-        var progress = viewModel.Begin(new(Path.GetTempPath()), @"C:\", 1);
+        var directory = Directory.CreateTempSubdirectory("spacesnoop-estimate");
 
-        var atStart = viewModel.ScanBytesText;
-
-        progress.EnterDirectory(@"C:\Windows");
-        timer.Tick();
-
-        var beforeFiles = viewModel.ScanBytesText;
-
-        progress.AddFiles(1, 1536);
-        timer.Tick();
-
-        using (Assert.EnterMultipleScope())
+        try
         {
-            Assert.That(atStart, Is.EqualTo(ScanProgressViewModel.MeasuringText));
-            Assert.That(beforeFiles, Is.EqualTo(ScanProgressViewModel.MeasuringText));
-            Assert.That(viewModel.ScanBytesText, Is.EqualTo("1,5 КБ"));
+            var root = new DirectoryInfo(Path.GetPathRoot(directory.FullName)!);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(ScanProgressViewModel.EstimateTotalBytes(directory), Is.Null);
+                Assert.That(ScanProgressViewModel.EstimateTotalBytes(root), Is.Not.Null.And.GreaterThan(0));
+            }
+        }
+        finally
+        {
+            directory.Delete(true);
         }
     }
 
@@ -180,5 +143,42 @@ public class ScanProgressTests
             Assert.That(viewModel.ScanShowsStage, Is.False);
             Assert.That(viewModel.ScanCurrentPath, Is.EqualTo(@"C:\Windows"));
         }
+    }
+
+    [Test]
+    public void Строка_хода_говорит_считаем_от_старта_до_первого_учтённого_файла()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        var viewModel = new ScanProgressViewModel(new(TestDiagnostics.Monitor()), dispatcher);
+        var timer = dispatcher.Timers.Single();
+        var progress = viewModel.Begin(new(Path.GetTempPath()), @"C:\", 1);
+
+        var atStart = viewModel.ScanBytesText;
+
+        progress.EnterDirectory(@"C:\Windows");
+        timer.Tick();
+
+        var beforeFiles = viewModel.ScanBytesText;
+
+        progress.AddFiles(1, 1536);
+        timer.Tick();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(atStart, Is.EqualTo(ScanProgressViewModel.MeasuringText));
+            Assert.That(beforeFiles, Is.EqualTo(ScanProgressViewModel.MeasuringText));
+            Assert.That(viewModel.ScanBytesText, Is.EqualTo("1,5 КБ"));
+        }
+    }
+
+    [TestCase(0L, 0L, false)]
+    [TestCase(100L, 0L, false)]
+    [TestCase(0L, 100L, false)]
+    [TestCase(99L, 100L, false)]
+    [TestCase(100L, 100L, true)]
+    [TestCase(101L, 100L, true)]
+    public void Уплотнение_после_скана_требует_высокой_нагрузки_памяти(long load, long threshold, bool expected)
+    {
+        Assert.That(ScanViewModel.ShouldReturnScanMemory(load, threshold), Is.EqualTo(expected));
     }
 }

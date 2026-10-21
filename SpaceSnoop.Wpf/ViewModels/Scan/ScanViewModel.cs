@@ -1,5 +1,4 @@
 ﻿using KeepShell.Services;
-
 using MahApps.Metro.IconPacks;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -87,6 +86,54 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     [NotifyCanExecuteChangedFor(nameof(RescanCancelledCommand))]
     private bool _scanWasCancelled;
 
+    public DriveCatalog Drives { get; }
+
+    public ScanMarksViewModel Marks { get; }
+
+    public ObservableCollection<ScanNodeViewModel> Roots { get; } = [];
+
+    public ScanProgressViewModel Progress { get; }
+
+    public ScanSummaryViewModel Summary { get; }
+
+    public FirstRunViewModel FirstRun { get; }
+
+    public ScanTipsViewModel Tips { get; }
+
+    public ScanTreemapViewModel Treemap { get; }
+
+    public ScanInspectorViewModel Inspector { get; }
+
+    public ScanDuplicatesViewModel Duplicates { get; }
+
+    public ScanSortViewModel Sort { get; }
+
+    public ScanPreferences Preferences { get; }
+
+    public double Intensity
+    {
+        get => Preferences.Intensity;
+        set => Preferences.Intensity = value;
+    }
+
+    public bool IsBusy => IsScanning;
+
+    public int MarkedCount => Marks.MarkedCount;
+
+    public IReadOnlyList<SegmentOption> ViewModes { get; }
+
+    public bool DuplicatesEnabled => Preferences.DuplicatesEnabled;
+
+    public ScanViewMode ViewMode
+    {
+        get => (ScanViewMode)(SelectedViewIndex + 1);
+        set => SelectedViewIndex = Math.Clamp((int)value - 1, 0, ViewModes.Count - 1);
+    }
+
+    internal AdminRestartPrompt RestartPrompt { get; }
+
+    internal DirectorySpace? CurrentRoot => Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
+
     public ScanViewModel(
         ScanRunner runner,
         IDialogService dialogs,
@@ -142,7 +189,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
         Drives = new(logger);
 
-        Marks = new(dialogs,
+        Marks = new(
+            dialogs,
             deleteDialogFactory,
             operations,
             logger,
@@ -156,7 +204,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             () => IsScanning,
             () => Drives.ReloadLabels(SelectedDrive));
 
-        _archive = new(archiveDialogFactory,
+        _archive = new(
+            archiveDialogFactory,
             dialogs,
             nodeFactory,
             Roots,
@@ -166,7 +215,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             Marks,
             () => Drives.ReloadLabels(SelectedDrive));
 
-        Duplicates = new(dialogs,
+        Duplicates = new(
+            dialogs,
             duplicateDialogFactory,
             settings,
             preferences,
@@ -187,12 +237,14 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             _nodeFactory.Visibility.RemoveDeleted(deleted);
             RefreshVisibility(affected);
         };
+
         Roots.CollectionChanged += (_, _) =>
         {
             _nodeFactory.Visibility.RetainRoots(Roots);
             OnPropertyChanged(nameof(HasIgnoredItems));
             OnPropertyChanged(nameof(ResetIgnoredCaption));
         };
+
         Roots.CollectionChanged += (_, _) => OnPropertyChanged(nameof(StaleResultCaption));
 
         ViewModes = BuildViewModes(preferences.DuplicatesEnabled);
@@ -201,53 +253,21 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         Drives.LoadDriveLabels();
     }
 
-    public DriveCatalog Drives { get; }
-
-    public ScanMarksViewModel Marks { get; }
-
-    internal AdminRestartPrompt RestartPrompt { get; }
-
-    public ObservableCollection<ScanNodeViewModel> Roots { get; } = [];
-
-    public ScanProgressViewModel Progress { get; }
-
-    public ScanSummaryViewModel Summary { get; }
-
-    public FirstRunViewModel FirstRun { get; }
-
-    public ScanTipsViewModel Tips { get; }
-
-    public ScanTreemapViewModel Treemap { get; }
-
-    public ScanInspectorViewModel Inspector { get; }
-
-    public ScanDuplicatesViewModel Duplicates { get; }
-
-    public ScanSortViewModel Sort { get; }
-
-    public ScanPreferences Preferences { get; }
-
-    public double Intensity
+    internal static IReadOnlyList<SegmentOption> BuildViewModes(bool duplicates)
     {
-        get => Preferences.Intensity;
-        set => Preferences.Intensity = value;
+        List<SegmentOption> modes =
+        [
+            new(PackIconLucideKind.FolderTree, "Дерево", "Дерево каталогов с тепловой подсветкой"),
+            new(PackIconLucideKind.Map, "Карта", "Карта занятого места (treemap)"),
+        ];
+
+        if (duplicates)
+        {
+            modes.Add(new(PackIconLucideKind.CopyCheck, "Дубликаты", "Одинаковые файлы, найденные сличением содержимого"));
+        }
+
+        return modes;
     }
-
-    public bool IsBusy => IsScanning;
-
-    public int MarkedCount => Marks.MarkedCount;
-
-    public IReadOnlyList<SegmentOption> ViewModes { get; }
-
-    public bool DuplicatesEnabled => Preferences.DuplicatesEnabled;
-
-    public ScanViewMode ViewMode
-    {
-        get => (ScanViewMode)(SelectedViewIndex + 1);
-        set => SelectedViewIndex = Math.Clamp((int)value - 1, 0, ViewModes.Count - 1);
-    }
-
-    internal DirectorySpace? CurrentRoot => Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
 
     private void OnTreemapDrilledInto(ScanNodeViewModel node)
     {
@@ -321,22 +341,6 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         {
             Treemap.SetRoot(Roots[0]);
         }
-    }
-
-    internal static IReadOnlyList<SegmentOption> BuildViewModes(bool duplicates)
-    {
-        List<SegmentOption> modes =
-        [
-            new(PackIconLucideKind.FolderTree, "Дерево", "Дерево каталогов с тепловой подсветкой"),
-            new(PackIconLucideKind.Map, "Карта", "Карта занятого места (treemap)"),
-        ];
-
-        if (duplicates)
-        {
-            modes.Add(new(PackIconLucideKind.CopyCheck, "Дубликаты", "Одинаковые файлы, найденные сличением содержимого"));
-        }
-
-        return modes;
     }
 
     private void ResortRoots()

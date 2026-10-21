@@ -18,8 +18,9 @@
                 <Setter Property="Margin"
                         Value="0,0,0,12" />
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                 Value="True">
+                    <DataTrigger
+                        Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                        Value="True">
                         <Setter Property="Padding"
                                 Value="15,8" />
                         <Setter Property="Margin"
@@ -52,8 +53,9 @@
                                         <MultiDataTrigger.Conditions>
                                             <Condition Binding="{Binding IsScanning}"
                                                        Value="True" />
-                                            <Condition Binding="{Binding Enabled, Source={x:Static behaviors:SystemAnimations.Current}}"
-                                                       Value="True" />
+                                            <Condition
+                                                Binding="{Binding Enabled, Source={x:Static behaviors:SystemAnimations.Current}}"
+                                                Value="True" />
                                         </MultiDataTrigger.Conditions>
                                         <MultiDataTrigger.EnterActions>
                                             <BeginStoryboard x:Name="ScanPulseBeat">

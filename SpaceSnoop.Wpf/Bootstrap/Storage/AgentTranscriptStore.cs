@@ -13,6 +13,8 @@ public sealed class AgentTranscriptStore
     private readonly AgentPreferences _preferences;
     private readonly ILogger<AgentTranscriptStore> _logger;
 
+    public string DirectoryPath { get; }
+
     public AgentTranscriptStore(AgentPreferences preferences, ILogger<AgentTranscriptStore> logger, string? directoryPath = null)
     {
         _preferences = preferences;
@@ -20,16 +22,9 @@ public sealed class AgentTranscriptStore
         DirectoryPath = directoryPath ?? Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName, FolderName);
     }
 
-    public string DirectoryPath { get; }
-
     public static string FileName(AgentBackendKind backend, DateTimeOffset startedAt)
     {
         return $"{FilePrefix}{startedAt:yyyyMMdd-HHmmss-fff}-{backend.ToString().ToLowerInvariant()}{FileExtension}";
-    }
-
-    internal static IReadOnlyList<string> Obsolete(IEnumerable<string> files, int keep)
-    {
-        return [.. files.OrderByDescending(Path.GetFileName, StringComparer.OrdinalIgnoreCase).Skip(keep)];
     }
 
     public IAgentTranscript? Begin(AgentBackendKind backend, string? token)
@@ -56,6 +51,11 @@ public sealed class AgentTranscriptStore
 
             return null;
         }
+    }
+
+    internal static IReadOnlyList<string> Obsolete(IEnumerable<string> files, int keep)
+    {
+        return [.. files.OrderByDescending(Path.GetFileName, StringComparer.OrdinalIgnoreCase).Skip(keep)];
     }
 
     private void DropObsolete()

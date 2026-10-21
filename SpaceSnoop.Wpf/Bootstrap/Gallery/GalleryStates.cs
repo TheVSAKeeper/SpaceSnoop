@@ -109,18 +109,21 @@ public static class GalleryStates
                 development.Projects.ShowForAutomation();
                 development.SelectedAreaIndex = 1;
             }
+
             if (state == DevelopmentWorkloads)
             {
                 var development = services.GetRequiredService<DeveloperCleanupViewModel>();
                 development.Workloads.ShowForAutomation();
                 development.SelectedAreaIndex = 2;
             }
+
             if (state == DevelopmentMsBuild)
             {
                 var development = services.GetRequiredService<DeveloperCleanupViewModel>();
                 development.DotNetClean.ShowForAutomation();
                 development.SelectedAreaIndex = 3;
             }
+
             services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 2;
             return;
         }
@@ -141,9 +144,6 @@ public static class GalleryStates
 
                 case SectionKey.Chat:
                     await SettleChatAsync(services).ConfigureAwait(true);
-                    break;
-
-                default:
                     break;
             }
 
@@ -239,9 +239,6 @@ public static class GalleryStates
             case SectionKey.Docker:
                 ResetDocker(services);
                 break;
-
-            default:
-                break;
         }
     }
 
@@ -285,9 +282,6 @@ public static class GalleryStates
 
             case ArchiveProgressDialogViewModel archive:
                 archive.ClearForAutomation();
-                break;
-
-            default:
                 break;
         }
     }

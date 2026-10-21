@@ -25,7 +25,8 @@ public class ArchitectureRuleTests
             .SelectMany(file => Matches(file, PipelineConstruction))
             .ToList();
 
-        Assert.That(offenders,
+        Assert.That(
+            offenders,
             Is.Empty,
             () => $"Сборка конвейера вне SpaceSnoop.Core/UseCases возвращает дублирование, ради устранения которого use case'ы и заводились:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
@@ -36,22 +37,10 @@ public class ArchitectureRuleTests
         var models = Path.Combine(RepositoryRoot(), "SpaceSnoop.Wpf", "ViewModels");
         var offenders = PlatformCallRule.Check(ProjectFiles.Enumerate(models, "*.cs"), RepositoryRoot());
 
-        Assert.That(offenders,
+        Assert.That(
+            offenders,
             Is.Empty,
             () => $"Платформа доступна моделям только через шлюзы KeepShell.Services.Platform – прямой вызов не подменить дублем в тесте:{Environment.NewLine}{RuleViolation.Report(offenders)}");
-    }
-
-    [Test]
-    public void Фронтенд_не_ссылается_на_проект_WinForms()
-    {
-        var offenders = BuildFilesOf("SpaceSnoop.Wpf")
-            .Where(static path => File.ReadAllText(path).Contains("SpaceSnoop.csproj", StringComparison.Ordinal))
-            .Select(path => Path.GetRelativePath(RepositoryRoot(), path))
-            .ToList();
-
-        Assert.That(offenders,
-            Is.Empty,
-            () => $"WPF работает поверх SpaceSnoop.Core; ссылка на WinForms-проект вернула бы в него System.Windows.Forms и три WinForms-завязанных типа:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
 
     [Test]
@@ -63,9 +52,24 @@ public class ArchitectureRuleTests
             .Select(file => $"{Path.GetRelativePath(RepositoryRoot(), file.Path)} – {file.Lines}")
             .ToList();
 
-        Assert.That(offenders,
+        Assert.That(
+            offenders,
             Is.Empty,
             () => $"Порог в {ThresholdLines} строк держит декомпозицию от отката: следующая обязанность идёт в новую модель, а не в эти файлы:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
+    }
+
+    [Test]
+    public void Фронтенд_не_ссылается_на_проект_WinForms()
+    {
+        var offenders = BuildFilesOf("SpaceSnoop.Wpf")
+            .Where(static path => File.ReadAllText(path).Contains("SpaceSnoop.csproj", StringComparison.Ordinal))
+            .Select(path => Path.GetRelativePath(RepositoryRoot(), path))
+            .ToList();
+
+        Assert.That(
+            offenders,
+            Is.Empty,
+            () => $"WPF работает поверх SpaceSnoop.Core; ссылка на WinForms-проект вернула бы в него System.Windows.Forms и три WinForms-завязанных типа:{Environment.NewLine}{string.Join(Environment.NewLine, offenders)}");
     }
 
     private static IEnumerable<string> ThresholdFiles()

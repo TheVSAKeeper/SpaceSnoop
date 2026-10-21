@@ -1,10 +1,8 @@
 ﻿using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Wpf.Agent;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Settings;
-using System.IO;
 using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -31,8 +29,50 @@ public class AgentTranscriptTests
     {
         var store = Store(enabled: false);
 
-        Assert.That(store.Begin(AgentBackendKind.Codex, token: null), Is.Null);
+        Assert.That(store.Begin(AgentBackendKind.Codex, null), Is.Null);
         Assert.That(Directory.Exists(store.DirectoryPath), Is.False);
+    }
+
+    [Test]
+    public void Запуск_описывается_без_секретов_но_с_аргументами()
+    {
+        var request = new AgentRequest { Prompt = "куда делось место", Model = "gpt-5.6-luna", Mcp = new("spacesnoop", "http://127.0.0.1:7654/mcp", "секретный-токен", ["scan_directory"], []) };
+
+        var launch = new AgentLaunch { Arguments = ["exec", "-", "--json"], Environment = new Dictionary<string, string> { ["SPACESNOOP_MCP_TOKEN"] = "секретный-токен" } };
+
+        var text = AgentBackendBase.DescribeLaunch("Codex", new(@"C:\codex.exe", "0.145.0"), request, launch);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(text, Does.Contain("модель: gpt-5.6-luna"));
+            Assert.That(text, Does.Contain("продолжение сессии: –"));
+            Assert.That(text, Does.Contain("инструменты: scan_directory"));
+            Assert.That(text, Does.Contain("аргументы: exec - --json"));
+            Assert.That(text, Does.Not.Contain("секретный-токен"));
+        });
+    }
+
+    [TestCase(AgentBackendKind.Claude, "claude")]
+    [TestCase(AgentBackendKind.Codex, "codex")]
+    [TestCase(AgentBackendKind.OpenCode, "opencode")]
+    public void Имя_файла_называет_время_и_бэкенд(AgentBackendKind backend, string expected)
+    {
+        var name = AgentTranscriptStore.FileName(backend, new(2026, 7, 27, 16, 38, 54, 123, TimeSpan.Zero));
+
+        Assert.That(name, Is.EqualTo($"turn-20260727-163854-123-{expected}.jsonl"));
+    }
+
+    [Test]
+    public void Лишними_считаются_самые_старые_файлы()
+    {
+        string[] files =
+        [
+            @"C:\logs\chat\turn-20260727-163854-123-codex.jsonl",
+            @"C:\logs\chat\turn-20260725-090000-000-claude.jsonl",
+            @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl",
+        ];
+
+        Assert.That(AgentTranscriptStore.Obsolete(files, 1), Is.EqualTo(new[] { @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl", @"C:\logs\chat\turn-20260725-090000-000-claude.jsonl" }));
     }
 
     [Test]
@@ -40,7 +80,7 @@ public class AgentTranscriptTests
     {
         var store = Store(enabled: true);
 
-        using (var transcript = store.Begin(AgentBackendKind.Codex, token: null))
+        using (var transcript = store.Begin(AgentBackendKind.Codex, null))
         {
             Assert.That(transcript, Is.Not.Null);
             transcript.Write(AgentTranscriptKind.Stdout, """{"type":"turn.completed"}""");
@@ -72,61 +112,6 @@ public class AgentTranscriptTests
         {
             Assert.That(text, Does.Not.Contain("секретный-токен"));
             Assert.That(text, Does.Contain("<токен>"));
-        });
-    }
-
-    [TestCase(AgentBackendKind.Claude, "claude")]
-    [TestCase(AgentBackendKind.Codex, "codex")]
-    [TestCase(AgentBackendKind.OpenCode, "opencode")]
-    public void Имя_файла_называет_время_и_бэкенд(AgentBackendKind backend, string expected)
-    {
-        var name = AgentTranscriptStore.FileName(backend, new DateTimeOffset(2026, 7, 27, 16, 38, 54, 123, TimeSpan.Zero));
-
-        Assert.That(name, Is.EqualTo($"turn-20260727-163854-123-{expected}.jsonl"));
-    }
-
-    [Test]
-    public void Лишними_считаются_самые_старые_файлы()
-    {
-        string[] files =
-        [
-            @"C:\logs\chat\turn-20260727-163854-123-codex.jsonl",
-            @"C:\logs\chat\turn-20260725-090000-000-claude.jsonl",
-            @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl",
-        ];
-
-        Assert.That(AgentTranscriptStore.Obsolete(files, keep: 1), Is.EqualTo(new[]
-        {
-            @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl",
-            @"C:\logs\chat\turn-20260725-090000-000-claude.jsonl",
-        }));
-    }
-
-    [Test]
-    public void Запуск_описывается_без_секретов_но_с_аргументами()
-    {
-        var request = new AgentRequest
-        {
-            Prompt = "куда делось место",
-            Model = "gpt-5.6-luna",
-            Mcp = new("spacesnoop", "http://127.0.0.1:7654/mcp", "секретный-токен", ["scan_directory"], []),
-        };
-
-        var launch = new AgentLaunch
-        {
-            Arguments = ["exec", "-", "--json"],
-            Environment = new Dictionary<string, string> { ["SPACESNOOP_MCP_TOKEN"] = "секретный-токен" },
-        };
-
-        var text = AgentBackendBase.DescribeLaunch("Codex", new(@"C:\codex.exe", "0.145.0"), request, launch);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(text, Does.Contain("модель: gpt-5.6-luna"));
-            Assert.That(text, Does.Contain("продолжение сессии: –"));
-            Assert.That(text, Does.Contain("инструменты: scan_directory"));
-            Assert.That(text, Does.Contain("аргументы: exec - --json"));
-            Assert.That(text, Does.Not.Contain("секретный-токен"));
         });
     }
 

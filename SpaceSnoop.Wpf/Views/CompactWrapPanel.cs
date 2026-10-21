@@ -151,6 +151,7 @@ public sealed class CompactWrapPanel : WrapPanel
                     first += widths[i];
                     _firstHeight = Math.Max(_firstHeight, height);
                     break;
+
                 case CompactSlot.Second:
                     second += widths[i];
                     _secondHeight = Math.Max(_secondHeight, height);
@@ -182,9 +183,11 @@ public sealed class CompactWrapPanel : WrapPanel
                 case CompactSlot.First:
                     firstX += Place(children[i], firstX, 0, _widths[i], firstHeight, finalSize.Width);
                     break;
+
                 case CompactSlot.Second:
                     secondX += Place(children[i], secondX, firstHeight, _widths[i], secondHeight, finalSize.Width);
                     break;
+
                 default:
                     children[i].Arrange(default);
                     break;

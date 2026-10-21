@@ -7,19 +7,19 @@ namespace SpaceSnoop.Wpf.Tests;
 public class CleanupTotalsTests
 {
     [Test]
-    public void Недоступная_цель_не_попадает_ни_в_итог_ни_в_выбранное()
+    public void Доля_считается_от_доступных_а_недоступной_не_ставится()
     {
-        var available = Row("TempFiles", 300, 3, CleanupAvailability.Available, true);
-        var unsupported = Row("WindowsOld", 700, 7, CleanupAvailability.Unsupported, true);
+        var available = Row("TempFiles", 300, 3, CleanupAvailability.Available, false);
+        var unsupported = Row("WindowsOld", 700, 7, CleanupAvailability.Unsupported, false);
+        unsupported.Share = 0.7;
+        List<CleanupTargetViewModel> rows = [available, unsupported];
 
-        var tally = CleanupTotals.Compute([available, unsupported]);
+        CleanupTotals.ApplyShares(rows, CleanupTotals.Compute(rows).TotalBytes);
 
         Assert.Multiple(() =>
         {
-            Assert.That(tally.TotalBytes, Is.EqualTo(300));
-            Assert.That(tally.SelectedBytes, Is.EqualTo(300));
-            Assert.That(tally.SelectedFiles, Is.EqualTo(3));
-            Assert.That(tally.SelectedCount, Is.EqualTo(1));
+            Assert.That(available.Share, Is.EqualTo(1).Within(0.0001));
+            Assert.That(unsupported.Share, Is.Zero);
         });
     }
 
@@ -40,19 +40,19 @@ public class CleanupTotalsTests
     }
 
     [Test]
-    public void Доля_считается_от_доступных_а_недоступной_не_ставится()
+    public void Недоступная_цель_не_попадает_ни_в_итог_ни_в_выбранное()
     {
-        var available = Row("TempFiles", 300, 3, CleanupAvailability.Available, false);
-        var unsupported = Row("WindowsOld", 700, 7, CleanupAvailability.Unsupported, false);
-        unsupported.Share = 0.7;
-        List<CleanupTargetViewModel> rows = [available, unsupported];
+        var available = Row("TempFiles", 300, 3, CleanupAvailability.Available, true);
+        var unsupported = Row("WindowsOld", 700, 7, CleanupAvailability.Unsupported, true);
 
-        CleanupTotals.ApplyShares(rows, CleanupTotals.Compute(rows).TotalBytes);
+        var tally = CleanupTotals.Compute([available, unsupported]);
 
         Assert.Multiple(() =>
         {
-            Assert.That(available.Share, Is.EqualTo(1).Within(0.0001));
-            Assert.That(unsupported.Share, Is.Zero);
+            Assert.That(tally.TotalBytes, Is.EqualTo(300));
+            Assert.That(tally.SelectedBytes, Is.EqualTo(300));
+            Assert.That(tally.SelectedFiles, Is.EqualTo(3));
+            Assert.That(tally.SelectedCount, Is.EqualTo(1));
         });
     }
 
@@ -81,10 +81,7 @@ public class CleanupTotalsTests
 
         return new(target)
         {
-            SizeBytes = bytes,
-            Files = files,
-            Availability = availability,
-            IsSelected = selected,
+            SizeBytes = bytes, Files = files, Availability = availability, IsSelected = selected,
         };
     }
 }

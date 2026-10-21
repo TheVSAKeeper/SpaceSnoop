@@ -2,6 +2,7 @@
 using SpaceSnoop.Core;
 using System.Security.AccessControl;
 using System.Security.Principal;
+using Throws = NUnit.Framework.Throws;
 
 namespace SpaceSnoop.Tests;
 
@@ -31,8 +32,9 @@ public class DiskSpaceCalculatorSkipLogTests
             _locked.Add(directory);
         }
 
-        Assume.That(() => Directory.EnumerateFileSystemEntries(_locked[0].FullName).Any(),
-            NUnit.Framework.Throws.InstanceOf<UnauthorizedAccessException>(),
+        Assume.That(
+            () => Directory.EnumerateFileSystemEntries(_locked[0].FullName).Any(),
+            Throws.InstanceOf<UnauthorizedAccessException>(),
             "запрет чтения каталога в этом окружении не действует (процесс обходит ACL)");
     }
 
@@ -48,28 +50,6 @@ public class DiskSpaceCalculatorSkipLogTests
 
         _locked.Clear();
         Directory.Delete(_root, true);
-    }
-
-    [TestCase(true)]
-    [TestCase(false)]
-    public void Стек_пропуска_пишется_один_раз_за_скан(bool multithreaded)
-    {
-        var logger = new CapturingLogger<DiskSpaceCalculator>();
-        var calculator = new DiskSpaceCalculator(logger);
-        var progress = new ScanProgress();
-
-        _ = multithreaded
-            ? calculator.CalculateMultithreaded(new(_root), 4, progress, CancellationToken.None)
-            : calculator.Calculate(new(_root), progress, CancellationToken.None);
-
-        var skips = logger.Entries.Where(entry => entry.Level == LogLevel.Warning).ToList();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(progress.CreateSnapshot().DirectoriesFailed, Is.EqualTo(LockedCount));
-            Assert.That(skips, Has.Count.EqualTo(LockedCount));
-            Assert.That(skips.Count(entry => entry.Exception is not null), Is.EqualTo(1));
-        }
     }
 
     [Test]
@@ -111,6 +91,28 @@ public class DiskSpaceCalculatorSkipLogTests
         finally
         {
             right.Delete(true);
+        }
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Стек_пропуска_пишется_один_раз_за_скан(bool multithreaded)
+    {
+        var logger = new CapturingLogger<DiskSpaceCalculator>();
+        var calculator = new DiskSpaceCalculator(logger);
+        var progress = new ScanProgress();
+
+        _ = multithreaded
+            ? calculator.CalculateMultithreaded(new(_root), 4, progress, CancellationToken.None)
+            : calculator.Calculate(new(_root), progress, CancellationToken.None);
+
+        var skips = logger.Entries.Where(entry => entry.Level == LogLevel.Warning).ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(progress.CreateSnapshot().DirectoriesFailed, Is.EqualTo(LockedCount));
+            Assert.That(skips, Has.Count.EqualTo(LockedCount));
+            Assert.That(skips.Count(entry => entry.Exception is not null), Is.EqualTo(1));
         }
     }
 

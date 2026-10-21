@@ -40,7 +40,8 @@ internal static class McpFormat
     public static McpPerformanceHistory DescribeHistory(PerformanceHistory history, int requestedSeconds, int requestedPoints)
     {
         var timeline = history.Points
-            .Select(static point => new McpPerformancePoint(Math.Round(point.AgeMs, 1),
+            .Select(static point => new McpPerformancePoint(
+                Math.Round(point.AgeMs, 1),
                 Math.Round(point.UiDelayMs, 1),
                 point.ManagedBytes,
                 point.WorkingSetBytes,
@@ -50,7 +51,8 @@ internal static class McpFormat
                 point.Phase))
             .ToList();
 
-        return new(history.CapturedAtUtc,
+        return new(
+            history.CapturedAtUtc,
             Math.Round(history.SpanSeconds, 1),
             requestedSeconds,
             requestedPoints,
@@ -69,7 +71,8 @@ internal static class McpFormat
             return null;
         }
 
-        return new(operation.Name,
+        return new(
+            operation.Name,
             operation.Items,
             operation.Bytes,
             SizeFormatter.Format(operation.Bytes),
@@ -86,15 +89,27 @@ internal static class McpFormat
         {
             if (!drive.IsReady)
             {
-                return new(drive.Name, string.Empty, drive.DriveType.ToString(), null, false, 0, 0, 0,
-                    "–", "–", "–", "диск не готов");
+                return new(
+                    drive.Name,
+                    string.Empty,
+                    drive.DriveType.ToString(),
+                    null,
+                    false,
+                    0,
+                    0,
+                    0,
+                    "–",
+                    "–",
+                    "–",
+                    "диск не готов");
             }
 
             var total = drive.TotalSize;
             var free = drive.TotalFreeSpace;
             var used = Math.Max(0, total - free);
 
-            return new(drive.Name,
+            return new(
+                drive.Name,
                 drive.VolumeLabel,
                 drive.DriveType.ToString(),
                 drive.DriveFormat,
@@ -109,8 +124,19 @@ internal static class McpFormat
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
         {
-            return new(drive.Name, string.Empty, drive.DriveType.ToString(), null, false, 0, 0, 0,
-                "–", "–", "–", exception.Message);
+            return new(
+                drive.Name,
+                string.Empty,
+                drive.DriveType.ToString(),
+                null,
+                false,
+                0,
+                0,
+                0,
+                "–",
+                "–",
+                "–",
+                exception.Message);
         }
     }
 

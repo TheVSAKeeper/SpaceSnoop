@@ -17,14 +17,16 @@ internal sealed class McpInsightTools(
     {
         logger.McpToolInvoked("get_app_state", "-");
 
-        return McpDispatch.Run(() => McpFormat.Serialize(new McpAppState(AppInfo.Name,
-            AppInfo.Version,
-            AdminElevation.IsElevated,
-            navigator.CurrentSectionKey,
-            preferences.AllowMutations,
-            SyncProfileStore.Load(settings).Count,
-            state.ReadScanState(),
-            state.ReadSyncState())));
+        return McpDispatch.Run(() => McpFormat.Serialize(
+            new McpAppState(
+                AppInfo.Name,
+                AppInfo.Version,
+                AdminElevation.IsElevated,
+                navigator.CurrentSectionKey,
+                preferences.AllowMutations,
+                SyncProfileStore.Load(settings).Count,
+                state.ReadScanState(),
+                state.ReadSyncState())));
     }
 
     public string ListProfiles()
@@ -32,7 +34,8 @@ internal sealed class McpInsightTools(
         logger.McpToolInvoked("list_profiles", "-");
 
         var profiles = SyncProfileStore.Load(settings)
-            .Select(static profile => new McpProfile(profile.Id,
+            .Select(static profile => new McpProfile(
+                profile.Id,
                 profile.Name,
                 profile.Left,
                 profile.Right,
@@ -64,32 +67,34 @@ internal sealed class McpInsightTools(
 
         var snapshot = performance.Snapshot;
 
-        return McpFormat.Serialize(new McpPerformance(performance.IsRunning,
-            snapshot.CapturedAtUtc,
-            Math.Round(McpFormat.SnapshotAge(snapshot).TotalMilliseconds),
-            McpFormat.DescribeWindow(snapshot),
-            snapshot.SampleCount,
-            Math.Round(snapshot.ObservedSpanSeconds, 1),
-            Math.Round(snapshot.UiDelayMs, 1),
-            Math.Round(snapshot.UiPeakMs, 1),
-            Math.Round(snapshot.UiAverageMs, 1),
-            snapshot.ManagedBytes,
-            SizeFormatter.Format(snapshot.ManagedBytes),
-            snapshot.WorkingSetBytes,
-            SizeFormatter.Format(snapshot.WorkingSetBytes),
-            snapshot.WorkingSetPeakBytes,
-            SizeFormatter.Format(snapshot.WorkingSetPeakBytes),
-            snapshot.Gen0Collections,
-            snapshot.Gen1Collections,
-            snapshot.Gen2Collections,
-            Math.Round(snapshot.StartupSeconds, 2),
-            Math.Round(snapshot.FrameLastMs, 1),
-            Math.Round(snapshot.FramePeakMs, 1),
-            Math.Round(snapshot.FrameAverageMs, 1),
-            snapshot.FrameCount,
-            snapshot.SlowFrameCount,
-            McpFormat.DescribeOperation(operations.Current),
-            ReadHistory(historySeconds, historyPoints)));
+        return McpFormat.Serialize(
+            new McpPerformance(
+                performance.IsRunning,
+                snapshot.CapturedAtUtc,
+                Math.Round(McpFormat.SnapshotAge(snapshot).TotalMilliseconds),
+                McpFormat.DescribeWindow(snapshot),
+                snapshot.SampleCount,
+                Math.Round(snapshot.ObservedSpanSeconds, 1),
+                Math.Round(snapshot.UiDelayMs, 1),
+                Math.Round(snapshot.UiPeakMs, 1),
+                Math.Round(snapshot.UiAverageMs, 1),
+                snapshot.ManagedBytes,
+                SizeFormatter.Format(snapshot.ManagedBytes),
+                snapshot.WorkingSetBytes,
+                SizeFormatter.Format(snapshot.WorkingSetBytes),
+                snapshot.WorkingSetPeakBytes,
+                SizeFormatter.Format(snapshot.WorkingSetPeakBytes),
+                snapshot.Gen0Collections,
+                snapshot.Gen1Collections,
+                snapshot.Gen2Collections,
+                Math.Round(snapshot.StartupSeconds, 2),
+                Math.Round(snapshot.FrameLastMs, 1),
+                Math.Round(snapshot.FramePeakMs, 1),
+                Math.Round(snapshot.FrameAverageMs, 1),
+                snapshot.FrameCount,
+                snapshot.SlowFrameCount,
+                McpFormat.DescribeOperation(operations.Current),
+                ReadHistory(historySeconds, historyPoints)));
     }
 
     public async Task<string> GetDockerUsageAsync(bool includeObjects, int entryLimit, CancellationToken cancellationToken)
@@ -125,7 +130,8 @@ internal sealed class McpInsightTools(
         CancellationToken cancellationToken)
     {
         var buckets = snapshot.Buckets
-            .Select(static bucket => new McpDockerBucket(bucket.Type,
+            .Select(static bucket => new McpDockerBucket(
+                bucket.Type,
                 bucket.TotalCount,
                 bucket.Active,
                 bucket.Size,

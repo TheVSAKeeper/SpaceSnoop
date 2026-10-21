@@ -10,19 +10,6 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageHeader, I
     private readonly IAppNavigator _navigator;
     private bool _suppressReload;
 
-    public OverviewViewModel(ISettingsStore settings, IDialogService dialogs, ToastNotifier notifier, ILogger<OverviewViewModel> logger, CompareDirectoriesUseCase compare, ExecuteSyncUseCase sync, IAppNavigator navigator)
-    {
-        _settings = settings;
-        _navigator = navigator;
-
-        Rows = new(settings, () => IsBusy, () => _suppressReload, ReloadRows);
-
-        Batch = new(settings, dialogs, notifier, logger, compare, sync, Rows);
-        Batch.PropertyChanged += OnBatchPropertyChanged;
-
-        ReloadRows();
-    }
-
     public OverviewRowsViewModel Rows { get; }
 
     public OverviewBatchViewModel Batch { get; }
@@ -46,6 +33,19 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageHeader, I
     public ICommand CancelCommand => Batch.CancelOperationCommand;
 
     ICommand IPageRefresh.RefreshCommand => ReloadCommand;
+
+    public OverviewViewModel(ISettingsStore settings, IDialogService dialogs, ToastNotifier notifier, ILogger<OverviewViewModel> logger, CompareDirectoriesUseCase compare, ExecuteSyncUseCase sync, IAppNavigator navigator)
+    {
+        _settings = settings;
+        _navigator = navigator;
+
+        Rows = new(settings, () => IsBusy, () => _suppressReload, ReloadRows);
+
+        Batch = new(settings, dialogs, notifier, logger, compare, sync, Rows);
+        Batch.PropertyChanged += OnBatchPropertyChanged;
+
+        ReloadRows();
+    }
 
     public void ApplyProfileRun(SyncProfileRun run)
     {
@@ -94,9 +94,6 @@ public sealed partial class OverviewViewModel : ObservableObject, IPageHeader, I
             case nameof(OverviewBatchViewModel.ProgressValue):
             case nameof(OverviewBatchViewModel.ProgressMax):
                 OnPropertyChanged(e.PropertyName);
-                break;
-
-            default:
                 break;
         }
     }

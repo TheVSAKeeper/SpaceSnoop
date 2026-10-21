@@ -1,4 +1,5 @@
 ﻿using KeepShell.Diagnostics;
+
 namespace SpaceSnoop.Wpf.Bootstrap;
 
 public sealed class DeleteProgressDialogFactory(

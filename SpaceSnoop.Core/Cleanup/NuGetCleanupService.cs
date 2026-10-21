@@ -20,57 +20,64 @@ public sealed class NuGetCleanupService
     public async Task<NuGetCleanupPlan> ScanAsync(CancellationToken token)
     {
         var locations = await _discover(token).ConfigureAwait(false);
-        return await Task.Run(() =>
-        {
-            var scans = new List<NuGetCacheScan>();
-            foreach (var kind in NuGetCacheDiscovery.Names.Keys)
-            {
-                token.ThrowIfCancellationRequested();
-                var path = locations.Paths[kind];
-                var files = new List<CacheFileStamp>();
-                var errors = new List<string>();
-                CacheFileStamp root = default;
-                try
+        return await Task.Run(
+                () =>
                 {
-                    ValidateRoot(path, locations.Paths.Values);
-                    try
+                    var scans = new List<NuGetCacheScan>();
+                    foreach (var kind in NuGetCacheDiscovery.Names.Keys)
                     {
-                        File.GetAttributes(path);
-                    }
-                    catch (Exception missing) when (missing is DirectoryNotFoundException or FileNotFoundException)
-                    {
-                        scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly(), exists: false));
-                        continue;
-                    }
-                    using var lease = CacheFileAccess.LockDirectory(path);
-                    root = lease.Stamp;
-                    Walk(path, kind, files, errors, token);
-                    if (kind == NuGetCacheKind.GlobalPackages && errors.Count == 0)
-                    {
-                        ValidatePackages(path, files);
-                    }
-                }
-                catch (Exception exception) when (IsFileError(exception))
-                {
-                    AddError(errors, exception.Message);
-                }
+                        token.ThrowIfCancellationRequested();
+                        var path = locations.Paths[kind];
+                        var files = new List<CacheFileStamp>();
+                        var errors = new List<string>();
+                        CacheFileStamp root = default;
+                        try
+                        {
+                            ValidateRoot(path, locations.Paths.Values);
+                            try
+                            {
+                                File.GetAttributes(path);
+                            }
+                            catch (Exception missing) when (missing is DirectoryNotFoundException or FileNotFoundException)
+                            {
+                                scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly(), false));
+                                continue;
+                            }
 
-                scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly()));
-            }
+                            using var lease = CacheFileAccess.LockDirectory(path);
+                            root = lease.Stamp;
+                            Walk(path, kind, files, errors, token);
+                            if (kind == NuGetCacheKind.GlobalPackages && errors.Count == 0)
+                            {
+                                ValidatePackages(path, files);
+                            }
+                        }
+                        catch (Exception exception) when (IsFileError(exception))
+                        {
+                            AddError(errors, exception.Message);
+                        }
 
-            return new NuGetCleanupPlan(_owner, Fingerprint(locations), scans.AsReadOnly());
-        }, token).ConfigureAwait(false);
+                        scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly()));
+                    }
+
+                    return new NuGetCleanupPlan(_owner, Fingerprint(locations), scans.AsReadOnly());
+                },
+                token)
+            .ConfigureAwait(false);
     }
 
-    public async Task<CleanupReport> CleanAsync(NuGetCleanupPlan plan, IReadOnlyCollection<NuGetCacheKind> selected,
-        IProgress<OperationProgress>? progress, CancellationToken token)
+    public async Task<CleanupReport> CleanAsync(
+        NuGetCleanupPlan plan,
+        IReadOnlyCollection<NuGetCacheKind> selected,
+        IProgress<OperationProgress>? progress,
+        CancellationToken token)
     {
         if (plan.Owner != _owner || Interlocked.Exchange(ref plan.Used, 1) != 0)
         {
             return new(0, 0, 0, ["План очистки уже использован или принадлежит другому сеансу. Повторите сканирование."]);
         }
 
-        if (DateTime.UtcNow - plan.CreatedUtc > TimeSpan.FromMinutes(15))
+        if ((DateTime.UtcNow - plan.CreatedUtc) > TimeSpan.FromMinutes(15))
         {
             return new(0, 0, 0, ["Замер устарел. Повторите сканирование."]);
         }
@@ -101,8 +108,30 @@ public sealed class NuGetCleanupService
         }
     }
 
-    private static CleanupReport Clean(IReadOnlyList<NuGetCacheScan> caches, NuGetCacheLocations locations,
-        IProgress<OperationProgress>? progress, CancellationToken token)
+    internal static string Normalize(string path)
+    {
+        if (!Path.IsPathFullyQualified(path)
+            || path.Length < 3
+            || path[1] != ':'
+            || path[2] != '\\'
+            || path.AsSpan(2).Contains(':'))
+        {
+            throw new IOException("NuGet вернул не локальный абсолютный путь.");
+        }
+
+        if (path.Split(Path.DirectorySeparatorChar).Any(x => x.EndsWith(' ') || x.EndsWith('.')))
+        {
+            throw new IOException("Путь кэша содержит неоднозначное имя с точкой или пробелом в конце.");
+        }
+
+        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+    }
+
+    private static CleanupReport Clean(
+        IReadOnlyList<NuGetCacheScan> caches,
+        NuGetCacheLocations locations,
+        IProgress<OperationProgress>? progress,
+        CancellationToken token)
     {
         var totals = new CleanupTotals();
 
@@ -152,14 +181,18 @@ public sealed class NuGetCleanupService
         return new(totals.Bytes, totals.Deleted, totals.Skipped, totals.Errors.AsReadOnly(), token.IsCancellationRequested);
     }
 
-    private static void CleanGroup(IGrouping<string, CacheFileStamp> group, NuGetCacheKind kind,
-        CleanupTotals totals, IProgress<OperationProgress>? progress, CancellationToken token)
+    private static void CleanGroup(
+        IGrouping<string, CacheFileStamp> group,
+        NuGetCacheKind kind,
+        CleanupTotals totals,
+        IProgress<OperationProgress>? progress,
+        CancellationToken token)
     {
         using var packageLease = kind == NuGetCacheKind.GlobalPackages ? CacheFileAccess.LockDirectory(group.Key) : null;
         var markerPath = kind == NuGetCacheKind.GlobalPackages ? Path.Combine(group.Key, ".nupkg.metadata") : null;
         using var markerHandle = RemoveMarker(group, markerPath, totals);
         foreach (var directory in group.Where(x => !string.Equals(x.Path, markerPath, StringComparison.OrdinalIgnoreCase))
-                     .GroupBy(x => Path.GetDirectoryName(x.Path)!))
+            .GroupBy(x => Path.GetDirectoryName(x.Path)!))
         {
             if (token.IsCancellationRequested)
             {
@@ -225,20 +258,6 @@ public sealed class NuGetCleanupService
         }
     }
 
-    private sealed class CleanupTotals
-    {
-        internal long Bytes;
-        internal int Deleted;
-        internal int Skipped;
-        internal List<string> Errors { get; } = [];
-
-        internal void Failed(Exception exception, int count)
-        {
-            Skipped += count;
-            AddError(Errors, exception.Message);
-        }
-    }
-
     private static SafeFileHandle OpenUnchanged(CacheFileStamp file)
     {
         var handle = CacheFileAccess.OpenFile(file.Path, true);
@@ -258,8 +277,12 @@ public sealed class NuGetCleanupService
         }
     }
 
-    private static void Walk(string root, NuGetCacheKind kind, List<CacheFileStamp> files,
-        List<string> errors, CancellationToken token)
+    private static void Walk(
+        string root,
+        NuGetCacheKind kind,
+        List<CacheFileStamp> files,
+        List<string> errors,
+        CancellationToken token)
     {
         var directories = new Stack<string>();
         directories.Push(root);
@@ -269,7 +292,8 @@ public sealed class NuGetCleanupService
             try
             {
                 using var lease = CacheFileAccess.LockDirectory(path);
-                foreach (var entry in new DirectoryInfo(path).EnumerateFileSystemInfos("*",
+                foreach (var entry in new DirectoryInfo(path).EnumerateFileSystemInfos(
+                    "*",
                     new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false }))
                 {
                     token.ThrowIfCancellationRequested();
@@ -300,22 +324,6 @@ public sealed class NuGetCleanupService
         }
     }
 
-    internal static string Normalize(string path)
-    {
-        if (!Path.IsPathFullyQualified(path) || path.Length < 3 || path[1] != ':' || path[2] != '\\'
-            || path.AsSpan(2).Contains(':'))
-        {
-            throw new IOException("NuGet вернул не локальный абсолютный путь.");
-        }
-
-        if (path.Split(Path.DirectorySeparatorChar).Any(x => x.EndsWith(' ') || x.EndsWith('.')))
-        {
-            throw new IOException("Путь кэша содержит неоднозначное имя с точкой или пробелом в конце.");
-        }
-
-        return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-    }
-
     private static void ValidateRoot(string path, IEnumerable<string> paths)
     {
         if (Normalize(path) != path || new DirectoryInfo(path).Parent is null)
@@ -324,17 +332,7 @@ public sealed class NuGetCleanupService
         }
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var protectedPaths = new[]
-        {
-            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
-            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
-            Path.Combine(home, ".dotnet"),
-            Environment.GetEnvironmentVariable("DOTNET_ROOT") ?? string.Empty,
-            Environment.GetEnvironmentVariable("DOTNET_ROOT(x86)") ?? string.Empty,
-            Path.Combine(Environment.GetEnvironmentVariable("DOTNET_CLI_HOME") ?? home, ".dotnet"),
-            AppContext.BaseDirectory,
-        };
+        var protectedPaths = new[] { Environment.GetFolderPath(Environment.SpecialFolder.Windows), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Path.Combine(home, ".dotnet"), Environment.GetEnvironmentVariable("DOTNET_ROOT") ?? string.Empty, Environment.GetEnvironmentVariable("DOTNET_ROOT(x86)") ?? string.Empty, Path.Combine(Environment.GetEnvironmentVariable("DOTNET_CLI_HOME") ?? home, ".dotnet"), AppContext.BaseDirectory };
 
         if (string.Equals(path, home, StringComparison.OrdinalIgnoreCase)
             || protectedPaths.Where(item => !string.IsNullOrEmpty(item)).Any(item => Overlap(path, Normalize(item)))
@@ -344,15 +342,21 @@ public sealed class NuGetCleanupService
         }
     }
 
-    private static bool Overlap(string left, string right) =>
-        Inside(left, right) || Inside(right, left);
+    private static bool Overlap(string left, string right)
+    {
+        return Inside(left, right) || Inside(right, left);
+    }
 
-    private static bool Inside(string path, string root) =>
-        string.Equals(path, root, StringComparison.OrdinalIgnoreCase)
-        || path.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    private static bool Inside(string path, string root)
+    {
+        return string.Equals(path, root, StringComparison.OrdinalIgnoreCase)
+            || path.StartsWith(Path.TrimEndingDirectorySeparator(root) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
 
-    private static bool SameIdentity(CacheFileStamp left, CacheFileStamp right) =>
-        left.Volume == right.Volume && left.Id == right.Id;
+    private static bool SameIdentity(CacheFileStamp left, CacheFileStamp right)
+    {
+        return left.Volume == right.Volume && left.Id == right.Id;
+    }
 
     private static bool IsProjectFile(string name)
     {
@@ -362,8 +366,12 @@ public sealed class NuGetCleanupService
             || new[] { "global.json", "Directory.Build.props", "Directory.Build.targets" }.Contains(name, StringComparer.OrdinalIgnoreCase);
     }
 
-    private static string Fingerprint(NuGetCacheLocations locations) => locations.Context + "|"
-        + string.Join("|", NuGetCacheDiscovery.Names.Keys.Select(kind => locations.Paths[kind]));
+    private static string Fingerprint(NuGetCacheLocations locations)
+    {
+        return locations.Context
+            + "|"
+            + string.Join("|", NuGetCacheDiscovery.Names.Keys.Select(kind => locations.Paths[kind]));
+    }
 
     private static string PackageDirectory(string root, string path)
     {
@@ -383,8 +391,11 @@ public sealed class NuGetCleanupService
             var directory = new DirectoryInfo(group.Key);
             var id = directory.Parent!.Name;
             var names = group.Where(file => string.Equals(Path.GetDirectoryName(file.Path), group.Key, StringComparison.OrdinalIgnoreCase))
-                .Select(file => Path.GetFileName(file.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-            if (!names.Contains(".nupkg.metadata") || !names.Contains(id + ".nuspec")
+                .Select(file => Path.GetFileName(file.Path))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (!names.Contains(".nupkg.metadata")
+                || !names.Contains(id + ".nuspec")
                 || !names.Contains($"{id}.{directory.Name}.nupkg"))
             {
                 throw new IOException($"«{group.Key}»: пакет не завершён или структура не подтверждена. Очистка недоступна.");
@@ -392,14 +403,30 @@ public sealed class NuGetCleanupService
         }
     }
 
-    private static bool IsFileError(Exception exception) =>
-        exception is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or NotSupportedException;
+    private static bool IsFileError(Exception exception)
+    {
+        return exception is IOException or UnauthorizedAccessException or SecurityException or ArgumentException or NotSupportedException;
+    }
 
     private static void AddError(List<string> errors, string error)
     {
         if (errors.Count < 50)
         {
             errors.Add(error);
+        }
+    }
+
+    private sealed class CleanupTotals
+    {
+        internal long Bytes;
+        internal int Deleted;
+        internal int Skipped;
+        internal List<string> Errors { get; } = [];
+
+        internal void Failed(Exception exception, int count)
+        {
+            Skipped += count;
+            AddError(Errors, exception.Message);
         }
     }
 }

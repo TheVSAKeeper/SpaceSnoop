@@ -24,13 +24,13 @@ internal sealed class ArchiveIndex
     private readonly Dictionary<string, ZipEntryStamp> _entries;
     private readonly HashSet<string> _directories;
 
+    internal IEqualityComparer<string> Names => _entries.Comparer;
+
     private ArchiveIndex(StringComparer names)
     {
         _entries = new(names);
         _directories = new(names);
     }
-
-    internal IEqualityComparer<string> Names => _entries.Comparer;
 
     internal static ArchiveIndex Read(string zipPath, StringComparer names)
     {
@@ -106,47 +106,6 @@ public sealed class ArchiveService
         return new(files, emptyDirectories, unreadable, bytes);
     }
 
-    private static void ReadDirectory(
-        DirectoryInfo directory,
-        string root,
-        Stack<DirectoryInfo> stack,
-        List<string> files,
-        List<string> emptyDirectories,
-        ref long bytes)
-    {
-        var found = 0;
-
-        foreach (var file in directory.GetFiles())
-        {
-            if (IsReparsePoint(file))
-            {
-                continue;
-            }
-
-            files.Add(file.FullName);
-            bytes += file.Length;
-            found++;
-        }
-
-        var traversable = 0;
-
-        foreach (var sub in directory.GetDirectories())
-        {
-            if (IsReparsePoint(sub))
-            {
-                continue;
-            }
-
-            stack.Push(sub);
-            traversable++;
-        }
-
-        if (found == 0 && traversable == 0 && !IsSameDirectory(directory.FullName, root))
-        {
-            emptyDirectories.Add(directory.FullName);
-        }
-    }
-
     public ZipStats ZipFiles(
         string root,
         ArchiveContent content,
@@ -210,18 +169,6 @@ public sealed class ArchiveService
         return new(written, bytes);
     }
 
-    private static FileStream CreateArchiveFile(string zipPath)
-    {
-        try
-        {
-            return new(zipPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException && (File.Exists(zipPath) || Directory.Exists(zipPath)))
-        {
-            throw new IOException($"Имя «{Path.GetFileName(zipPath)}» уже занято – архив не создан, существующий файл не тронут.", exception);
-        }
-    }
-
     public VerifyResult VerifyCoverage(string root, string zipPath, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -275,6 +222,32 @@ public sealed class ArchiveService
         }
 
         return checkContent ? VerifyContent(zip, progress, token) : new(true, string.Empty);
+    }
+
+    public void DeleteDirectoryToRecycleBin(string path, bool showUi)
+    {
+        if (showUi)
+        {
+            FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
+            return;
+        }
+
+        RecycleBin.DeleteSilent(path);
+    }
+
+    public void SafeDelete(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine(exception);
+        }
     }
 
     internal VerifyResult CheckCoverage(string root, ArchiveContent content, ArchiveIndex index)
@@ -347,6 +320,59 @@ public sealed class ArchiveService
         return new(true, string.Empty);
     }
 
+    private static void ReadDirectory(
+        DirectoryInfo directory,
+        string root,
+        Stack<DirectoryInfo> stack,
+        List<string> files,
+        List<string> emptyDirectories,
+        ref long bytes)
+    {
+        var found = 0;
+
+        foreach (var file in directory.GetFiles())
+        {
+            if (IsReparsePoint(file))
+            {
+                continue;
+            }
+
+            files.Add(file.FullName);
+            bytes += file.Length;
+            found++;
+        }
+
+        var traversable = 0;
+
+        foreach (var sub in directory.GetDirectories())
+        {
+            if (IsReparsePoint(sub))
+            {
+                continue;
+            }
+
+            stack.Push(sub);
+            traversable++;
+        }
+
+        if (found == 0 && traversable == 0 && !IsSameDirectory(directory.FullName, root))
+        {
+            emptyDirectories.Add(directory.FullName);
+        }
+    }
+
+    private static FileStream CreateArchiveFile(string zipPath)
+    {
+        try
+        {
+            return new(zipPath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException && (File.Exists(zipPath) || Directory.Exists(zipPath)))
+        {
+            throw new IOException($"Имя «{Path.GetFileName(zipPath)}» уже занято – архив не создан, существующий файл не тронут.", exception);
+        }
+    }
+
     private static string Prefix(string root)
     {
         return root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -354,7 +380,7 @@ public sealed class ArchiveService
 
     private static string Relative(string prefix, string path)
     {
-        return (path.Length > prefix.Length + 1 ? path[(prefix.Length + 1)..] : Path.GetFileName(path))
+        return (path.Length > (prefix.Length + 1) ? path[(prefix.Length + 1)..] : Path.GetFileName(path))
             .Replace('\\', '/');
     }
 
@@ -417,8 +443,8 @@ public sealed class ArchiveService
 
         entry.LastWriteTime = lastWrite.Year switch
         {
-            < ZipMinYear => new DateTime(ZipMinYear, 1, 1, 0, 0, 0, DateTimeKind.Local),
-            > ZipMaxYear => new DateTime(ZipMaxYear, 12, 31, 23, 59, 58, DateTimeKind.Local),
+            < ZipMinYear => new(ZipMinYear, 1, 1, 0, 0, 0, DateTimeKind.Local),
+            > ZipMaxYear => new(ZipMaxYear, 12, 31, 23, 59, 58, DateTimeKind.Local),
             _ => lastWrite,
         };
 
@@ -532,31 +558,5 @@ public sealed class ArchiveService
         return read == stamp.Length && crc.GetCurrentHashAsUInt32() == stamp.Crc32
             ? null
             : $"после упаковки изменилось содержимое файла «{path}»";
-    }
-
-    public void DeleteDirectoryToRecycleBin(string path, bool showUi)
-    {
-        if (showUi)
-        {
-            FileSystem.DeleteDirectory(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
-            return;
-        }
-
-        RecycleBin.DeleteSilent(path);
-    }
-
-    public void SafeDelete(string path)
-    {
-        try
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            Debug.WriteLine(exception);
-        }
     }
 }

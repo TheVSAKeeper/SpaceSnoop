@@ -21,6 +21,14 @@ public static class SyncRoots
     private const string LongPrefix = @"\\?\";
     private const string LongUncPrefix = @"\\?\UNC\";
 
+    private enum FinalKind
+    {
+        None = 0,
+        Resolved = 1,
+        NoVolumeName = 2,
+        UnresolvedLink = 3,
+    }
+
     public static bool Overlap(string left, string right)
     {
         return Refusal(left, right) is not null;
@@ -126,7 +134,7 @@ public static class SyncRoots
     {
         try
         {
-            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 && ReparsePoint.IsLink(path, whenUnknown: true);
+            return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 && ReparsePoint.IsLink(path, true);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
@@ -154,8 +162,8 @@ public static class SyncRoots
         var b = Trim(right);
 
         return string.Equals(a, b, StringComparison.OrdinalIgnoreCase)
-               || b.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-               || a.StartsWith(b + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+            || b.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            || a.StartsWith(b + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string Trim(string path)
@@ -209,14 +217,6 @@ public static class SyncRoots
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern uint GetFinalPathNameByHandleW(SafeFileHandle handle, [Out] char[] buffer, uint size, uint flags);
-
-    private enum FinalKind
-    {
-        None = 0,
-        Resolved = 1,
-        NoVolumeName = 2,
-        UnresolvedLink = 3,
-    }
 
     private readonly record struct Final(FinalKind Kind, string Path);
 }

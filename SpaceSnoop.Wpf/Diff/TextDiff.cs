@@ -92,7 +92,7 @@ public static class TextDiff
 
         var suffix = 0;
 
-        while (suffix < min - prefix && left[left.Length - 1 - suffix] == right[right.Length - 1 - suffix])
+        while (suffix < (min - prefix) && left[left.Length - 1 - suffix] == right[right.Length - 1 - suffix])
         {
             suffix++;
         }
@@ -138,12 +138,14 @@ public static class TextDiff
             var left = i < removed.Count ? removed[i] : null;
             var right = i < added.Count ? added[i] : null;
 
-            rows.Add(new(left is null ? DiffLineKind.None : DiffLineKind.Removed,
-                left?.LeftNumberText ?? string.Empty,
-                left?.Text ?? string.Empty,
-                right is null ? DiffLineKind.None : DiffLineKind.Added,
-                right?.RightNumberText ?? string.Empty,
-                right?.Text ?? string.Empty));
+            rows.Add(
+                new(
+                    left is null ? DiffLineKind.None : DiffLineKind.Removed,
+                    left?.LeftNumberText ?? string.Empty,
+                    left?.Text ?? string.Empty,
+                    right is null ? DiffLineKind.None : DiffLineKind.Added,
+                    right?.RightNumberText ?? string.Empty,
+                    right?.Text ?? string.Empty));
         }
 
         removed.Clear();
@@ -242,7 +244,7 @@ public static class TextDiff
     private static bool TryMyers(IReadOnlyList<string> left, IReadOnlyList<string> right, int leftStart, int n, int m, List<DiffLine> output)
     {
         var max = n + m;
-        var maxD = (int)Math.Min(max, MaxTraceCells / (2L * max + 1));
+        var maxD = (int)Math.Min(max, MaxTraceCells / ((2L * max) + 1));
         var window = new MyersWindow(left, right, leftStart, n, m, max);
 
         if (!TryFindTrace(window, maxD, out var trace, out var foundD))
@@ -259,10 +261,10 @@ public static class TextDiff
 
     private static bool TryFindTrace(in MyersWindow window, int maxD, out List<int[]> trace, out int foundD)
     {
-        var v = new int[2 * window.Offset + 1];
+        var v = new int[(2 * window.Offset) + 1];
         trace = [];
 
-        for (var d = 0; d <= window.N + window.M; d++)
+        for (var d = 0; d <= (window.N + window.M); d++)
         {
             if (d > maxD)
             {
@@ -288,7 +290,7 @@ public static class TextDiff
 
         for (var k = -d; k <= d; k += 2)
         {
-            var x = k == -d || k != d && v[offset + k - 1] < v[offset + k + 1]
+            var x = k == -d || (k != d && v[offset + k - 1] < v[offset + k + 1])
                 ? v[offset + k + 1]
                 : v[offset + k - 1] + 1;
 
@@ -324,7 +326,7 @@ public static class TextDiff
         {
             var previous = trace[d];
             var k = px - py;
-            var previousK = k == -d || k != d && previous[offset + k - 1] < previous[offset + k + 1]
+            var previousK = k == -d || (k != d && previous[offset + k - 1] < previous[offset + k + 1])
                 ? k + 1
                 : k - 1;
 

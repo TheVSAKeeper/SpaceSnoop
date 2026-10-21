@@ -1,18 +1,16 @@
 ﻿using SpaceSnoop.Wpf.Markdown;
-using System.Windows.Controls;
 using System.Windows.Documents;
 
 namespace SpaceSnoop.Wpf.Behaviors;
 
 public static class MarkdownText
 {
-    public static readonly DependencyProperty SourceProperty = DependencyProperty.RegisterAttached("Source", typeof(string), typeof(MarkdownText), new(null, OnSourceChanged));
-
     private const double BlockSpacing = 8;
 
     private const double ListIndent = 18;
 
     private const double CodePadding = 8;
+    public static readonly DependencyProperty SourceProperty = DependencyProperty.RegisterAttached("Source", typeof(string), typeof(MarkdownText), new(null, OnSourceChanged));
 
     public static string? GetSource(DependencyObject element)
     {
@@ -67,10 +65,7 @@ public static class MarkdownText
         var kind = blocks[index].Kind;
         var list = new List
         {
-            MarkerStyle = kind == MarkdownBlockKind.Ordered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc,
-            Margin = new(0, 0, 0, BlockSpacing),
-            Padding = new(ListIndent, 0, 0, 0),
-            MarkerOffset = 6,
+            MarkerStyle = kind == MarkdownBlockKind.Ordered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc, Margin = new(0, 0, 0, BlockSpacing), Padding = new(ListIndent, 0, 0, 0), MarkerOffset = 6,
         };
 
         while (index < blocks.Count && blocks[index].Kind == kind)
@@ -102,11 +97,7 @@ public static class MarkdownText
 
     private static Paragraph BuildCode(MarkdownBlock block)
     {
-        var paragraph = new Paragraph(new Run(block.Text))
-        {
-            Margin = new(0, 0, 0, BlockSpacing),
-            Padding = new(CodePadding),
-        };
+        var paragraph = new Paragraph(new Run(block.Text)) { Margin = new(0, 0, 0, BlockSpacing), Padding = new(CodePadding) };
 
         paragraph.SetResourceReference(TextElement.FontFamilyProperty, "Font.Mono");
         paragraph.SetResourceReference(TextElement.BackgroundProperty, "Bg.SurfaceMute");

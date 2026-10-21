@@ -15,28 +15,40 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Chat/ChatResources.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Chat/ChatResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="Chat.Bubble"
                    TargetType="Border">
-                <Setter Property="Background" Value="{DynamicResource Bg.SurfaceAlt}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
-                <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="CornerRadius" Value="{DynamicResource Radius.M}" />
-                <Setter Property="Padding" Value="14,10" />
-                <Setter Property="MaxWidth" Value="720" />
-                <Setter Property="HorizontalAlignment" Value="Left" />
+                <Setter Property="Background"
+                        Value="{DynamicResource Bg.SurfaceAlt}" />
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource Border.Subtle}" />
+                <Setter Property="BorderThickness"
+                        Value="1" />
+                <Setter Property="CornerRadius"
+                        Value="{DynamicResource Radius.M}" />
+                <Setter Property="Padding"
+                        Value="14,10" />
+                <Setter Property="MaxWidth"
+                        Value="720" />
+                <Setter Property="HorizontalAlignment"
+                        Value="Left" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsUser}"
                                  Value="True">
-                        <Setter Property="Background" Value="{DynamicResource Accent.Soft}" />
-                        <Setter Property="HorizontalAlignment" Value="Right" />
+                        <Setter Property="Background"
+                                Value="{DynamicResource Accent.Soft}" />
+                        <Setter Property="HorizontalAlignment"
+                                Value="Right" />
                     </DataTrigger>
                     <DataTrigger Binding="{Binding IsError}"
                                  Value="True">
-                        <Setter Property="Background" Value="{DynamicResource State.ErrorSoft}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource State.Error}" />
+                        <Setter Property="Background"
+                                Value="{DynamicResource State.ErrorSoft}" />
+                        <Setter Property="BorderBrush"
+                                Value="{DynamicResource State.Error}" />
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -44,13 +56,17 @@
             <Style x:Key="Chat.BubbleRole"
                    TargetType="TextBlock"
                    BasedOn="{StaticResource TextBlock.Subtle}">
-                <Setter Property="FontSize" Value="{DynamicResource Font.Size.S}" />
-                <Setter Property="FontWeight" Value="{DynamicResource Font.Weight.SemiBold}" />
-                <Setter Property="VerticalAlignment" Value="Center" />
+                <Setter Property="FontSize"
+                        Value="{DynamicResource Font.Size.S}" />
+                <Setter Property="FontWeight"
+                        Value="{DynamicResource Font.Weight.SemiBold}" />
+                <Setter Property="VerticalAlignment"
+                        Value="Center" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsError}"
                                  Value="True">
-                        <Setter Property="Foreground" Value="{DynamicResource State.ErrorText}" />
+                        <Setter Property="Foreground"
+                                Value="{DynamicResource State.ErrorText}" />
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -58,54 +74,76 @@
             <Style x:Key="Chat.MessageAction"
                    TargetType="Button"
                    BasedOn="{StaticResource Button.Icon}">
-                <Setter Property="Width" Value="26" />
-                <Setter Property="Height" Value="26" />
-                <Setter Property="MinHeight" Value="0" />
-                <Setter Property="Padding" Value="0" />
-                <Setter Property="Margin" Value="6,0,0,0" />
-                <Setter Property="Opacity" Value="0" />
+                <Setter Property="Width"
+                        Value="26" />
+                <Setter Property="Height"
+                        Value="26" />
+                <Setter Property="MinHeight"
+                        Value="0" />
+                <Setter Property="Padding"
+                        Value="0" />
+                <Setter Property="Margin"
+                        Value="6,0,0,0" />
+                <Setter Property="Opacity"
+                        Value="0" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsMouseOver, RelativeSource={RelativeSource AncestorType=Border}}"
                                  Value="True">
-                        <Setter Property="Opacity" Value="1" />
+                        <Setter Property="Opacity"
+                                Value="1" />
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
 
             <Style x:Key="Chat.ActionIcon"
                    TargetType="iconPacks:PackIconLucide">
-                <Setter Property="Width" Value="13" />
-                <Setter Property="Height" Value="13" />
+                <Setter Property="Width"
+                        Value="13" />
+                <Setter Property="Height"
+                        Value="13" />
             </Style>
 
             <Style x:Key="Chat.ToolBadge"
                    TargetType="Border"
                    BasedOn="{StaticResource Badge}">
-                <Setter Property="Background" Value="{DynamicResource Bg.SurfaceMute}" />
-                <Setter Property="BorderBrush" Value="{DynamicResource Border.Subtle}" />
-                <Setter Property="TextElement.Foreground" Value="{DynamicResource Fg.Secondary}" />
-                <Setter Property="TextElement.FontSize" Value="{DynamicResource Font.Size.Caption}" />
+                <Setter Property="Background"
+                        Value="{DynamicResource Bg.SurfaceMute}" />
+                <Setter Property="BorderBrush"
+                        Value="{DynamicResource Border.Subtle}" />
+                <Setter Property="TextElement.Foreground"
+                        Value="{DynamicResource Fg.Secondary}" />
+                <Setter Property="TextElement.FontSize"
+                        Value="{DynamicResource Font.Size.Caption}" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsMutating}"
                                  Value="True">
-                        <Setter Property="Background" Value="{DynamicResource State.WarningSoft}" />
-                        <Setter Property="BorderBrush" Value="{DynamicResource State.Warning}" />
-                        <Setter Property="TextElement.Foreground" Value="{DynamicResource State.WarningText}" />
+                        <Setter Property="Background"
+                                Value="{DynamicResource State.WarningSoft}" />
+                        <Setter Property="BorderBrush"
+                                Value="{DynamicResource State.Warning}" />
+                        <Setter Property="TextElement.Foreground"
+                                Value="{DynamicResource State.WarningText}" />
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
 
             <Style x:Key="Chat.ToolBadgeIcon"
                    TargetType="iconPacks:PackIconLucide">
-                <Setter Property="Width" Value="11" />
-                <Setter Property="Height" Value="11" />
-                <Setter Property="VerticalAlignment" Value="Center" />
-                <Setter Property="Margin" Value="0,0,5,0" />
-                <Setter Property="Kind" Value="{x:Static iconPacks:PackIconLucideKind.Wrench}" />
+                <Setter Property="Width"
+                        Value="11" />
+                <Setter Property="Height"
+                        Value="11" />
+                <Setter Property="VerticalAlignment"
+                        Value="Center" />
+                <Setter Property="Margin"
+                        Value="0,0,5,0" />
+                <Setter Property="Kind"
+                        Value="{x:Static iconPacks:PackIconLucideKind.Wrench}" />
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding IsMutating}"
                                  Value="True">
-                        <Setter Property="Kind" Value="{x:Static iconPacks:PackIconLucideKind.TriangleAlert}" />
+                        <Setter Property="Kind"
+                                Value="{x:Static iconPacks:PackIconLucideKind.TriangleAlert}" />
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -113,50 +151,80 @@
             <Style x:Key="Chat.BubbleText"
                    TargetType="TextBox"
                    BasedOn="{StaticResource TextBox.Form}">
-                <Setter Property="IsReadOnly" Value="True" />
-                <Setter Property="IsReadOnlyCaretVisible" Value="False" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="Padding" Value="0" />
-                <Setter Property="MinHeight" Value="0" />
-                <Setter Property="AcceptsReturn" Value="True" />
-                <Setter Property="TextWrapping" Value="Wrap" />
-                <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
-                <Setter Property="Visibility" Value="Collapsed" />
+                <Setter Property="IsReadOnly"
+                        Value="True" />
+                <Setter Property="IsReadOnlyCaretVisible"
+                        Value="False" />
+                <Setter Property="BorderThickness"
+                        Value="0" />
+                <Setter Property="Background"
+                        Value="Transparent" />
+                <Setter Property="Padding"
+                        Value="0" />
+                <Setter Property="MinHeight"
+                        Value="0" />
+                <Setter Property="AcceptsReturn"
+                        Value="True" />
+                <Setter Property="TextWrapping"
+                        Value="Wrap" />
+                <Setter Property="FontFamily"
+                        Value="{DynamicResource Font.Sans}" />
+                <Setter Property="Visibility"
+                        Value="Collapsed" />
                 <Style.Triggers>
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
-                            <Condition Binding="{Binding IsUser}" Value="True" />
-                            <Condition Binding="{Binding HasText}" Value="True" />
+                            <Condition Binding="{Binding IsUser}"
+                                       Value="True" />
+                            <Condition Binding="{Binding HasText}"
+                                       Value="True" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Visibility" Value="Visible" />
+                        <Setter Property="Visibility"
+                                Value="Visible" />
                     </MultiDataTrigger>
                 </Style.Triggers>
             </Style>
 
             <Style x:Key="Chat.BubbleMarkdown"
                    TargetType="RichTextBox">
-                <Setter Property="IsReadOnly" Value="True" />
-                <Setter Property="IsReadOnlyCaretVisible" Value="False" />
-                <Setter Property="IsDocumentEnabled" Value="False" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="Padding" Value="0" />
-                <Setter Property="MinWidth" Value="0" />
-                <Setter Property="MinHeight" Value="0" />
-                <Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" />
-                <Setter Property="FontFamily" Value="{DynamicResource Font.Sans}" />
-                <Setter Property="FontSize" Value="{DynamicResource Font.Size.M}" />
-                <Setter Property="VerticalScrollBarVisibility" Value="Disabled" />
-                <Setter Property="HorizontalScrollBarVisibility" Value="Disabled" />
-                <Setter Property="Visibility" Value="Collapsed" />
+                <Setter Property="IsReadOnly"
+                        Value="True" />
+                <Setter Property="IsReadOnlyCaretVisible"
+                        Value="False" />
+                <Setter Property="IsDocumentEnabled"
+                        Value="False" />
+                <Setter Property="BorderThickness"
+                        Value="0" />
+                <Setter Property="Background"
+                        Value="Transparent" />
+                <Setter Property="Padding"
+                        Value="0" />
+                <Setter Property="MinWidth"
+                        Value="0" />
+                <Setter Property="MinHeight"
+                        Value="0" />
+                <Setter Property="Foreground"
+                        Value="{DynamicResource Fg.Primary}" />
+                <Setter Property="FontFamily"
+                        Value="{DynamicResource Font.Sans}" />
+                <Setter Property="FontSize"
+                        Value="{DynamicResource Font.Size.M}" />
+                <Setter Property="VerticalScrollBarVisibility"
+                        Value="Disabled" />
+                <Setter Property="HorizontalScrollBarVisibility"
+                        Value="Disabled" />
+                <Setter Property="Visibility"
+                        Value="Collapsed" />
                 <Style.Triggers>
                     <MultiDataTrigger>
                         <MultiDataTrigger.Conditions>
-                            <Condition Binding="{Binding IsUser}" Value="False" />
-                            <Condition Binding="{Binding HasText}" Value="True" />
+                            <Condition Binding="{Binding IsUser}"
+                                       Value="False" />
+                            <Condition Binding="{Binding HasText}"
+                                       Value="True" />
                         </MultiDataTrigger.Conditions>
-                        <Setter Property="Visibility" Value="Visible" />
+                        <Setter Property="Visibility"
+                                Value="Visible" />
                     </MultiDataTrigger>
                 </Style.Triggers>
             </Style>
@@ -262,18 +330,20 @@
                                                             <MultiDataTrigger.Conditions>
                                                                 <Condition Binding="{Binding ShowStatus}"
                                                                            Value="True" />
-                                                                <Condition Binding="{Binding Enabled, Source={x:Static viewBehaviors:SystemAnimations.Current}}"
-                                                                           Value="True" />
+                                                                <Condition
+                                                                    Binding="{Binding Enabled, Source={x:Static viewBehaviors:SystemAnimations.Current}}"
+                                                                    Value="True" />
                                                             </MultiDataTrigger.Conditions>
                                                             <MultiDataTrigger.EnterActions>
                                                                 <BeginStoryboard x:Name="ChatStatusBeat">
                                                                     <Storyboard>
-                                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                                                                         From="1"
-                                                                                         To="0.2"
-                                                                                         Duration="0:0:0.7"
-                                                                                         AutoReverse="True"
-                                                                                         RepeatBehavior="Forever" />
+                                                                        <DoubleAnimation
+                                                                            Storyboard.TargetProperty="Opacity"
+                                                                            From="1"
+                                                                            To="0.2"
+                                                                            Duration="0:0:0.7"
+                                                                            AutoReverse="True"
+                                                                            RepeatBehavior="Forever" />
                                                                     </Storyboard>
                                                                 </BeginStoryboard>
                                                             </MultiDataTrigger.EnterActions>
@@ -304,7 +374,8 @@
                                                         ToolTip="{Binding Hint}"
                                                         Margin="0,0,6,6">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <iconPacks:PackIconLucide Style="{StaticResource Chat.ToolBadgeIcon}" />
+                                                        <iconPacks:PackIconLucide
+                                                            Style="{StaticResource Chat.ToolBadgeIcon}" />
                                                         <TextBlock Text="{Binding Label}"
                                                                    FontSize="{DynamicResource Font.Size.Caption}" />
                                                     </StackPanel>

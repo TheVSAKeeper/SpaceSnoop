@@ -1,10 +1,8 @@
 ﻿using KeepShell.Testing;
-using SpaceSnoop.Wpf.Bootstrap;
-using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Core;
+using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Threading;
@@ -39,26 +37,6 @@ public class ProgressChannelMeasurement
     [TestCase(0, true)]
     [TestCase(ProductionRate, false)]
     [TestCase(ProductionRate, true)]
-    [TestCase(5_000, true)]
-    [TestCase(10_000, true)]
-    [TestCase(25_000, true)]
-    [TestCase(50_000, true)]
-    public void Пуш_каждого_объекта_в_очередь_диспетчера(int rate, bool bound)
-    {
-        var sink = new Sink();
-        var progress = new Progress<OperationProgress>(sink.Apply);
-
-        using var screen = Screen.For(sink, bound);
-
-        var sample = Flood(progress, rate, null);
-
-        Report("пуш на объект", rate, bound, sample, sink);
-    }
-
-    [TestCase(0, false)]
-    [TestCase(0, true)]
-    [TestCase(ProductionRate, false)]
-    [TestCase(ProductionRate, true)]
     [TestCase(50_000, true)]
     public void Опрос_состояния_таймером(int rate, bool bound)
     {
@@ -73,6 +51,26 @@ public class ProgressChannelMeasurement
         sink.Apply(state.CreateSnapshot());
 
         Report("опрос таймером", rate, bound, sample, sink);
+    }
+
+    [TestCase(0, false)]
+    [TestCase(0, true)]
+    [TestCase(ProductionRate, false)]
+    [TestCase(ProductionRate, true)]
+    [TestCase(5_000, true)]
+    [TestCase(10_000, true)]
+    [TestCase(25_000, true)]
+    [TestCase(50_000, true)]
+    public void Пуш_каждого_объекта_в_очередь_диспетчера(int rate, bool bound)
+    {
+        var sink = new Sink();
+        var progress = new Progress<OperationProgress>(sink.Apply);
+
+        using var screen = Screen.For(sink, bound);
+
+        var sample = Flood(progress, rate, null);
+
+        Report("пуш на объект", rate, bound, sample, sink);
     }
 
     private static void Report(string channel, int rate, bool bound, Sample sample, Sink sink)
@@ -159,7 +157,8 @@ public class ProgressChannelMeasurement
             panel.Children.Add(path);
             panel.Children.Add(count);
 
-            var host = VisualTestHost.Show(new Window { Content = panel }, 640, 200);
+            var host = VisualTestHost.Show(new() { Content = panel }, 640, 200);
+
             host.Settle();
 
             return new(host);
@@ -218,11 +217,6 @@ public class ProgressChannelMeasurement
 
         private double _last;
 
-        public Watchdog(Dispatcher dispatcher)
-        {
-            _timer = new(SampleInterval, DispatcherPriority.Background, (_, _) => OnTick(), dispatcher);
-        }
-
         public double MaxDelayMs { get; private set; }
 
         public double MaxDelayAtMs { get; private set; }
@@ -230,6 +224,11 @@ public class ProgressChannelMeasurement
         public int LateTicks { get; private set; }
 
         public int Ticks { get; private set; }
+
+        public Watchdog(Dispatcher dispatcher)
+        {
+            _timer = new(SampleInterval, DispatcherPriority.Background, (_, _) => OnTick(), dispatcher);
+        }
 
         public void Start()
         {

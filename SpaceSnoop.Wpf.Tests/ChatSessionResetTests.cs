@@ -5,7 +5,6 @@ using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.Mcp;
 using SpaceSnoop.Wpf.ViewModels.Chat;
 using SpaceSnoop.Wpf.ViewModels.Settings;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -30,12 +29,48 @@ public class ChatSessionResetTests
 
         try
         {
-            Directory.Delete(_directory, recursive: true);
+            Directory.Delete(_directory, true);
         }
         catch (IOException exception)
         {
             TestContext.Out.WriteLine($"Не удалось удалить каталог {_directory}: {exception.Message}");
         }
+    }
+
+    [Test]
+    public void Переключение_мутаций_посреди_хода_бросает_сессию_CLI_без_системного_промпта_на_каждом_ходе()
+    {
+        var history = History(out var settings, out var preferences, out var backends);
+        preferences.Backend = AgentBackendKind.Codex;
+        history.SessionId = "сессия-codex";
+
+        var gates = Gates(
+            settings,
+            preferences,
+            backends,
+            history,
+            () =>
+            {
+            });
+
+        gates.Mcp.AllowMutations = !gates.Mcp.AllowMutations;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(backends.Current.SendsSystemPromptEachTurn, Is.False);
+            Assert.That(history.SessionId, Is.Null);
+            Assert.That(history.SessionDropped, Is.True);
+        }
+    }
+
+    [Test]
+    public void Сброс_сессии_посреди_хода_помечает_её_брошенной()
+    {
+        var history = History();
+
+        history.DropSession(busy: true);
+
+        Assert.That(history.SessionDropped, Is.True);
     }
 
     [Test]
@@ -56,16 +91,6 @@ public class ChatSessionResetTests
             Assert.That(history.ResumedFromDisk, Is.False);
             Assert.That(history.SessionDropped, Is.False);
         }
-    }
-
-    [Test]
-    public void Сброс_сессии_посреди_хода_помечает_её_брошенной()
-    {
-        var history = History();
-
-        history.DropSession(busy: true);
-
-        Assert.That(history.SessionDropped, Is.True);
     }
 
     [TestCase(true, TestName = "Смена CLI из композера посреди хода останавливает ход и бросает сессию прежнего CLI")]
@@ -100,25 +125,6 @@ public class ChatSessionResetTests
         }
     }
 
-    [Test]
-    public void Переключение_мутаций_посреди_хода_бросает_сессию_CLI_без_системного_промпта_на_каждом_ходе()
-    {
-        var history = History(out var settings, out var preferences, out var backends);
-        preferences.Backend = AgentBackendKind.Codex;
-        history.SessionId = "сессия-codex";
-
-        var gates = Gates(settings, preferences, backends, history, () => { });
-
-        gates.Mcp.AllowMutations = !gates.Mcp.AllowMutations;
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(backends.Current.SendsSystemPromptEachTurn, Is.False);
-            Assert.That(history.SessionId, Is.Null);
-            Assert.That(history.SessionDropped, Is.True);
-        }
-    }
-
     private ChatGatesViewModel Gates(SettingsStore settings, AgentPreferences preferences, AgentBackends backends, ChatHistoryViewModel history, Action cancelActiveTurn)
     {
         _mcpServer = new(new(settings), null!, new(settings), NullLogger<McpServerHost>.Instance);
@@ -149,9 +155,9 @@ public class ChatSessionResetTests
 
         backends = new(
             preferences,
-            new ClaudeAgentBackend(preferences, NullLogger<ClaudeAgentBackend>.Instance),
-            new CodexAgentBackend(preferences, NullLogger<CodexAgentBackend>.Instance),
-            new OpenCodeAgentBackend(preferences, NullLogger<OpenCodeAgentBackend>.Instance));
+            new(preferences, NullLogger<ClaudeAgentBackend>.Instance),
+            new(preferences, NullLogger<CodexAgentBackend>.Instance),
+            new(preferences, NullLogger<OpenCodeAgentBackend>.Instance));
 
         var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, Path.Combine(_directory, ChatHistoryStore.FileName));
 
@@ -177,7 +183,11 @@ public class ChatSessionResetTests
             preferences,
             [],
             () => false,
-            () => { },
-            () => { });
+            () =>
+            {
+            },
+            () =>
+            {
+            });
     }
 }

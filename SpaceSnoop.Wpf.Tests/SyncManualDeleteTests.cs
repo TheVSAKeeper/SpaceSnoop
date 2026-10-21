@@ -7,14 +7,24 @@ namespace SpaceSnoop.Wpf.Tests;
 public class SyncManualDeleteTests
 {
     [Test]
+    public void Запрещённое_удаление_каталога_не_доходит_до_поддерева()
+    {
+        var dir = new DirectoryComparison("blind", "blind") { Status = ComparisonStatus.RightOnly, DeleteRightBlocked = true };
+
+        var row = Row(dir, out var host);
+        row.DirDeleteCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(host.Applied, Is.Empty);
+            Assert.That(row.DeleteAllowed, Is.False);
+        }
+    }
+
+    [Test]
     public void Запрещённое_удаление_файла_не_назначается_из_меню()
     {
-        var file = new FileComparison("orphan.txt", "blind/orphan.txt")
-        {
-            Status = ComparisonStatus.LeftOnly,
-            Action = SyncAction.Skip,
-            DeleteLeftBlocked = true,
-        };
+        var file = new FileComparison("orphan.txt", "blind/orphan.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.Skip, DeleteLeftBlocked = true };
 
         var row = Row(file, out _);
         row.DeleteCommand.Execute(null);
@@ -28,68 +38,9 @@ public class SyncManualDeleteTests
     }
 
     [Test]
-    public void Разрешённое_удаление_файла_назначается_как_прежде()
-    {
-        var file = new FileComparison("orphan.txt", "orphan.txt")
-        {
-            Status = ComparisonStatus.LeftOnly,
-            Action = SyncAction.Skip,
-        };
-
-        var row = Row(file, out _);
-        row.DeleteCommand.Execute(null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(file.Action, Is.EqualTo(SyncAction.DeleteLeft));
-            Assert.That(row.DeleteAllowed, Is.True);
-        }
-    }
-
-    [Test]
-    public void Цикл_действий_пропускает_запрещённое_удаление()
-    {
-        var file = new FileComparison("orphan.txt", "orphan.txt")
-        {
-            Status = ComparisonStatus.LeftOnly,
-            Action = SyncAction.Skip,
-            DeleteLeftBlocked = true,
-        };
-
-        var row = Row(file, out _);
-        row.CycleActionCommand.Execute(null);
-
-        Assert.That(file.Action, Is.EqualTo(SyncAction.CopyToRight));
-    }
-
-    [Test]
-    public void Запрещённое_удаление_каталога_не_доходит_до_поддерева()
-    {
-        var dir = new DirectoryComparison("blind", "blind")
-        {
-            Status = ComparisonStatus.RightOnly,
-            DeleteRightBlocked = true,
-        };
-
-        var row = Row(dir, out var host);
-        row.DirDeleteCommand.Execute(null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(host.Applied, Is.Empty);
-            Assert.That(row.DeleteAllowed, Is.False);
-        }
-    }
-
-    [Test]
     public void Конфликт_вида_не_принимает_копирование_но_принимает_пропуск()
     {
-        var file = new FileComparison("config", "config")
-        {
-            Status = ComparisonStatus.Modified,
-            Action = SyncAction.None,
-            TypeConflict = FileTypeConflict.RightFileLeftDirectory,
-        };
+        var file = new FileComparison("config", "config") { Status = ComparisonStatus.Modified, Action = SyncAction.None, TypeConflict = FileTypeConflict.RightFileLeftDirectory };
 
         var row = Row(file, out _);
         row.CopyToRightCommand.Execute(null);
@@ -104,6 +55,32 @@ public class SyncManualDeleteTests
         row.SkipCommand.Execute(null);
 
         Assert.That(file.Action, Is.EqualTo(SyncAction.Skip));
+    }
+
+    [Test]
+    public void Разрешённое_удаление_файла_назначается_как_прежде()
+    {
+        var file = new FileComparison("orphan.txt", "orphan.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.Skip };
+
+        var row = Row(file, out _);
+        row.DeleteCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(file.Action, Is.EqualTo(SyncAction.DeleteLeft));
+            Assert.That(row.DeleteAllowed, Is.True);
+        }
+    }
+
+    [Test]
+    public void Цикл_действий_пропускает_запрещённое_удаление()
+    {
+        var file = new FileComparison("orphan.txt", "orphan.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.Skip, DeleteLeftBlocked = true };
+
+        var row = Row(file, out _);
+        row.CycleActionCommand.Execute(null);
+
+        Assert.That(file.Action, Is.EqualTo(SyncAction.CopyToRight));
     }
 
     private static SyncNodeViewModel Row(FileComparison file, out RowHost host)

@@ -44,8 +44,8 @@ internal static class TreemapTooltip
 
             if (point.X >= bounds.X
                 && point.Y >= bounds.Y
-                && point.X + popup.Width <= bounds.Right
-                && point.Y + popup.Height <= bounds.Bottom)
+                && (point.X + popup.Width) <= bounds.Right
+                && (point.Y + popup.Height) <= bounds.Bottom)
             {
                 return candidate;
             }

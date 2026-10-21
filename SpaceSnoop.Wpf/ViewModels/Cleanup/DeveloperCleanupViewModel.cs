@@ -45,8 +45,61 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     [NotifyPropertyChangedFor(nameof(HasResult))]
     private string? _resultText;
 
-    public DeveloperCleanupViewModel(NuGetCleanupService service, IDialogService dialogs, IUiDispatcher uiDispatcher,
-        ILogger<DeveloperCleanupViewModel> logger, ProjectCleanupViewModel projects, WorkloadCleanupViewModel workloads,
+    public ProjectCleanupViewModel Projects { get; }
+    public WorkloadCleanupViewModel Workloads { get; }
+    public DotNetCleanViewModel DotNetClean { get; }
+
+    public IReadOnlyList<SegmentOption> Areas { get; } =
+    [
+        new(PackIconLucideKind.Package, "Кэши NuGet", "Кэши текущего пользователя"),
+        new(PackIconLucideKind.Folder, "Проекты", "bin/obj, результаты тестов и бенчмарков"),
+        new(PackIconLucideKind.HardDrive, "Workloads", "Очистка хранилища workload"),
+        new(PackIconLucideKind.Terminal, "dotnet clean", "Очистка доверенного проекта"),
+    ];
+
+    public bool IsNuGetActive => SelectedAreaIndex == 0;
+    public bool IsProjectsActive => SelectedAreaIndex == 1;
+    public bool IsWorkloadsActive => SelectedAreaIndex == 2;
+    public bool IsDotNetCleanActive => SelectedAreaIndex == 3;
+    public bool IsBusy => IsNuGetBusy || Projects.IsBusy || Workloads.IsBusy || DotNetClean.IsBusy;
+    public ObservableCollection<NuGetCacheViewModel> Caches { get; } = [];
+    public string PageTitle => "Разработка";
+    public string PageDescription => "Кэши NuGet, артефакты проектов, workloads и доверенная очистка проекта .NET.";
+
+    public string? RefreshTooltip => IsProjectsActive ? "Повторить поиск в выбранном каталоге проектов"
+        : IsWorkloadsActive ? "Определить активный SDK и workloads заново"
+        : IsDotNetCleanActive ? "Проверить SDK в каталоге доверенного проекта" : "Определить пути NuGet и измерить кэши заново";
+
+    public string? StatusCaption => Projects.IsBusy || IsProjectsActive ? Projects.StatusText
+        : Workloads.IsBusy || IsWorkloadsActive ? Workloads.StatusText
+        : DotNetClean.IsBusy || IsDotNetCleanActive ? DotNetClean.StatusText : StatusText;
+
+    public bool IsIdle => !IsBusy;
+    public bool IsIndeterminate => true;
+    public double ProgressValue => 0;
+    public double ProgressMax => 1;
+
+    public ICommand? CancelCommand => Projects.IsBusy ? Projects.CancelCommand
+        : Workloads.IsBusy ? Workloads.CancelCommand
+        : DotNetClean.IsBusy ? DotNetClean.CancelCommand
+        : IsNuGetBusy ? CancelOperationCommand : null;
+
+    public bool HasResult => !string.IsNullOrEmpty(ResultText);
+    public bool HasCaches => Caches.Count > 0;
+    public string TotalText => SizeFormatter.Format(Caches.Sum(x => x.Bytes));
+    public string SelectedText => SizeFormatter.Format(Caches.Where(x => x.IsSelected && x.CanSelect).Sum(x => x.Bytes));
+    public string SelectionText => $"Категорий: {Caches.Count(x => x.IsSelected && x.CanSelect)} из {Caches.Count}";
+    public bool HasSelectedBytes => Caches.Any(x => x.IsSelected && x.CanSelect && x.Bytes > 0);
+    public bool CanClean => !IsBusy && _plan is not null && Caches.Any(x => x.IsSelected && x.CanSelect);
+    ICommand IPageRefresh.RefreshCommand => RefreshCommand;
+
+    public DeveloperCleanupViewModel(
+        NuGetCleanupService service,
+        IDialogService dialogs,
+        IUiDispatcher uiDispatcher,
+        ILogger<DeveloperCleanupViewModel> logger,
+        ProjectCleanupViewModel projects,
+        WorkloadCleanupViewModel workloads,
         DotNetCleanViewModel dotNetClean)
     {
         _service = service;
@@ -70,6 +123,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             workloads.IsHostBusy = IsNuGetBusy || Projects.IsBusy || DotNetClean.IsBusy;
             DotNetClean.IsHostBusy = IsNuGetBusy || Projects.IsBusy || Workloads.IsBusy;
         };
+
         Workloads.PropertyChanged += (_, _) =>
         {
             Projects.IsHostBusy = IsNuGetBusy || Workloads.IsBusy || DotNetClean.IsBusy;
@@ -84,6 +138,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             SelectRecommendedCommand.NotifyCanExecuteChanged();
             ClearSelectionCommand.NotifyCanExecuteChanged();
         };
+
         DotNetClean.PropertyChanged += (_, _) =>
         {
             Projects.IsHostBusy = IsNuGetBusy || Workloads.IsBusy || DotNetClean.IsBusy;
@@ -100,55 +155,6 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         };
     }
 
-    public ProjectCleanupViewModel Projects { get; }
-    public WorkloadCleanupViewModel Workloads { get; }
-    public DotNetCleanViewModel DotNetClean { get; }
-    public IReadOnlyList<SegmentOption> Areas { get; } =
-    [
-        new(PackIconLucideKind.Package, "Кэши NuGet", "Кэши текущего пользователя"),
-        new(PackIconLucideKind.Folder, "Проекты", "bin/obj, результаты тестов и бенчмарков"),
-        new(PackIconLucideKind.HardDrive, "Workloads", "Очистка хранилища workload"),
-        new(PackIconLucideKind.Terminal, "dotnet clean", "Очистка доверенного проекта"),
-    ];
-    public bool IsNuGetActive => SelectedAreaIndex == 0;
-    public bool IsProjectsActive => SelectedAreaIndex == 1;
-    public bool IsWorkloadsActive => SelectedAreaIndex == 2;
-    public bool IsDotNetCleanActive => SelectedAreaIndex == 3;
-    public bool IsBusy => IsNuGetBusy || Projects.IsBusy || Workloads.IsBusy || DotNetClean.IsBusy;
-    public ObservableCollection<NuGetCacheViewModel> Caches { get; } = [];
-    public string PageTitle => "Разработка";
-    public string PageDescription => "Кэши NuGet, артефакты проектов, workloads и доверенная очистка проекта .NET.";
-    public string? RefreshTooltip => IsProjectsActive ? "Повторить поиск в выбранном каталоге проектов"
-        : IsWorkloadsActive ? "Определить активный SDK и workloads заново"
-        : IsDotNetCleanActive ? "Проверить SDK в каталоге доверенного проекта" : "Определить пути NuGet и измерить кэши заново";
-    public string? StatusCaption => Projects.IsBusy || IsProjectsActive ? Projects.StatusText : Workloads.IsBusy || IsWorkloadsActive ? Workloads.StatusText
-        : DotNetClean.IsBusy || IsDotNetCleanActive ? DotNetClean.StatusText : StatusText;
-    public bool IsIdle => !IsBusy;
-    public bool IsIndeterminate => true;
-    public double ProgressValue => 0;
-    public double ProgressMax => 1;
-    public ICommand? CancelCommand => Projects.IsBusy ? Projects.CancelCommand : Workloads.IsBusy ? Workloads.CancelCommand
-        : DotNetClean.IsBusy ? DotNetClean.CancelCommand
-        : IsNuGetBusy ? CancelOperationCommand : null;
-    ICommand IPageRefresh.RefreshCommand => RefreshCommand;
-    public bool HasResult => !string.IsNullOrEmpty(ResultText);
-    public bool HasCaches => Caches.Count > 0;
-    public string TotalText => SizeFormatter.Format(Caches.Sum(x => x.Bytes));
-    public string SelectedText => SizeFormatter.Format(Caches.Where(x => x.IsSelected && x.CanSelect).Sum(x => x.Bytes));
-    public string SelectionText => $"Категорий: {Caches.Count(x => x.IsSelected && x.CanSelect)} из {Caches.Count}";
-    public bool HasSelectedBytes => Caches.Any(x => x.IsSelected && x.CanSelect && x.Bytes > 0);
-    public bool CanClean => !IsBusy && _plan is not null && Caches.Any(x => x.IsSelected && x.CanSelect);
-
-    partial void OnIsNuGetBusyChanged(bool value)
-    {
-        Projects.IsHostBusy = value || Workloads.IsBusy || DotNetClean.IsBusy;
-        Workloads.IsHostBusy = value || Projects.IsBusy || DotNetClean.IsBusy;
-        DotNetClean.IsHostBusy = value || Projects.IsBusy || Workloads.IsBusy;
-    }
-
-    private bool CanRefresh() => IsIdle && (!IsProjectsActive || Projects.FindCommand.CanExecute(null))
-        && (!IsDotNetCleanActive || DotNetClean.InspectCommand.CanExecute(null));
-
     public Task EnsureLoadedAsync()
     {
         if (_loaded || IsBusy)
@@ -158,6 +164,44 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
 
         _loaded = true;
         return RefreshAsync();
+    }
+
+    internal void ShowForAutomation()
+    {
+        SelectedAreaIndex = 0;
+        Projects.ResetForAutomation();
+        Workloads.ResetForAutomation();
+        DotNetClean.ResetForAutomation();
+        _uiDispatcher.Invoke(() =>
+        {
+            _loaded = true;
+            _plan = null;
+            ClearRows();
+            var rows = new[] { new NuGetCacheViewModel(NuGetCacheKind.HttpCache, @"C:\Users\Developer\AppData\Local\NuGet\v3-cache", 320_000_000, 1_240, true, string.Empty), new NuGetCacheViewModel(NuGetCacheKind.Temp, @"C:\Users\Developer\AppData\Local\Temp\NuGetScratch", 48_000_000, 36, true, string.Empty), new NuGetCacheViewModel(NuGetCacheKind.PluginsCache, @"C:\Users\Developer\AppData\Local\NuGet\plugins-cache", 12_000_000, 90, true, string.Empty), new NuGetCacheViewModel(NuGetCacheKind.GlobalPackages, @"C:\Users\Developer\.nuget\packages", 4_020_000_000, 18_540, true, string.Empty) };
+
+            foreach (var row in rows)
+            {
+                row.PropertyChanged += OnSelectionChanged;
+                Caches.Add(row);
+            }
+
+            StatusText = "Пример результатов замера. Очистка в демонстрации недоступна.";
+            NotifySelection();
+        });
+    }
+
+    partial void OnIsNuGetBusyChanged(bool value)
+    {
+        Projects.IsHostBusy = value || Workloads.IsBusy || DotNetClean.IsBusy;
+        Workloads.IsHostBusy = value || Projects.IsBusy || DotNetClean.IsBusy;
+        DotNetClean.IsHostBusy = value || Projects.IsBusy || Workloads.IsBusy;
+    }
+
+    private bool CanRefresh()
+    {
+        return IsIdle
+            && (!IsProjectsActive || Projects.FindCommand.CanExecute(null))
+            && (!IsDotNetCleanActive || DotNetClean.InspectCommand.CanExecute(null));
     }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
@@ -173,11 +217,13 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             await Projects.FindCommand.ExecuteAsync(null);
             return;
         }
+
         if (IsWorkloadsActive)
         {
             await Workloads.InspectCommand.ExecuteAsync(null);
             return;
         }
+
         if (IsDotNetCleanActive)
         {
             await DotNetClean.InspectCommand.ExecuteAsync(null);
@@ -227,6 +273,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             StatusText = plan.Caches.Any(x => x.Errors.Count > 0)
                 ? "Замер завершён. Категории с ошибками недоступны для очистки."
                 : "Замер завершён. Выберите кэши для очистки.";
+
             NotifySelection();
         });
     }
@@ -241,11 +288,8 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
 
         var plan = _plan;
         var selected = Caches.Where(x => x.IsSelected && x.CanSelect).ToArray();
-        var lines = new List<ConfirmLine>
-        {
-            new ConfirmTextLine("Перед очисткой остановите restore, сборки и операции NuGet в IDE."),
-            new ConfirmTextLine("Будут удалены только файлы из показанного замера. Новые файлы останутся."),
-        };
+        var lines = new List<ConfirmLine> { new ConfirmTextLine("Перед очисткой остановите restore, сборки и операции NuGet в IDE."), new ConfirmTextLine("Будут удалены только файлы из показанного замера. Новые файлы останутся.") };
+
         foreach (var row in selected)
         {
             lines.Add(new ConfirmMetricLine(row.Name, row.FilesText, row.SizeText));
@@ -256,11 +300,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             }
         }
 
-        var confirmation = new ConfirmDialogViewModel("Очистка NuGet", PackIconLucideKind.Trash2, lines,
-            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Удалить безвозвратно", ConfirmChoiceKind.Destructive)])
-        {
-            Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника.",
-        };
+        var confirmation = new ConfirmDialogViewModel(
+            "Очистка NuGet",
+            PackIconLucideKind.Trash2,
+            lines,
+            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Удалить безвозвратно", ConfirmChoiceKind.Destructive)]) { Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника." };
 
         IsNuGetBusy = true;
         try
@@ -276,6 +320,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             var result = await _service.CleanAsync(plan, selected.Select(x => x.Kind).ToArray(), null, _cancellation.Token);
             ResultText = $"{(result.Cancelled ? "Отменено" : "Завершено")}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
                 + (result.Errors.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, result.Errors));
+
             _logger.DeveloperCleanupFinished(result.Deleted, result.FreedBytes, result.Skipped, result.Cancelled);
             _cancellation.Dispose();
             _cancellation = new();
@@ -308,7 +353,10 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     }
 
     [RelayCommand]
-    private void CancelOperation() => _cancellation?.Cancel();
+    private void CancelOperation()
+    {
+        _cancellation?.Cancel();
+    }
 
     [RelayCommand(CanExecute = nameof(IsIdle))]
     private void SelectRecommended()
@@ -348,35 +396,6 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             }
 
             Caches.Clear();
-            NotifySelection();
-        });
-    }
-
-    internal void ShowForAutomation()
-    {
-        SelectedAreaIndex = 0;
-        Projects.ResetForAutomation();
-        Workloads.ResetForAutomation();
-        DotNetClean.ResetForAutomation();
-        _uiDispatcher.Invoke(() =>
-        {
-            _loaded = true;
-            _plan = null;
-            ClearRows();
-            var rows = new[]
-            {
-            new NuGetCacheViewModel(NuGetCacheKind.HttpCache, @"C:\Users\Developer\AppData\Local\NuGet\v3-cache", 320_000_000, 1_240, true, string.Empty),
-            new NuGetCacheViewModel(NuGetCacheKind.Temp, @"C:\Users\Developer\AppData\Local\Temp\NuGetScratch", 48_000_000, 36, true, string.Empty),
-            new NuGetCacheViewModel(NuGetCacheKind.PluginsCache, @"C:\Users\Developer\AppData\Local\NuGet\plugins-cache", 12_000_000, 90, true, string.Empty),
-            new NuGetCacheViewModel(NuGetCacheKind.GlobalPackages, @"C:\Users\Developer\.nuget\packages", 4_020_000_000, 18_540, true, string.Empty),
-        };
-            foreach (var row in rows)
-            {
-                row.PropertyChanged += OnSelectionChanged;
-                Caches.Add(row);
-            }
-
-            StatusText = "Пример результатов замера. Очистка в демонстрации недоступна.";
             NotifySelection();
         });
     }

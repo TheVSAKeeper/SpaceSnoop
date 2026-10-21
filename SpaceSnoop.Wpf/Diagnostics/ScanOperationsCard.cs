@@ -11,16 +11,6 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
 
     private PerformanceOperationTile _tile;
 
-    public ScanOperationsCard(PerformanceOperations operations, IUiDispatcher dispatcher)
-    {
-        _operations = operations;
-        _timer = dispatcher.CreateTimer(TimeSpan.FromMilliseconds(AppDefaults.PerformanceOperationRefreshMs), Refresh);
-        _tile = PerformanceText.TileOperation(operations.Current, operations.Last);
-        Rows = BuildRows();
-
-        _operations.Changed += OnOperationsChanged;
-    }
-
     public string Title => _tile.Caption;
 
     public DiagnosticsCardState State =>
@@ -33,6 +23,16 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
     public ICommand? Command => ClearRunCommand;
 
     public string? CommandCaption => "Забыть прогон";
+
+    public ScanOperationsCard(PerformanceOperations operations, IUiDispatcher dispatcher)
+    {
+        _operations = operations;
+        _timer = dispatcher.CreateTimer(TimeSpan.FromMilliseconds(AppDefaults.PerformanceOperationRefreshMs), Refresh);
+        _tile = PerformanceText.TileOperation(operations.Current, operations.Last);
+        Rows = BuildRows();
+
+        _operations.Changed += OnOperationsChanged;
+    }
 
     public void SetActive(bool active)
     {
@@ -80,19 +80,11 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
         {
             return
             [
-                new("Прогоны", "не запускались")
-                {
-                    Hint = "после сканирования или синхронизации здесь встанут длительность, объём, скорость и обход",
-                },
+                new("Прогоны", "не запускались") { Hint = "после сканирования или синхронизации здесь встанут длительность, объём, скорость и обход" },
             ];
         }
 
-        var rows = new List<DiagnosticsCardRow>(4)
-        {
-            new("Длительность", _tile.Value),
-            new("Объём", _tile.Volume),
-            new("Скорость", _tile.Rate),
-        };
+        var rows = new List<DiagnosticsCardRow>(4) { new("Длительность", _tile.Value), new("Объём", _tile.Volume), new("Скорость", _tile.Rate) };
 
         if (_tile.Traversal is { } traversal)
         {

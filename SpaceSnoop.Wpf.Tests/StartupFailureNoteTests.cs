@@ -8,21 +8,6 @@ public class StartupFailureNoteTests
 {
     private const string LogsDirectory = @"C:\Users\Тест\AppData\Local\SpaceSnoop\logs";
 
-    private static IEnumerable<TestCaseData> Failures()
-    {
-        yield return new TestCaseData(Thrown(() => throw new InvalidOperationException("Unable to resolve service for type 'ScanViewModel'")), false)
-            .SetArgDisplayNames("сбой сборки сервисов");
-
-        yield return new TestCaseData(Thrown(() => throw new TargetInvocationException(new IOException("The process cannot access the file 'settings.toml'"))), true)
-            .SetArgDisplayNames("файл настроек занят");
-
-        yield return new TestCaseData(Thrown(() => throw new AggregateException(new UnauthorizedAccessException("Access to the path is denied"))), true)
-            .SetArgDisplayNames("нет прав на папку");
-
-        yield return new TestCaseData(Thrown(() => throw new AggregateException(new InvalidOperationException("Sequence contains no elements"), new IOException("The process cannot access the file 'settings.toml'"))), true)
-            .SetArgDisplayNames("файловая ошибка второй в наборе");
-    }
-
     [TestCaseSource(nameof(Failures))]
     public void Ошибка_старта_объясняется_без_стектрейса_и_технических_подробностей(Exception failure, bool aboutFiles)
     {
@@ -56,6 +41,21 @@ public class StartupFailureNoteTests
             Assert.That(text, Does.Contain("не удалось открыть свои файлы"));
             Assert.That(text, Does.Not.Contain("Access to the path"));
         }
+    }
+
+    private static IEnumerable<TestCaseData> Failures()
+    {
+        yield return new TestCaseData(Thrown(() => throw new InvalidOperationException("Unable to resolve service for type 'ScanViewModel'")), false)
+            .SetArgDisplayNames("сбой сборки сервисов");
+
+        yield return new TestCaseData(Thrown(() => throw new TargetInvocationException(new IOException("The process cannot access the file 'settings.toml'"))), true)
+            .SetArgDisplayNames("файл настроек занят");
+
+        yield return new TestCaseData(Thrown(() => throw new AggregateException(new UnauthorizedAccessException("Access to the path is denied"))), true)
+            .SetArgDisplayNames("нет прав на папку");
+
+        yield return new TestCaseData(Thrown(() => throw new AggregateException(new InvalidOperationException("Sequence contains no elements"), new IOException("The process cannot access the file 'settings.toml'"))), true)
+            .SetArgDisplayNames("файловая ошибка второй в наборе");
     }
 
     private static Exception Thrown(Action action)

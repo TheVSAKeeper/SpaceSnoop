@@ -7,53 +7,11 @@ namespace SpaceSnoop.Wpf.Tests;
 public class GalleryStatesTests
 {
     [Test]
-    public void Состояние_workloads_показывает_страницу_очистки_без_запуска_cli()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentWorkloads));
-            Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentMsBuild));
-            Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentWorkloads), Is.True);
-            Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentMsBuild), Is.True);
-            Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentWorkloads), Is.False);
-            Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentMsBuild), Is.False);
-        });
-    }
-
-    [TestCase(SectionKey.Scan)]
-    [TestCase(SectionKey.Sync)]
-    [TestCase(SectionKey.Overview)]
-    [TestCase(SectionKey.Cleanup)]
-    [TestCase(SectionKey.Docker)]
-    public void Занятое_состояние_снимается_у_страниц_со_своей_операцией(string page)
-    {
-        Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Busy), Is.True);
-    }
-
-    [TestCase(SectionKey.Logs)]
-    [TestCase(SectionKey.About)]
-    [TestCase(SectionKey.Settings)]
-    [TestCase(SectionKey.Schedule)]
-    public void Страница_без_своей_операции_в_занятом_прогоне_пропускается(string page)
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Busy), Is.False);
-            Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Idle), Is.True);
-        });
-    }
-
-    [Test]
-    public void Состояние_готово_у_страниц_не_снимается()
-    {
-        Assert.That(GalleryStates.All.Where(state => GalleryStates.SupportsPage(SectionKey.Scan, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice }));
-    }
-
-    [Test]
     public void Выбор_цели_снимается_только_у_скана(
-        [Values(SectionKey.Sync, SectionKey.Cleanup, SectionKey.Settings)] string page,
-        [Values(GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice)] string state)
+        [Values(SectionKey.Sync, SectionKey.Cleanup, SectionKey.Settings)]
+        string page,
+        [Values(GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice)]
+        string state)
     {
         Assert.Multiple(() =>
         {
@@ -62,14 +20,6 @@ public class GalleryStatesTests
             Assert.That(GalleryStates.SupportsTip(state), Is.False);
             Assert.That(GalleryDialogs.All.Any(dialog => GalleryStates.SupportsDialog(dialog, state)), Is.False);
         });
-    }
-
-    [TestCase(GalleryDialogs.Delete)]
-    [TestCase(GalleryDialogs.Archive)]
-    public void Диалог_операции_снимается_во_всех_трёх_состояниях(string dialog)
-    {
-        Assert.That(GalleryStates.All.Where(state => GalleryStates.SupportsDialog(dialog, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Done }));
     }
 
     [TestCase(GalleryDialogs.Confirm)]
@@ -86,6 +36,33 @@ public class GalleryStatesTests
         });
     }
 
+    [TestCase(GalleryDialogs.Delete)]
+    [TestCase(GalleryDialogs.Archive)]
+    public void Диалог_операции_снимается_во_всех_трёх_состояниях(string dialog)
+    {
+        Assert.That(
+            GalleryStates.All.Where(state => GalleryStates.SupportsDialog(dialog, state)),
+            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Done }));
+    }
+
+    [TestCase(SectionKey.Scan)]
+    [TestCase(SectionKey.Sync)]
+    [TestCase(SectionKey.Overview)]
+    [TestCase(SectionKey.Cleanup)]
+    [TestCase(SectionKey.Docker)]
+    public void Занятое_состояние_снимается_у_страниц_со_своей_операцией(string page)
+    {
+        Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Busy), Is.True);
+    }
+
+    [TestCase("idle", GalleryStates.Idle)]
+    [TestCase("Busy", GalleryStates.Busy)]
+    [TestCase("покой", null)]
+    public void Ключ_состояния_узнаётся_без_учёта_регистра(string value, string? state)
+    {
+        Assert.That(GalleryStates.Match(value), Is.EqualTo(state));
+    }
+
     [Test]
     public void Подсказки_снимаются_только_в_покое()
     {
@@ -97,11 +74,38 @@ public class GalleryStatesTests
         });
     }
 
-    [TestCase("idle", GalleryStates.Idle)]
-    [TestCase("Busy", GalleryStates.Busy)]
-    [TestCase("покой", null)]
-    public void Ключ_состояния_узнаётся_без_учёта_регистра(string value, string? state)
+    [Test]
+    public void Состояние_workloads_показывает_страницу_очистки_без_запуска_cli()
     {
-        Assert.That(GalleryStates.Match(value), Is.EqualTo(state));
+        Assert.Multiple(() =>
+        {
+            Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentWorkloads));
+            Assert.That(GalleryStates.All, Does.Contain(GalleryStates.DevelopmentMsBuild));
+            Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentWorkloads), Is.True);
+            Assert.That(GalleryStates.SupportsPage(SectionKey.Cleanup, GalleryStates.DevelopmentMsBuild), Is.True);
+            Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentWorkloads), Is.False);
+            Assert.That(GalleryStates.SupportsDialog(GalleryDialogs.Delete, GalleryStates.DevelopmentMsBuild), Is.False);
+        });
+    }
+
+    [Test]
+    public void Состояние_готово_у_страниц_не_снимается()
+    {
+        Assert.That(
+            GalleryStates.All.Where(state => GalleryStates.SupportsPage(SectionKey.Scan, state)),
+            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice }));
+    }
+
+    [TestCase(SectionKey.Logs)]
+    [TestCase(SectionKey.About)]
+    [TestCase(SectionKey.Settings)]
+    [TestCase(SectionKey.Schedule)]
+    public void Страница_без_своей_операции_в_занятом_прогоне_пропускается(string page)
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Busy), Is.False);
+            Assert.That(GalleryStates.SupportsPage(page, GalleryStates.Idle), Is.True);
+        });
     }
 }

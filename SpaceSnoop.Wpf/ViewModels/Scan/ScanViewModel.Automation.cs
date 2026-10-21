@@ -20,6 +20,141 @@ public sealed partial class ScanViewModel : IScanAutomation
 
     TimeSpan IScanAutomation.LastScanElapsed => LastScanElapsed;
 
+    internal Func<ScanExportModel>? CaptureExportBuilder(int depth, int entryLimit)
+    {
+        if (CurrentRoot is not { } root)
+        {
+            return null;
+        }
+
+        var options = new ScanExportOptions(depth, LastScanParallelism > 1, LastScanParallelism);
+        var path = root.AbsolutePath;
+
+        return () => ScanExport.Build(root, path, options, AppInfo.Version, entryLimit);
+    }
+
+    internal void SelectPathForAutomation(string path)
+    {
+        if (!Drives.HasDrive(path))
+        {
+            Drives.AddDrive(path);
+            Drives.LoadDriveLabels();
+        }
+
+        SelectedDrive = path;
+    }
+
+    internal Task ScanFromAutomationAsync(string path, CancellationToken cancellationToken)
+    {
+        SelectPathForAutomation(path);
+
+        return ScanAsync(path, cancellationToken);
+    }
+
+    internal void ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes)
+    {
+        _scanVersion++;
+        var previous = ScanTreeEditor.RemoveRoot(Roots, result.AbsolutePath);
+        var (transferred, lost) = ScanTreeEditor.TransferMarks(previous, result, Marks.HasMarked);
+
+        var node = _nodeFactory.CreateRoot(result, Sort.State);
+        node.IsExpanded = true;
+
+        Roots.Insert(0, node);
+        Treemap.SetRoot(node);
+
+        LastScanElapsed = elapsed;
+        LastScanParallelism = Math.Max(1, notes.Parallelism);
+        _performance.ReportRun(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
+        HasResult = true;
+        Duplicates.Clear();
+
+        Marks.RecountMarkedAfterScan(node, transferred);
+
+        Drives.ReloadLabels(SelectedDrive);
+
+        _logger.ScanCompleted(
+            result.AbsolutePath,
+            result.TotalSizeText,
+            result.TotalFileCount,
+            result.TotalDirectoryCount,
+            (long)elapsed.TotalMilliseconds);
+
+        if (traversal is { FailedDirectories: > 0 } unread)
+        {
+            _logger.ScanDirectoriesUnread(result.AbsolutePath, unread.FailedDirectories, AdminElevation.IsElevated);
+        }
+
+        if (notes.HasDrops)
+        {
+            _notifier.Notify(
+                "Скан неполон: "
+                + ScanDropNote.Explain(notes.DroppedObjects, notes.DroppedBytes, notes.UnknownSizeFiles, notes.PartialRecords),
+                StatusSeverity.Warning);
+        }
+
+        if (lost > 0)
+        {
+            _notifier.Notify($"Не перенесено пометок на удаление: {lost} – этих путей нет в новом скане", StatusSeverity.Warning);
+        }
+    }
+
+    internal SpaceBase? FindForAutomation(string path)
+    {
+        return ScanLookup.Find(Roots.Select(static root => root.Space).OfType<SpaceBase>(), path);
+    }
+
+    internal bool IsScanRoot(SpaceBase space)
+    {
+        return Roots.Any(root => ReferenceEquals(root.Space, space));
+    }
+
+    internal int MarkForAutomation(IReadOnlyList<SpaceBase> targets, bool mark)
+    {
+        var changed = 0;
+
+        foreach (var space in targets)
+        {
+            if (mark)
+            {
+                if (space.IsDeleted)
+                {
+                    continue;
+                }
+
+                space.Delete();
+            }
+            else
+            {
+                if (!ScanTreeEditor.HasMarkedSelfOrChild(space))
+                {
+                    continue;
+                }
+
+                ScanNodeViewModel.RestoreRecursive(space);
+            }
+
+            changed++;
+        }
+
+        if (changed > 0)
+        {
+            foreach (var root in Roots)
+            {
+                root.RefreshMarks();
+            }
+
+            Marks.RecountMarked();
+        }
+
+        return changed;
+    }
+
+    internal long MarkedBytes()
+    {
+        return ScanTreeEditor.CollectMarked(Roots).Sum(static item => item.TotalSize);
+    }
+
     long IScanAutomation.MarkedBytes()
     {
         return MarkedBytes();
@@ -83,140 +218,5 @@ public sealed partial class ScanViewModel : IScanAutomation
     Task<ArchiveOutcome> IScanAutomation.ArchiveFromAutomationAsync(DirectorySpace dir, ArchiveRequest request, CancellationToken cancellationToken)
     {
         return _archive.ArchiveFromAutomationAsync(dir, request, cancellationToken);
-    }
-
-    internal Func<ScanExportModel>? CaptureExportBuilder(int depth, int entryLimit)
-    {
-        if (CurrentRoot is not { } root)
-        {
-            return null;
-        }
-
-        var options = new ScanExportOptions(depth, LastScanParallelism > 1, LastScanParallelism);
-        var path = root.AbsolutePath;
-
-        return () => ScanExport.Build(root, path, options, AppInfo.Version, entryLimit);
-    }
-
-    internal void SelectPathForAutomation(string path)
-    {
-        if (!Drives.HasDrive(path))
-        {
-            Drives.AddDrive(path);
-            Drives.LoadDriveLabels();
-        }
-
-        SelectedDrive = path;
-    }
-
-    internal Task ScanFromAutomationAsync(string path, CancellationToken cancellationToken)
-    {
-        SelectPathForAutomation(path);
-
-        return ScanAsync(path, cancellationToken);
-    }
-
-    internal void ApplyScanResult(DirectorySpace result, TimeSpan elapsed, PerformanceTraversal? traversal, ScanNotes notes)
-    {
-        _scanVersion++;
-        var previous = ScanTreeEditor.RemoveRoot(Roots, result.AbsolutePath);
-        var (transferred, lost) = ScanTreeEditor.TransferMarks(previous, result, Marks.HasMarked);
-
-        var node = _nodeFactory.CreateRoot(result, Sort.State);
-        node.IsExpanded = true;
-
-        Roots.Insert(0, node);
-        Treemap.SetRoot(node);
-
-        LastScanElapsed = elapsed;
-        LastScanParallelism = Math.Max(1, notes.Parallelism);
-        _performance.ReportRun(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
-        HasResult = true;
-        Duplicates.Clear();
-
-        Marks.RecountMarkedAfterScan(node, transferred);
-
-        Drives.ReloadLabels(SelectedDrive);
-
-        _logger.ScanCompleted(result.AbsolutePath,
-            result.TotalSizeText,
-            result.TotalFileCount,
-            result.TotalDirectoryCount,
-            (long)elapsed.TotalMilliseconds);
-
-        if (traversal is { FailedDirectories: > 0 } unread)
-        {
-            _logger.ScanDirectoriesUnread(result.AbsolutePath, unread.FailedDirectories, AdminElevation.IsElevated);
-        }
-
-        if (notes.HasDrops)
-        {
-            _notifier.Notify(
-                "Скан неполон: "
-                + ScanDropNote.Explain(notes.DroppedObjects, notes.DroppedBytes, notes.UnknownSizeFiles, notes.PartialRecords),
-                StatusSeverity.Warning);
-        }
-
-        if (lost > 0)
-        {
-            _notifier.Notify($"Не перенесено пометок на удаление: {lost} – этих путей нет в новом скане", StatusSeverity.Warning);
-        }
-
-    }
-
-    internal SpaceBase? FindForAutomation(string path)
-    {
-        return ScanLookup.Find(Roots.Select(static root => root.Space).OfType<SpaceBase>(), path);
-    }
-
-    internal bool IsScanRoot(SpaceBase space)
-    {
-        return Roots.Any(root => ReferenceEquals(root.Space, space));
-    }
-
-    internal int MarkForAutomation(IReadOnlyList<SpaceBase> targets, bool mark)
-    {
-        var changed = 0;
-
-        foreach (var space in targets)
-        {
-            if (mark)
-            {
-                if (space.IsDeleted)
-                {
-                    continue;
-                }
-
-                space.Delete();
-            }
-            else
-            {
-                if (!ScanTreeEditor.HasMarkedSelfOrChild(space))
-                {
-                    continue;
-                }
-
-                ScanNodeViewModel.RestoreRecursive(space);
-            }
-
-            changed++;
-        }
-
-        if (changed > 0)
-        {
-            foreach (var root in Roots)
-            {
-                root.RefreshMarks();
-            }
-
-            Marks.RecountMarked();
-        }
-
-        return changed;
-    }
-
-    internal long MarkedBytes()
-    {
-        return ScanTreeEditor.CollectMarked(Roots).Sum(static item => item.TotalSize);
     }
 }

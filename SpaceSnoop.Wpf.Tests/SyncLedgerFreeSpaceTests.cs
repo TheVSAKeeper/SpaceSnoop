@@ -1,14 +1,8 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
-using KeepShell.ViewModels;
+﻿using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Core.UseCases;
-using SpaceSnoop.Wpf.Bootstrap;
-using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels;
-using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using System.ComponentModel;
 
@@ -51,15 +45,16 @@ public class SyncLedgerFreeSpaceTests
         var settings = new MemorySettings();
         var shell = new ShellPreferences(settings);
 
-        return new(settings,
+        return new(
+            settings,
             new NoopDialogs(),
-            new OperationPreferences(settings),
-            new AgentPreferences(settings),
+            new(settings),
+            new(settings),
             NullLogger<SyncViewModel>.Instance,
-            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
-            new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
-            new ToastNotifier(new ToastHostViewModel(), shell),
-            new PerformanceOperations(TestDiagnostics.Monitor()),
+            new(NullLogger<DirectoryComparer>.Instance),
+            new(NullLogger<SyncEngine>.Instance),
+            new(new(), shell),
+            new(TestDiagnostics.Monitor()),
             new FakeFilePicker(),
             new FakeUiDispatcher(),
             new FakeAppNavigator());

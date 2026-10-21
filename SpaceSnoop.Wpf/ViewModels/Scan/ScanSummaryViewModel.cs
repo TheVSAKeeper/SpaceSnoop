@@ -4,6 +4,9 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
 {
     private const string NoValue = "–";
 
+    private readonly bool _isElevated;
+    private readonly Func<Task>? _restartAsAdmin;
+
     [ObservableProperty]
     private bool _hasResult;
 
@@ -50,17 +53,9 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanRestartAsAdmin))]
     private string _unreadNote = string.Empty;
 
-    private readonly bool _isElevated;
-    private readonly Func<Task>? _restartAsAdmin;
     private DriveCapacity? _drive;
     private ScanNotes _notes;
     private long _unreadDirectories;
-
-    public ScanSummaryViewModel(bool isElevated = false, Func<Task>? restartAsAdmin = null)
-    {
-        _isElevated = isElevated;
-        _restartAsAdmin = restartAsAdmin;
-    }
 
     public string ReturnCaption => ResultPath.Length > 0
         ? $"К результатам: {DriveItem.ShortName(ResultPath)} · {ResultSizeText}"
@@ -87,6 +82,12 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
     public string DropNoteHint => HasDropNote
         ? ScanDropNote.Explain(_notes.DroppedObjects, _notes.DroppedBytes, _notes.UnknownSizeFiles, _notes.PartialRecords)
         : string.Empty;
+
+    public ScanSummaryViewModel(bool isElevated = false, Func<Task>? restartAsAdmin = null)
+    {
+        _isElevated = isElevated;
+        _restartAsAdmin = restartAsAdmin;
+    }
 
     public PerformanceOperation Apply(
         DirectorySpace result,

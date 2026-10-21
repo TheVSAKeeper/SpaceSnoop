@@ -49,24 +49,27 @@ internal static class SyncPlanNarrative
 
         if (planned.Copies > 0)
         {
-            lines.Add(new ConfirmMetricLine(
-                "Скопировать файлов",
-                $"{planned.Copies:N0}",
-                SizeFormatter.Format(planned.CopyBytes)));
+            lines.Add(
+                new ConfirmMetricLine(
+                    "Скопировать файлов",
+                    $"{planned.Copies:N0}",
+                    SizeFormatter.Format(planned.CopyBytes)));
 
             if (planned.ModifiedCopies > 0)
             {
-                lines.Add(new ConfirmMetricLine(
-                    "новых",
-                    $"{planned.NewCopies:N0}",
-                    SizeFormatter.Format(planned.NewCopyBytes),
-                    ConfirmMetricTone.Sub));
+                lines.Add(
+                    new ConfirmMetricLine(
+                        "новых",
+                        $"{planned.NewCopies:N0}",
+                        SizeFormatter.Format(planned.NewCopyBytes),
+                        ConfirmMetricTone.Sub));
 
-                lines.Add(new ConfirmMetricLine(
-                    "изменённых",
-                    $"{planned.ModifiedCopies:N0}",
-                    SizeFormatter.Format(planned.ModifiedCopyBytes),
-                    ConfirmMetricTone.Sub));
+                lines.Add(
+                    new ConfirmMetricLine(
+                        "изменённых",
+                        $"{planned.ModifiedCopies:N0}",
+                        SizeFormatter.Format(planned.ModifiedCopyBytes),
+                        ConfirmMetricTone.Sub));
             }
         }
 
@@ -77,30 +80,33 @@ internal static class SyncPlanNarrative
 
         if (planned.Deletes > 0)
         {
-            lines.Add(new ConfirmMetricLine(
-                "Удалить файлов в корзину",
-                $"{planned.Deletes:N0}",
-                SizeFormatter.Format(planned.DeleteFileBytes),
-                ConfirmMetricTone.Danger));
+            lines.Add(
+                new ConfirmMetricLine(
+                    "Удалить файлов в корзину",
+                    $"{planned.Deletes:N0}",
+                    SizeFormatter.Format(planned.DeleteFileBytes),
+                    ConfirmMetricTone.Danger));
         }
 
         if (planned.DirDeletes > 0)
         {
-            lines.Add(new ConfirmMetricLine(
-                "Удалить каталогов целиком",
-                $"{planned.DirDeletes:N0}",
-                SizeFormatter.Format(planned.DeleteDirBytes),
-                ConfirmMetricTone.Danger));
+            lines.Add(
+                new ConfirmMetricLine(
+                    "Удалить каталогов целиком",
+                    $"{planned.DirDeletes:N0}",
+                    SizeFormatter.Format(planned.DeleteDirBytes),
+                    ConfirmMetricTone.Danger));
 
             var whole = planned.DirDeletes == 1
                 ? "Каталог уходит в корзину со всем содержимым"
                 : "Каталоги уходят в корзину со всем содержимым";
 
-            lines.Add(new ConfirmTextLine(
-                planned.Deletes > 0
-                    ? $"{whole} – эти файлы в число {planned.Deletes:N0} не входят."
-                    : $"{whole}.",
-                ConfirmTextTone.Muted));
+            lines.Add(
+                new ConfirmTextLine(
+                    planned.Deletes > 0
+                        ? $"{whole} – эти файлы в число {planned.Deletes:N0} не входят."
+                        : $"{whole}.",
+                    ConfirmTextTone.Muted));
         }
 
         var space = DescribeReceivers(receivers, bothWays);
@@ -114,9 +120,10 @@ internal static class SyncPlanNarrative
         if (planned.DeleteBytes > 0)
         {
             lines.Add(new ConfirmGapLine());
-            lines.Add(new ConfirmTextLine(
-                "Удалённое уходит в корзину – место освободится после её очистки.",
-                ConfirmTextTone.Muted));
+            lines.Add(
+                new ConfirmTextLine(
+                    "Удалённое уходит в корзину – место освободится после её очистки.",
+                    ConfirmTextTone.Muted));
         }
 
         return lines;
@@ -304,17 +311,19 @@ internal static class SyncPlanNarrative
 
             var enough = free >= receiver.Required;
 
-            lines.Add(new ConfirmMetricLine(
-                "Свободно",
-                string.Empty,
-                SizeFormatter.Format(free),
-                enough ? ConfirmMetricTone.None : ConfirmMetricTone.Danger));
+            lines.Add(
+                new ConfirmMetricLine(
+                    "Свободно",
+                    string.Empty,
+                    SizeFormatter.Format(free),
+                    enough ? ConfirmMetricTone.None : ConfirmMetricTone.Danger));
 
             if (!enough)
             {
-                lines.Add(new ConfirmTextLine(
-                    $"Не хватает ≈{SizeFormatter.Format(receiver.Required - free)}.",
-                    ConfirmTextTone.Danger));
+                lines.Add(
+                    new ConfirmTextLine(
+                        $"Не хватает ≈{SizeFormatter.Format(receiver.Required - free)}.",
+                        ConfirmTextTone.Danger));
             }
         }
 

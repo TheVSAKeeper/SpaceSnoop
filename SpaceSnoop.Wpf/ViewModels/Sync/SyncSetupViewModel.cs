@@ -10,11 +10,9 @@ public sealed partial class SyncSetupViewModel : ObservableObject
     private static readonly SyncWinner[] WinnerOrder = [SyncWinner.Newest, SyncWinner.Left, SyncWinner.Right];
 
     private readonly ISettingsStore _settings;
-    private readonly OperationPreferences _operations;
     private readonly IFilePicker _filePicker;
     private readonly Func<bool> _canRun;
 
-    private string? _activeProfileId;
     private bool _suppressPersist;
 
     [ObservableProperty]
@@ -44,25 +42,6 @@ public sealed partial class SyncSetupViewModel : ObservableObject
     [ObservableProperty]
     private bool _verify = AppDefaults.SyncVerifyDefault;
 
-    public SyncSetupViewModel(
-        ISettingsStore settings,
-        IDialogService dialogs,
-        OperationPreferences operations,
-        IFilePicker filePicker,
-        Func<bool> canRun,
-        Action<string> setStatus,
-        IUiDispatcher uiDispatcher)
-    {
-        _settings = settings;
-        _operations = operations;
-        _filePicker = filePicker;
-        _canRun = canRun;
-
-        Profiles = new(settings, dialogs, BuildCurrentProfile, RaiseProfileSelected, canRun, setStatus, uiDispatcher);
-        LoadSettings();
-        Profiles.Load();
-    }
-
     public event Action? InputChanged;
 
     public event Action? ModeChanged;
@@ -71,7 +50,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
 
     public SyncQuickProfilesViewModel Profiles { get; }
 
-    public OperationPreferences Preferences => _operations;
+    public OperationPreferences Preferences { get; }
 
     public IReadOnlyList<SegmentOption> Modes => SyncOptions.Modes;
 
@@ -117,11 +96,30 @@ public sealed partial class SyncSetupViewModel : ObservableObject
 
     public bool ExclusionsEmpty => string.IsNullOrWhiteSpace(Exclusions);
 
-    internal string? ActiveProfileId => _activeProfileId;
+    internal string? ActiveProfileId { get; private set; }
 
     internal SyncMode CurrentMode => ModeOrder[Math.Clamp(SelectedModeIndex, 0, ModeOrder.Length - 1)];
 
     internal SyncWinner CurrentWinner => WinnerOrder[Math.Clamp(SelectedWinnerIndex, 0, WinnerOrder.Length - 1)];
+
+    public SyncSetupViewModel(
+        ISettingsStore settings,
+        IDialogService dialogs,
+        OperationPreferences operations,
+        IFilePicker filePicker,
+        Func<bool> canRun,
+        Action<string> setStatus,
+        IUiDispatcher uiDispatcher)
+    {
+        _settings = settings;
+        Preferences = operations;
+        _filePicker = filePicker;
+        _canRun = canRun;
+
+        Profiles = new(settings, dialogs, BuildCurrentProfile, RaiseProfileSelected, canRun, setStatus, uiDispatcher);
+        LoadSettings();
+        Profiles.Load();
+    }
 
     public void Apply(SyncProfile profile)
     {
@@ -131,7 +129,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
         SelectedModeIndex = Math.Clamp(profile.Mode, 0, ModeOrder.Length - 1);
         Mirror = profile.Mirror;
         SelectedWinnerIndex = SyncProfile.IndexOfWinner(profile.Winner);
-        _activeProfileId = profile.Id;
+        ActiveProfileId = profile.Id;
     }
 
     public void NotifyBusyChanged()
@@ -197,7 +195,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
     {
         Persist(SettingsKeys.SyncLeft, value);
         LeftPathInvalid = PathMissing(value);
-        _activeProfileId = null;
+        ActiveProfileId = null;
         Profiles.MarkCurrent();
         InputChanged?.Invoke();
     }
@@ -206,7 +204,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
     {
         Persist(SettingsKeys.SyncRight, value);
         RightPathInvalid = PathMissing(value);
-        _activeProfileId = null;
+        ActiveProfileId = null;
         Profiles.MarkCurrent();
         InputChanged?.Invoke();
     }
@@ -289,7 +287,7 @@ public sealed partial class SyncSetupViewModel : ObservableObject
 
         LeftPath = _settings.GetStringValue(SettingsKeys.SyncLeft) ?? string.Empty;
         RightPath = _settings.GetStringValue(SettingsKeys.SyncRight) ?? string.Empty;
-        Exclusions = _settings.GetStringValue(SettingsKeys.SyncExclusions) ?? _operations.DefaultExclusions;
+        Exclusions = _settings.GetStringValue(SettingsKeys.SyncExclusions) ?? Preferences.DefaultExclusions;
 
         SelectedModeIndex = Math.Clamp(_settings.GetInt(SettingsKeys.SyncMode), 0, ModeOrder.Length - 1);
         Mirror = _settings.GetBool(SettingsKeys.SyncMirror);

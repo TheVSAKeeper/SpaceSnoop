@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System.ComponentModel;
+using System.Diagnostics;
+using System.Security.Principal;
+using System.Text;
 
 namespace SpaceSnoop.Core.Docker;
 
@@ -49,7 +52,10 @@ public sealed class DockerService
     public async Task<string> RemoveAsync(DockerObject target, CancellationToken cancel = default)
     {
         if (target.InUse)
+        {
             throw new InvalidOperationException("Объект используется. Остановите контейнер или отключите использующий его контейнер перед удалением.");
+        }
+
         var args = target.Kind switch
         {
             DockerObjectKind.Image => $"image rm {target.Id}",
@@ -65,7 +71,11 @@ public sealed class DockerService
     public (string Path, DockerFileMetrics Metrics)? GetDataDiskUsage()
     {
         var settings = _settingsProvider.Read();
-        if (settings is null || !settings.WslEngineEnabled) return null;
+        if (settings is null || !settings.WslEngineEnabled)
+        {
+            return null;
+        }
+
         var path = LocateDataVhdx(settings);
         return path is null ? null : (path, _fileSystem.GetMetrics(path));
     }
@@ -120,6 +130,7 @@ public sealed class DockerService
         var stop = allowWslShutdownFallback
             ? await HandleFallbackAsync(vhdx, distributions, true, steps, cancel)
             : await StopDockerAsync(vhdx, distributions, steps, cancel);
+
         if (stop.WasCanceled)
         {
             return Canceled(vhdx, steps, distributions: distributions);
@@ -191,10 +202,12 @@ public sealed class DockerService
 
         if (vhdx is null)
         {
-            steps.Add(new(
-                "Поиск образа данных",
-                false,
-                "Не найден образ данных в CustomWslDistroDir\\disk\\docker_data.vhdx, стандартном пути %LOCALAPPDATA%\\Docker\\wsl\\disk\\docker_data.vhdx или старой раскладке docker-desktop-data\\ext4.vhdx."));
+            steps.Add(
+                new(
+                    "Поиск образа данных",
+                    false,
+                    "Не найден образ данных в CustomWslDistroDir\\disk\\docker_data.vhdx, стандартном пути %LOCALAPPDATA%\\Docker\\wsl\\disk\\docker_data.vhdx или старой раскладке docker-desktop-data\\ext4.vhdx."));
+
             return (Failed(null, null, null, steps), string.Empty);
         }
 
@@ -250,7 +263,7 @@ public sealed class DockerService
 
             return true;
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or Win32Exception)
         {
             measurement = null;
             steps.Add(new(step, false, ex.Message));
@@ -287,10 +300,11 @@ public sealed class DockerService
 
         var succeeded = compact.Succeeded && !ContainsDiskpartError(compact);
 
-        steps.Add(new(
-            "Сжатие через diskpart",
-            succeeded,
-            succeeded ? "Выполнено без attach/detach." : DescribeFailure(compact, "diskpart")));
+        steps.Add(
+            new(
+                "Сжатие через diskpart",
+                succeeded,
+                succeeded ? "Выполнено без attach/detach." : DescribeFailure(compact, "diskpart")));
 
         return (succeeded, false);
     }
@@ -350,10 +364,12 @@ public sealed class DockerService
     {
         if (!allowWslShutdownFallback)
         {
-            steps.Add(new(
-                "Подтверждение остановки WSL",
-                false,
-                $"Нужен fallback wsl --shutdown. Будут остановлены: {string.Join(", ", distributions)}."));
+            steps.Add(
+                new(
+                    "Подтверждение остановки WSL",
+                    false,
+                    $"Нужен fallback wsl --shutdown. Будут остановлены: {string.Join(", ", distributions)}."));
+
             return DockerStopResult.FallbackResult;
         }
 
@@ -390,7 +406,7 @@ public sealed class DockerService
 
     private async Task<DockerWaitResult> WaitForDockerReleaseAsync(string vhdx, CancellationToken cancel)
     {
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
         string detail;
 
         do
@@ -422,15 +438,14 @@ public sealed class DockerService
             {
                 return DockerWaitResult.CanceledResult;
             }
-        }
-        while (stopwatch.Elapsed < _compactOptions.StopTimeout);
+        } while (stopwatch.Elapsed < _compactOptions.StopTimeout);
 
         return new(false, false, $"Не удалось дождаться остановки Docker Desktop и освобождения образа за {_compactOptions.StopTimeout.TotalSeconds:0} с. {detail}");
     }
 
     private async Task<DockerWaitResult> WaitForFileReleaseAsync(string vhdx, CancellationToken cancel)
     {
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var stopwatch = Stopwatch.StartNew();
 
         do
         {
@@ -447,15 +462,14 @@ public sealed class DockerService
             {
                 return DockerWaitResult.CanceledResult;
             }
-        }
-        while (stopwatch.Elapsed < _compactOptions.StopTimeout);
+        } while (stopwatch.Elapsed < _compactOptions.StopTimeout);
 
         return new(false, false, $"Образ остаётся занятым после остановки WSL более {_compactOptions.StopTimeout.TotalSeconds:0} с.");
     }
 
     private async Task<DockerDistroResult> ListDockerDistrosAsync(CancellationToken cancel)
     {
-        var run = await RunAsync("wsl", "--list --quiet", Encoding.Unicode, cancel: cancel);
+        var run = await RunAsync("wsl", "--list --quiet", Encoding.Unicode, cancel);
         if (run.Canceled)
         {
             return DockerDistroResult.CanceledResult;
@@ -474,8 +488,8 @@ public sealed class DockerService
 
         return distros.Length == 0
             || !distros.Any(x => x.StartsWith("docker-desktop", StringComparison.OrdinalIgnoreCase))
-            ? new([], new(-1, string.Empty, "Дистрибутивы docker-desktop не найдены."), false)
-            : new(distros, run, false);
+                ? new([], new(-1, string.Empty, "Дистрибутивы docker-desktop не найдены."), false)
+                : new(distros, run, false);
     }
 
     private string? LocateDataVhdx(DockerDesktopSettings settings)
@@ -528,6 +542,7 @@ public sealed class DockerService
             .Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             .Select(x => x.Trim())
             .ToArray();
+
         var statusLine = lines.FirstOrDefault(x => x.StartsWith("Status", StringComparison.OrdinalIgnoreCase));
 
         if (statusLine is not null)
@@ -610,6 +625,7 @@ public sealed class DockerService
         {
             var elevation = run.LaunchError.Contains("elevation", StringComparison.OrdinalIgnoreCase)
                 || run.LaunchError.Contains("740", StringComparison.Ordinal);
+
             return elevation
                 ? $"Не удалось запустить «{command}»: нужны права администратора."
                 : $"Не удалось запустить «{command}»: {run.LaunchError}.";
@@ -626,9 +642,9 @@ public sealed class DockerService
 
     private static bool IsAdministrator()
     {
-        using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
-        var principal = new System.Security.Principal.WindowsPrincipal(identity);
-        return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 
     private sealed record DockerStopResult(bool IsReady, bool NeedsFallback, bool WasCanceled)

@@ -18,13 +18,13 @@ public class SyncPlanBenchmarks
     public void Setup()
     {
         _result = SyntheticTree.BuildComparison(Files);
-        _result.ApplyMode(SyncMode.Bidirectional, mirror: true, Winner);
+        _result.ApplyMode(SyncMode.Bidirectional, true, Winner);
     }
 
     [Benchmark]
     public void ReapplyMode()
     {
-        _result.ApplyMode(SyncMode.Bidirectional, mirror: true, Winner);
+        _result.ApplyMode(SyncMode.Bidirectional, true, Winner);
     }
 
     [Benchmark]

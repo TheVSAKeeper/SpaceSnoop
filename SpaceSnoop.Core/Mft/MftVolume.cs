@@ -131,11 +131,11 @@ internal sealed class MftFileVolume : IMftVolume
 
     private bool TryReadAligned(long offset, Span<byte> buffer)
     {
-        var start = offset - offset % Alignment;
+        var start = offset - (offset % Alignment);
         var skip = (int)(offset - start);
         var length = (skip + buffer.Length + Alignment - 1) / Alignment * Alignment;
-        var bounce = GC.AllocateUninitializedArray<byte>(length + Alignment, pinned: true);
-        var shift = (int)((Alignment - Marshal.UnsafeAddrOfPinnedArrayElement(bounce, 0).ToInt64() % Alignment) % Alignment);
+        var bounce = GC.AllocateUninitializedArray<byte>(length + Alignment, true);
+        var shift = (int)((Alignment - (Marshal.UnsafeAddrOfPinnedArrayElement(bounce, 0).ToInt64() % Alignment)) % Alignment);
         var aligned = bounce.AsSpan(shift, length);
 
         try

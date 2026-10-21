@@ -41,6 +41,7 @@ public class DuplicateGroupTests
         var group = shown < members.Count
             ? new DuplicateGroup(4096, members[..shown], kinds.Count(static x => x == 'C'), members[shown..])
             : new DuplicateGroup(4096, members, kinds.Count(static x => x == 'C'));
+
         var gone = removed.Select(x => members[x - '0'].Space).ToHashSet();
 
         var result = group.Without(gone.Contains);
@@ -67,11 +68,12 @@ public class DuplicateGroupTests
 
     private static string Letters(IEnumerable<DuplicateMember> members)
     {
-        return string.Concat(members.Select(static x => x.Kind switch
-        {
-            DuplicateMemberKind.HardLink => 'H',
-            DuplicateMemberKind.SymbolicLink => 'S',
-            _ => 'C',
-        }));
+        return string.Concat(
+            members.Select(static x => x.Kind switch
+            {
+                DuplicateMemberKind.HardLink => 'H',
+                DuplicateMemberKind.SymbolicLink => 'S',
+                _ => 'C',
+            }));
     }
 }

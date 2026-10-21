@@ -20,8 +20,8 @@ public static class SyncScheduler
     public static bool IsStale(string action, string exePath)
     {
         return !string.IsNullOrEmpty(action)
-               && !string.IsNullOrEmpty(exePath)
-               && !action.Contains(exePath, StringComparison.OrdinalIgnoreCase);
+            && !string.IsNullOrEmpty(exePath)
+            && !action.Contains(exePath, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool Create(string taskName, ScheduleInterval interval, TimeSpan time, string argument, out string error)
@@ -65,8 +65,11 @@ public static class SyncScheduler
 
         var args = new List<string>
         {
-            "/create", "/tn", taskName,
-            "/tr", target,
+            "/create",
+            "/tn",
+            taskName,
+            "/tr",
+            target,
             "/f",
         };
 
@@ -108,10 +111,7 @@ public static class SyncScheduler
         {
             var info = new ProcessStartInfo(SystemExecutable.SchTasks)
             {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
+                UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
             };
 
             foreach (var arg in args)

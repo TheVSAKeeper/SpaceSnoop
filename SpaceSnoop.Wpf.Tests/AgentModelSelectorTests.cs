@@ -1,7 +1,6 @@
 ﻿using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Wpf.Agent;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 
@@ -23,36 +22,6 @@ public class AgentModelSelectorTests
     }
 
     [Test]
-    public void Слаг_вне_каталога_становится_отдельным_пунктом_списка()
-    {
-        var preferences = new AgentPreferences(new MemorySettings()) { Model = "claude-opus-5-мой" };
-        var selector = Selector(preferences);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(selector.SelectedModel.Id, Is.EqualTo("claude-opus-5-мой"));
-            Assert.That(selector.SelectedModel.Hint, Is.EqualTo("Задана вручную"));
-        }
-    }
-
-    [Test]
-    public void Уровень_недоступный_бэкенду_сбрасывается_в_умолчание()
-    {
-        var settings = new MemorySettings();
-        settings.SetValue(SettingsKeys.AgentEffort(AgentBackendKind.Claude), "ultra");
-
-        var preferences = new AgentPreferences(settings);
-        var selector = Selector(preferences);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(selector.SelectedEffort, Is.EqualTo(AgentModels.EffortDefault));
-            Assert.That(preferences.Effort, Is.Empty);
-            Assert.That(settings.GetStringValue(SettingsKeys.AgentEffort(AgentBackendKind.Claude)), Is.Empty);
-        }
-    }
-
-    [Test]
     public void Выбор_уровня_пишется_в_ключ_своего_бэкенда()
     {
         var settings = new MemorySettings();
@@ -65,6 +34,19 @@ public class AgentModelSelectorTests
         {
             Assert.That(settings.GetStringValue(SettingsKeys.AgentEffort(AgentBackendKind.Codex)), Is.EqualTo("ultra"));
             Assert.That(settings.GetStringValue(SettingsKeys.AgentEffort(AgentBackendKind.Claude)), Is.Null);
+        }
+    }
+
+    [Test]
+    public void Слаг_вне_каталога_становится_отдельным_пунктом_списка()
+    {
+        var preferences = new AgentPreferences(new MemorySettings()) { Model = "claude-opus-5-мой" };
+        var selector = Selector(preferences);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(selector.SelectedModel.Id, Is.EqualTo("claude-opus-5-мой"));
+            Assert.That(selector.SelectedModel.Hint, Is.EqualTo("Задана вручную"));
         }
     }
 
@@ -85,13 +67,30 @@ public class AgentModelSelectorTests
         }
     }
 
+    [Test]
+    public void Уровень_недоступный_бэкенду_сбрасывается_в_умолчание()
+    {
+        var settings = new MemorySettings();
+        settings.SetValue(SettingsKeys.AgentEffort(AgentBackendKind.Claude), "ultra");
+
+        var preferences = new AgentPreferences(settings);
+        var selector = Selector(preferences);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(selector.SelectedEffort, Is.EqualTo(AgentModels.EffortDefault));
+            Assert.That(preferences.Effort, Is.Empty);
+            Assert.That(settings.GetStringValue(SettingsKeys.AgentEffort(AgentBackendKind.Claude)), Is.Empty);
+        }
+    }
+
     private static AgentModelSelector Selector(AgentPreferences preferences)
     {
         var backends = new AgentBackends(
             preferences,
-            new ClaudeAgentBackend(preferences, NullLogger<ClaudeAgentBackend>.Instance),
-            new CodexAgentBackend(preferences, NullLogger<CodexAgentBackend>.Instance),
-            new OpenCodeAgentBackend(preferences, NullLogger<OpenCodeAgentBackend>.Instance));
+            new(preferences, NullLogger<ClaudeAgentBackend>.Instance),
+            new(preferences, NullLogger<CodexAgentBackend>.Instance),
+            new(preferences, NullLogger<OpenCodeAgentBackend>.Instance));
 
         return new(preferences, backends, NullLogger<AgentModelSelector>.Instance);
     }

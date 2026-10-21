@@ -1,9 +1,7 @@
-﻿using System.Windows;
-
-namespace SpaceSnoop.Wpf.Bootstrap;
+﻿namespace SpaceSnoop.Wpf.Bootstrap;
 
 /// <summary>
-/// Словари ресурсов приложения одним списком: их берёт и <see cref="App"/> на старте, и тестовый
+/// Словари ресурсов приложения одним списком: их берёт и <see cref="App" /> на старте, и тестовый
 /// <c>TestApplication.Ensure</c>. Список живёт здесь, а не в <c>App.xaml</c>, потому что тесту
 /// прикладной <c>App</c> брать нельзя, а второй список в тестах разъехался бы с этим молча.
 /// <para>
@@ -33,7 +31,7 @@ public static class AppResources
 
         foreach (var source in Sources)
         {
-            application.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = source });
+            application.Resources.MergedDictionaries.Add(new() { Source = source });
         }
     }
 }

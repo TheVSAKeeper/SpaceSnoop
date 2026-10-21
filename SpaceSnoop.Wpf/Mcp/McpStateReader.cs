@@ -6,7 +6,8 @@ internal sealed class McpStateReader(IScanAutomation scan, ISyncAutomation sync,
 {
     public McpScanState ReadScanState()
     {
-        return new(scan.SelectedDrive,
+        return new(
+            scan.SelectedDrive,
             scan.ResultPath,
             scan.IsScanning,
             scan.HasResult,
@@ -20,7 +21,8 @@ internal sealed class McpStateReader(IScanAutomation scan, ISyncAutomation sync,
 
     public McpSyncState ReadSyncState()
     {
-        return new(sync.LeftPath,
+        return new(
+            sync.LeftPath,
             sync.RightPath,
             sync.Mode,
             sync.Winner,

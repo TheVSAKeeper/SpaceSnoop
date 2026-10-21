@@ -1,15 +1,38 @@
 ﻿using Microsoft.Extensions.Logging.Abstractions;
-
 using SpaceSnoop.Core;
 using SpaceSnoop.Wpf.ViewModels.Scan;
-
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
 public class DriveItemTests
 {
+    [Test]
+    public void Выбранная_цель_помечена_и_среди_томов_и_среди_недавних_включая_добавленные_позже()
+    {
+        var catalog = new DriveCatalog(NullLogger.Instance);
+        var first = Path.Combine(Path.GetTempPath(), "spacesnoop-выбор-первый");
+        var second = Path.Combine(Path.GetTempPath(), "spacesnoop-выбор-второй");
+
+        catalog.AddDrive(first);
+        catalog.Select(second);
+        catalog.AddDrive(second);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(catalog.Items.Where(item => item.IsSelected).Select(item => item.Path), Is.EqualTo(new[] { second }));
+            Assert.That(catalog.Volumes.Any(item => item.IsSelected), Is.False);
+        });
+
+        catalog.Select(catalog.Volumes[0].Path);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(catalog.Volumes[0].IsSelected, Is.True);
+            Assert.That(catalog.RecentDirectories.Any(item => item.IsSelected), Is.False);
+        });
+    }
+
     [Test]
     public async Task Готовый_том_отдаёт_долю_занятого_и_подпись_размера()
     {
@@ -57,28 +80,26 @@ public class DriveItemTests
         });
     }
 
-    [Test]
-    public async Task Том_без_носителя_говорит_об_этом_вместо_размера()
+    [TestCase(@"C:\Users\admin\AppData\Local", @"C:\…\AppData\Local")]
+    [TestCase(@"C:\Users\admin\AppData\Local\", @"C:\…\AppData\Local")]
+    [TestCase(@"C:\Sources\TheVSAKeeper\SpaceSnoop\.git", @"C:\…\SpaceSnoop\.git")]
+    [TestCase(@"C:\Users\admin\AppData", @"C:\Users\admin\AppData")]
+    [TestCase(@"C:\Users\admin", @"C:\Users\admin")]
+    [TestCase(@"D:\Фото", @"D:\Фото")]
+    [TestCase(@"\\nas\share\backup\2026\photos\raw", @"\\nas\share\…\photos\raw")]
+    [TestCase(@"\\nas\share\backup\2026\photos", @"\\nas\share\backup\2026\photos")]
+    public void Каталог_сокращается_в_середине_и_сохраняет_корень_и_родителя(string path, string expected)
     {
-        var used = DriveInfo.GetDrives().Select(static drive => char.ToUpperInvariant(drive.Name[0])).ToHashSet();
-        var free = "ZYXWVU".FirstOrDefault(letter => !used.Contains(letter));
+        Assert.That(new DriveItem(path).Title, Is.EqualTo(expected));
+    }
 
-        Assert.That(free, Is.Not.EqualTo('\0'), "Не нашлось свободной буквы диска для кейса.");
-
-        var item = new DriveItem($"{free}:{Path.DirectorySeparatorChar}");
-
-        await item.LoadAsync();
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(item.IsDirectory, Is.False);
-            Assert.That(item.IsReady, Is.False);
-            Assert.That(item.IsMissingMedia, Is.True);
-            Assert.That(item.HasUsage, Is.False);
-            Assert.That(item.SizeCaption, Is.Null);
-            Assert.That(item.Caption, Is.EqualTo("нет носителя"));
-            Assert.That(item.Title, Is.EqualTo($"{free}:"));
-        });
+    [TestCase(@"C:\", "C:")]
+    [TestCase(@"C:\Users\admin\AppData", "AppData")]
+    [TestCase(@"C:\Users\admin\AppData\", "AppData")]
+    [TestCase(@"\\nas\share\backup", "backup")]
+    public void Короткое_имя_цели_для_кнопки_скана_берёт_том_или_последний_каталог(string path, string expected)
+    {
+        Assert.That(DriveItem.ShortName(path), Is.EqualTo(expected));
     }
 
     [Test]
@@ -98,6 +119,52 @@ public class DriveItemTests
             Assert.That(item.Caption, Is.Null);
             Assert.That(item.RatioCaption, Is.Null);
             Assert.That(item.UsageLevel, Is.EqualTo(DriveUsageLevel.None));
+        });
+    }
+
+    [Test]
+    public async Task Опрос_томов_не_возвращается_в_контекст_вызывающего()
+    {
+        var catalog = new DriveCatalog(NullLogger.Instance);
+
+        Assert.That(catalog.Volumes, Is.Not.Empty, "Без единого тома кейс нечего проверять.");
+
+        var context = new CountingSynchronizationContext();
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(context);
+
+        try
+        {
+            catalog.LoadDriveLabels();
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previous);
+        }
+
+        await Task.WhenAll(catalog.Items.Select(item => item.LoadAsync()));
+
+        Assert.That(
+            context.Posts,
+            Is.Zero,
+            "Опрос тома доигрывается в контексте вызывающего: у async STA-теста NUnit этот контекст закрывается вместе с тестом, и опоздавший Post роняет хост.");
+    }
+
+    [Test]
+    public void Повторное_добавление_недавнего_поднимает_его_наверх_без_дубликата()
+    {
+        var catalog = new DriveCatalog(NullLogger.Instance);
+        var first = Path.Combine(Path.GetTempPath(), "spacesnoop-первый");
+        var second = Path.Combine(Path.GetTempPath(), "spacesnoop-второй");
+
+        catalog.AddDrive(first);
+        catalog.AddDrive(second);
+        catalog.AddDrive(first);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(catalog.RecentDirectories.Select(item => item.Path), Is.EqualTo(new[] { first, second }));
+            Assert.That(catalog.Items.Count(item => string.Equals(item.Path, first, StringComparison.OrdinalIgnoreCase)), Is.EqualTo(1));
         });
     }
 
@@ -124,20 +191,26 @@ public class DriveItemTests
     }
 
     [Test]
-    public void Повторное_добавление_недавнего_поднимает_его_наверх_без_дубликата()
+    public async Task Том_без_носителя_говорит_об_этом_вместо_размера()
     {
-        var catalog = new DriveCatalog(NullLogger.Instance);
-        var first = Path.Combine(Path.GetTempPath(), "spacesnoop-первый");
-        var second = Path.Combine(Path.GetTempPath(), "spacesnoop-второй");
+        var used = DriveInfo.GetDrives().Select(static drive => char.ToUpperInvariant(drive.Name[0])).ToHashSet();
+        var free = "ZYXWVU".FirstOrDefault(letter => !used.Contains(letter));
 
-        catalog.AddDrive(first);
-        catalog.AddDrive(second);
-        catalog.AddDrive(first);
+        Assert.That(free, Is.Not.EqualTo('\0'), "Не нашлось свободной буквы диска для кейса.");
+
+        var item = new DriveItem($"{free}:{Path.DirectorySeparatorChar}");
+
+        await item.LoadAsync();
 
         Assert.Multiple(() =>
         {
-            Assert.That(catalog.RecentDirectories.Select(item => item.Path), Is.EqualTo(new[] { first, second }));
-            Assert.That(catalog.Items.Count(item => string.Equals(item.Path, first, StringComparison.OrdinalIgnoreCase)), Is.EqualTo(1));
+            Assert.That(item.IsDirectory, Is.False);
+            Assert.That(item.IsReady, Is.False);
+            Assert.That(item.IsMissingMedia, Is.True);
+            Assert.That(item.HasUsage, Is.False);
+            Assert.That(item.SizeCaption, Is.Null);
+            Assert.That(item.Caption, Is.EqualTo("нет носителя"));
+            Assert.That(item.Title, Is.EqualTo($"{free}:"));
         });
     }
 
@@ -169,28 +242,6 @@ public class DriveItemTests
         });
     }
 
-    [TestCase(@"C:\Users\admin\AppData\Local", @"C:\…\AppData\Local")]
-    [TestCase(@"C:\Users\admin\AppData\Local\", @"C:\…\AppData\Local")]
-    [TestCase(@"C:\Sources\TheVSAKeeper\SpaceSnoop\.git", @"C:\…\SpaceSnoop\.git")]
-    [TestCase(@"C:\Users\admin\AppData", @"C:\Users\admin\AppData")]
-    [TestCase(@"C:\Users\admin", @"C:\Users\admin")]
-    [TestCase(@"D:\Фото", @"D:\Фото")]
-    [TestCase(@"\\nas\share\backup\2026\photos\raw", @"\\nas\share\…\photos\raw")]
-    [TestCase(@"\\nas\share\backup\2026\photos", @"\\nas\share\backup\2026\photos")]
-    public void Каталог_сокращается_в_середине_и_сохраняет_корень_и_родителя(string path, string expected)
-    {
-        Assert.That(new DriveItem(path).Title, Is.EqualTo(expected));
-    }
-
-    [TestCase(@"C:\", "C:")]
-    [TestCase(@"C:\Users\admin\AppData", "AppData")]
-    [TestCase(@"C:\Users\admin\AppData\", "AppData")]
-    [TestCase(@"\\nas\share\backup", "backup")]
-    public void Короткое_имя_цели_для_кнопки_скана_берёт_том_или_последний_каталог(string path, string expected)
-    {
-        Assert.That(DriveItem.ShortName(path), Is.EqualTo(expected));
-    }
-
     [TestCase(0.0, DriveUsageLevel.Normal)]
     [TestCase(0.7499, DriveUsageLevel.Normal)]
     [TestCase(0.75, DriveUsageLevel.Warning)]
@@ -200,58 +251,6 @@ public class DriveItemTests
     public void Уровень_занятости_меняется_на_порогах_75_и_90_процентов(double ratio, DriveUsageLevel expected)
     {
         Assert.That(DriveItem.LevelFor(ratio), Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void Выбранная_цель_помечена_и_среди_томов_и_среди_недавних_включая_добавленные_позже()
-    {
-        var catalog = new DriveCatalog(NullLogger.Instance);
-        var first = Path.Combine(Path.GetTempPath(), "spacesnoop-выбор-первый");
-        var second = Path.Combine(Path.GetTempPath(), "spacesnoop-выбор-второй");
-
-        catalog.AddDrive(first);
-        catalog.Select(second);
-        catalog.AddDrive(second);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(catalog.Items.Where(item => item.IsSelected).Select(item => item.Path), Is.EqualTo(new[] { second }));
-            Assert.That(catalog.Volumes.Any(item => item.IsSelected), Is.False);
-        });
-
-        catalog.Select(catalog.Volumes[0].Path);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(catalog.Volumes[0].IsSelected, Is.True);
-            Assert.That(catalog.RecentDirectories.Any(item => item.IsSelected), Is.False);
-        });
-    }
-
-    [Test]
-    public async Task Опрос_томов_не_возвращается_в_контекст_вызывающего()
-    {
-        var catalog = new DriveCatalog(NullLogger.Instance);
-
-        Assert.That(catalog.Volumes, Is.Not.Empty, "Без единого тома кейс нечего проверять.");
-
-        var context = new CountingSynchronizationContext();
-        var previous = SynchronizationContext.Current;
-        SynchronizationContext.SetSynchronizationContext(context);
-
-        try
-        {
-            catalog.LoadDriveLabels();
-        }
-        finally
-        {
-            SynchronizationContext.SetSynchronizationContext(previous);
-        }
-
-        await Task.WhenAll(catalog.Items.Select(item => item.LoadAsync()));
-
-        Assert.That(context.Posts, Is.Zero,
-            "Опрос тома доигрывается в контексте вызывающего: у async STA-теста NUnit этот контекст закрывается вместе с тестом, и опоздавший Post роняет хост.");
     }
 
     private sealed class CountingSynchronizationContext : SynchronizationContext

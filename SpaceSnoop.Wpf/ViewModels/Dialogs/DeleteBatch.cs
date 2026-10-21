@@ -172,9 +172,10 @@ internal static class DeleteBatch
         {
             var index = pending[rest];
 
-            onResult(callbacks.Exists(paths[index])
-                ? new(index, DeleteItemStatus.None, null)
-                : new(index, DeleteItemStatus.Removed, null));
+            onResult(
+                callbacks.Exists(paths[index])
+                    ? new(index, DeleteItemStatus.None, null)
+                    : new(index, DeleteItemStatus.Removed, null));
         }
     }
 

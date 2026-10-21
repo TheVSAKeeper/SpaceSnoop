@@ -17,7 +17,7 @@ public sealed class PriorityRowPanel : Panel
 
         tailMax = Math.Max(tailMin, tailMax);
 
-        for (var i = 0; i < optional.Count && fillMin + used + tailMax > available; i++)
+        for (var i = 0; i < optional.Count && (fillMin + used + tailMax) > available; i++)
         {
             kept[i] = false;
             used -= optional[i];
@@ -87,7 +87,7 @@ public sealed class PriorityRowPanel : Panel
 
         var x = plan.FillWidth;
 
-        for (var i = 1; i < children.Count - 1; i++)
+        for (var i = 1; i < (children.Count - 1); i++)
         {
             if (plan.Kept[i - 1])
             {
@@ -136,7 +136,7 @@ public sealed class PriorityRowPanel : Panel
         var children = InternalChildren;
         var optional = new double[children.Count - 2];
 
-        for (var i = 1; i < children.Count - 1; i++)
+        for (var i = 1; i < (children.Count - 1); i++)
         {
             optional[i - 1] = children[i].DesiredSize.Width;
         }

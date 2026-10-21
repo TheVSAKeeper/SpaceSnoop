@@ -1,5 +1,4 @@
 ﻿using SpaceSnoop.Core;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -25,6 +24,21 @@ public class ProfileBatchTests
     }
 
     [Test]
+    public void Перекрывающаяся_пара_остаётся_в_списке_с_причиной_и_не_выбирается()
+    {
+        var source = Make("src", "A");
+
+        var row = ProfileBatch.BuildPairs(source, source, []).Single();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(row.Refusal, Is.EqualTo(SyncRoots.OverlapMessage));
+            Assert.That(row.IsSelectable, Is.False);
+            Assert.That(row.Include, Is.False);
+        }
+    }
+
+    [Test]
     public void Подпапки_источника_дают_пары_с_зеркальным_приёмником()
     {
         var source = Make("src", "A", "B");
@@ -41,19 +55,16 @@ public class ProfileBatchTests
         }
     }
 
-    [Test]
-    public void Перекрывающаяся_пара_остаётся_в_списке_с_причиной_и_не_выбирается()
+    [TestCase(0, "A,B,C")]
+    [TestCase(1, "C,B,A")]
+    [TestCase(2, "B,C,A")]
+    public void Сортировка_пар_по_режиму(int mode, string expected)
     {
-        var source = Make("src", "A");
+        var rows = new List<BatchPairRow> { new("B", "l", "r", false, true), new("A", "l", "r", true, true), new("C", "l", "r", false, true) };
 
-        var row = ProfileBatch.BuildPairs(source, source, []).Single();
+        var sorted = ProfileBatch.Sort(rows, mode);
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(row.Refusal, Is.EqualTo(SyncRoots.OverlapMessage));
-            Assert.That(row.IsSelectable, Is.False);
-            Assert.That(row.Include, Is.False);
-        }
+        Assert.That(string.Join(",", sorted.Select(row => row.Name)), Is.EqualTo(expected));
     }
 
     [Test]
@@ -81,23 +92,6 @@ public class ProfileBatchTests
             Assert.That(row.AlreadyExists, Is.True);
             Assert.That(row.Include, Is.False);
         }
-    }
-
-    [TestCase(0, "A,B,C")]
-    [TestCase(1, "C,B,A")]
-    [TestCase(2, "B,C,A")]
-    public void Сортировка_пар_по_режиму(int mode, string expected)
-    {
-        var rows = new List<BatchPairRow>
-        {
-            new("B", "l", "r", false, true),
-            new("A", "l", "r", true, true),
-            new("C", "l", "r", false, true),
-        };
-
-        var sorted = ProfileBatch.Sort(rows, mode);
-
-        Assert.That(string.Join(",", sorted.Select(row => row.Name)), Is.EqualTo(expected));
     }
 
     private string Make(string name, params string[] subdirectories)

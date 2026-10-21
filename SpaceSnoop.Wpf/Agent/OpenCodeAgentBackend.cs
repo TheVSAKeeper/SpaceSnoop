@@ -10,6 +10,8 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
 
     internal const string AgentName = "spacesnoop";
 
+    private const string SessionTitle = "SpaceSnoop";
+
     internal static readonly string[] BuiltInTools =
     [
         "bash",
@@ -29,14 +31,7 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
         "question",
     ];
 
-    private const string SessionTitle = "SpaceSnoop";
-
     private static readonly JsonSerializerOptions ConfigJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
-
-    public OpenCodeAgentBackend(AgentPreferences preferences, ILogger<OpenCodeAgentBackend> logger)
-        : base(preferences, logger)
-    {
-    }
 
     public override AgentBackendKind Kind => AgentBackendKind.OpenCode;
 
@@ -77,6 +72,11 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
         }
     }
 
+    public OpenCodeAgentBackend(AgentPreferences preferences, ILogger<OpenCodeAgentBackend> logger)
+        : base(preferences, logger)
+    {
+    }
+
     public override IReadOnlyList<AgentModelOption> LoadModels()
     {
         return Detect() is { } cli
@@ -84,33 +84,17 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
             : [];
     }
 
-    protected override AgentLaunch CreateLaunch(AgentRequest request)
-    {
-        var configPath = TempConfigPath("json");
-        var environment = new Dictionary<string, string> { [ConfigVariable] = configPath };
-
-        if (request.Mcp is { } mcp)
-        {
-            environment[TokenVariable] = mcp.Token;
-        }
-
-        return new()
-        {
-            Arguments = BuildArguments(request),
-            Stdin = request.TurnText,
-            Environment = environment,
-            TempFiles = [new(configPath, BuildConfigJson(request))],
-        };
-    }
-
-    protected override IAgentStreamParser CreateParser()
-    {
-        return new StreamParser();
-    }
-
     internal static IReadOnlyList<string> BuildArguments(AgentRequest request)
     {
-        var args = new List<string> { "run", "--format", "json", "--pure", "--agent", AgentName };
+        var args = new List<string>
+        {
+            "run",
+            "--format",
+            "json",
+            "--pure",
+            "--agent",
+            AgentName,
+        };
 
         if (!string.IsNullOrEmpty(request.ResumeSessionId))
         {
@@ -192,18 +176,33 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
             {
                 [mcp.ServerName] = new Dictionary<string, object>(StringComparer.Ordinal)
                 {
-                    ["type"] = "remote",
-                    ["enabled"] = true,
-                    ["url"] = mcp.Endpoint,
-                    ["headers"] = new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        ["Authorization"] = $"Bearer {{env:{TokenVariable}}}",
-                    },
+                    ["type"] = "remote", ["enabled"] = true, ["url"] = mcp.Endpoint, ["headers"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Authorization"] = $"Bearer {{env:{TokenVariable}}}" },
                 },
             };
         }
 
         return JsonSerializer.Serialize(config, ConfigJson);
+    }
+
+    protected override AgentLaunch CreateLaunch(AgentRequest request)
+    {
+        var configPath = TempConfigPath("json");
+        var environment = new Dictionary<string, string> { [ConfigVariable] = configPath };
+
+        if (request.Mcp is { } mcp)
+        {
+            environment[TokenVariable] = mcp.Token;
+        }
+
+        return new()
+        {
+            Arguments = BuildArguments(request), Stdin = request.TurnText, Environment = environment, TempFiles = [new(configPath, BuildConfigJson(request))],
+        };
+    }
+
+    protected override IAgentStreamParser CreateParser()
+    {
+        return new StreamParser();
     }
 
     private static string QualifyTool(string serverName, string tool)

@@ -26,8 +26,9 @@
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
                                               Kind="{x:Static iconPacks:PackIconLucideKind.GitCompareArrows}"
                                               Foreground="{DynamicResource State.InfoText}" />
-                    <TextBlock Text="{Binding PlacementTarget.DataContext.CompareContentHeader, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-                               VerticalAlignment="Center" />
+                    <TextBlock
+                        Text="{Binding PlacementTarget.DataContext.CompareContentHeader, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                        VerticalAlignment="Center" />
                 </StackPanel>
             </MenuItem.Header>
         </MenuItem>

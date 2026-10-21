@@ -65,13 +65,6 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     [ObservableProperty]
     private string _scanPercentText = string.Empty;
 
-    public ScanProgressViewModel(PerformanceOperations operations, IUiDispatcher uiDispatcher)
-    {
-        _operations = operations;
-
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
-    }
-
     public PerformanceTraversal? Traversal { get; private set; }
 
     public bool IsIndeterminate => !_progressFraction.HasValue;
@@ -79,6 +72,13 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     public double ProgressValue => _progressFraction ?? 0;
 
     public double ProgressMax => 1;
+
+    public ScanProgressViewModel(PerformanceOperations operations, IUiDispatcher uiDispatcher)
+    {
+        _operations = operations;
+
+        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+    }
 
     internal static string BytesText(long files, long bytes)
     {
@@ -167,7 +167,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     {
         var phase = _reported is { } reported
             ? reported with { Name = name }
-            : new PerformanceOperation(name, 0, 0, TimeSpan.Zero);
+            : new(name, 0, 0, TimeSpan.Zero);
 
         if (_operations.TryReport(phase, _reported))
         {
@@ -262,7 +262,8 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         ScanHasDeterminateProgress = fraction.HasValue;
         ScanPercentText = fraction.HasValue ? $"{fraction.Value * 100:F0} %" : string.Empty;
 
-        var operation = new PerformanceOperation("Сканирование",
+        var operation = new PerformanceOperation(
+            "Сканирование",
             snapshot.FilesScanned,
             snapshot.BytesScanned,
             elapsed,

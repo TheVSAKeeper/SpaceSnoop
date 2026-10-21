@@ -1,5 +1,5 @@
-﻿using KeepShell.Services.Modal;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
+using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.Bootstrap.Gallery;
 
@@ -128,14 +128,10 @@ public static class GalleryDialogs
 
     private static BatchCreateProfilesDialogViewModel CreateBatch(IServiceProvider services, GalleryFixture fixture)
     {
-        return new(services.GetRequiredService<ISettingsStore>(), services.GetRequiredService<IFilePicker>())
-        {
-            SourceParent = fixture.Left,
-            DestParent = fixture.Right,
-        };
+        return new(services.GetRequiredService<ISettingsStore>(), services.GetRequiredService<IFilePicker>()) { SourceParent = fixture.Left, DestParent = fixture.Right };
     }
 
-    private static void Run(System.Windows.Input.ICommand command, string unavailable)
+    private static void Run(ICommand command, string unavailable)
     {
         if (!command.CanExecute(null))
         {

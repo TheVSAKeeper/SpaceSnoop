@@ -1,7 +1,4 @@
-﻿using KeepShell.Services.Platform;
-using SpaceSnoop.Core.Duplicates;
-
-namespace SpaceSnoop.Wpf.Bootstrap;
+﻿namespace SpaceSnoop.Wpf.Bootstrap;
 
 public sealed class DuplicateProgressDialogFactory(
     DuplicateFinder finder,

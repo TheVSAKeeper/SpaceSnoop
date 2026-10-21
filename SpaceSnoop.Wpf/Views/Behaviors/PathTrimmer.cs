@@ -10,7 +10,8 @@ public static class PathTrimmer
 
     private static readonly char[] PathSeparators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
 
-    public static readonly DependencyProperty FullPathProperty = DependencyProperty.RegisterAttached("FullPath",
+    public static readonly DependencyProperty FullPathProperty = DependencyProperty.RegisterAttached(
+        "FullPath",
         typeof(string),
         typeof(PathTrimmer),
         new(string.Empty, OnFullPathChanged));
@@ -133,7 +134,8 @@ public static class PathTrimmer
         var typeface = new Typeface(textBlock.FontFamily, textBlock.FontStyle, textBlock.FontWeight, textBlock.FontStretch);
         var pixelsPerDip = VisualTreeHelper.GetDpi(textBlock).PixelsPerDip;
 
-        var formatted = new FormattedText(text,
+        var formatted = new FormattedText(
+            text,
             CultureInfo.CurrentUICulture,
             textBlock.FlowDirection,
             typeface,

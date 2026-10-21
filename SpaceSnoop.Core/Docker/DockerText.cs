@@ -201,7 +201,7 @@ public static class DockerText
 
     private static string Plural(int count, string[] forms)
     {
-        if ((count % 100) is >= 11 and <= 14)
+        if (count % 100 is >= 11 and <= 14)
         {
             return forms[2];
         }

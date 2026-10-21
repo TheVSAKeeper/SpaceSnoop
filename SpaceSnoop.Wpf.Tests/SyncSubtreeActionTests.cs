@@ -1,7 +1,6 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Testing;
 using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -12,11 +11,7 @@ public class SyncSubtreeActionTests
     [Test]
     public void Встречное_копирование_снимает_удаление_каталога()
     {
-        var dir = new DirectoryComparison("orphan", "orphan")
-        {
-            Status = ComparisonStatus.LeftOnly,
-            Action = SyncAction.DeleteLeft,
-        };
+        var dir = new DirectoryComparison("orphan", "orphan") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft };
 
         dir.Files.Add(new("a.txt", "orphan\\a.txt") { Status = ComparisonStatus.LeftOnly });
 
@@ -53,19 +48,14 @@ public class SyncSubtreeActionTests
     [Test]
     public void Цикл_действий_конфликта_вида_предлагает_только_пропуск()
     {
-        var cycle = SyncActionCycles.ForFile(ComparisonStatus.Modified, deleteAllowed: true, typeConflict: true);
+        var cycle = SyncActionCycles.ForFile(ComparisonStatus.Modified, true, true);
 
         Assert.That(cycle, Is.EqualTo(new[] { SyncAction.Skip }));
     }
 
     private static DirectoryComparison Conflict(out FileComparison file)
     {
-        file = new("config", "config")
-        {
-            Status = ComparisonStatus.Modified,
-            Action = SyncAction.Skip,
-            TypeConflict = FileTypeConflict.LeftFileRightDirectory,
-        };
+        file = new("config", "config") { Status = ComparisonStatus.Modified, Action = SyncAction.Skip, TypeConflict = FileTypeConflict.LeftFileRightDirectory };
 
         var dir = new DirectoryComparison("root", "");
         dir.Files.Add(file);
@@ -75,6 +65,13 @@ public class SyncSubtreeActionTests
     private static SyncRowsViewModel Rows()
     {
         ISettingsStore settings = new MemorySettings();
-        return new(settings, new OperationPreferences(settings), new AgentPreferences(settings), _ => Task.CompletedTask, _ => { });
+        return new(
+            settings,
+            new(settings),
+            new(settings),
+            _ => Task.CompletedTask,
+            _ =>
+            {
+            });
     }
 }

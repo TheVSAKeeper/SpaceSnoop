@@ -1,9 +1,6 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
+﻿using KeepShell.Testing;
 using KeepShell.ViewModels;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
-using SpaceSnoop.Wpf.ViewModels;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 
@@ -30,11 +27,16 @@ public class AdminRestartPromptTests
         var toasts = new ToastHostViewModel();
         var dialogs = new NoopDialogs(showResult: confirmed);
         var restarts = 0;
-        var prompt = new AdminRestartPrompt(dialogs, new ToastNotifier(toasts, new ShellPreferences(settings)), () => marked, () =>
-        {
-            restarts++;
-            return elevationGranted;
-        });
+        var prompt = new AdminRestartPrompt(
+            dialogs,
+            new(toasts, new(settings)),
+            () => marked,
+            () =>
+            {
+                restarts++;
+                return elevationGranted;
+            });
+
         bool? restarted = null;
         var summary = new ScanSummaryViewModel(false, async () => restarted = await prompt.RunAsync());
 

@@ -48,21 +48,6 @@ public sealed partial class SyncRowsViewModel : ObservableObject, ISyncRowHost
     [ObservableProperty]
     private string _searchText = string.Empty;
 
-    public SyncRowsViewModel(
-        ISettingsStore settings,
-        OperationPreferences operations,
-        AgentPreferences agent,
-        Func<FileComparison, Task> compareContent,
-        Action<SyncNodeViewModel> askAgent)
-    {
-        _settings = settings;
-        _operations = operations;
-        _agent = agent;
-        _compareContent = compareContent;
-        _askAgent = askAgent;
-        LoadSettings();
-    }
-
     public event Action? ActionsChanged;
 
     public RangeObservableCollection<SyncNodeViewModel> Rows { get; } = [];
@@ -86,6 +71,21 @@ public sealed partial class SyncRowsViewModel : ObservableObject, ISyncRowHost
     public PackIconLucideKind SortDirectionIconKind => RowSortDescending
         ? PackIconLucideKind.ArrowDown
         : PackIconLucideKind.ArrowUp;
+
+    public SyncRowsViewModel(
+        ISettingsStore settings,
+        OperationPreferences operations,
+        AgentPreferences agent,
+        Func<FileComparison, Task> compareContent,
+        Action<SyncNodeViewModel> askAgent)
+    {
+        _settings = settings;
+        _operations = operations;
+        _agent = agent;
+        _compareContent = compareContent;
+        _askAgent = askAgent;
+        LoadSettings();
+    }
 
     public void ToggleExpand(DirectoryComparison dir)
     {
@@ -372,7 +372,7 @@ public sealed partial class SyncRowsViewModel : ObservableObject, ISyncRowHost
 
         ShowIdentical = _settings.GetBool(SettingsKeys.SyncShowIdentical);
         ShowSizes = _settings.GetBool(SettingsKeys.SyncShowSizes, AppDefaults.SyncShowSizesDefault);
-        ShowModified = _settings.GetBool(SettingsKeys.SyncShowModified, AppDefaults.SyncShowModifiedDefault);
+        ShowModified = _settings.GetBool(SettingsKeys.SyncShowModified);
         BlankAbsent = _settings.GetBool(SettingsKeys.SyncBlankAbsent);
         HideApplied = _settings.GetBool(SettingsKeys.SyncHideApplied);
         FlatView = _settings.GetBool(SettingsKeys.SyncFlatView);

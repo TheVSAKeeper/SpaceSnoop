@@ -2,11 +2,15 @@
 
 internal static partial class AppLog
 {
-    [LoggerMessage(EventId = 1000, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1000,
+        Level = LogLevel.Information,
         Message = "Сканирование начато: {Path} (многопоточно: {Multithreaded}, потоков: {Parallelism})")]
     public static partial void ScanStarted(this ILogger logger, string path, bool multithreaded, int parallelism);
 
-    [LoggerMessage(EventId = 1001, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1001,
+        Level = LogLevel.Information,
         Message = "Сканирование завершено: {Path} – {SizeText}, файлов: {Files}, каталогов: {Directories}, за {ElapsedMs} мс")]
     public static partial void ScanCompleted(this ILogger logger, string path, string sizeText, int files, int directories, long elapsedMs);
 
@@ -19,11 +23,15 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1004, Level = LogLevel.Debug, Message = "Удаление запрошено, но нет помеченных элементов")]
     public static partial void NothingMarkedForDeletion(this ILogger logger);
 
-    [LoggerMessage(EventId = 1005, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1005,
+        Level = LogLevel.Information,
         Message = "Запрошено удаление {Count} помеченных элемент(ов) (безвозвратно: {Permanent})")]
     public static partial void DeletionRequested(this ILogger logger, int count, bool permanent);
 
-    [LoggerMessage(EventId = 1006, Level = LogLevel.Debug,
+    [LoggerMessage(
+        EventId = 1006,
+        Level = LogLevel.Debug,
         Message = "Результат удаления применён к дереву: убрано узлов – {Count}")]
     public static partial void DeletionResultApplied(this ILogger logger, int count);
 
@@ -39,28 +47,38 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1053, Level = LogLevel.Error, Message = "Ошибка поиска дубликатов")]
     public static partial void DuplicateSearchFailed(this ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 1007, Level = LogLevel.Warning,
+    [LoggerMessage(
+        EventId = 1007,
+        Level = LogLevel.Warning,
         Message = "Не удалось подгрузить заполненность дисков")]
     public static partial void DriveSizesFailed(this ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 1008, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1008,
+        Level = LogLevel.Information,
         Message = "Обход в один поток: {Path} лежит на диске со штрафом за позиционирование (запрошено потоков: {Requested})")]
     public static partial void ScanMediaLimited(this ILogger logger, string path, int requested);
 
-    [LoggerMessage(EventId = 1009, Level = LogLevel.Debug,
+    [LoggerMessage(
+        EventId = 1009,
+        Level = LogLevel.Debug,
         Message = "Скан по фазам: обход {WalkMs} мс, показ {ApplyMs} мс")]
     public static partial void ScanPhases(this ILogger logger, long walkMs, long applyMs);
 
-    [LoggerMessage(EventId = 1010, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1010,
+        Level = LogLevel.Information,
         Message = "Обход по $MFT недоступен для «{Path}» ({Availability}), идём каталогами")]
     public static partial void MftUnavailable(this ILogger logger, string path, MftAvailability availability);
 
     [LoggerMessage(EventId = 1011, Level = LogLevel.Warning, Message = "Обход по $MFT для «{Path}» не удался, идём каталогами")]
     public static partial void MftFailed(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1012, Level = LogLevel.Warning,
+    [LoggerMessage(
+        EventId = 1012,
+        Level = LogLevel.Warning,
         Message = "Обход по $MFT для «{Path}» неполон: в дерево не попало {Dropped} объект(ов) на {DroppedBytes} Б, "
-                  + "прочитано не полностью {Partial} запись(ей), без известного размера {UnknownSize}; {Report}")]
+            + "прочитано не полностью {Partial} запись(ей), без известного размера {UnknownSize}; {Report}")]
     public static partial void MftScanIncomplete(
         this ILogger logger,
         string path,
@@ -70,34 +88,48 @@ internal static partial class AppLog
         long unknownSize,
         string report);
 
-    [LoggerMessage(EventId = 1013, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1013,
+        Level = LogLevel.Information,
         Message = "Обход по $MFT настройкой разрешён только для диска целиком, «{Path}» идёт каталогами")]
     public static partial void MftSkippedForSubdirectory(this ILogger logger, string path);
 
-    [LoggerMessage(EventId = 1014, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1014,
+        Level = LogLevel.Information,
         Message = "Прежний результат «{Path}» снят до повторного скана, сборка {CollectMs} мс")]
     public static partial void ScanPreviousReleased(this ILogger logger, string path, long collectMs);
 
-    [LoggerMessage(EventId = 1015, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1015,
+        Level = LogLevel.Information,
         Message = "Прежний результат «{Path}» оставлен до конца скана: в нём есть пометки на удаление")]
     public static partial void ScanPreviousKeptForMarks(this ILogger logger, string path);
 
-    [LoggerMessage(EventId = 1016, Level = LogLevel.Debug,
+    [LoggerMessage(
+        EventId = 1016,
+        Level = LogLevel.Debug,
         Message = "Память после скана возвращена системе за {ElapsedMs} мс: куча {HeapBytes} Б, занято у ОС {CommittedBytes} Б")]
     public static partial void ScanMemoryReturned(this ILogger logger, long elapsedMs, long heapBytes, long committedBytes);
 
-    [LoggerMessage(EventId = 1018, Level = LogLevel.Debug,
+    [LoggerMessage(
+        EventId = 1018,
+        Level = LogLevel.Debug,
         Message = "Уплотнение после скана пропущено: нагрузка памяти {LoadBytes} Б ниже порога GC {ThresholdBytes} Б")]
     public static partial void ScanMemoryReturnSkipped(this ILogger logger, long loadBytes, long thresholdBytes);
 
-    [LoggerMessage(EventId = 1017, Level = LogLevel.Warning,
+    [LoggerMessage(
+        EventId = 1017,
+        Level = LogLevel.Warning,
         Message = "Сканирование «{Path}»: не прочитано каталогов {Count} (права администратора: {Elevated}), стек – у первого пропуска")]
     public static partial void ScanDirectoriesUnread(this ILogger logger, string path, long count, bool elevated);
 
     [LoggerMessage(EventId = 1228, Level = LogLevel.Information, Message = "Сканирование «{Path}» не начато: корень – ссылка, её цель не обходится")]
     public static partial void ScanRootLinkRejected(this ILogger logger, string path);
 
-    [LoggerMessage(EventId = 1100, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1100,
+        Level = LogLevel.Information,
         Message = "Старт удаления {Run}: {Count} элемент(ов), {BytesText} (безвозвратно: {Permanent})")]
     public static partial void DeletionStarted(this ILogger logger, string run, int count, string bytesText, bool permanent);
 
@@ -107,33 +139,45 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1102, Level = LogLevel.Warning, Message = "Пропущено (путь не найден): {Path}")]
     public static partial void DeleteItemMissing(this ILogger logger, string path);
 
-    [LoggerMessage(EventId = 1103, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1103,
+        Level = LogLevel.Information,
         Message = "Удаление {Run} завершено (отменено: {Cancelled}): успешно {Deleted}, ошибок {Failed}, освобождено {FreedText}")]
     public static partial void DeletionFinished(this ILogger logger, string run, bool cancelled, int deleted, int failed, string freedText);
 
     [LoggerMessage(EventId = 1104, Level = LogLevel.Warning, Message = "Журнал удаления не пишется: {Path}")]
     public static partial void DeletionLogWriteFailed(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1105, Level = LogLevel.Debug,
+    [LoggerMessage(
+        EventId = 1105,
+        Level = LogLevel.Debug,
         Message = "Удаление {Run}: пачка {Ordinal} из {Total} начата, объекты {Range}")]
     public static partial void DeleteChunkStarted(this ILogger logger, string run, int ordinal, int total, string range);
 
-    [LoggerMessage(EventId = 1106, Level = LogLevel.Debug,
+    [LoggerMessage(
+        EventId = 1106,
+        Level = LogLevel.Debug,
         Message = "Удаление {Run}: пачка {Ordinal} из {Total} закончена за {ElapsedMs} мс, объекты {Range} (по одному: {Retried})")]
     public static partial void DeleteChunkFinished(this ILogger logger, string run, int ordinal, int total, string range, long elapsedMs, bool retried);
 
-    [LoggerMessage(EventId = 1107, Level = LogLevel.Warning,
+    [LoggerMessage(
+        EventId = 1107,
+        Level = LogLevel.Warning,
         Message = "Удаление {Run}: пачка {Ordinal} из {Total} шла {ElapsedMs} мс при пороге {ThresholdMs} мс, объекты {Range}")]
     public static partial void DeleteChunkSlow(this ILogger logger, string run, int ordinal, int total, string range, long elapsedMs, int thresholdMs);
 
-    [LoggerMessage(EventId = 1108, Level = LogLevel.Error,
+    [LoggerMessage(
+        EventId = 1108,
+        Level = LogLevel.Error,
         Message = "Удаление {Run} прервано ошибкой на {Processed} из {Count} объект(ов)")]
     public static partial void DeletionFailed(this ILogger logger, Exception exception, string run, int processed, int count);
 
     [LoggerMessage(EventId = 1200, Level = LogLevel.Information, Message = "Сравнение начато: «{Left}» ↔ «{Right}»")]
     public static partial void CompareStarted(this ILogger logger, string left, string right);
 
-    [LoggerMessage(EventId = 1201, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1201,
+        Level = LogLevel.Information,
         Message = "Сравнение завершено: записей {Total}, за {ElapsedMs} мс")]
     public static partial void CompareFinished(this ILogger logger, int total, long elapsedMs);
 
@@ -146,7 +190,9 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1204, Level = LogLevel.Information, Message = "Синхронизация начата (режим: {Mode})")]
     public static partial void SyncStarted(this ILogger logger, SyncMode mode);
 
-    [LoggerMessage(EventId = 1205, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1205,
+        Level = LogLevel.Information,
         Message = "Синхронизация завершена: успешно {Success}, ошибок {Errors}, за {ElapsedMs} мс")]
     public static partial void SyncFinished(this ILogger logger, int success, int errors, long elapsedMs);
 
@@ -165,11 +211,15 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1210, Level = LogLevel.Information, Message = "Git-папки исключены из синхронизации: {Count}")]
     public static partial void SyncGitFoldersSkipped(this ILogger logger, int count);
 
-    [LoggerMessage(EventId = 1211, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1211,
+        Level = LogLevel.Information,
         Message = "Автосинхронизация начата: «{Left}» → «{Right}» (режим: {Mode}, зеркало: {Mirror})")]
     public static partial void HeadlessSyncStarted(this ILogger logger, string left, string right, SyncMode mode, bool mirror);
 
-    [LoggerMessage(EventId = 1212, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1212,
+        Level = LogLevel.Information,
         Message = "Автосинхронизация завершена: успешно {Success}, ошибок {Errors}, расхождений {Mismatches}, за {ElapsedMs} мс")]
     public static partial void HeadlessSyncFinished(this ILogger logger, int success, int errors, int mismatches, long elapsedMs);
 
@@ -194,18 +244,24 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1219, Level = LogLevel.Warning, Message = "Не удалось прочитать состояние Git")]
     public static partial void GitStateFailed(this ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 1220, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1220,
+        Level = LogLevel.Information,
         Message = "Сравнение выгружено в «{Path}»: записей {Entries}, пропущено {Omitted}")]
     public static partial void ComparisonExported(this ILogger logger, string path, int entries, int omitted);
 
     [LoggerMessage(EventId = 1221, Level = LogLevel.Error, Message = "Не удалось выгрузить сравнение в «{Path}»")]
     public static partial void ComparisonExportFailed(this ILogger logger, Exception exception, string path);
 
-    [LoggerMessage(EventId = 1222, Level = LogLevel.Warning,
+    [LoggerMessage(
+        EventId = 1222,
+        Level = LogLevel.Warning,
         Message = "Сравнение неполное: каталогов не прочитано {Count}, первый – «{First}»; удаления в этих ветках отключены")]
     public static partial void CompareIncomplete(this ILogger logger, int count, string first);
 
-    [LoggerMessage(EventId = 1223, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1223,
+        Level = LogLevel.Information,
         Message = "Ссылок пропущено при сравнении: {Count}, первая – «{First}»; junction, symlink и облачные заглушки не синхронизируются")]
     public static partial void CompareLinksSkipped(this ILogger logger, int count, string first);
 

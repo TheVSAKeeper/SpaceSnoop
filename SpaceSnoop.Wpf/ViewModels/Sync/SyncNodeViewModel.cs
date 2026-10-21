@@ -12,58 +12,6 @@ public sealed partial class SyncNodeViewModel : ObservableObject
     private bool _subtreeActionable;
     private SyncAction? _subtreeAction;
 
-    internal SyncNodeViewModel(DirectoryComparison dir, int indent, bool isExpanded, long leftSize, long rightSize, ISyncRowHost owner, bool flat = false)
-    {
-        _dir = dir;
-        _owner = owner;
-        _flat = flat;
-        Indent = indent;
-        IsExpanded = isExpanded;
-
-        LeftSizeText = LeftAbsent ? string.Empty : SizeFormatter.Format(leftSize);
-        RightSizeText = RightAbsent ? string.Empty : SizeFormatter.Format(rightSize);
-        LeftModifiedText = LeftAbsent ? string.Empty : SyncNodeText.FormatModified(dir.LeftModified);
-        RightModifiedText = RightAbsent ? string.Empty : SyncNodeText.FormatModified(dir.RightModified);
-
-        if (dir is { LeftModified: { } leftTime, RightModified: { } rightTime })
-        {
-            LeftIsNewer = leftTime > rightTime;
-            RightIsNewer = rightTime > leftTime;
-        }
-
-        (_subtreeActionable, _subtreeAction) = SyncActionCycles.ComputeSubtree(dir);
-    }
-
-    internal SyncNodeViewModel(FileComparison file, int indent, ISyncRowHost owner, bool flat = false)
-    {
-        _file = file;
-        _owner = owner;
-        _flat = flat;
-        Indent = indent;
-
-        LeftSizeText = file.LeftSize is { } left ? SizeFormatter.Format(left) : string.Empty;
-        RightSizeText = file.RightSize is { } right ? SizeFormatter.Format(right) : string.Empty;
-        LeftModifiedText = SyncNodeText.FormatModified(file.LeftModified);
-        RightModifiedText = SyncNodeText.FormatModified(file.RightModified);
-
-        if (file is { LeftModified: { } leftTime, RightModified: { } rightTime })
-        {
-            LeftIsNewer = leftTime > rightTime;
-            RightIsNewer = rightTime > leftTime;
-        }
-    }
-
-    private SyncNodeViewModel(ISyncRowHost owner, string? groupKey, string headerText, int indent, bool expanded)
-    {
-        _owner = owner;
-        _flat = true;
-        _groupKey = groupKey;
-        IsGroupHeader = true;
-        IsExpanded = expanded;
-        Indent = indent;
-        GroupHeaderText = headerText;
-    }
-
     public int Indent { get; }
 
     public bool IsExpanded { get; }
@@ -219,14 +167,56 @@ public sealed partial class SyncNodeViewModel : ObservableObject
 
     private bool IsOneSidedDir => _dir is { Status: ComparisonStatus.LeftOnly or ComparisonStatus.RightOnly };
 
-    internal static SyncNodeViewModel CreateGroupHeader(int groupedCount, bool expanded, ISyncRowHost owner)
+    internal SyncNodeViewModel(DirectoryComparison dir, int indent, bool isExpanded, long leftSize, long rightSize, ISyncRowHost owner, bool flat = false)
     {
-        return new(owner, null, $"Служебные файлы ({groupedCount})", 0, expanded);
+        _dir = dir;
+        _owner = owner;
+        _flat = flat;
+        Indent = indent;
+        IsExpanded = isExpanded;
+
+        LeftSizeText = LeftAbsent ? string.Empty : SizeFormatter.Format(leftSize);
+        RightSizeText = RightAbsent ? string.Empty : SizeFormatter.Format(rightSize);
+        LeftModifiedText = LeftAbsent ? string.Empty : SyncNodeText.FormatModified(dir.LeftModified);
+        RightModifiedText = RightAbsent ? string.Empty : SyncNodeText.FormatModified(dir.RightModified);
+
+        if (dir is { LeftModified: { } leftTime, RightModified: { } rightTime })
+        {
+            LeftIsNewer = leftTime > rightTime;
+            RightIsNewer = rightTime > leftTime;
+        }
+
+        (_subtreeActionable, _subtreeAction) = SyncActionCycles.ComputeSubtree(dir);
     }
 
-    internal static SyncNodeViewModel CreateSubGroupHeader(string folder, int count, bool expanded, ISyncRowHost owner)
+    internal SyncNodeViewModel(FileComparison file, int indent, ISyncRowHost owner, bool flat = false)
     {
-        return new(owner, folder, $"{folder} ({count})", 1, expanded);
+        _file = file;
+        _owner = owner;
+        _flat = flat;
+        Indent = indent;
+
+        LeftSizeText = file.LeftSize is { } left ? SizeFormatter.Format(left) : string.Empty;
+        RightSizeText = file.RightSize is { } right ? SizeFormatter.Format(right) : string.Empty;
+        LeftModifiedText = SyncNodeText.FormatModified(file.LeftModified);
+        RightModifiedText = SyncNodeText.FormatModified(file.RightModified);
+
+        if (file is { LeftModified: { } leftTime, RightModified: { } rightTime })
+        {
+            LeftIsNewer = leftTime > rightTime;
+            RightIsNewer = rightTime > leftTime;
+        }
+    }
+
+    private SyncNodeViewModel(ISyncRowHost owner, string? groupKey, string headerText, int indent, bool expanded)
+    {
+        _owner = owner;
+        _flat = true;
+        _groupKey = groupKey;
+        IsGroupHeader = true;
+        IsExpanded = expanded;
+        Indent = indent;
+        GroupHeaderText = headerText;
     }
 
     public void RefreshSubtreeAction()
@@ -240,6 +230,16 @@ public sealed partial class SyncNodeViewModel : ObservableObject
         OnPropertyChanged(nameof(ActionIconKind));
         OnPropertyChanged(nameof(Action));
         OnPropertyChanged(nameof(ActionHint));
+    }
+
+    internal static SyncNodeViewModel CreateGroupHeader(int groupedCount, bool expanded, ISyncRowHost owner)
+    {
+        return new(owner, null, $"Служебные файлы ({groupedCount})", 0, expanded);
+    }
+
+    internal static SyncNodeViewModel CreateSubGroupHeader(string folder, int count, bool expanded, ISyncRowHost owner)
+    {
+        return new(owner, folder, $"{folder} ({count})", 1, expanded);
     }
 
     [RelayCommand]

@@ -106,12 +106,12 @@ public static class SettingsKeys
     public const string AgentCliPathShared = $"{AgentPrefix}.cli_path";
     public const string AgentConsentShared = $"{AgentPrefix}.consent";
 
-    private const string AgentPrefix = "wpf.agent";
-
     public const string UpdateDismissedVersion = "wpf.update.dismissed";
     public const string UpdateRepository = "wpf.update.repository";
     public const string UpdateCheckOnStartup = "wpf.update.check";
     public const string UpdateAutoDownload = "wpf.update.auto_download";
+
+    private const string AgentPrefix = "wpf.agent";
 
     public static string Theme => ThemeManager.SettingsKeyName;
 

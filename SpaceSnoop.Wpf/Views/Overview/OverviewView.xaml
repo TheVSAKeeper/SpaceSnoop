@@ -113,7 +113,8 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" MaxWidth="240" />
+                        <ColumnDefinition Width="*"
+                                          MaxWidth="240" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 

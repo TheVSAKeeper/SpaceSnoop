@@ -58,22 +58,22 @@ internal sealed class MftLocalTime(TimeZoneInfo zone, Func<long, DateTime> exact
 
         return code == ExactCode
             ? exact(fileTime)
-            : new(FileTimeEpoch + fileTime + (code - ShiftBias) * TimeSpan.TicksPerSecond, DateTimeKind.Local);
+            : new(FileTimeEpoch + fileTime + ((code - ShiftBias) * TimeSpan.TicksPerSecond), DateTimeKind.Local);
     }
 
     private long Measure(long day)
     {
-        if (day < 3 || day > LastDay - 3)
+        if (day < 3 || day > (LastDay - 3))
         {
             return Pack(day, ExactCode);
         }
 
-        var from = day * TimeSpan.TicksPerDay - MarginTicks;
-        var to = (day + 1) * TimeSpan.TicksPerDay + MarginTicks;
+        var from = (day * TimeSpan.TicksPerDay) - MarginTicks;
+        var to = ((day + 1) * TimeSpan.TicksPerDay) + MarginTicks;
 
         long? shift = null;
 
-        for (var probe = from; probe < to + ProbeTicks; probe += ProbeTicks)
+        for (var probe = from; probe < (to + ProbeTicks); probe += ProbeTicks)
         {
             var at = Math.Min(probe, to - 1);
             var measured = exact(at).Ticks - FileTimeEpoch - at;
@@ -88,7 +88,7 @@ internal sealed class MftLocalTime(TimeZoneInfo zone, Func<long, DateTime> exact
 
         var seconds = shift!.Value / TimeSpan.TicksPerSecond;
 
-        if (shift.Value % TimeSpan.TicksPerSecond != 0 || Math.Abs(seconds) >= ShiftBias - 1)
+        if (shift.Value % TimeSpan.TicksPerSecond != 0 || Math.Abs(seconds) >= (ShiftBias - 1))
         {
             return Pack(day, ExactCode);
         }

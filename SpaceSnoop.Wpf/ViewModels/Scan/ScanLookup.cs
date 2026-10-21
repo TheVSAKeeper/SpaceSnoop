@@ -80,7 +80,7 @@ internal static class ScanLookup
     private static bool IsInside(string directory, string target)
     {
         return target.Length > directory.Length
-               && target.StartsWith(directory, StringComparison.OrdinalIgnoreCase)
-               && target[directory.Length] is '\\' or '/';
+            && target.StartsWith(directory, StringComparison.OrdinalIgnoreCase)
+            && target[directory.Length] is '\\' or '/';
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace SpaceSnoop.Wpf.Bootstrap;
+﻿using System.IO;
+
+namespace SpaceSnoop.Wpf.Bootstrap;
 
 public static class ScanVolumeNote
 {
@@ -22,7 +24,7 @@ public static class ScanVolumeNote
 
         var difference = scannedBytes - capacity.UsedBytes;
 
-        if (difference <= capacity.UsedBytes * AppDefaults.ScanVolumeNoteFraction)
+        if (difference <= (capacity.UsedBytes * AppDefaults.ScanVolumeNoteFraction))
         {
             return null;
         }
@@ -37,7 +39,7 @@ public static class ScanVolumeNote
             return false;
         }
 
-        var trimmed = scannedPath.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+        var trimmed = scannedPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
         return string.Equals(trimmed, driveName, StringComparison.OrdinalIgnoreCase);
     }

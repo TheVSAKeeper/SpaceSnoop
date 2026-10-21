@@ -58,10 +58,11 @@
                            Style="{StaticResource TextBlock.Heading}"
                            FontSize="{DynamicResource Font.Size.L}"
                            TextWrapping="Wrap" />
-                <TextBlock Text="Три настройки, от которых зависит результат. Поменять их можно и позже в «Настройках»."
-                           Style="{StaticResource Form.Hint}"
-                           TextWrapping="Wrap"
-                           Margin="0,4,0,0" />
+                <TextBlock
+                    Text="Три настройки, от которых зависит результат. Поменять их можно и позже в «Настройках»."
+                    Style="{StaticResource Form.Hint}"
+                    TextWrapping="Wrap"
+                    Margin="0,4,0,0" />
 
                 <Grid Margin="0,16,0,0">
                     <Grid.ColumnDefinitions>
@@ -86,7 +87,8 @@
                                   Margin="0,10,0,0"
                                   HorizontalAlignment="Left"
                                   Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
-                        <StackPanel Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                        <StackPanel
+                            Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                             <Button Style="{StaticResource Button.Secondary}"
                                     Command="{Binding RestartAsAdminCommand}"
                                     Margin="0,10,0,0"
@@ -105,10 +107,11 @@
                                                VerticalAlignment="Center" />
                                 </DockPanel>
                             </Button>
-                            <TextBlock Text="Без прав администратора скан пойдёт медленнее, часть системных папок не прочитается."
-                                       Style="{StaticResource Form.Hint}"
-                                       TextWrapping="Wrap"
-                                       Margin="0,6,0,0" />
+                            <TextBlock
+                                Text="Без прав администратора скан пойдёт медленнее, часть системных папок не прочитается."
+                                Style="{StaticResource Form.Hint}"
+                                TextWrapping="Wrap"
+                                Margin="0,6,0,0" />
                         </StackPanel>
                     </StackPanel>
                 </Grid>
@@ -151,9 +154,10 @@
                             <TextBlock Text="Проверять обновления при запуске"
                                        TextWrapping="Wrap" />
                         </CheckBox>
-                        <TextBlock Text="Программа спрашивает GitHub, вышла ли новая версия. Сама она ничего не скачивает."
-                                   Style="{StaticResource Form.CheckHint}"
-                                   TextWrapping="Wrap" />
+                        <TextBlock
+                            Text="Программа спрашивает GitHub, вышла ли новая версия. Сама она ничего не скачивает."
+                            Style="{StaticResource Form.CheckHint}"
+                            TextWrapping="Wrap" />
                     </StackPanel>
                 </Grid>
 

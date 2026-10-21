@@ -17,16 +17,16 @@ public sealed partial class ScanTreemapViewModel : ObservableObject
     [ObservableProperty]
     private string _treemapTruncatedText = string.Empty;
 
-    public ScanTreemapViewModel(IReadOnlyList<ScanNodeViewModel> roots)
-    {
-        _roots = roots;
-    }
-
     public event Action<ScanNodeViewModel>? DrilledInto;
 
     public RangeObservableCollection<ScanNodeViewModel> TreemapTiles { get; } = [];
 
     public RangeObservableCollection<TreemapCrumb> TreemapBreadcrumbs { get; } = [];
+
+    public ScanTreemapViewModel(IReadOnlyList<ScanNodeViewModel> roots)
+    {
+        _roots = roots;
+    }
 
     internal void SetRoot(ScanNodeViewModel root)
     {
@@ -73,8 +73,11 @@ public sealed partial class ScanTreemapViewModel : ObservableObject
             return;
         }
 
-        var hidden = _treemapPath.Select(static node => node.Space).OfType<SpaceBase>()
-            .Where(visibility.IsIgnored).ToHashSet();
+        var hidden = _treemapPath.Select(static node => node.Space)
+            .OfType<SpaceBase>()
+            .Where(visibility.IsIgnored)
+            .ToHashSet();
+
         RefreshAfterDeletion(hidden);
     }
 

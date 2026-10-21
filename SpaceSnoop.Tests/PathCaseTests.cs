@@ -7,6 +7,8 @@ namespace SpaceSnoop.Tests;
 [TestFixture]
 public class PathCaseTests
 {
+    private string _tempDir = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -23,15 +25,13 @@ public class PathCaseTests
         }
     }
 
-    private string _tempDir = null!;
-
     [Test]
-    public void IsCaseSensitive_OnWindowsVolume_IsFalse()
+    public void IsCaseSensitive_OnEmptyDirectoryWithCaseSensitiveFlag_ReadsFlag()
     {
         Assume.That(OperatingSystem.IsWindows());
-        File.WriteAllText(Path.Combine(_tempDir, "Probe.txt"), "payload");
+        Assume.That(TryEnableCaseSensitivity(_tempDir), "fsutil не включает регистрозависимость каталога на этой машине");
 
-        Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.False);
+        Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.True);
     }
 
     [Test]
@@ -49,20 +49,20 @@ public class PathCaseTests
     }
 
     [Test]
+    public void IsCaseSensitive_OnWindowsVolume_IsFalse()
+    {
+        Assume.That(OperatingSystem.IsWindows());
+        File.WriteAllText(Path.Combine(_tempDir, "Probe.txt"), "payload");
+
+        Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.False);
+    }
+
+    [Test]
     public void IsCaseSensitive_WhenNamesDifferOnlyByCase_IsTrue()
     {
         Assume.That(!OperatingSystem.IsWindows());
         File.WriteAllText(Path.Combine(_tempDir, "probe.txt"), "one");
         File.WriteAllText(Path.Combine(_tempDir, "Probe.txt"), "two");
-
-        Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.True);
-    }
-
-    [Test]
-    public void IsCaseSensitive_OnEmptyDirectoryWithCaseSensitiveFlag_ReadsFlag()
-    {
-        Assume.That(OperatingSystem.IsWindows());
-        Assume.That(TryEnableCaseSensitivity(_tempDir), "fsutil не включает регистрозависимость каталога на этой машине");
 
         Assert.That(PathCase.IsCaseSensitive(_tempDir), Is.True);
     }
@@ -84,13 +84,11 @@ public class PathCaseTests
     {
         try
         {
-            using var process = Process.Start(new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            });
+            using var process = Process.Start(
+                new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
+                {
+                    CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+                });
 
             if (process is null)
             {

@@ -6,8 +6,7 @@ internal static class ProjectRecycleBin
 {
     internal static void Delete(string path)
     {
-        var operation = (IFileOperation)Activator.CreateInstance(Type.GetTypeFromCLSID(
-            new Guid("3AD05575-8857-4850-9277-11B85BDB8E09"), true)!)!;
+        var operation = (IFileOperation)Activator.CreateInstance(Type.GetTypeFromCLSID(new("3AD05575-8857-4850-9277-11B85BDB8E09"), true)!)!;
         IShellItem? item = null;
         try
         {
@@ -28,20 +27,24 @@ internal static class ProjectRecycleBin
             {
                 Marshal.FinalReleaseComObject(item);
             }
+
             Marshal.FinalReleaseComObject(operation);
         }
     }
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
-    private static extern void SHCreateItemFromParsingName(string path, nint context, ref Guid id,
+    private static extern void SHCreateItemFromParsingName(
+        string path,
+        nint context,
+        ref Guid id,
         out IShellItem item);
 
-    [ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport] [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")] [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IShellItem
     {
     }
 
-    [ComImport, Guid("947AAB5F-0A5C-4C13-B4D6-4BF7836FC9F8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport] [Guid("947AAB5F-0A5C-4C13-B4D6-4BF7836FC9F8")] [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IFileOperation
     {
         void Advise(nint sink, out uint cookie);

@@ -467,12 +467,12 @@ internal static class SyncRowsProjector
     private static bool IsVisible(DirectoryComparison dir, SyncRowsRequest request)
     {
         return (request.ShowIdentical || dir.Status != ComparisonStatus.Identical)
-               && (!request.HideApplied || request.Outcomes.GetValueOrDefault(dir) != SyncOutcome.Applied);
+            && (!request.HideApplied || request.Outcomes.GetValueOrDefault(dir) != SyncOutcome.Applied);
     }
 
     private static bool IsVisible(FileComparison file, SyncRowsRequest request)
     {
         return (request.ShowIdentical || file.Status != ComparisonStatus.Identical)
-               && (!request.HideApplied || request.Outcomes.GetValueOrDefault(file) != SyncOutcome.Applied);
+            && (!request.HideApplied || request.Outcomes.GetValueOrDefault(file) != SyncOutcome.Applied);
     }
 }

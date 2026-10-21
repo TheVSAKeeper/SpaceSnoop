@@ -8,12 +8,6 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
 {
     private readonly ILogger<ClaudeAgentBackend> _logger;
 
-    public ClaudeAgentBackend(AgentPreferences preferences, ILogger<ClaudeAgentBackend> logger)
-        : base(preferences, logger)
-    {
-        _logger = logger;
-    }
-
     public override AgentBackendKind Kind => AgentBackendKind.Claude;
 
     public override string DisplayName => "Claude Code";
@@ -49,34 +43,10 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
         }
     }
 
-    protected override AgentLaunch CreateLaunch(AgentRequest request)
+    public ClaudeAgentBackend(AgentPreferences preferences, ILogger<ClaudeAgentBackend> logger)
+        : base(preferences, logger)
     {
-        var configPath = request.Mcp is null ? null : TempConfigPath("json");
-
-        return new()
-        {
-            Arguments = BuildArguments(request, configPath),
-            Stdin = request.TurnText,
-            TempFiles = configPath is null || request.Mcp is null ? [] : [new(configPath, BuildMcpConfigJson(request.Mcp))],
-        };
-    }
-
-    protected override IAgentStreamParser CreateParser()
-    {
-        return new StreamParser();
-    }
-
-    protected override void InspectLine(string line)
-    {
-        if (!line.Contains("mcp_servers", StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        foreach (var (name, status) in ParseDisconnectedMcpServers(line))
-        {
-            _logger.AgentMcpServerUnavailable(name, status);
-        }
+        _logger = logger;
     }
 
     internal static IReadOnlyList<string> BuildArguments(AgentRequest request, string? mcpConfigPath)
@@ -84,14 +54,19 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
         var args = new List<string>
         {
             "--print",
-            "--output-format", "stream-json",
+            "--output-format",
+            "stream-json",
             "--verbose",
             "--include-partial-messages",
-            "--permission-mode", "dontAsk",
-            "--tools", string.Empty,
-            "--setting-sources", string.Empty,
+            "--permission-mode",
+            "dontAsk",
+            "--tools",
+            string.Empty,
+            "--setting-sources",
+            string.Empty,
             "--disable-slash-commands",
-            "--system-prompt", request.SystemPrompt ?? AgentPrompt.System,
+            "--system-prompt",
+            request.SystemPrompt ?? AgentPrompt.System,
         };
 
         if (mcpConfigPath is not null)
@@ -222,13 +197,36 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
 
     internal static string BuildMcpConfigJson(AgentMcpConfig mcp)
     {
-        var entry = new McpConfigServer("http", mcp.Endpoint, new Dictionary<string, string> { ["Authorization"] = $"Bearer {mcp.Token}" });
-        var payload = new Dictionary<string, Dictionary<string, McpConfigServer>>
-        {
-            ["mcpServers"] = new() { [mcp.ServerName] = entry },
-        };
+        var entry = new McpConfigServer("http", mcp.Endpoint, new() { ["Authorization"] = $"Bearer {mcp.Token}" });
+
+        var payload = new Dictionary<string, Dictionary<string, McpConfigServer>> { ["mcpServers"] = new() { [mcp.ServerName] = entry } };
 
         return JsonSerializer.Serialize(payload);
+    }
+
+    protected override AgentLaunch CreateLaunch(AgentRequest request)
+    {
+        var configPath = request.Mcp is null ? null : TempConfigPath("json");
+
+        return new() { Arguments = BuildArguments(request, configPath), Stdin = request.TurnText, TempFiles = configPath is null || request.Mcp is null ? [] : [new(configPath, BuildMcpConfigJson(request.Mcp))] };
+    }
+
+    protected override IAgentStreamParser CreateParser()
+    {
+        return new StreamParser();
+    }
+
+    protected override void InspectLine(string line)
+    {
+        if (!line.Contains("mcp_servers", StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        foreach (var (name, status) in ParseDisconnectedMcpServers(line))
+        {
+            _logger.AgentMcpServerUnavailable(name, status);
+        }
     }
 
     private static AgentEvent? ParseSystem(JsonElement root)
@@ -330,5 +328,6 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
     private sealed record McpConfigServer(
         [property: JsonPropertyName("type")] string Type,
         [property: JsonPropertyName("url")] string Url,
-        [property: JsonPropertyName("headers")] Dictionary<string, string> Headers);
+        [property: JsonPropertyName("headers")]
+        Dictionary<string, string> Headers);
 }

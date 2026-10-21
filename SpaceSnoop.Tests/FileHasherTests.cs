@@ -5,6 +5,8 @@ namespace SpaceSnoop.Tests;
 [TestFixture]
 public class FileHasherTests
 {
+    private string _tempDir = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -21,20 +23,16 @@ public class FileHasherTests
         }
     }
 
-    private string _tempDir = null!;
-
     [Test]
-    public void IdenticalFiles_ProduceSameHash()
+    public void ComputeHash_RespectsCancellation()
     {
-        var file1 = Path.Combine(_tempDir, "a.txt");
-        var file2 = Path.Combine(_tempDir, "b.txt");
-        File.WriteAllText(file1, "hello world");
-        File.WriteAllText(file2, "hello world");
+        var file = Path.Combine(_tempDir, "a.txt");
+        File.WriteAllText(file, "test");
 
-        var hash1 = FileHasher.ComputeHash(file1, CancellationToken.None);
-        var hash2 = FileHasher.ComputeHash(file2, CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
 
-        Assert.That(hash2, Is.EqualTo(hash1));
+        Assert.Throws<OperationCanceledException>(() => FileHasher.ComputeHash(file, cts.Token));
     }
 
     [Test]
@@ -64,14 +62,16 @@ public class FileHasherTests
     }
 
     [Test]
-    public void ComputeHash_RespectsCancellation()
+    public void IdenticalFiles_ProduceSameHash()
     {
-        var file = Path.Combine(_tempDir, "a.txt");
-        File.WriteAllText(file, "test");
+        var file1 = Path.Combine(_tempDir, "a.txt");
+        var file2 = Path.Combine(_tempDir, "b.txt");
+        File.WriteAllText(file1, "hello world");
+        File.WriteAllText(file2, "hello world");
 
-        using var cts = new CancellationTokenSource();
-        cts.Cancel();
+        var hash1 = FileHasher.ComputeHash(file1, CancellationToken.None);
+        var hash2 = FileHasher.ComputeHash(file2, CancellationToken.None);
 
-        Assert.Throws<OperationCanceledException>(() => FileHasher.ComputeHash(file, cts.Token));
+        Assert.That(hash2, Is.EqualTo(hash1));
     }
 }

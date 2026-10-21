@@ -33,11 +33,6 @@ public sealed record AgentBackendChoice
             .OrderBy(kind => Order.IndexOf(kind))
             .ToList();
 
-        return new()
-        {
-            Current = current,
-            CurrentFound = found.Contains(current),
-            Alternatives = [.. found.Where(kind => kind != current)],
-        };
+        return new() { Current = current, CurrentFound = found.Contains(current), Alternatives = [.. found.Where(kind => kind != current)] };
     }
 }

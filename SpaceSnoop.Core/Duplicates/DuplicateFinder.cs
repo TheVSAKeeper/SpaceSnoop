@@ -33,7 +33,7 @@ public sealed class DuplicateFinder(ILogger<DuplicateFinder>? logger = null)
 
         Parallel.ForEach(
             buckets,
-            new ParallelOptions { MaxDegreeOfParallelism = Math.Max(1, options.MaxParallelism), CancellationToken = token },
+            new() { MaxDegreeOfParallelism = Math.Max(1, options.MaxParallelism), CancellationToken = token },
             x =>
             {
                 foreach (var group in Resolve(x, options, state, token))
@@ -241,9 +241,10 @@ public sealed class DuplicateFinder(ILogger<DuplicateFinder>? logger = null)
                 continue;
             }
 
-            groups.Add(members.Count > memberLimit
-                ? new(size, members[..memberLimit], distinct, members[memberLimit..])
-                : new(size, members, distinct));
+            groups.Add(
+                members.Count > memberLimit
+                    ? new(size, members[..memberLimit], distinct, members[memberLimit..])
+                    : new(size, members, distinct));
         }
 
         return groups;

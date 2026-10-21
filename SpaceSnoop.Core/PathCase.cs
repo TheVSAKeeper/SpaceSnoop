@@ -99,14 +99,17 @@ public static class PathCase
 
     private static string? FlipCase(string name)
     {
-        var flipped = string.Create(name.Length, name, static (span, source) =>
-        {
-            for (var i = 0; i < source.Length; i++)
+        var flipped = string.Create(
+            name.Length,
+            name,
+            static (span, source) =>
             {
-                var symbol = source[i];
-                span[i] = char.IsUpper(symbol) ? char.ToLowerInvariant(symbol) : char.ToUpperInvariant(symbol);
-            }
-        });
+                for (var i = 0; i < source.Length; i++)
+                {
+                    var symbol = source[i];
+                    span[i] = char.IsUpper(symbol) ? char.ToLowerInvariant(symbol) : char.ToUpperInvariant(symbol);
+                }
+            });
 
         return string.Equals(flipped, name, StringComparison.Ordinal) ? null : flipped;
     }

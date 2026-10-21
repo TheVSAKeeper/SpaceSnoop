@@ -9,17 +9,20 @@ public static class ListNavigation
 
     private const double LeadDivisor = 3;
 
-    public static readonly DependencyProperty EnabledProperty = DependencyProperty.RegisterAttached("Enabled",
+    public static readonly DependencyProperty EnabledProperty = DependencyProperty.RegisterAttached(
+        "Enabled",
         typeof(bool),
         typeof(ListNavigation),
         new(false, OnEnabledChanged));
 
-    public static readonly DependencyProperty FollowIndexProperty = DependencyProperty.RegisterAttached("FollowIndex",
+    public static readonly DependencyProperty FollowIndexProperty = DependencyProperty.RegisterAttached(
+        "FollowIndex",
         typeof(int),
         typeof(ListNavigation),
         new(-1, OnFollowIndexChanged));
 
-    private static readonly DependencyProperty StateProperty = DependencyProperty.RegisterAttached("State",
+    private static readonly DependencyProperty StateProperty = DependencyProperty.RegisterAttached(
+        "State",
         typeof(ListNavigationState),
         typeof(ListNavigation),
         new(default(ListNavigationState)));
@@ -198,7 +201,7 @@ public static class ListNavigation
 
         var viewport = scroll.ViewportHeight;
 
-        if (viewport <= 0 || (index >= scroll.VerticalOffset && index < scroll.VerticalOffset + viewport))
+        if (viewport <= 0 || (index >= scroll.VerticalOffset && index < (scroll.VerticalOffset + viewport)))
         {
             return;
         }

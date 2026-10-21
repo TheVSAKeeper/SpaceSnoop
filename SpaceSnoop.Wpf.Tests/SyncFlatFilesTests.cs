@@ -9,19 +9,6 @@ public class SyncFlatFilesTests
     private static readonly IReadOnlyDictionary<object, SyncOutcome> NoOutcomes = new Dictionary<object, SyncOutcome>();
 
     [Test]
-    public void Свёртка_идёт_в_глубину_подкаталоги_раньше_собственных_файлов()
-    {
-        var rootFile = File("root.txt", ComparisonStatus.LeftOnly);
-        var nested = File("a/inner.txt", ComparisonStatus.Modified);
-        var root = Dir("", rootFile);
-        root.SubDirectories.Add(Dir("a", nested));
-
-        var files = SyncRowsProjector.CollectVisibleFiles(root, false, false, NoOutcomes).ToList();
-
-        Assert.That(files, Is.EqualTo([nested, rootFile]));
-    }
-
-    [Test]
     public void Одинаковые_файлы_скрыты_пока_не_включён_показ()
     {
         var same = File("same.txt", ComparisonStatus.Identical);
@@ -44,15 +31,71 @@ public class SyncFlatFilesTests
         var applied = File("done.txt", ComparisonStatus.LeftOnly);
         var failed = File("fail.txt", ComparisonStatus.LeftOnly);
         var root = Dir("", applied, failed);
-        var outcomes = new Dictionary<object, SyncOutcome>
-        {
-            [applied] = SyncOutcome.Applied,
-            [failed] = SyncOutcome.Failed,
-        };
+        var outcomes = new Dictionary<object, SyncOutcome> { [applied] = SyncOutcome.Applied, [failed] = SyncOutcome.Failed };
 
         var files = SyncRowsProjector.CollectVisibleFiles(root, false, true, outcomes).ToList();
 
         Assert.That(files, Is.EqualTo([failed]));
+    }
+
+    [Test]
+    public void Пустые_односторонние_каталоги_берутся_верхним_уровнем_без_файловых()
+    {
+        var kept = OneSided("kept", ComparisonStatus.LeftOnly, File("kept/x.txt", ComparisonStatus.LeftOnly));
+        var leaf = OneSided("leaf", ComparisonStatus.LeftOnly);
+        var branch = OneSided("branch", ComparisonStatus.LeftOnly);
+        branch.SubDirectories.Add(leaf);
+        var solo = OneSided("solo", ComparisonStatus.RightOnly);
+
+        var root = Dir("");
+        root.SubDirectories.Add(kept);
+        root.SubDirectories.Add(branch);
+        root.SubDirectories.Add(solo);
+
+        var dirs = SyncRowsProjector.CollectEmptyDirs(root, false, NoOutcomes).ToList();
+
+        Assert.That(dirs, Is.EqualTo([branch, solo]));
+    }
+
+    [Test]
+    public void Свёртка_идёт_в_глубину_подкаталоги_раньше_собственных_файлов()
+    {
+        var rootFile = File("root.txt", ComparisonStatus.LeftOnly);
+        var nested = File("a/inner.txt", ComparisonStatus.Modified);
+        var root = Dir("", rootFile);
+        root.SubDirectories.Add(Dir("a", nested));
+
+        var files = SyncRowsProjector.CollectVisibleFiles(root, false, false, NoOutcomes).ToList();
+
+        Assert.That(files, Is.EqualTo([nested, rootFile]));
+    }
+
+    [Test]
+    public void Сортировка_по_дате_берёт_позднюю_из_сторон()
+    {
+        var old = new FileComparison("o.txt", "o.txt") { LeftModified = new(2026, 1, 1), RightModified = new(2025, 1, 1) };
+        var fresh = new FileComparison("f.txt", "f.txt") { LeftModified = null, RightModified = new(2026, 6, 1) };
+        var never = new FileComparison("n.txt", "n.txt");
+
+        var asc = SyncRowsProjector.SortFiles([old, fresh, never], SyncSortField.Modified, false).ToList();
+        var desc = SyncRowsProjector.SortFiles([old, fresh, never], SyncSortField.Modified, true).ToList();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(asc, Is.EqualTo([never, old, fresh]));
+            Assert.That(desc, Is.EqualTo([fresh, old, never]));
+        }
+    }
+
+    [Test]
+    public void Сортировка_по_пути_регистронезависима()
+    {
+        var a = new FileComparison("a.txt", "alpha/Zebra.txt");
+        var b = new FileComparison("b.txt", "alpha/apple.txt");
+
+        var sorted = SyncRowsProjector.SortFiles([a, b], SyncSortField.Path, false).ToList();
+
+        Assert.That(sorted, Is.EqualTo([b, a]));
     }
 
     [Test]
@@ -73,17 +116,6 @@ public class SyncFlatFilesTests
     }
 
     [Test]
-    public void Сортировка_по_пути_регистронезависима()
-    {
-        var a = new FileComparison("a.txt", "alpha/Zebra.txt");
-        var b = new FileComparison("b.txt", "alpha/apple.txt");
-
-        var sorted = SyncRowsProjector.SortFiles([a, b], SyncSortField.Path, false).ToList();
-
-        Assert.That(sorted, Is.EqualTo([b, a]));
-    }
-
-    [Test]
     public void Сортировка_по_статусу_группирует_и_упорядочивает_по_пути()
     {
         var modifiedZ = new FileComparison("z.txt", "z.txt") { Status = ComparisonStatus.Modified };
@@ -93,23 +125,6 @@ public class SyncFlatFilesTests
         var sorted = SyncRowsProjector.SortFiles([modifiedZ, leftOnly, modifiedA], SyncSortField.Status, false).ToList();
 
         Assert.That(sorted, Is.EqualTo([leftOnly, modifiedA, modifiedZ]));
-    }
-
-    [Test]
-    public void Сортировка_по_дате_берёт_позднюю_из_сторон()
-    {
-        var old = new FileComparison("o.txt", "o.txt") { LeftModified = new(2026, 1, 1), RightModified = new(2025, 1, 1) };
-        var fresh = new FileComparison("f.txt", "f.txt") { LeftModified = null, RightModified = new(2026, 6, 1) };
-        var never = new FileComparison("n.txt", "n.txt");
-
-        var asc = SyncRowsProjector.SortFiles([old, fresh, never], SyncSortField.Modified, false).ToList();
-        var desc = SyncRowsProjector.SortFiles([old, fresh, never], SyncSortField.Modified, true).ToList();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(asc, Is.EqualTo([never, old, fresh]));
-            Assert.That(desc, Is.EqualTo([fresh, old, never]));
-        }
     }
 
     [Test]
@@ -145,25 +160,6 @@ public class SyncFlatFilesTests
         SyncRowsProjector.CollectSearchHits(root, "ASSETS", hits);
 
         Assert.That(hits, Does.Contain(assets));
-    }
-
-    [Test]
-    public void Пустые_односторонние_каталоги_берутся_верхним_уровнем_без_файловых()
-    {
-        var kept = OneSided("kept", ComparisonStatus.LeftOnly, File("kept/x.txt", ComparisonStatus.LeftOnly));
-        var leaf = OneSided("leaf", ComparisonStatus.LeftOnly);
-        var branch = OneSided("branch", ComparisonStatus.LeftOnly);
-        branch.SubDirectories.Add(leaf);
-        var solo = OneSided("solo", ComparisonStatus.RightOnly);
-
-        var root = Dir("");
-        root.SubDirectories.Add(kept);
-        root.SubDirectories.Add(branch);
-        root.SubDirectories.Add(solo);
-
-        var dirs = SyncRowsProjector.CollectEmptyDirs(root, false, NoOutcomes).ToList();
-
-        Assert.That(dirs, Is.EqualTo([branch, solo]));
     }
 
     private static DirectoryComparison OneSided(string name, ComparisonStatus status, params FileComparison[] files)

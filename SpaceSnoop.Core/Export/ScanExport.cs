@@ -129,7 +129,7 @@ public static class ScanExport
 
         foreach (var file in directory.Files)
         {
-            Push(context.Files, new FileEntry(relative, file), file.Size, context.Limit);
+            Push(context.Files, new(relative, file), file.Size, context.Limit);
         }
 
         foreach (var sub in directory.SubDirectories)
@@ -149,7 +149,7 @@ public static class ScanExport
 
             Push(
                 context.Directories,
-                new ScanExportDirectory(path, depth, sub.TotalSize, sub.Size, counts.Files, counts.Directories, sub.State == SpaceState.Error),
+                new(path, depth, sub.TotalSize, sub.Size, counts.Files, counts.Directories, sub.State == SpaceState.Error),
                 sub.TotalSize,
                 context.Limit);
         }

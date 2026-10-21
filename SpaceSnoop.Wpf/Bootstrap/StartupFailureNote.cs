@@ -19,6 +19,6 @@ public static class StartupFailureNote
             : $"Если ошибка повторится, отправьте разработчику журнал из папки:{Environment.NewLine}{logsDirectory}";
 
         return $"{AppInfo.Name} не удалось запустить. {cause}"
-               + $"{Environment.NewLine}{Environment.NewLine}Попробуйте закрыть программу и открыть её снова. {report}";
+            + $"{Environment.NewLine}{Environment.NewLine}Попробуйте закрыть программу и открыть её снова. {report}";
     }
 }

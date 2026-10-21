@@ -12,7 +12,7 @@ internal sealed class MftRecordBuilder(int size = 1024, int bytesPerSector = 512
     private const int NonResidentHeaderBytes = 0x40;
 
     private readonly byte[] _record = new byte[size];
-    private int _position = Align(UpdateSequenceOffset + (size / bytesPerSector + 1) * 2);
+    private int _position = Align(UpdateSequenceOffset + (((size / bytesPerSector) + 1) * 2));
     private ushort _flags = MftLayout.RecordInUse;
     private ushort _sequence = 1;
     private long _baseRecord;
@@ -60,7 +60,7 @@ internal sealed class MftRecordBuilder(int size = 1024, int bytesPerSector = 512
 
     public MftRecordBuilder FileName(int parent, ushort parentSequence, string name, byte space = 1)
     {
-        var value = new byte[0x42 + name.Length * 2];
+        var value = new byte[0x42 + (name.Length * 2)];
         var reference = ((ulong)parent & MftLayout.ReferenceMask) | ((ulong)parentSequence << MftLayout.ReferenceMaskBits);
         BinaryPrimitives.WriteUInt64LittleEndian(value, reference);
         value[0x40] = (byte)name.Length;
@@ -164,17 +164,17 @@ internal sealed class MftRecordBuilder(int size = 1024, int bytesPerSector = 512
             "FILE"u8.CopyTo(record);
         }
 
-        var count = (ushort)(record.Length / bytesPerSector + 1);
+        var count = (ushort)((record.Length / bytesPerSector) + 1);
         BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(4), UpdateSequenceOffset);
         BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(6), count);
         BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(MftLayout.RecordSequenceOffset), _sequence);
-        BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(0x14), (ushort)Align(UpdateSequenceOffset + count * 2));
+        BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(0x14), (ushort)Align(UpdateSequenceOffset + (count * 2)));
         BinaryPrimitives.WriteUInt16LittleEndian(record.AsSpan(0x16), _flags);
 
         var reference = ((ulong)_baseRecord & MftLayout.ReferenceMask) | ((ulong)_baseSequence << MftLayout.ReferenceMaskBits);
         BinaryPrimitives.WriteUInt64LittleEndian(record.AsSpan(0x20), reference);
 
-        if (_position + 4 <= record.Length)
+        if ((_position + 4) <= record.Length)
         {
             BinaryPrimitives.WriteUInt32LittleEndian(record.AsSpan(_position), MftLayout.AttributeEnd);
         }
@@ -185,8 +185,8 @@ internal sealed class MftRecordBuilder(int size = 1024, int bytesPerSector = 512
 
         for (var sector = 1; sector < count; sector++)
         {
-            var tail = record.AsSpan(sector * bytesPerSector - 2, 2);
-            tail.CopyTo(record.AsSpan(UpdateSequenceOffset + sector * 2));
+            var tail = record.AsSpan((sector * bytesPerSector) - 2, 2);
+            tail.CopyTo(record.AsSpan(UpdateSequenceOffset + (sector * 2)));
             signature.CopyTo(tail);
         }
 
@@ -244,9 +244,9 @@ internal sealed class MftVolumeBuilder(int bytesPerSector = 512, int sectorsPerC
     private bool _listOutside;
     private long _selfStartVcn;
 
-    private int ClusterSize => bytesPerSector * sectorsPerCluster;
-
     public long MftOffset => _runs[0].Cluster * ClusterSize;
+
+    private int ClusterSize => bytesPerSector * sectorsPerCluster;
 
     public MftVolumeBuilder Fragment(long clusters)
     {
@@ -279,7 +279,7 @@ internal sealed class MftVolumeBuilder(int bytesPerSector = 512, int sectorsPerC
     {
         if (_runs.Count == 0)
         {
-            Fragment((records * (long)recordSize + ClusterSize - 1) / ClusterSize);
+            Fragment(((records * (long)recordSize) + ClusterSize - 1) / ClusterSize);
         }
 
         var last = _runs[^1];
@@ -341,11 +341,7 @@ internal sealed class MftVolumeBuilder(int bytesPerSector = 512, int sectorsPerC
                 .DataRuns(0, EncodeRuns(tail), vcn)
                 .Build());
 
-        var entries = new MftListEntry[]
-        {
-            new(MftLayout.AttributeData, 0, 0),
-            new(MftLayout.AttributeData, vcn, _splitRecord),
-        };
+        var entries = new MftListEntry[] { new(MftLayout.AttributeData, 0, 0), new(MftLayout.AttributeData, vcn, _splitRecord) };
 
         var self = new MftRecordBuilder(recordSize, bytesPerSector).FileName(MftLayout.RootRecord, 1, "$MFT");
 
@@ -391,7 +387,7 @@ internal sealed class MftVolumeBuilder(int bytesPerSector = 512, int sectorsPerC
             if (from < to)
             {
                 var source = data.Slice((int)(from - logical), (int)(to - from));
-                source.CopyTo(image.AsSpan((int)(run.Cluster * ClusterSize + (from - position))));
+                source.CopyTo(image.AsSpan((int)((run.Cluster * ClusterSize) + (from - position))));
             }
 
             position += runBytes;
@@ -408,7 +404,7 @@ internal sealed class MftMemoryVolume(byte[] image) : IMftVolume
 {
     public void ReadAt(long offset, Span<byte> buffer)
     {
-        if (offset < 0 || offset + buffer.Length > image.Length)
+        if (offset < 0 || (offset + buffer.Length) > image.Length)
         {
             throw new EndOfStreamException($"Чтение образа тома вышло за границу на смещении {offset}");
         }

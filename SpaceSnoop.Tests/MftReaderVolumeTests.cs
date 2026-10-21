@@ -56,13 +56,40 @@ public class MftReaderVolumeTests
     }
 
     [Test]
-    public void Недочитанный_хвост_таблицы_роняет_разбор()
+    public void Запись_расширение_вне_первого_экстента_роняет_разбор()
     {
         var image = new MftVolumeBuilder()
             .Fragment(4)
-            .Build(Records, declaredBytes: Records * 1024L);
+            .Fragment(4)
+            .SplitSelf(1, 20)
+            .Build(Records);
 
         Assert.Throws<InvalidDataException>(() => Read(image));
+    }
+
+    [TestCase(1, TestName = "Расширение доезжает до базовой записи в один поток")]
+    [TestCase(4, TestName = "Расширение доезжает до базовой записи в четыре потока")]
+    public void Имя_и_размер_из_расширения_склеиваются_через_границу_блоков(int threads)
+    {
+        var extension = new MftRecordBuilder()
+            .ExtensionOf(20)
+            .FileName(MftLayout.RootRecord, 1, "огромный.iso")
+            .NonResidentData(9_000_000_000);
+
+        var image = new MftVolumeBuilder()
+            .Record(20, new())
+            .Record(28, extension)
+            .Build(Records);
+
+        var table = Read(image, threads, 1024);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[20].Name, Is.EqualTo("огромный.iso"));
+            Assert.That(table.Entries[20].Size, Is.EqualTo(9_000_000_000));
+            Assert.That(table.Entries[20].SizeKnown, Is.True);
+            Assert.That(table.Statistics.Extensions, Is.EqualTo(1));
+        }
     }
 
     [TestCase(0, TestName = "Собственная запись $MFT без подписи роняет разбор")]
@@ -73,6 +100,24 @@ public class MftReaderVolumeTests
         var image = builder.Build(Records);
 
         image.AsSpan((int)builder.MftOffset + damageOffset, 2).Clear();
+
+        Assert.Throws<InvalidDataException>(() => Read(image));
+    }
+
+    [Test]
+    public void Не_первый_экстент_в_собственной_записи_роняет_разбор()
+    {
+        var image = new MftVolumeBuilder().SelfStartVcn(4).Build(Records);
+
+        Assert.Throws<InvalidDataException>(() => Read(image));
+    }
+
+    [Test]
+    public void Недочитанный_хвост_таблицы_роняет_разбор()
+    {
+        var image = new MftVolumeBuilder()
+            .Fragment(4)
+            .Build(Records, Records * 1024L);
 
         Assert.Throws<InvalidDataException>(() => Read(image));
     }
@@ -89,7 +134,7 @@ public class MftReaderVolumeTests
             builder.Record(index, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, expected[index]).ResidentData(index));
         }
 
-        var table = Read(builder.Build(Records), threads: 4, blockBytes: 1024);
+        var table = Read(builder.Build(Records), 4, 1024);
         var names = table.Entries.Select(x => x.Name).ToArray()[MftLayout.FirstUserRecord..];
         var sizes = table.Entries.Select(x => x.Size).ToArray();
 
@@ -103,29 +148,32 @@ public class MftReaderVolumeTests
         }
     }
 
-    [TestCase(1, TestName = "Расширение доезжает до базовой записи в один поток")]
-    [TestCase(4, TestName = "Расширение доезжает до базовой записи в четыре потока")]
-    public void Имя_и_размер_из_расширения_склеиваются_через_границу_блоков(int threads)
+    [TestCase(1, TestName = "Отмена посреди чтения в один поток выходит отменой")]
+    [TestCase(4, TestName = "Отмена посреди чтения в четыре потока выходит отменой")]
+    public void Отмена_посреди_чтения_выходит_отменой(int threads)
     {
-        var extension = new MftRecordBuilder()
-            .ExtensionOf(20)
-            .FileName(MftLayout.RootRecord, 1, "огромный.iso")
-            .NonResidentData(9_000_000_000);
+        using var cancel = new CancellationTokenSource();
+        var volume = new MftCountingVolume(
+            new MftVolumeBuilder().Build(Records),
+            read =>
+            {
+                if (read == 10)
+                {
+                    cancel.Cancel();
+                }
+            });
 
-        var image = new MftVolumeBuilder()
-            .Record(20, new MftRecordBuilder())
-            .Record(28, extension)
-            .Build(Records);
+        Assert.Catch<OperationCanceledException>(() => MftReader.Read(volume, Letter, threads, 1024, null, cancel.Token));
+    }
 
-        var table = Read(image, threads, blockBytes: 1024);
+    [Test]
+    public void Отмена_чтения_не_выглядит_порчей_разметки()
+    {
+        var image = new MftVolumeBuilder().Build(Records);
+        using var cancel = new CancellationTokenSource();
+        cancel.Cancel();
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(table.Entries[20].Name, Is.EqualTo("огромный.iso"));
-            Assert.That(table.Entries[20].Size, Is.EqualTo(9_000_000_000));
-            Assert.That(table.Entries[20].SizeKnown, Is.True);
-            Assert.That(table.Statistics.Extensions, Is.EqualTo(1));
-        }
+        Assert.Catch<OperationCanceledException>(() => MftReader.Read(new MftMemoryVolume(image), Letter, 4, 1024, null, cancel.Token));
     }
 
     [Test]
@@ -140,7 +188,7 @@ public class MftReaderVolumeTests
             .Record(28, third)
             .Build(Records);
 
-        var table = Read(image, threads: 4, blockBytes: 1024);
+        var table = Read(image, 4, 1024);
 
         using (Assert.EnterMultipleScope())
         {
@@ -148,6 +196,25 @@ public class MftReaderVolumeTests
             Assert.That(table.Entries[20].Names, Is.EqualTo(3));
             Assert.That(table.Alternates[20].Select(x => x.Name), Is.EqualTo(new[] { "второе.dll", "третье.dll" }));
             Assert.That(table.Statistics.HardLinkedFiles, Is.EqualTo(1));
+        }
+    }
+
+    [Test]
+    public void Расширение_нулевой_записи_не_становится_безымянным_файлом()
+    {
+        var image = new MftVolumeBuilder()
+            .Record(16, new MftRecordBuilder().ExtensionOf(0))
+            .Build(Records);
+
+        var table = Read(image, 4, 1024);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[0].SizeKnown, Is.True);
+            Assert.That(table.Entries[16].Present, Is.False);
+            Assert.That(table.Statistics.Extensions, Is.EqualTo(1));
+            Assert.That(table.Statistics.Nameless, Is.Zero);
+            Assert.That(table.Statistics.Partial, Is.Zero);
         }
     }
 
@@ -162,7 +229,7 @@ public class MftReaderVolumeTests
             .Record(28, new MftRecordBuilder().ExtensionOf(20, 7).ResidentData(size))
             .Build(Records);
 
-        var table = Read(image, threads, blockBytes: 1024);
+        var table = Read(image, threads, 1024);
 
         using (Assert.EnterMultipleScope())
         {
@@ -181,7 +248,7 @@ public class MftReaderVolumeTests
             .Record(28, new MftRecordBuilder().ExtensionOf(20, 6).ResidentData(45))
             .Build(Records);
 
-        var table = Read(image, threads: 4, blockBytes: 1024);
+        var table = Read(image, 4, 1024);
 
         using (Assert.EnterMultipleScope())
         {
@@ -190,22 +257,70 @@ public class MftReaderVolumeTests
         }
     }
 
-    [Test]
-    public void Расширение_нулевой_записи_не_становится_безымянным_файлом()
+    [TestCase(1, TestName = "Сбой чтения в один поток выходит исходным исключением")]
+    [TestCase(4, TestName = "Сбой чтения в четыре потока выходит исходным исключением")]
+    public void Сбой_чтения_выходит_исходным_исключением(int threads)
     {
-        var image = new MftVolumeBuilder()
-            .Record(16, new MftRecordBuilder().ExtensionOf(0))
-            .Build(Records);
+        var volume = new MftCountingVolume(
+            new MftVolumeBuilder().Build(Records),
+            read =>
+            {
+                if (read == 10)
+                {
+                    throw new IOException("Сектор не читается");
+                }
+            });
 
-        var table = Read(image, threads: 4, blockBytes: 1024);
+        Assert.Throws<IOException>(() => MftReader.Read(volume, Letter, threads, 1024, null, CancellationToken.None));
+    }
+
+    [TestCase(0, 512, TestName = "Том из файла отдаёт загрузочный сектор короче страницы")]
+    [TestCase(513, 100, TestName = "Том из файла отдаёт кусок с невыровненными смещением и длиной")]
+    [TestCase(4095, 2, TestName = "Том из файла отдаёт кусок через границу страницы")]
+    [TestCase(8192, 8192, TestName = "Том из файла отдаёт выровненный кусок")]
+    public void Том_из_файла_отдаёт_кусок_как_есть(int offset, int length)
+    {
+        var image = new MftVolumeBuilder().Build(Records);
+        Random.Shared.NextBytes(image.AsSpan(0, 16384));
+        using var file = new MftImageFile(image);
+        using var volume = MftFileVolume.Open(file.Path, "T:");
+        var buffer = new byte[length];
+
+        volume.ReadAt(offset, buffer);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(table.Entries[0].SizeKnown, Is.True);
-            Assert.That(table.Entries[16].Present, Is.False);
-            Assert.That(table.Statistics.Extensions, Is.EqualTo(1));
-            Assert.That(table.Statistics.Nameless, Is.Zero);
-            Assert.That(table.Statistics.Partial, Is.Zero);
+            Assert.That(buffer, Is.EqualTo(image.AsSpan(offset, length).ToArray()));
+            Assert.That(volume.Downgraded, Is.False);
+        }
+    }
+
+    [TestCase(8, 4, 4, 1, TestName = "Том из файла с кластером 4 КБ читается в один поток как образ в памяти")]
+    [TestCase(8, 4, 4, 4, TestName = "Том из файла с кластером 4 КБ читается в четыре потока как образ в памяти")]
+    [TestCase(1, 33, 31, 4, TestName = "Том из файла с кластером 512 Б читается в четыре потока как образ в памяти")]
+    public void Том_из_файла_читается_как_образ_в_памяти(int sectorsPerCluster, int first, int second, int threads)
+    {
+        var image = new MftVolumeBuilder(sectorsPerCluster: sectorsPerCluster)
+            .Fragment(first)
+            .Fragment(second)
+            .SplitSelf(1, 15, true)
+            .Record(20, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, "во-втором-экстенте.bin").ResidentData(48))
+            .Record(Records - 1, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, "последняя.bin").ResidentData(64))
+            .Build(Records);
+
+        var expected = Read(image);
+        using var file = new MftImageFile(image);
+        using var volume = MftFileVolume.Open(file.Path, "T:");
+
+        var table = MftReader.Read(volume, Letter, threads, 4096, null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries, Is.EqualTo(expected.Entries));
+            Assert.That(table.Entries[20].Name, Is.EqualTo("во-втором-экстенте.bin"));
+            Assert.That(table.Statistics.RecordsScanned, Is.EqualTo(Records));
+            Assert.That(table.Statistics.Damaged, Is.Zero);
+            Assert.That(volume.Downgraded, Is.False);
         }
     }
 
@@ -231,118 +346,6 @@ public class MftReaderVolumeTests
             Assert.That(table.Entries[Records - 1].Name, Is.EqualTo("последняя.bin"));
             Assert.That(table.Statistics.RecordsScanned, Is.EqualTo(Records));
             Assert.That(table.Statistics.Damaged, Is.Zero);
-        }
-    }
-
-    [Test]
-    public void Запись_расширение_вне_первого_экстента_роняет_разбор()
-    {
-        var image = new MftVolumeBuilder()
-            .Fragment(4)
-            .Fragment(4)
-            .SplitSelf(1, 20)
-            .Build(Records);
-
-        Assert.Throws<InvalidDataException>(() => Read(image));
-    }
-
-    [Test]
-    public void Не_первый_экстент_в_собственной_записи_роняет_разбор()
-    {
-        var image = new MftVolumeBuilder().SelfStartVcn(4).Build(Records);
-
-        Assert.Throws<InvalidDataException>(() => Read(image));
-    }
-
-    [Test]
-    public void Отмена_чтения_не_выглядит_порчей_разметки()
-    {
-        var image = new MftVolumeBuilder().Build(Records);
-        using var cancel = new CancellationTokenSource();
-        cancel.Cancel();
-
-        Assert.Catch<OperationCanceledException>(
-            () => MftReader.Read(new MftMemoryVolume(image), Letter, 4, 1024, null, cancel.Token));
-    }
-
-    [TestCase(1, TestName = "Сбой чтения в один поток выходит исходным исключением")]
-    [TestCase(4, TestName = "Сбой чтения в четыре потока выходит исходным исключением")]
-    public void Сбой_чтения_выходит_исходным_исключением(int threads)
-    {
-        var volume = new MftCountingVolume(new MftVolumeBuilder().Build(Records), read =>
-        {
-            if (read == 10)
-            {
-                throw new IOException("Сектор не читается");
-            }
-        });
-
-        Assert.Throws<IOException>(() => MftReader.Read(volume, Letter, threads, 1024, null, CancellationToken.None));
-    }
-
-    [TestCase(1, TestName = "Отмена посреди чтения в один поток выходит отменой")]
-    [TestCase(4, TestName = "Отмена посреди чтения в четыре потока выходит отменой")]
-    public void Отмена_посреди_чтения_выходит_отменой(int threads)
-    {
-        using var cancel = new CancellationTokenSource();
-        var volume = new MftCountingVolume(new MftVolumeBuilder().Build(Records), read =>
-        {
-            if (read == 10)
-            {
-                cancel.Cancel();
-            }
-        });
-
-        Assert.Catch<OperationCanceledException>(() => MftReader.Read(volume, Letter, threads, 1024, null, cancel.Token));
-    }
-
-    [TestCase(8, 4, 4, 1, TestName = "Том из файла с кластером 4 КБ читается в один поток как образ в памяти")]
-    [TestCase(8, 4, 4, 4, TestName = "Том из файла с кластером 4 КБ читается в четыре потока как образ в памяти")]
-    [TestCase(1, 33, 31, 4, TestName = "Том из файла с кластером 512 Б читается в четыре потока как образ в памяти")]
-    public void Том_из_файла_читается_как_образ_в_памяти(int sectorsPerCluster, int first, int second, int threads)
-    {
-        var image = new MftVolumeBuilder(sectorsPerCluster: sectorsPerCluster)
-            .Fragment(first)
-            .Fragment(second)
-            .SplitSelf(1, 15, listOutside: true)
-            .Record(20, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, "во-втором-экстенте.bin").ResidentData(48))
-            .Record(Records - 1, new MftRecordBuilder().FileName(MftLayout.RootRecord, 1, "последняя.bin").ResidentData(64))
-            .Build(Records);
-
-        var expected = Read(image);
-        using var file = new MftImageFile(image);
-        using var volume = MftFileVolume.Open(file.Path, "T:");
-
-        var table = MftReader.Read(volume, Letter, threads, 4096, null, CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(table.Entries, Is.EqualTo(expected.Entries));
-            Assert.That(table.Entries[20].Name, Is.EqualTo("во-втором-экстенте.bin"));
-            Assert.That(table.Statistics.RecordsScanned, Is.EqualTo(Records));
-            Assert.That(table.Statistics.Damaged, Is.Zero);
-            Assert.That(volume.Downgraded, Is.False);
-        }
-    }
-
-    [TestCase(0, 512, TestName = "Том из файла отдаёт загрузочный сектор короче страницы")]
-    [TestCase(513, 100, TestName = "Том из файла отдаёт кусок с невыровненными смещением и длиной")]
-    [TestCase(4095, 2, TestName = "Том из файла отдаёт кусок через границу страницы")]
-    [TestCase(8192, 8192, TestName = "Том из файла отдаёт выровненный кусок")]
-    public void Том_из_файла_отдаёт_кусок_как_есть(int offset, int length)
-    {
-        var image = new MftVolumeBuilder().Build(Records);
-        Random.Shared.NextBytes(image.AsSpan(0, 16384));
-        using var file = new MftImageFile(image);
-        using var volume = MftFileVolume.Open(file.Path, "T:");
-        var buffer = new byte[length];
-
-        volume.ReadAt(offset, buffer);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(buffer, Is.EqualTo(image.AsSpan(offset, length).ToArray()));
-            Assert.That(volume.Downgraded, Is.False);
         }
     }
 

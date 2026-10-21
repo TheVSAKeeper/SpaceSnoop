@@ -12,49 +12,6 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
     [ObservableProperty]
     private string _summaryText = "Сравнение не выполнялось.";
 
-    public SyncViewModel(
-        ISettingsStore settings,
-        IDialogService dialogs,
-        OperationPreferences operations,
-        AgentPreferences agent,
-        ILogger<SyncViewModel> logger,
-        CompareDirectoriesUseCase compare,
-        ExecuteSyncUseCase sync,
-        ToastNotifier notifier,
-        PerformanceOperations performance,
-        IFilePicker filePicker,
-        IUiDispatcher uiDispatcher,
-        IAppNavigator navigator)
-    {
-        _settings = settings;
-        _navigator = navigator;
-
-        Session = new(dialogs, logger, notifier, performance, uiDispatcher, summary => SummaryText = summary);
-        Session.PropertyChanged += OnSessionPropertyChanged;
-
-        Git = new(settings, dialogs, logger);
-
-        Setup = new(settings, dialogs, operations, filePicker, () => !IsBusy, message => Session.StatusCaption = message, uiDispatcher);
-        Setup.ProfileSelected += ApplyProfile;
-
-        Ledger = new(Git, () => new(Setup.DirectionIconKind, Setup.DirectionText(), Setup.CurrentMode == SyncMode.Bidirectional));
-        Ledger.PropertyChanged += OnLedgerPropertyChanged;
-
-        Operations = new(settings, dialogs, logger, compare, sync, notifier, Setup, Session, Git, Ledger, summary => SummaryText = summary);
-        Operations.ComparisonChanged += OnComparisonChanged;
-        Operations.ProfileRunCompleted += RaiseProfileRun;
-
-        Setup.InputChanged += Operations.DiscardComparisonIfInputChanged;
-        Setup.ModeChanged += Operations.ReapplyMode;
-
-        Export = new(dialogs, logger, notifier, filePicker, Setup, Session, Git, () => Operations.Result, () => Operations.LastReport);
-
-        Rows = new(settings, operations, agent, Operations.CompareContentAsync, AskAgentAbout);
-        Rows.ActionsChanged += UpdateSummary;
-
-        _settings.Changed += OnSettingsChanged;
-    }
-
     public event Action<SyncProfileRun>? ProfileRunCompleted;
 
     public SyncGitViewModel Git { get; }
@@ -86,6 +43,70 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
     public double ProgressMax => Session.ProgressMax;
 
     public ICommand CancelCommand => Session.CancelCommand;
+
+    public SyncViewModel(
+        ISettingsStore settings,
+        IDialogService dialogs,
+        OperationPreferences operations,
+        AgentPreferences agent,
+        ILogger<SyncViewModel> logger,
+        CompareDirectoriesUseCase compare,
+        ExecuteSyncUseCase sync,
+        ToastNotifier notifier,
+        PerformanceOperations performance,
+        IFilePicker filePicker,
+        IUiDispatcher uiDispatcher,
+        IAppNavigator navigator)
+    {
+        _settings = settings;
+        _navigator = navigator;
+
+        Session = new(dialogs, logger, notifier, performance, uiDispatcher, summary => SummaryText = summary);
+        Session.PropertyChanged += OnSessionPropertyChanged;
+
+        Git = new(settings, dialogs, logger);
+
+        Setup = new(settings, dialogs, operations, filePicker, () => !IsBusy, message => Session.StatusCaption = message, uiDispatcher);
+        Setup.ProfileSelected += ApplyProfile;
+
+        Ledger = new(Git, () => new(Setup.DirectionIconKind, Setup.DirectionText(), Setup.CurrentMode == SyncMode.Bidirectional));
+        Ledger.PropertyChanged += OnLedgerPropertyChanged;
+
+        Operations = new(
+            settings,
+            dialogs,
+            logger,
+            compare,
+            sync,
+            notifier,
+            Setup,
+            Session,
+            Git,
+            Ledger,
+            summary => SummaryText = summary);
+
+        Operations.ComparisonChanged += OnComparisonChanged;
+        Operations.ProfileRunCompleted += RaiseProfileRun;
+
+        Setup.InputChanged += Operations.DiscardComparisonIfInputChanged;
+        Setup.ModeChanged += Operations.ReapplyMode;
+
+        Export = new(
+            dialogs,
+            logger,
+            notifier,
+            filePicker,
+            Setup,
+            Session,
+            Git,
+            () => Operations.Result,
+            () => Operations.LastReport);
+
+        Rows = new(settings, operations, agent, Operations.CompareContentAsync, AskAgentAbout);
+        Rows.ActionsChanged += UpdateSummary;
+
+        _settings.Changed += OnSettingsChanged;
+    }
 
     public void ApplyProfile(SyncProfile profile)
     {
@@ -121,12 +142,14 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
 
     private void AskAgentAbout(SyncNodeViewModel node)
     {
-        _navigator.AskAgent(ChatQuestion.ForSyncNode(node.RelativePath,
-            node.Status,
-            node.IsDirectory,
-            node.LeftSizeText,
-            node.RightSizeText,
-            node.DiffReason));
+        _navigator.AskAgent(
+            ChatQuestion.ForSyncNode(
+                node.RelativePath,
+                node.Status,
+                node.IsDirectory,
+                node.LeftSizeText,
+                node.RightSizeText,
+                node.DiffReason));
     }
 
     private void RaiseProfileRun(SyncProfileRun run)
@@ -139,7 +162,7 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
         switch (change)
         {
             case SyncComparisonChange.Reloaded:
-                Rows.Update(Operations.Result, Operations.Outcomes, Operations.DirSizeCache, collapseAll: true);
+                Rows.Update(Operations.Result, Operations.Outcomes, Operations.DirSizeCache, true);
                 UpdateSummary();
                 break;
 
@@ -158,9 +181,6 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
                 Ledger.RefreshAfterSync(Operations.Outcomes);
                 Operations.RefreshPending();
                 UpdateSummaryText();
-                break;
-
-            default:
                 break;
         }
     }
@@ -207,9 +227,9 @@ public sealed partial class SyncViewModel : ObservableObject, IPageHeader, IPage
         SummaryText = Operations.Result is null
             ? "Сравнение не выполнялось."
             : $"Одинаковых: {Ledger.IdenticalCount}, "
-              + $"только слева: {Ledger.LeftOnlyCount}, "
-              + $"только справа: {Ledger.RightOnlyCount}, "
-              + $"изменённых: {Ledger.ModifiedCount}, "
-              + $"конфликтов: {Ledger.ConflictCount}";
+            + $"только слева: {Ledger.LeftOnlyCount}, "
+            + $"только справа: {Ledger.RightOnlyCount}, "
+            + $"изменённых: {Ledger.ModifiedCount}, "
+            + $"конфликтов: {Ledger.ConflictCount}";
     }
 }

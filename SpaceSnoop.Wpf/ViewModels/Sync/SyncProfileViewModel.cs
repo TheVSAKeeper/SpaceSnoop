@@ -9,7 +9,6 @@ public sealed partial class SyncProfileViewModel : ObservableObject
     private readonly ScheduleViewModel _parent;
 
     private bool _suppress;
-    private int _enableAttempt;
     private int _editSession;
     private bool _confirmedEnabled;
 
@@ -89,35 +88,7 @@ public sealed partial class SyncProfileViewModel : ObservableObject
     [ObservableProperty]
     private bool _isStale;
 
-    public SyncProfileViewModel(ScheduleViewModel parent, SyncProfile model)
-    {
-        _parent = parent;
-        Id = model.Id;
-
-        _suppress = true;
-        _name = model.Name;
-        _leftPath = model.Left;
-        _rightPath = model.Right;
-        _exclusions = model.Exclusions;
-        _selectedModeIndex = Math.Clamp(model.Mode, 0, 2);
-        _selectedWinnerIndex = SyncProfile.IndexOfWinner(model.Winner);
-        _mirror = model.Mirror;
-        _selectedIntervalIndex = model.Interval switch
-        {
-            ScheduleInterval.Hourly => 1,
-            ScheduleInterval.OnLogon => 2,
-            _ => 0,
-        };
-
-        _time = model.Time;
-        _enabled = model.Enabled;
-        _confirmedEnabled = model.Enabled;
-        _suppress = false;
-    }
-
     public string Id { get; }
-
-    internal int EnableAttempt => _enableAttempt;
 
     public IReadOnlyList<SegmentOption> Modes => _parent.Modes;
 
@@ -165,6 +136,36 @@ public sealed partial class SyncProfileViewModel : ObservableObject
         _ => $"Ежедневно в {Time}",
     };
 
+    internal int EnableAttempt { get; private set; }
+
+    internal string TaskName => SyncScheduler.TaskNameFor(Id);
+
+    public SyncProfileViewModel(ScheduleViewModel parent, SyncProfile model)
+    {
+        _parent = parent;
+        Id = model.Id;
+
+        _suppress = true;
+        _name = model.Name;
+        _leftPath = model.Left;
+        _rightPath = model.Right;
+        _exclusions = model.Exclusions;
+        _selectedModeIndex = Math.Clamp(model.Mode, 0, 2);
+        _selectedWinnerIndex = SyncProfile.IndexOfWinner(model.Winner);
+        _mirror = model.Mirror;
+        _selectedIntervalIndex = model.Interval switch
+        {
+            ScheduleInterval.Hourly => 1,
+            ScheduleInterval.OnLogon => 2,
+            _ => 0,
+        };
+
+        _time = model.Time;
+        _enabled = model.Enabled;
+        _confirmedEnabled = model.Enabled;
+        _suppress = false;
+    }
+
     public SyncProfile ToModel()
     {
         return new()
@@ -198,6 +199,56 @@ public sealed partial class SyncProfileViewModel : ObservableObject
         IsStale = status.Exists && SyncScheduler.IsStale(status.Action, Environment.ProcessPath ?? string.Empty);
     }
 
+    internal async Task<bool> ValidateEnableAsync(bool value)
+    {
+        if (!value || await RefuseSchedulingAsync() is not { } reason)
+        {
+            return true;
+        }
+
+        Message = reason;
+        CommitEnabled(false);
+
+        return false;
+    }
+
+    internal void CommitEnabled(bool value)
+    {
+        _suppress = true;
+        Enabled = value;
+        _confirmedEnabled = value;
+        _suppress = false;
+    }
+
+    internal void ApplySchedule()
+    {
+        ApplyScheduleOutcome(_parent.Scheduler.Apply(BuildScheduleRequest()));
+    }
+
+    internal ScheduleRequest BuildScheduleRequest(bool? enabled = null)
+    {
+        TimeSpan.TryParse(Time, CultureInfo.InvariantCulture, out var time);
+
+        return new(enabled ?? Enabled, TaskName, ToModel().Interval, time, $"{AppInfo.SyncArgument} {Id}");
+    }
+
+    internal void ApplyScheduleOutcome(ScheduleOutcome outcome)
+    {
+        if (!outcome.Ok)
+        {
+            Message = $"Не удалось применить расписание: {outcome.Error}";
+            _parent.LogTaskFailed(DisplayName, outcome.Error);
+            return;
+        }
+
+        Message = Enabled
+            ? "Расписание сохранено."
+            : "Профиль сохранён, автозапуск выключен.";
+
+        _parent.LogSaved(DisplayName, Enabled);
+        ApplyStatus(outcome.Status);
+    }
+
     private void Browse(Action<string> assign)
     {
         if (_parent.FilePicker.PickFolder("Выберите каталог") is { } path)
@@ -223,13 +274,13 @@ public sealed partial class SyncProfileViewModel : ObservableObject
 
     private async Task ApplyEnabledAsync(bool value)
     {
-        var attempt = ++_enableAttempt;
+        var attempt = ++EnableAttempt;
 
         try
         {
             var reason = value ? await RefuseSchedulingAsync() : null;
 
-            if (attempt != _enableAttempt || Enabled != value || !_parent.Profiles.Contains(this))
+            if (attempt != EnableAttempt || Enabled != value || !_parent.Profiles.Contains(this))
             {
                 return;
             }
@@ -252,27 +303,6 @@ public sealed partial class SyncProfileViewModel : ObservableObject
             Message = $"Не удалось применить расписание: {exception.Message}";
             _parent.LogTaskFailed(DisplayName, exception.Message);
         }
-    }
-
-    internal async Task<bool> ValidateEnableAsync(bool value)
-    {
-        if (!value || await RefuseSchedulingAsync() is not { } reason)
-        {
-            return true;
-        }
-
-        Message = reason;
-        CommitEnabled(false);
-
-        return false;
-    }
-
-    internal void CommitEnabled(bool value)
-    {
-        _suppress = true;
-        Enabled = value;
-        _confirmedEnabled = value;
-        _suppress = false;
     }
 
     [RelayCommand]
@@ -300,7 +330,7 @@ public sealed partial class SyncProfileViewModel : ObservableObject
     [RelayCommand]
     private void Cancel()
     {
-        _enableAttempt++;
+        EnableAttempt++;
         _editSession++;
         var model = SyncProfileStore.Find(_parent.Settings, Id);
 
@@ -403,35 +433,6 @@ public sealed partial class SyncProfileViewModel : ObservableObject
         ApplySchedule();
     }
 
-    internal void ApplySchedule()
-    {
-        ApplyScheduleOutcome(_parent.Scheduler.Apply(BuildScheduleRequest()));
-    }
-
-    internal ScheduleRequest BuildScheduleRequest(bool? enabled = null)
-    {
-        TimeSpan.TryParse(Time, CultureInfo.InvariantCulture, out var time);
-
-        return new(enabled ?? Enabled, TaskName, ToModel().Interval, time, $"{AppInfo.SyncArgument} {Id}");
-    }
-
-    internal void ApplyScheduleOutcome(ScheduleOutcome outcome)
-    {
-        if (!outcome.Ok)
-        {
-            Message = $"Не удалось применить расписание: {outcome.Error}";
-            _parent.LogTaskFailed(DisplayName, outcome.Error);
-            return;
-        }
-
-        Message = Enabled
-            ? "Расписание сохранено."
-            : "Профиль сохранён, автозапуск выключен.";
-
-        _parent.LogSaved(DisplayName, Enabled);
-        ApplyStatus(outcome.Status);
-    }
-
     private async Task<string?> RefuseSchedulingAsync()
     {
         while (true)
@@ -470,8 +471,6 @@ public sealed partial class SyncProfileViewModel : ObservableObject
 
         return input.TimeInvalid ? "Время укажите в формате ЧЧ:ММ, например 03:00." : null;
     }
-
-    internal string TaskName => SyncScheduler.TaskNameFor(Id);
 
     private readonly record struct SchedulingInput(string Left, string Right, bool TimeInvalid);
 }

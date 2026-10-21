@@ -21,14 +21,16 @@ public static class ScanDropNote
 
         if (droppedObjects > 0)
         {
-            parts.Add($"нет в дереве: {Count(droppedObjects, "объект", "объекта", "объектов")}"
-                      + (droppedBytes > 0 ? $" на ≈{SizeFormatter.Format(droppedBytes)}" : string.Empty));
+            parts.Add(
+                $"нет в дереве: {Count(droppedObjects, "объект", "объекта", "объектов")}"
+                + (droppedBytes > 0 ? $" на ≈{SizeFormatter.Format(droppedBytes)}" : string.Empty));
         }
 
         if (partialRecords > 0)
         {
-            parts.Add($"прочитаны не полностью: {Count(partialRecords, "запись", "записи", "записей")}, "
-                      + "они остались в дереве без части своих данных");
+            parts.Add(
+                $"прочитаны не полностью: {Count(partialRecords, "запись", "записи", "записей")}, "
+                + "они остались в дереве без части своих данных");
         }
 
         if (unknownSizeFiles > 0)

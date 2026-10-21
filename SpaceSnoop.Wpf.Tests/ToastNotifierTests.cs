@@ -1,5 +1,4 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
+﻿using KeepShell.Testing;
 using KeepShell.ViewModels;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;

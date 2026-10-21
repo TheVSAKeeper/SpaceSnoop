@@ -24,6 +24,11 @@ public static class SyncLog
 
     public static string FilePath => Path.Combine(AppStorage.DataDirectory, AppInfo.SyncLogFileName);
 
+    public static IReadOnlyList<string> ReadTail(Func<string, bool> match, int count, ILogger? logger = null)
+    {
+        return ReadTail(AppStorage.DataDirectory, match, count, logger);
+    }
+
     internal static void AppendSafe(SyncLogOrigin origin, string? name, SyncReport report, SyncVerifyState verify, ILogger logger)
     {
         try
@@ -60,25 +65,13 @@ public static class SyncLog
         var head = line.AsSpan(start + 2);
 
         return head.StartsWith(marker, StringComparison.Ordinal)
-               && (origin != SyncLogOrigin.Manual || !head.StartsWith(Marker(SyncLogOrigin.Mcp), StringComparison.Ordinal));
+            && (origin != SyncLogOrigin.Manual || !head.StartsWith(Marker(SyncLogOrigin.Mcp), StringComparison.Ordinal));
     }
 
     internal static bool LineHasErrors(string line)
     {
         return !line.EndsWith(NoErrors, StringComparison.Ordinal)
-               && !line.EndsWith(NoMismatches, StringComparison.Ordinal);
-    }
-
-    private static string Marker(SyncLogOrigin origin)
-    {
-        return origin switch
-        {
-            SyncLogOrigin.Scheduled => "Автосинхронизация",
-            SyncLogOrigin.Overview => "Обзор",
-            SyncLogOrigin.Mcp => "Синхронизация (запуск агентом через MCP)",
-            SyncLogOrigin.Manual => "Синхронизация",
-            _ => string.Empty,
-        };
+            && !line.EndsWith(NoMismatches, StringComparison.Ordinal);
     }
 
     internal static void Append(string filePath, string header, SyncReport report)
@@ -103,12 +96,7 @@ public static class SyncLog
         logger.Information("{Entry}", builder.ToString().TrimEnd());
     }
 
-    public static IReadOnlyList<string> ReadTail(Func<string, bool> match, int count, Microsoft.Extensions.Logging.ILogger? logger = null)
-    {
-        return ReadTail(AppStorage.DataDirectory, match, count, logger);
-    }
-
-    internal static IReadOnlyList<string> ReadTail(string directory, Func<string, bool> match, int count, Microsoft.Extensions.Logging.ILogger? logger = null)
+    internal static IReadOnlyList<string> ReadTail(string directory, Func<string, bool> match, int count, ILogger? logger = null)
     {
         var files = Directory
             .EnumerateFiles(directory, FileGlob)
@@ -142,5 +130,17 @@ public static class SyncLog
         }
 
         return tail.Reverse().ToList();
+    }
+
+    private static string Marker(SyncLogOrigin origin)
+    {
+        return origin switch
+        {
+            SyncLogOrigin.Scheduled => "Автосинхронизация",
+            SyncLogOrigin.Overview => "Обзор",
+            SyncLogOrigin.Mcp => "Синхронизация (запуск агентом через MCP)",
+            SyncLogOrigin.Manual => "Синхронизация",
+            _ => string.Empty,
+        };
     }
 }

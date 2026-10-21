@@ -12,13 +12,6 @@ public sealed class DriveCatalog
     private readonly ILogger _logger;
     private string? _selectedPath;
 
-    public DriveCatalog(ILogger logger)
-    {
-        _logger = logger;
-
-        SyncVolumes(null);
-    }
-
     public ObservableCollection<DriveItem> Items { get; } = [];
 
     public ObservableCollection<DriveItem> Volumes { get; } = [];
@@ -38,6 +31,13 @@ public sealed class DriveCatalog
         }
     }
 
+    public DriveCatalog(ILogger logger)
+    {
+        _logger = logger;
+
+        SyncVolumes(null);
+    }
+
     internal void Select(string? path)
     {
         _selectedPath = path;
@@ -50,10 +50,7 @@ public sealed class DriveCatalog
 
     internal void AddDrive(string path)
     {
-        var item = new DriveItem(path)
-        {
-            IsSelected = IsSelectedPath(path),
-        };
+        var item = new DriveItem(path) { IsSelected = IsSelectedPath(path) };
 
         if (!item.IsDirectory)
         {
@@ -105,11 +102,6 @@ public sealed class DriveCatalog
         return true;
     }
 
-    private bool IsSelectedPath(string path)
-    {
-        return _selectedPath is not null && ScanTreeEditor.SamePath(path, _selectedPath);
-    }
-
     internal bool HasDrive(string path)
     {
         return Items.Any(drive => ScanTreeEditor.SamePath(drive.Path, path));
@@ -125,6 +117,21 @@ public sealed class DriveCatalog
         }
 
         LoadDriveLabels();
+    }
+
+    internal void LoadDriveLabels()
+    {
+        _ = Task.WhenAll(Items.Select(drive => drive.LoadAsync()))
+            .ContinueWith(
+                task => _logger.DriveSizesFailed(task.Exception!),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
+    }
+
+    private bool IsSelectedPath(string path)
+    {
+        return _selectedPath is not null && ScanTreeEditor.SamePath(path, _selectedPath);
     }
 
     private void SyncVolumes(string? selectedPath)
@@ -149,7 +156,7 @@ public sealed class DriveCatalog
 
         var vanished = Volumes
             .Where(volume => !names.Contains(volume.Path, StringComparer.OrdinalIgnoreCase)
-                             && !string.Equals(volume.Path, selectedPath, StringComparison.OrdinalIgnoreCase))
+                && !string.Equals(volume.Path, selectedPath, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         foreach (var volume in vanished)
@@ -157,14 +164,5 @@ public sealed class DriveCatalog
             Items.Remove(volume);
             Volumes.Remove(volume);
         }
-    }
-
-    internal void LoadDriveLabels()
-    {
-        _ = Task.WhenAll(Items.Select(drive => drive.LoadAsync()))
-            .ContinueWith(task => _logger.DriveSizesFailed(task.Exception!),
-                CancellationToken.None,
-                TaskContinuationOptions.OnlyOnFaulted,
-                TaskScheduler.Default);
     }
 }

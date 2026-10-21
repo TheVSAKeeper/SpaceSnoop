@@ -24,6 +24,18 @@ public sealed partial class OverviewRowsViewModel : ObservableObject
     [ObservableProperty]
     private bool _groupUnchanged = AppDefaults.OverviewGroupUnchangedDefault;
 
+    public ObservableCollection<OverviewRowViewModel> Rows { get; } = [];
+
+    public ICollectionView RowsView { get; }
+
+    public bool HasRows => Rows.Count > 0;
+
+    public bool SearchTextEmpty => string.IsNullOrWhiteSpace(SearchText);
+
+    public bool NoMatches => Rows.Count > 0 && RowsView.IsEmpty;
+
+    public double ScrollOffset { get; set; }
+
     internal OverviewRowsViewModel(ISettingsStore settings, Func<bool> isBusy, Func<bool> suppressReload, Action reload)
     {
         _settings = settings;
@@ -43,18 +55,6 @@ public sealed partial class OverviewRowsViewModel : ObservableObject
         UpdateSortAndGroup();
         _settings.Changed += OnSettingsChanged;
     }
-
-    public ObservableCollection<OverviewRowViewModel> Rows { get; } = [];
-
-    public ICollectionView RowsView { get; }
-
-    public bool HasRows => Rows.Count > 0;
-
-    public bool SearchTextEmpty => string.IsNullOrWhiteSpace(SearchText);
-
-    public bool NoMatches => Rows.Count > 0 && RowsView.IsEmpty;
-
-    public double ScrollOffset { get; set; }
 
     internal void NotifyRowsChanged()
     {
@@ -91,8 +91,8 @@ public sealed partial class OverviewRowsViewModel : ObservableObject
         }
 
         return row.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
-               || row.Left.Contains(query, StringComparison.OrdinalIgnoreCase)
-               || row.Right.Contains(query, StringComparison.OrdinalIgnoreCase);
+            || row.Left.Contains(query, StringComparison.OrdinalIgnoreCase)
+            || row.Right.Contains(query, StringComparison.OrdinalIgnoreCase);
     }
 
     private void UpdateSortAndGroup()
@@ -126,8 +126,11 @@ public sealed partial class OverviewRowsViewModel : ObservableObject
 
                 case OverviewSortField.Freshness:
                     RowsView.SortDescriptions.Add(new(nameof(OverviewRowViewModel.FreshnessOrder), ListSortDirection.Ascending));
-                    RowsView.SortDescriptions.Add(new(nameof(OverviewRowViewModel.FreshnessLead),
-                        SortDescending ? ListSortDirection.Ascending : ListSortDirection.Descending));
+                    RowsView.SortDescriptions.Add(
+                        new(
+                            nameof(OverviewRowViewModel.FreshnessLead),
+                            SortDescending ? ListSortDirection.Ascending : ListSortDirection.Descending));
+
                     break;
             }
         }

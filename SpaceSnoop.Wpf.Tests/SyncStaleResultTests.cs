@@ -1,17 +1,10 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
-using KeepShell.ViewModels;
+﻿using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Core.UseCases;
-using SpaceSnoop.Wpf.Bootstrap;
-using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.Mcp;
 using SpaceSnoop.Wpf.ViewModels;
-using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -48,64 +41,6 @@ public class SyncStaleResultTests
     }
 
     [Test]
-    public async Task Хеши_прежнего_сравнения_не_применяются_к_перенесённому_во_время_хеширования()
-    {
-        var page = await ComparedPageAsync();
-        var adopted = new ComparisonResult(_left, _right, new(string.Empty, string.Empty));
-        AdoptWhenBusy(page, adopted);
-
-        await page.Operations.HashCommand.ExecuteAsync(null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(page.Operations.Result, Is.SameAs(adopted));
-            Assert.That(page.Operations.HashesCompared, Is.False);
-        }
-    }
-
-    [Test]
-    public async Task Сравнение_не_затирает_перенесённое_во_время_него()
-    {
-        var page = CreatePage();
-        var automation = (ISyncAutomation)page;
-        automation.LeftPath = _left;
-        automation.RightPath = _right;
-        var adopted = new ComparisonResult(_left, _right, new(string.Empty, string.Empty));
-        AdoptWhenBusy(page, adopted);
-
-        await automation.CompareFromAutomationAsync(CancellationToken.None);
-
-        Assert.That(page.Operations.Result, Is.SameAs(adopted));
-    }
-
-    [Test]
-    public async Task Состояние_git_не_возвращается_после_сброса_во_время_чтения()
-    {
-        var git = await GitWithRepoAsync();
-        var repo = TestContext.CurrentContext.TestDirectory;
-
-        var read = git.ReadAsync(repo, repo, CancellationToken.None);
-        git.Clear();
-        await read;
-
-        Assert.That(git.HasGit, Is.False);
-    }
-
-    [Test]
-    public async Task Прежнее_чтение_git_не_перекрывает_следующее()
-    {
-        var git = await GitWithRepoAsync();
-        var repo = TestContext.CurrentContext.TestDirectory;
-        var missing = Path.Combine(_root, "нет");
-
-        var first = git.ReadAsync(repo, repo, CancellationToken.None);
-        var second = git.ReadAsync(missing, missing, CancellationToken.None);
-        await Task.WhenAll(first, second);
-
-        Assert.That(git.HasGit, Is.False);
-    }
-
-    [Test]
     public async Task История_git_прежней_загрузки_не_применяется_после_нового_чтения_тех_же_путей()
     {
         var git = await GitWithRepoAsync();
@@ -120,6 +55,32 @@ public class SyncStaleResultTests
         await reread;
 
         Assert.That(logAfterStaleLoad, Is.Zero);
+    }
+
+    [Test]
+    public async Task Перенос_сравнения_сбрасывает_отчёт_прежней_синхронизации()
+    {
+        var page = await ComparedPageAsync(SyncMode.LeftToRight);
+        await ((ISyncAutomation)page).SyncFromAutomationAsync(CancellationToken.None);
+        Assume.That(page.Operations.LastReport, Is.Not.Null);
+
+        page.Operations.AdoptComparison(new(_left, _right, new(string.Empty, string.Empty)));
+
+        Assert.That(page.Operations.LastReport, Is.Null);
+    }
+
+    [Test]
+    public async Task Прежнее_чтение_git_не_перекрывает_следующее()
+    {
+        var git = await GitWithRepoAsync();
+        var repo = TestContext.CurrentContext.TestDirectory;
+        var missing = Path.Combine(_root, "нет");
+
+        var first = git.ReadAsync(repo, repo, CancellationToken.None);
+        var second = git.ReadAsync(missing, missing, CancellationToken.None);
+        await Task.WhenAll(first, second);
+
+        Assert.That(git.HasGit, Is.False);
     }
 
     [TestCase(true, SyncPlanFreshness.Applied)]
@@ -152,15 +113,47 @@ public class SyncStaleResultTests
     }
 
     [Test]
-    public async Task Перенос_сравнения_сбрасывает_отчёт_прежней_синхронизации()
+    public async Task Состояние_git_не_возвращается_после_сброса_во_время_чтения()
     {
-        var page = await ComparedPageAsync(SyncMode.LeftToRight);
-        await ((ISyncAutomation)page).SyncFromAutomationAsync(CancellationToken.None);
-        Assume.That(page.Operations.LastReport, Is.Not.Null);
+        var git = await GitWithRepoAsync();
+        var repo = TestContext.CurrentContext.TestDirectory;
 
-        page.Operations.AdoptComparison(new(_left, _right, new(string.Empty, string.Empty)));
+        var read = git.ReadAsync(repo, repo, CancellationToken.None);
+        git.Clear();
+        await read;
 
-        Assert.That(page.Operations.LastReport, Is.Null);
+        Assert.That(git.HasGit, Is.False);
+    }
+
+    [Test]
+    public async Task Сравнение_не_затирает_перенесённое_во_время_него()
+    {
+        var page = CreatePage();
+        var automation = (ISyncAutomation)page;
+        automation.LeftPath = _left;
+        automation.RightPath = _right;
+        var adopted = new ComparisonResult(_left, _right, new(string.Empty, string.Empty));
+        AdoptWhenBusy(page, adopted);
+
+        await automation.CompareFromAutomationAsync(CancellationToken.None);
+
+        Assert.That(page.Operations.Result, Is.SameAs(adopted));
+    }
+
+    [Test]
+    public async Task Хеши_прежнего_сравнения_не_применяются_к_перенесённому_во_время_хеширования()
+    {
+        var page = await ComparedPageAsync();
+        var adopted = new ComparisonResult(_left, _right, new(string.Empty, string.Empty));
+        AdoptWhenBusy(page, adopted);
+
+        await page.Operations.HashCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(page.Operations.Result, Is.SameAs(adopted));
+            Assert.That(page.Operations.HashesCompared, Is.False);
+        }
     }
 
     private static async Task<SyncGitViewModel> GitWithRepoAsync()
@@ -210,15 +203,16 @@ public class SyncStaleResultTests
         var settings = new MemorySettings();
         var shell = new ShellPreferences(settings);
 
-        return new(settings,
+        return new(
+            settings,
             new NoopDialogs(),
-            new OperationPreferences(settings),
-            new AgentPreferences(settings),
+            new(settings),
+            new(settings),
             NullLogger<SyncViewModel>.Instance,
-            new CompareDirectoriesUseCase(NullLogger<DirectoryComparer>.Instance),
-            new ExecuteSyncUseCase(NullLogger<SyncEngine>.Instance),
-            new ToastNotifier(new ToastHostViewModel(), shell),
-            new PerformanceOperations(TestDiagnostics.Monitor()),
+            new(NullLogger<DirectoryComparer>.Instance),
+            new(NullLogger<SyncEngine>.Instance),
+            new(new(), shell),
+            new(TestDiagnostics.Monitor()),
             new FakeFilePicker(),
             new FakeUiDispatcher(),
             new FakeAppNavigator());

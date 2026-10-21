@@ -45,24 +45,6 @@ public class OverviewRowGroupingTests
         return row.IsUnchanged;
     }
 
-    [TestCase(SyncVerifyState.Completed, 0, true)]
-    [TestCase(SyncVerifyState.Completed, 2, false)]
-    [TestCase(SyncVerifyState.Interrupted, 0, false)]
-    public void Расхождения_и_прерванная_проверка_выводят_строку_из_группы_без_изменений(SyncVerifyState verify, int mismatches, bool unchanged)
-    {
-        var row = Row();
-        row.SyncMismatches = mismatches;
-        row.SyncVerify = verify;
-        row.Status = OverviewRunStatus.Synced;
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(row.IsUnchanged, Is.EqualTo(unchanged));
-            Assert.That(row.SyncHadErrors, Is.EqualTo(!unchanged));
-            Assert.That(row.StatusIconKind, Is.EqualTo(unchanged ? PackIconLucideKind.FolderCheck : PackIconLucideKind.TriangleAlert));
-        }
-    }
-
     [Test]
     public void Итог_строки_называет_расхождения_и_прерванную_проверку()
     {
@@ -83,8 +65,33 @@ public class OverviewRowGroupingTests
         }
     }
 
+    [TestCase(SyncVerifyState.Completed, 0, true)]
+    [TestCase(SyncVerifyState.Completed, 2, false)]
+    [TestCase(SyncVerifyState.Interrupted, 0, false)]
+    public void Расхождения_и_прерванная_проверка_выводят_строку_из_группы_без_изменений(SyncVerifyState verify, int mismatches, bool unchanged)
+    {
+        var row = Row();
+        row.SyncMismatches = mismatches;
+        row.SyncVerify = verify;
+        row.Status = OverviewRunStatus.Synced;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(row.IsUnchanged, Is.EqualTo(unchanged));
+            Assert.That(row.SyncHadErrors, Is.EqualTo(!unchanged));
+            Assert.That(row.StatusIconKind, Is.EqualTo(unchanged ? PackIconLucideKind.FolderCheck : PackIconLucideKind.TriangleAlert));
+        }
+    }
+
     private static OverviewRowViewModel Row()
     {
-        return new(new() { Left = "l", Right = "r" }, static (_, _) => { }, static () => { });
+        return new(
+            new() { Left = "l", Right = "r" },
+            static (_, _) =>
+            {
+            },
+            static () =>
+            {
+            });
     }
 }

@@ -14,7 +14,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanInspectorResources.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanInspectorResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -44,7 +45,8 @@
         </Border>
 
         <TextBlock Text="{Binding Node.IgnoreHint}"
-                   Margin="0,8,0,0" TextWrapping="Wrap"
+                   Margin="0,8,0,0"
+                   TextWrapping="Wrap"
                    Foreground="{DynamicResource Fg.Muted}"
                    Visibility="{Binding Node.IsIgnored, Converter={StaticResource BoolToVisibility}}" />
 

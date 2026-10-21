@@ -81,15 +81,6 @@ public sealed partial class ConfirmDialogViewModel(
     IReadOnlyList<ConfirmLine> lines,
     IReadOnlyList<ConfirmChoice> choices) : ObservableObject, IDialogViewModel, IAcceptableDialog
 {
-    public ConfirmDialogViewModel(
-        string title,
-        PackIconLucideKind iconKind,
-        IReadOnlyList<string> lines,
-        IReadOnlyList<ConfirmChoice> choices)
-        : this(title, iconKind, AsLines(lines), choices)
-    {
-    }
-
     public event EventHandler<bool>? RequestClose;
 
     public string Title => title;
@@ -110,6 +101,15 @@ public sealed partial class ConfirmDialogViewModel(
 
     public ConfirmChoice? Chosen { get; private set; }
 
+    public ConfirmDialogViewModel(
+        string title,
+        PackIconLucideKind iconKind,
+        IReadOnlyList<string> lines,
+        IReadOnlyList<ConfirmChoice> choices)
+        : this(title, iconKind, AsLines(lines), choices)
+    {
+    }
+
     public static string AsText(IEnumerable<ConfirmLine> lines)
     {
         return string.Join(Environment.NewLine, lines.Select(static line => line.PlainText));
@@ -129,9 +129,12 @@ public sealed partial class ConfirmDialogViewModel(
 
     private static List<ConfirmLine> AsLines(IReadOnlyList<string> lines)
     {
-        return [.. lines.Select(static line => string.IsNullOrEmpty(line)
-            ? new ConfirmGapLine()
-            : (ConfirmLine)new ConfirmTextLine(line))];
+        return
+        [
+            .. lines.Select(static line => string.IsNullOrEmpty(line)
+                ? new ConfirmGapLine()
+                : (ConfirmLine)new ConfirmTextLine(line)),
+        ];
     }
 
     [RelayCommand]

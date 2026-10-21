@@ -9,16 +9,16 @@ public sealed partial class ChatConversationViewModel : ObservableObject
     [ObservableProperty]
     private bool _isCurrent;
 
-    public ChatConversationViewModel(ChatConversationRecord record)
-    {
-        _record = record;
-    }
-
     public string Id => Record.Id;
 
     public string Title => Record.Title.Length > 0 ? Record.Title : ChatHistoryStore.UntitledConversation;
 
     public string Subtitle => $"{Record.Messages.Count} {Messages(Record.Messages.Count)} · {Record.UpdatedUtc.ToLocalTime():d MMMM, HH:mm}";
+
+    public ChatConversationViewModel(ChatConversationRecord record)
+    {
+        _record = record;
+    }
 
     private static string Messages(int count)
     {

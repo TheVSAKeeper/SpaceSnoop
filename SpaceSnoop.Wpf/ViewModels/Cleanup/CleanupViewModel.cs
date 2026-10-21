@@ -1,7 +1,7 @@
 ﻿using KeepShell.Services;
-using KeepShell.Services.Platform;
-using SpaceSnoop.Core.Cleanup;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
 using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.ViewModels.Cleanup;
@@ -58,31 +58,6 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
     [NotifyCanExecuteChangedFor(nameof(CleanSelectedCommand))]
     private int _selectedCount;
 
-    public CleanupViewModel(
-        CleanupService service,
-        CleanupProgressDialogFactory dialogFactory,
-        IDialogService dialogs,
-        ModalHostViewModel modals,
-        IShellLauncher shell,
-        ISettingsStore settings,
-        IUiDispatcher uiDispatcher,
-        ToastNotifier notifier,
-        ILogger<CleanupViewModel> logger)
-    {
-        _service = service;
-        _dialogFactory = dialogFactory;
-        _dialogs = dialogs;
-        _modals = modals;
-        _shell = shell;
-        _settings = settings;
-        _uiDispatcher = uiDispatcher;
-        _notifier = notifier;
-        _logger = logger;
-
-        LoadSettings();
-        BuildTargets();
-    }
-
     public ObservableCollection<CleanupTargetViewModel> Targets { get; } = [];
 
     public string PageTitle => "Очистка";
@@ -112,6 +87,31 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
     public ICommand? CancelCommand => IsBusy && _measureCts is not null ? CancelMeasureCommand : null;
 
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
+
+    public CleanupViewModel(
+        CleanupService service,
+        CleanupProgressDialogFactory dialogFactory,
+        IDialogService dialogs,
+        ModalHostViewModel modals,
+        IShellLauncher shell,
+        ISettingsStore settings,
+        IUiDispatcher uiDispatcher,
+        ToastNotifier notifier,
+        ILogger<CleanupViewModel> logger)
+    {
+        _service = service;
+        _dialogFactory = dialogFactory;
+        _dialogs = dialogs;
+        _modals = modals;
+        _shell = shell;
+        _settings = settings;
+        _uiDispatcher = uiDispatcher;
+        _notifier = notifier;
+        _logger = logger;
+
+        LoadSettings();
+        BuildTargets();
+    }
 
     public async Task EnsureLoadedAsync()
     {
@@ -152,6 +152,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             _settings.GetInt(SettingsKeys.CleanupMinAgeHours, AppDefaults.CleanupMinAgeHoursDefault),
             AppDefaults.CleanupMinAgeHoursMin,
             AppDefaults.CleanupMinAgeHoursMax);
+
         _suppressPersist = false;
     }
 
@@ -186,7 +187,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             : [.. stored.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)];
     }
 
-    private void OnTargetChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    private void OnTargetChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is not nameof(CleanupTargetViewModel.IsSelected))
         {
@@ -351,9 +352,9 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             return;
         }
 
-        var drive = System.IO.Path.GetPathRoot(row.Path)?.TrimEnd('\\');
+        var drive = Path.GetPathRoot(row.Path)?.TrimEnd('\\');
 
-        var tool = System.IO.Path.Combine(Environment.SystemDirectory, "cleanmgr.exe");
+        var tool = Path.Combine(Environment.SystemDirectory, "cleanmgr.exe");
 
         if (string.IsNullOrEmpty(drive) || !_shell.Start(tool, "/d", drive))
         {
@@ -467,5 +468,4 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
         return dialog;
     }
-
 }

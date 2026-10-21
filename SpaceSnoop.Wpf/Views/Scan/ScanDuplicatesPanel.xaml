@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
              xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
-             xmlns:bootstrap="clr-namespace:SpaceSnoop.Wpf.Bootstrap"
              xmlns:behaviors="clr-namespace:SpaceSnoop.Wpf.Views.Behaviors"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
@@ -274,17 +273,18 @@
                                                            Margin="10,0,0,0" />
 
                                                 <views:CommandToggleButton Grid.Column="4"
-                                                              Style="{StaticResource DuplicateMarkToggle}"
-                                                              IsChecked="{Binding IsMarked, Mode=OneWay}"
-                                                              Command="{Binding ToggleMarkCommand}"
-                                                              ToolTip="Пометить файл на удаление. Удаление – кнопкой «Удалить помеченное», в корзину.">
+                                                                           Style="{StaticResource DuplicateMarkToggle}"
+                                                                           IsChecked="{Binding IsMarked, Mode=OneWay}"
+                                                                           Command="{Binding ToggleMarkCommand}"
+                                                                           ToolTip="Пометить файл на удаление. Удаление – кнопкой «Удалить помеченное», в корзину.">
                                                     <StackPanel Orientation="Horizontal">
-                                                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Check}"
-                                                                                  Width="12"
-                                                                                  Height="12"
-                                                                                  VerticalAlignment="Center"
-                                                                                  Margin="0,0,6,0"
-                                                                                  Visibility="{Binding IsMarked, Converter={StaticResource BoolToVisibility}}" />
+                                                        <iconPacks:PackIconLucide
+                                                            Kind="{x:Static iconPacks:PackIconLucideKind.Check}"
+                                                            Width="12"
+                                                            Height="12"
+                                                            VerticalAlignment="Center"
+                                                            Margin="0,0,6,0"
+                                                            Visibility="{Binding IsMarked, Converter={StaticResource BoolToVisibility}}" />
                                                         <TextBlock VerticalAlignment="Center">
                                                             <TextBlock.Style>
                                                                 <Style TargetType="TextBlock">
@@ -292,7 +292,7 @@
                                                                             Value="Пометить" />
                                                                     <Style.Triggers>
                                                                         <DataTrigger Binding="{Binding IsMarked}"
-                                                                                     Value="True">
+                                                                                Value="True">
                                                                             <Setter Property="Text"
                                                                                     Value="Помечен" />
                                                                         </DataTrigger>

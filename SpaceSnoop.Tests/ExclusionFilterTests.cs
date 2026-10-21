@@ -17,18 +17,6 @@ public class ExclusionFilterTests
     }
 
     [Test]
-    public void WildcardFilter_ExcludesByExtension()
-    {
-        var filter = new ExclusionFilter("*.tmp, *.bak");
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(filter.IsExcluded("data.tmp"), Is.True);
-            Assert.That(filter.IsExcluded("backup.bak"), Is.True);
-            Assert.That(filter.IsExcluded("readme.txt"), Is.False);
-        }
-    }
-
-    [Test]
     public void ExactNameFilter_ExcludesByName()
     {
         var filter = new ExclusionFilter(".git, node_modules");
@@ -59,6 +47,18 @@ public class ExclusionFilterTests
         {
             Assert.That(filter.IsExcluded("file.tmp"), Is.True);
             Assert.That(filter.IsExcluded("file.bak"), Is.True);
+        }
+    }
+
+    [Test]
+    public void WildcardFilter_ExcludesByExtension()
+    {
+        var filter = new ExclusionFilter("*.tmp, *.bak");
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(filter.IsExcluded("data.tmp"), Is.True);
+            Assert.That(filter.IsExcluded("backup.bak"), Is.True);
+            Assert.That(filter.IsExcluded("readme.txt"), Is.False);
         }
     }
 }

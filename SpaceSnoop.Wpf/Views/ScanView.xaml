@@ -66,11 +66,12 @@
                                    TextTrimming="CharacterEllipsis"
                                    FontWeight="{DynamicResource Font.Weight.SemiBold}"
                                    Foreground="{DynamicResource Fg.Primary}" />
-                        <TextBlock Text="Прежний результат этой папки убран в начале скана, чтобы освободить память. Чтобы увидеть её снова, просканируйте папку ещё раз."
-                                   Style="{StaticResource TextBlock.Subtle}"
-                                   TextWrapping="Wrap"
-                                   Margin="0,2,0,0"
-                                   Visibility="{Binding CancelledReleasedPrevious, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+                        <TextBlock
+                            Text="Прежний результат этой папки убран в начале скана, чтобы освободить память. Чтобы увидеть её снова, просканируйте папку ещё раз."
+                            Style="{StaticResource TextBlock.Subtle}"
+                            TextWrapping="Wrap"
+                            Margin="0,2,0,0"
+                            Visibility="{Binding CancelledReleasedPrevious, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="2"

@@ -21,6 +21,31 @@ public class SystemThemeTests
         Assert.That(SystemTheme.IsLight(registryValue), Is.EqualTo(expectedLight));
     }
 
+    [Test]
+    public void Ключ_системной_темы_переживает_круг_через_перечисление()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(AppThemes.ToKey(AppTheme.System), Is.EqualTo(AppThemes.SystemKey));
+            Assert.That(AppThemes.FromKey(AppThemes.SystemKey), Is.EqualTo(AppTheme.System));
+            Assert.That((int)AppTheme.Light, Is.EqualTo(0), "Значения тем лежат в файлах настроек – переименование или сдвиг меняют выбор пользователя.");
+        });
+    }
+
+    [Test]
+    public void Новый_профиль_записывает_системную_тему()
+    {
+        var settings = new MemorySettings();
+
+        var key = AppThemes.StartupKey(settings, true);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(key, Is.EqualTo(AppThemes.SystemKey));
+            Assert.That(settings.GetStringValue(SettingsKeys.Theme), Is.EqualTo(AppThemes.SystemKey));
+        });
+    }
+
     [TestCase(true, false)]
     [TestCase(false, true)]
     public void Системная_тема_регистрируется_палитрой_режима_Windows(bool appsUseLightTheme, bool expectedDark)
@@ -76,13 +101,16 @@ public class SystemThemeTests
     }
 
     [Test]
-    public void Ключ_системной_темы_переживает_круг_через_перечисление()
+    public void Старый_профиль_без_ключа_темы_остаётся_светлым_и_ключ_не_пишется()
     {
+        var settings = new MemorySettings();
+
+        var key = AppThemes.StartupKey(settings, false);
+
         Assert.Multiple(() =>
         {
-            Assert.That(AppThemes.ToKey(AppTheme.System), Is.EqualTo(AppThemes.SystemKey));
-            Assert.That(AppThemes.FromKey(AppThemes.SystemKey), Is.EqualTo(AppTheme.System));
-            Assert.That((int)AppTheme.Light, Is.EqualTo(0), "Значения тем лежат в файлах настроек – переименование или сдвиг меняют выбор пользователя.");
+            Assert.That(key, Is.EqualTo(AppThemes.LightKey));
+            Assert.That(settings.GetStringValue(SettingsKeys.Theme), Is.Null.Or.Empty);
         });
     }
 
@@ -96,20 +124,6 @@ public class SystemThemeTests
         });
     }
 
-    [Test]
-    public void Новый_профиль_записывает_системную_тему()
-    {
-        var settings = new MemorySettings();
-
-        var key = AppThemes.StartupKey(settings, freshProfile: true);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(key, Is.EqualTo(AppThemes.SystemKey));
-            Assert.That(settings.GetStringValue(SettingsKeys.Theme), Is.EqualTo(AppThemes.SystemKey));
-        });
-    }
-
     [TestCase(AppThemes.LightKey)]
     [TestCase(AppThemes.DarkKey)]
     [TestCase(AppThemes.TarkovKey)]
@@ -118,26 +132,12 @@ public class SystemThemeTests
         var settings = new MemorySettings();
         settings.SetValue(SettingsKeys.Theme, chosen);
 
-        var key = AppThemes.StartupKey(settings, freshProfile: false);
+        var key = AppThemes.StartupKey(settings, false);
 
         Assert.Multiple(() =>
         {
             Assert.That(key, Is.EqualTo(chosen));
             Assert.That(settings.GetStringValue(SettingsKeys.Theme), Is.EqualTo(chosen));
-        });
-    }
-
-    [Test]
-    public void Старый_профиль_без_ключа_темы_остаётся_светлым_и_ключ_не_пишется()
-    {
-        var settings = new MemorySettings();
-
-        var key = AppThemes.StartupKey(settings, freshProfile: false);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(key, Is.EqualTo(AppThemes.LightKey));
-            Assert.That(settings.GetStringValue(SettingsKeys.Theme), Is.Null.Or.Empty);
         });
     }
 }

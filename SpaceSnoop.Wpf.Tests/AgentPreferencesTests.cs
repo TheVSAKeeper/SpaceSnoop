@@ -1,9 +1,7 @@
 ﻿using KeepShell.Bootstrap;
 using SpaceSnoop.Wpf.Agent;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Settings;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -24,105 +22,12 @@ public class AgentPreferencesTests
     {
         try
         {
-            Directory.Delete(_directory, recursive: true);
+            Directory.Delete(_directory, true);
         }
         catch (IOException exception)
         {
             TestContext.Out.WriteLine($"Не удалось удалить каталог настроек {_directory}: {exception.Message}");
         }
-    }
-
-    [Test]
-    public void Прежние_общие_ключи_переносятся_в_ключи_Claude()
-    {
-        Seed(store =>
-        {
-            store.SetValue(SettingsKeys.AgentModelShared, "sonnet");
-            store.SetValue(SettingsKeys.AgentCliPathShared, @"D:\tools\claude.exe");
-        });
-
-        var store = Open();
-        var preferences = new AgentPreferences(store);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(preferences.ModelFor(AgentBackendKind.Claude), Is.EqualTo("sonnet"));
-            Assert.That(preferences.CliPathFor(AgentBackendKind.Claude), Is.EqualTo(@"D:\tools\claude.exe"));
-            Assert.That(preferences.ModelFor(AgentBackendKind.Codex), Is.Empty);
-            Assert.That(preferences.CliPathFor(AgentBackendKind.Codex), Is.Empty);
-        }
-    }
-
-    [Test]
-    public void Перенесённые_значения_переживают_перезапуск()
-    {
-        Seed(store =>
-        {
-            store.SetValue(SettingsKeys.AgentModelShared, "sonnet");
-            store.SetValue(SettingsKeys.AgentCliPathShared, @"D:\tools\claude.exe");
-        });
-
-        var first = Open();
-        _ = new AgentPreferences(first);
-        first.Flush();
-
-        var second = Open();
-        var preferences = new AgentPreferences(second);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(preferences.ModelFor(AgentBackendKind.Claude), Is.EqualTo("sonnet"));
-            Assert.That(preferences.CliPathFor(AgentBackendKind.Claude), Is.EqualTo(@"D:\tools\claude.exe"));
-        }
-    }
-
-    [Test]
-    public void Настройки_бэкендов_не_затирают_друг_друга()
-    {
-        var store = Open();
-
-        var preferences = new AgentPreferences(store)
-        {
-            Model = "sonnet",
-            CliPath = @"D:\tools\claude.exe",
-            Backend = AgentBackendKind.Codex,
-        };
-
-        preferences.Model = "gpt-5.6";
-        preferences.CliPath = @"D:\tools\codex.exe";
-        preferences.Backend = AgentBackendKind.OpenCode;
-        preferences.Model = "opencode/big-pickle";
-        preferences.CliPath = @"D:\tools\opencode.exe";
-        store.Flush();
-
-        var reopened = new AgentPreferences(Open());
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(reopened.Backend, Is.EqualTo(AgentBackendKind.OpenCode));
-            Assert.That(reopened.ModelFor(AgentBackendKind.Claude), Is.EqualTo("sonnet"));
-            Assert.That(reopened.ModelFor(AgentBackendKind.Codex), Is.EqualTo("gpt-5.6"));
-            Assert.That(reopened.ModelFor(AgentBackendKind.OpenCode), Is.EqualTo("opencode/big-pickle"));
-            Assert.That(reopened.CliPathFor(AgentBackendKind.Claude), Is.EqualTo(@"D:\tools\claude.exe"));
-            Assert.That(reopened.CliPathFor(AgentBackendKind.Codex), Is.EqualTo(@"D:\tools\codex.exe"));
-            Assert.That(reopened.CliPathFor(AgentBackendKind.OpenCode), Is.EqualTo(@"D:\tools\opencode.exe"));
-        }
-    }
-
-    [Test]
-    public void Смена_бэкенда_подставляет_его_собственные_значения()
-    {
-        var store = Open();
-
-        var preferences = new AgentPreferences(store) { Model = "sonnet" };
-        preferences.Backend = AgentBackendKind.Codex;
-
-        Assert.That(preferences.Model, Is.Empty);
-
-        preferences.Model = "gpt-5.6";
-        preferences.Backend = AgentBackendKind.Claude;
-
-        Assert.That(preferences.Model, Is.EqualTo("sonnet"));
     }
 
     [Test]
@@ -146,86 +51,30 @@ public class AgentPreferencesTests
     }
 
     [Test]
-    public void Согласие_одного_бэкенда_не_распространяется_на_другие()
+    public void Настройки_бэкендов_не_затирают_друг_друга()
     {
         var store = Open();
 
-        _ = new AgentPreferences(store) { Consent = true };
+        var preferences = new AgentPreferences(store) { Model = "sonnet", CliPath = @"D:\tools\claude.exe", Backend = AgentBackendKind.Codex };
 
+        preferences.Model = "gpt-5.6";
+        preferences.CliPath = @"D:\tools\codex.exe";
+        preferences.Backend = AgentBackendKind.OpenCode;
+        preferences.Model = "opencode/big-pickle";
+        preferences.CliPath = @"D:\tools\opencode.exe";
         store.Flush();
 
         var reopened = new AgentPreferences(Open());
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(reopened.ConsentFor(AgentBackendKind.Claude), Is.True);
-            Assert.That(reopened.ConsentFor(AgentBackendKind.Codex), Is.False);
-            Assert.That(reopened.ConsentFor(AgentBackendKind.OpenCode), Is.False);
-        }
-    }
-
-    [Test]
-    public void Смена_бэкенда_подставляет_его_собственное_согласие()
-    {
-        var store = Open();
-
-        var preferences = new AgentPreferences(store) { Consent = true };
-
-        preferences.Backend = AgentBackendKind.Codex;
-
-        Assert.That(preferences.Consent, Is.False);
-
-        preferences.Consent = true;
-        preferences.Backend = AgentBackendKind.OpenCode;
-
-        Assert.That(preferences.Consent, Is.False);
-
-        preferences.Backend = AgentBackendKind.Claude;
-
-        Assert.That(preferences.Consent, Is.True);
-    }
-
-    [Test]
-    public void Согласие_известно_уже_к_объявлению_смены_бэкенда()
-    {
-        var store = Open();
-
-        var preferences = new AgentPreferences(store) { Consent = true };
-
-        bool? consentAtBackendNotice = null;
-
-        preferences.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(AgentPreferences.Backend))
-            {
-                consentAtBackendNotice = preferences.Consent;
-            }
-        };
-
-        preferences.Backend = AgentBackendKind.Codex;
-
-        Assert.That(consentAtBackendNotice, Is.False);
-    }
-
-    [Test]
-    public void Прежнее_общее_согласие_достаётся_только_Claude()
-    {
-        Seed(store => store.SetValue(SettingsKeys.AgentConsentShared, "true"));
-
-        var first = Open();
-        var preferences = new AgentPreferences(first);
-
-        first.Flush();
-
-        var second = Open();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(preferences.ConsentFor(AgentBackendKind.Claude), Is.True);
-            Assert.That(preferences.ConsentFor(AgentBackendKind.Codex), Is.False);
-            Assert.That(preferences.ConsentFor(AgentBackendKind.OpenCode), Is.False);
-            Assert.That(second.GetStringValue(SettingsKeys.AgentConsentShared), Is.Empty);
-            Assert.That(new AgentPreferences(second).ConsentFor(AgentBackendKind.Claude), Is.True);
+            Assert.That(reopened.Backend, Is.EqualTo(AgentBackendKind.OpenCode));
+            Assert.That(reopened.ModelFor(AgentBackendKind.Claude), Is.EqualTo("sonnet"));
+            Assert.That(reopened.ModelFor(AgentBackendKind.Codex), Is.EqualTo("gpt-5.6"));
+            Assert.That(reopened.ModelFor(AgentBackendKind.OpenCode), Is.EqualTo("opencode/big-pickle"));
+            Assert.That(reopened.CliPathFor(AgentBackendKind.Claude), Is.EqualTo(@"D:\tools\claude.exe"));
+            Assert.That(reopened.CliPathFor(AgentBackendKind.Codex), Is.EqualTo(@"D:\tools\codex.exe"));
+            Assert.That(reopened.CliPathFor(AgentBackendKind.OpenCode), Is.EqualTo(@"D:\tools\opencode.exe"));
         }
     }
 
@@ -254,6 +103,150 @@ public class AgentPreferencesTests
         first.Flush();
 
         Assert.That(new AgentPreferences(Open()).ModelFor(AgentBackendKind.Claude), Is.Empty);
+    }
+
+    [Test]
+    public void Перенесённые_значения_переживают_перезапуск()
+    {
+        Seed(store =>
+        {
+            store.SetValue(SettingsKeys.AgentModelShared, "sonnet");
+            store.SetValue(SettingsKeys.AgentCliPathShared, @"D:\tools\claude.exe");
+        });
+
+        var first = Open();
+        _ = new AgentPreferences(first);
+        first.Flush();
+
+        var second = Open();
+        var preferences = new AgentPreferences(second);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(preferences.ModelFor(AgentBackendKind.Claude), Is.EqualTo("sonnet"));
+            Assert.That(preferences.CliPathFor(AgentBackendKind.Claude), Is.EqualTo(@"D:\tools\claude.exe"));
+        }
+    }
+
+    [Test]
+    public void Прежнее_общее_согласие_достаётся_только_Claude()
+    {
+        Seed(store => store.SetValue(SettingsKeys.AgentConsentShared, "true"));
+
+        var first = Open();
+        var preferences = new AgentPreferences(first);
+
+        first.Flush();
+
+        var second = Open();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(preferences.ConsentFor(AgentBackendKind.Claude), Is.True);
+            Assert.That(preferences.ConsentFor(AgentBackendKind.Codex), Is.False);
+            Assert.That(preferences.ConsentFor(AgentBackendKind.OpenCode), Is.False);
+            Assert.That(second.GetStringValue(SettingsKeys.AgentConsentShared), Is.Empty);
+            Assert.That(new AgentPreferences(second).ConsentFor(AgentBackendKind.Claude), Is.True);
+        }
+    }
+
+    [Test]
+    public void Прежние_общие_ключи_переносятся_в_ключи_Claude()
+    {
+        Seed(store =>
+        {
+            store.SetValue(SettingsKeys.AgentModelShared, "sonnet");
+            store.SetValue(SettingsKeys.AgentCliPathShared, @"D:\tools\claude.exe");
+        });
+
+        var store = Open();
+        var preferences = new AgentPreferences(store);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(preferences.ModelFor(AgentBackendKind.Claude), Is.EqualTo("sonnet"));
+            Assert.That(preferences.CliPathFor(AgentBackendKind.Claude), Is.EqualTo(@"D:\tools\claude.exe"));
+            Assert.That(preferences.ModelFor(AgentBackendKind.Codex), Is.Empty);
+            Assert.That(preferences.CliPathFor(AgentBackendKind.Codex), Is.Empty);
+        }
+    }
+
+    [Test]
+    public void Смена_бэкенда_подставляет_его_собственное_согласие()
+    {
+        var store = Open();
+
+        var preferences = new AgentPreferences(store) { Consent = true };
+
+        preferences.Backend = AgentBackendKind.Codex;
+
+        Assert.That(preferences.Consent, Is.False);
+
+        preferences.Consent = true;
+        preferences.Backend = AgentBackendKind.OpenCode;
+
+        Assert.That(preferences.Consent, Is.False);
+
+        preferences.Backend = AgentBackendKind.Claude;
+
+        Assert.That(preferences.Consent, Is.True);
+    }
+
+    [Test]
+    public void Смена_бэкенда_подставляет_его_собственные_значения()
+    {
+        var store = Open();
+
+        var preferences = new AgentPreferences(store) { Model = "sonnet" };
+        preferences.Backend = AgentBackendKind.Codex;
+
+        Assert.That(preferences.Model, Is.Empty);
+
+        preferences.Model = "gpt-5.6";
+        preferences.Backend = AgentBackendKind.Claude;
+
+        Assert.That(preferences.Model, Is.EqualTo("sonnet"));
+    }
+
+    [Test]
+    public void Согласие_известно_уже_к_объявлению_смены_бэкенда()
+    {
+        var store = Open();
+
+        var preferences = new AgentPreferences(store) { Consent = true };
+
+        bool? consentAtBackendNotice = null;
+
+        preferences.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(AgentPreferences.Backend))
+            {
+                consentAtBackendNotice = preferences.Consent;
+            }
+        };
+
+        preferences.Backend = AgentBackendKind.Codex;
+
+        Assert.That(consentAtBackendNotice, Is.False);
+    }
+
+    [Test]
+    public void Согласие_одного_бэкенда_не_распространяется_на_другие()
+    {
+        var store = Open();
+
+        _ = new AgentPreferences(store) { Consent = true };
+
+        store.Flush();
+
+        var reopened = new AgentPreferences(Open());
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reopened.ConsentFor(AgentBackendKind.Claude), Is.True);
+            Assert.That(reopened.ConsentFor(AgentBackendKind.Codex), Is.False);
+            Assert.That(reopened.ConsentFor(AgentBackendKind.OpenCode), Is.False);
+        }
     }
 
     private void Seed(Action<ISettingsStore> configure)

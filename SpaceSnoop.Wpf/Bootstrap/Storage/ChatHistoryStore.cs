@@ -15,21 +15,18 @@ public sealed class ChatHistoryStore
 
     private static readonly JsonSerializerOptions Options = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        Converters = { new JsonStringEnumConverter() },
-        WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, Converters = { new JsonStringEnumConverter() }, WriteIndented = true,
     };
 
     private readonly ILogger<ChatHistoryStore> _logger;
+
+    public string FilePath { get; }
 
     public ChatHistoryStore(ILogger<ChatHistoryStore> logger, string? filePath = null)
     {
         _logger = logger;
         FilePath = filePath ?? Path.Combine(AppStorage.DataDirectory, FileName);
     }
-
-    public string FilePath { get; }
 
     public static string MakeTitle(string prompt)
     {
@@ -54,7 +51,7 @@ public sealed class ChatHistoryStore
         var head = line[..TitleLength];
         var space = head.LastIndexOf(' ');
 
-        if (space > TitleLength / 2)
+        if (space > (TitleLength / 2))
         {
             head = head[..space];
         }

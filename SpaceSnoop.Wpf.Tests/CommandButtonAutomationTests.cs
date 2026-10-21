@@ -10,6 +10,18 @@ namespace SpaceSnoop.Wpf.Tests;
 [Apartment(ApartmentState.STA)]
 public class CommandButtonAutomationTests
 {
+    [TestCaseSource(nameof(Patterns))]
+    public void Действие_через_UI_Automation_выполняет_команду_как_щелчок_мышью(Func<ButtonBase> create, Action<AutomationPeer> invoke)
+    {
+        var runs = 0;
+        var button = create();
+        button.Command = new RelayCommand(() => runs++);
+
+        invoke(UIElementAutomationPeer.CreatePeerForElement(button));
+
+        Assert.That(runs, Is.EqualTo(1));
+    }
+
     private static IEnumerable<TestCaseData> Patterns()
     {
         yield return new TestCaseData(
@@ -21,17 +33,5 @@ public class CommandButtonAutomationTests
                 new Func<ButtonBase>(static () => new CommandToggleButton()),
                 new Action<AutomationPeer>(static peer => ((IToggleProvider)peer.GetPattern(PatternInterface.Toggle)).Toggle()))
             .SetArgDisplayNames("пометка дубликата, Toggle.Toggle");
-    }
-
-    [TestCaseSource(nameof(Patterns))]
-    public void Действие_через_UI_Automation_выполняет_команду_как_щелчок_мышью(Func<ButtonBase> create, Action<AutomationPeer> invoke)
-    {
-        var runs = 0;
-        var button = create();
-        button.Command = new RelayCommand(() => runs++);
-
-        invoke(UIElementAutomationPeer.CreatePeerForElement(button));
-
-        Assert.That(runs, Is.EqualTo(1));
     }
 }

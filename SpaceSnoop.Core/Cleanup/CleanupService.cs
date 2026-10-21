@@ -54,11 +54,16 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
         var count = 0;
         var unreadable = new List<string>();
 
-        Walk(target, token, file =>
-        {
-            total += file.Length;
-            count++;
-        }, unreadable, null);
+        Walk(
+            target,
+            token,
+            file =>
+            {
+                total += file.Length;
+                count++;
+            },
+            unreadable,
+            null);
 
         return new(total, count, unreadable, availability);
     }
@@ -170,7 +175,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
 
         var touched = file.LastWriteTimeUtc > file.CreationTimeUtc ? file.LastWriteTimeUtc : file.CreationTimeUtc;
 
-        return now - touched < minimumAge;
+        return (now - touched) < minimumAge;
     }
 
     private void Walk(

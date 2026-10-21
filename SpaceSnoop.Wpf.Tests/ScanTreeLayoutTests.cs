@@ -1,5 +1,4 @@
 ﻿using KeepShell.Bootstrap;
-using KeepShell.Services.Platform;
 using KeepShell.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using SpaceSnoop.Core.Domain;
@@ -7,7 +6,6 @@ using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.Views.Scan;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -37,16 +35,14 @@ public class ScanTreeLayoutTests
         settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
         AppThemes.Register();
         ThemeManager.Apply(AppThemes.LightKey);
-        _logging = KeepShellLogging.Bootstrap(new()
-        {
-            LogsDirectory = Path.Combine(_directory, "logs"),
-            FileNamePrefix = AppInfo.LogFilePrefix,
-        });
+        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_directory, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+
         _services = App.ConfigureServices(settings, _logging);
         _scan = _services.GetRequiredService<ScanViewModel>();
         _factory = _services.GetRequiredService<ScanNodeFactory>();
         var panel = new ScanStructurePanel { DataContext = _scan };
-        _host = VisualTestHost.Show(new Window { Content = panel }, 1000, 700);
+        _host = VisualTestHost.Show(new() { Content = panel }, 1000, 700);
+
         _host.Settle();
         _tree = Descendants<TreeView>(panel).Single();
     }
@@ -82,8 +78,10 @@ public class ScanTreeLayoutTests
         Assert.That(branch.Children.Single().Space, Is.Null);
         branch.IsExpanded = true;
         _host.Settle();
-        Assert.That(branch.Children.Select(child => child.Space),
+        Assert.That(
+            branch.Children.Select(child => child.Space),
             Is.EqualTo(root.SubDirectories.Single().Files.OrderBy(file => file, sort)));
+
         var collection = branch.Children;
         var opened = Descendants<TreeViewItem>(_tree).ToHashSet();
         var containers = new HashSet<TreeViewItem>(opened);
@@ -144,8 +142,10 @@ public class ScanTreeLayoutTests
         node.Resort();
         _host.Settle();
         Assert.That(branch.Children, Is.SameAs(collection));
-        Assert.That(branch.Children.Select(child => child.Space),
+        Assert.That(
+            branch.Children.Select(child => child.Space),
             Is.EqualTo(root.SubDirectories.Single().Files.OrderBy(file => file, sort)));
+
         Assert.That(branch.Children, Does.Contain(last));
         TestContext.Out.WriteLine($"Детей {count}, контейнеров при открытии {opened.Count}, за прокрутку {containers.Count}, бюджет {budget}.");
     }
@@ -155,12 +155,15 @@ public class ScanTreeLayoutTests
         var stamp = new DateTime(2026, 1, 1);
         var root = new DirectorySpace(_directory, null, stamp, stamp);
         var branch = new DirectorySpace("branch", root, stamp, stamp);
-        var samples = Enumerable.Range(0, 16).Select(index =>
-        {
-            var path = Path.Combine(_directory, $"sample-{index:D2}.bin");
-            File.WriteAllBytes(path, new byte[index + 1]);
-            return new FileInfo(path);
-        }).ToArray();
+        var samples = Enumerable.Range(0, 16)
+            .Select(index =>
+            {
+                var path = Path.Combine(_directory, $"sample-{index:D2}.bin");
+                File.WriteAllBytes(path, new byte[index + 1]);
+                return new FileInfo(path);
+            })
+            .ToArray();
+
         var files = Enumerable.Range(0, count).Select(index => samples[index % samples.Length]).ToArray();
         branch.AddFiles(files.AsSpan());
         root.Add(branch);

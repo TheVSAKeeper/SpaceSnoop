@@ -6,6 +6,9 @@ namespace SpaceSnoop.Tests;
 [TestFixture]
 public class CleanupServiceTests
 {
+    private string _tempDir = null!;
+    private string _targetDir = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -22,134 +25,85 @@ public class CleanupServiceTests
         RemoveTree(_tempDir);
     }
 
-    private static void RemoveTree(string path)
-    {
-        if (!Directory.Exists(path))
-        {
-            return;
-        }
-
-        var directory = new DirectoryInfo(path);
-
-        if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
-        {
-            directory.Delete();
-            return;
-        }
-
-        foreach (var sub in directory.GetDirectories())
-        {
-            RemoveTree(sub.FullName);
-        }
-
-        directory.Delete(true);
-    }
-
-    private string _tempDir = null!;
-    private string _targetDir = null!;
-
-    private CleanupTarget Target(TimeSpan? minimumAge = null, bool supported = true)
-    {
-        return new()
-        {
-            Id = "Test",
-            Name = "Тест",
-            Description = "Тест",
-            Kind = CleanupTargetKind.Directory,
-            Path = _targetDir,
-            Supported = supported,
-            MinimumAge = minimumAge ?? TimeSpan.Zero,
-        };
-    }
-
-    private static void WriteAged(string path, string content)
-    {
-        File.WriteAllText(path, content);
-        var old = DateTime.UtcNow - TimeSpan.FromDays(7);
-        File.SetCreationTimeUtc(path, old);
-        File.SetLastWriteTimeUtc(path, old);
-    }
-
-    private static bool TryCreateJunction(string path, string target)
-    {
-        var start = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{path}\" \"{target}\"")
-        {
-            CreateNoWindow = true,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-
-        using var process = Process.Start(start);
-
-        if (process is null)
-        {
-            return false;
-        }
-
-        process.WaitForExit();
-
-        return process.ExitCode == 0;
-    }
-
     [Test]
-    public void Measure_CountsFilesAndBytes()
+    public void Clean_CancelledAfterLastFileStillReportsCancelled()
     {
-        var measurement = new CleanupService().Measure(Target(), CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        var target = Target() with { Path = Path.Combine(_targetDir, "nested") };
+        var progress = new InlineProgress(_ => cts.Cancel());
+
+        var report = new CleanupService().Clean(target, progress, cts.Token);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(measurement.Files, Is.EqualTo(2));
-            Assert.That(measurement.Bytes, Is.EqualTo(16));
-            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Available));
+            Assert.That(report.Deleted, Is.EqualTo(1));
+            Assert.That(report.Cancelled, Is.True);
         }
     }
 
     [Test]
-    public void Measure_UnsupportedTargetStillSized()
+    public void Clean_CancelledMidDeleteReturnsPartialReport()
     {
-        var measurement = new CleanupService().Measure(Target(supported: false), CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        var progress = new InlineProgress(_ => cts.Cancel());
+
+        var report = new CleanupService().Clean(Target(), progress, cts.Token);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsupported));
-            Assert.That(measurement.Files, Is.EqualTo(2));
-            Assert.That(measurement.Bytes, Is.EqualTo(16));
+            Assert.That(report.Deleted, Is.EqualTo(1));
+            Assert.That(report.Cancelled, Is.True);
+            Assert.That(report.FreedBytes, Is.GreaterThan(0));
+            Assert.That(Directory.GetFiles(_targetDir, "*", SearchOption.AllDirectories), Has.Length.EqualTo(1));
         }
     }
 
     [Test]
-    public void Measure_MissingDirectoryReportedInsteadOfThrowing()
+    public void Clean_DirectoryHeldByFreshFileIsNotReportedAsError()
     {
-        Directory.Delete(_targetDir, true);
+        var nested = Path.Combine(_targetDir, "nested");
+        File.WriteAllText(Path.Combine(nested, "fresh.tmp"), "new");
 
-        var measurement = new CleanupService().Measure(Target(), CancellationToken.None);
+        var report = new CleanupService().Clean(Target(TimeSpan.FromHours(24)), null, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Missing));
-            Assert.That(measurement.Files, Is.Zero);
+            Assert.That(Directory.Exists(nested), Is.True);
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(report.Skipped, Is.Zero);
         }
     }
 
     [Test]
-    public void Measure_JunctionNotTraversed()
+    public void Clean_EmptiedSubdirectoryRemovedRootKept()
     {
-        var outside = Path.Combine(_tempDir, "outside");
-        Directory.CreateDirectory(outside);
-        WriteAged(Path.Combine(outside, "victim.txt"), "0123456789");
-
-        if (!TryCreateJunction(Path.Combine(_targetDir, "link"), outside))
-        {
-            Assert.Ignore("не удалось создать junction");
-        }
-
-        var measurement = new CleanupService().Measure(Target(), CancellationToken.None);
+        var report = new CleanupService().Clean(Target(), null, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(measurement.Files, Is.EqualTo(2));
-            Assert.That(measurement.Bytes, Is.EqualTo(16));
+            Assert.That(Directory.Exists(Path.Combine(_targetDir, "nested")), Is.False);
+            Assert.That(Directory.Exists(_targetDir), Is.True);
+            Assert.That(report.Errors, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void Clean_FileReplacedAfterWalkSurvives()
+    {
+        var service = new CleanupService();
+        var target = Target();
+        var replaced = Path.Combine(_targetDir, "a.tmp");
+
+        var progress = new InlineProgress(_ => File.WriteAllText(Path.Combine(_targetDir, "nested", "b.tmp"), "fresh-and-longer"));
+
+        var report = service.Clean(target, progress, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(File.Exists(replaced), Is.False);
+            Assert.That(File.Exists(Path.Combine(_targetDir, "nested", "b.tmp")), Is.True);
+            Assert.That(report.Skipped, Is.EqualTo(1));
+            Assert.That(report.Errors, Has.Some.Contains("изменился после обхода"));
         }
     }
 
@@ -191,32 +145,132 @@ public class CleanupServiceTests
     }
 
     [Test]
-    public void Clean_DirectoryHeldByFreshFileIsNotReportedAsError()
+    public void Clean_LockedFileCountedAsSkipped()
     {
-        var nested = Path.Combine(_targetDir, "nested");
-        File.WriteAllText(Path.Combine(nested, "fresh.tmp"), "new");
+        using var handle = new FileStream(Path.Combine(_targetDir, "a.tmp"), FileMode.Open, FileAccess.Read, FileShare.None);
 
-        var report = new CleanupService().Clean(Target(TimeSpan.FromHours(24)), null, CancellationToken.None);
+        var report = new CleanupService().Clean(Target(), null, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(Directory.Exists(nested), Is.True);
-            Assert.That(report.Errors, Is.Empty);
-            Assert.That(report.Skipped, Is.Zero);
+            Assert.That(report.Skipped, Is.EqualTo(1));
+            Assert.That(report.Deleted, Is.EqualTo(1));
+            Assert.That(report.FreedBytes, Is.EqualTo(11));
+            Assert.That(report.Errors, Is.Not.Empty);
         }
     }
 
     [Test]
-    public void Clean_EmptiedSubdirectoryRemovedRootKept()
+    public void Clean_RemovesEmptiedSubdirectories()
     {
-        var report = new CleanupService().Clean(Target(), null, CancellationToken.None);
+        new CleanupService().Clean(Target(), null, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(Directory.Exists(Path.Combine(_targetDir, "nested")), Is.False);
             Assert.That(Directory.Exists(_targetDir), Is.True);
-            Assert.That(report.Errors, Is.Empty);
         }
+    }
+
+    [Test]
+    public void Clean_UnsupportedTargetRefused()
+    {
+        var report = new CleanupService().Clean(Target(supported: false), null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Deleted, Is.Zero);
+            Assert.That(report.Skipped, Is.EqualTo(1));
+            Assert.That(report.Errors, Is.Not.Empty);
+            Assert.That(File.Exists(Path.Combine(_targetDir, "a.tmp")), Is.True);
+        }
+    }
+
+    [Test]
+    public void Measure_CancelledThrows()
+    {
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => new CleanupService().Measure(Target(), cts.Token));
+    }
+
+    [Test]
+    public void Measure_CountsFilesAndBytes()
+    {
+        var measurement = new CleanupService().Measure(Target(), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(measurement.Files, Is.EqualTo(2));
+            Assert.That(measurement.Bytes, Is.EqualTo(16));
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Available));
+        }
+    }
+
+    [Test]
+    public void Measure_JunctionNotTraversed()
+    {
+        var outside = Path.Combine(_tempDir, "outside");
+        Directory.CreateDirectory(outside);
+        WriteAged(Path.Combine(outside, "victim.txt"), "0123456789");
+
+        if (!TryCreateJunction(Path.Combine(_targetDir, "link"), outside))
+        {
+            Assert.Ignore("не удалось создать junction");
+        }
+
+        var measurement = new CleanupService().Measure(Target(), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(measurement.Files, Is.EqualTo(2));
+            Assert.That(measurement.Bytes, Is.EqualTo(16));
+        }
+    }
+
+    [Test]
+    public void Measure_MissingDirectoryReportedInsteadOfThrowing()
+    {
+        Directory.Delete(_targetDir, true);
+
+        var measurement = new CleanupService().Measure(Target(), CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Missing));
+            Assert.That(measurement.Files, Is.Zero);
+        }
+    }
+
+    [Test]
+    public void Measure_ParentJunctionRefusedAsUnsafe()
+    {
+        var link = Path.Combine(_tempDir, "link");
+
+        if (!TryCreateJunction(link, _targetDir))
+        {
+            Assert.Ignore("не удалось создать junction");
+        }
+
+        var measurement = new CleanupService().Measure(Target() with { Path = Path.Combine(link, "nested") }, CancellationToken.None);
+
+        Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
+    }
+
+    [Test]
+    public void Measure_RootJunctionRefusedAsUnsafe()
+    {
+        var link = Path.Combine(_tempDir, "link");
+
+        if (!TryCreateJunction(link, _targetDir))
+        {
+            Assert.Ignore("не удалось создать junction");
+        }
+
+        var measurement = new CleanupService().Measure(Target() with { Path = link }, CancellationToken.None);
+
+        Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
     }
 
     [Test]
@@ -243,28 +297,15 @@ public class CleanupServiceTests
     }
 
     [Test]
-    public void Measure_CancelledThrows()
+    public void Measure_UnsupportedTargetStillSized()
     {
-        using var cts = new CancellationTokenSource();
-        cts.Cancel();
-
-        Assert.Throws<OperationCanceledException>(() => new CleanupService().Measure(Target(), cts.Token));
-    }
-
-    [Test]
-    public void Clean_CancelledMidDeleteReturnsPartialReport()
-    {
-        using var cts = new CancellationTokenSource();
-        var progress = new InlineProgress(_ => cts.Cancel());
-
-        var report = new CleanupService().Clean(Target(), progress, cts.Token);
+        var measurement = new CleanupService().Measure(Target(supported: false), CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(report.Deleted, Is.EqualTo(1));
-            Assert.That(report.Cancelled, Is.True);
-            Assert.That(report.FreedBytes, Is.GreaterThan(0));
-            Assert.That(Directory.GetFiles(_targetDir, "*", SearchOption.AllDirectories), Has.Length.EqualTo(1));
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsupported));
+            Assert.That(measurement.Files, Is.EqualTo(2));
+            Assert.That(measurement.Bytes, Is.EqualTo(16));
         }
     }
 
@@ -282,111 +323,67 @@ public class CleanupServiceTests
         }
     }
 
-    [Test]
-    public void Measure_RootJunctionRefusedAsUnsafe()
+    private static void RemoveTree(string path)
     {
-        var link = Path.Combine(_tempDir, "link");
-
-        if (!TryCreateJunction(link, _targetDir))
+        if (!Directory.Exists(path))
         {
-            Assert.Ignore("не удалось создать junction");
+            return;
         }
 
-        var measurement = new CleanupService().Measure(Target() with { Path = link }, CancellationToken.None);
+        var directory = new DirectoryInfo(path);
 
-        Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
+        if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+        {
+            directory.Delete();
+            return;
+        }
+
+        foreach (var sub in directory.GetDirectories())
+        {
+            RemoveTree(sub.FullName);
+        }
+
+        directory.Delete(true);
     }
 
-    [Test]
-    public void Measure_ParentJunctionRefusedAsUnsafe()
+    private CleanupTarget Target(TimeSpan? minimumAge = null, bool supported = true)
     {
-        var link = Path.Combine(_tempDir, "link");
-
-        if (!TryCreateJunction(link, _targetDir))
+        return new()
         {
-            Assert.Ignore("не удалось создать junction");
-        }
-
-        var measurement = new CleanupService().Measure(Target() with { Path = Path.Combine(link, "nested") }, CancellationToken.None);
-
-        Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
+            Id = "Test",
+            Name = "Тест",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Path = _targetDir,
+            Supported = supported,
+            MinimumAge = minimumAge ?? TimeSpan.Zero,
+        };
     }
 
-    [Test]
-    public void Clean_CancelledAfterLastFileStillReportsCancelled()
+    private static void WriteAged(string path, string content)
     {
-        using var cts = new CancellationTokenSource();
-        var target = Target() with { Path = Path.Combine(_targetDir, "nested") };
-        var progress = new InlineProgress(_ => cts.Cancel());
-
-        var report = new CleanupService().Clean(target, progress, cts.Token);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Deleted, Is.EqualTo(1));
-            Assert.That(report.Cancelled, Is.True);
-        }
+        File.WriteAllText(path, content);
+        var old = DateTime.UtcNow - TimeSpan.FromDays(7);
+        File.SetCreationTimeUtc(path, old);
+        File.SetLastWriteTimeUtc(path, old);
     }
 
-    [Test]
-    public void Clean_FileReplacedAfterWalkSurvives()
+    private static bool TryCreateJunction(string path, string target)
     {
-        var service = new CleanupService();
-        var target = Target();
-        var replaced = Path.Combine(_targetDir, "a.tmp");
-
-        var progress = new InlineProgress(_ => File.WriteAllText(Path.Combine(_targetDir, "nested", "b.tmp"), "fresh-and-longer"));
-
-        var report = service.Clean(target, progress, CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
+        var start = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{path}\" \"{target}\"")
         {
-            Assert.That(File.Exists(replaced), Is.False);
-            Assert.That(File.Exists(Path.Combine(_targetDir, "nested", "b.tmp")), Is.True);
-            Assert.That(report.Skipped, Is.EqualTo(1));
-            Assert.That(report.Errors, Has.Some.Contains("изменился после обхода"));
-        }
-    }
+            CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+        };
 
-    [Test]
-    public void Clean_LockedFileCountedAsSkipped()
-    {
-        using var handle = new FileStream(Path.Combine(_targetDir, "a.tmp"), FileMode.Open, FileAccess.Read, FileShare.None);
+        using var process = Process.Start(start);
 
-        var report = new CleanupService().Clean(Target(), null, CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
+        if (process is null)
         {
-            Assert.That(report.Skipped, Is.EqualTo(1));
-            Assert.That(report.Deleted, Is.EqualTo(1));
-            Assert.That(report.FreedBytes, Is.EqualTo(11));
-            Assert.That(report.Errors, Is.Not.Empty);
+            return false;
         }
-    }
 
-    [Test]
-    public void Clean_UnsupportedTargetRefused()
-    {
-        var report = new CleanupService().Clean(Target(supported: false), null, CancellationToken.None);
+        process.WaitForExit();
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Deleted, Is.Zero);
-            Assert.That(report.Skipped, Is.EqualTo(1));
-            Assert.That(report.Errors, Is.Not.Empty);
-            Assert.That(File.Exists(Path.Combine(_targetDir, "a.tmp")), Is.True);
-        }
-    }
-
-    [Test]
-    public void Clean_RemovesEmptiedSubdirectories()
-    {
-        new CleanupService().Clean(Target(), null, CancellationToken.None);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(Directory.Exists(Path.Combine(_targetDir, "nested")), Is.False);
-            Assert.That(Directory.Exists(_targetDir), Is.True);
-        }
+        return process.ExitCode == 0;
     }
 }

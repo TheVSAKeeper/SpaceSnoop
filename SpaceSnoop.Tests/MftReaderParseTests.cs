@@ -9,6 +9,135 @@ public class MftReaderParseTests
     private const uint JunctionTag = 0xA0000003;
 
     [Test]
+    public void Атрибут_с_непригодной_длиной_оставляет_запись_в_дереве_и_считается_неполной()
+    {
+        var statistics = new MftStatistics();
+
+        var record = new MftRecordBuilder()
+            .FileName(Parent, 1, "битый.bin")
+            .BrokenAttribute();
+
+        var entry = Parse(record, statistics);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(statistics.Partial, Is.EqualTo(1));
+            Assert.That(statistics.Damaged, Is.Zero);
+            Assert.That(entry.Name, Is.EqualTo("битый.bin"));
+        }
+    }
+
+    [Test]
+    public void Второе_имя_копится_отдельно_от_выбранного()
+    {
+        var pending = new MftPending();
+
+        var record = new MftRecordBuilder()
+            .FileName(Parent, 1, "ссылка.dll")
+            .FileName(60, 3, "оригинал.dll");
+
+        var entry = Parse(record, pending: pending);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Name, Is.EqualTo("ссылка.dll"));
+            Assert.That(pending.Alternates[0], Has.Count.EqualTo(1));
+            Assert.That(pending.Alternates[0][0].Name, Is.EqualTo("оригинал.dll"));
+            Assert.That(pending.Alternates[0][0].Parent, Is.EqualTo(60));
+            Assert.That(pending.Alternates[0][0].ParentSequence, Is.EqualTo(3));
+        }
+    }
+
+    [Test]
+    public void Длина_атрибута_у_края_int_не_роняет_разбор()
+    {
+        var statistics = new MftStatistics();
+
+        var record = new MftRecordBuilder()
+            .FileName(Parent, 1, "переполнение.bin")
+            .OverflowingAttribute();
+
+        var entry = Parse(record, statistics);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(statistics.Partial, Is.EqualTo(1));
+            Assert.That(statistics.Damaged, Is.Zero);
+            Assert.That(entry.Name, Is.EqualTo("переполнение.bin"));
+        }
+    }
+
+    [Test]
+    public void Запись_без_подписи_с_мусором_считается_повреждённой()
+    {
+        var statistics = new MftStatistics();
+
+        var record = new MftRecordBuilder()
+            .WithoutSignature()
+            .FileName(Parent, 1, "мусор.bin");
+
+        Parse(record, statistics);
+
+        Assert.That(statistics.Damaged, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Запись_расширение_отдаёт_размер_и_имя_базовой()
+    {
+        var pending = new MftPending();
+        var statistics = new MftStatistics();
+
+        var record = new MftRecordBuilder()
+            .ExtensionOf(12)
+            .FileName(Parent, 1, "огромный.iso")
+            .NonResidentData(9_000_000_000);
+
+        var entry = Parse(record, statistics, pending);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Present, Is.False);
+            Assert.That(statistics.Extensions, Is.EqualTo(1));
+            Assert.That(pending.Sizes[12].Size, Is.EqualTo(9_000_000_000));
+            Assert.That(pending.Alternates[12][0].Name, Is.EqualTo("огромный.iso"));
+        }
+    }
+
+    [Test]
+    public void Имя_в_пространстве_dos_не_выбирается()
+    {
+        var pending = new MftPending();
+
+        var record = new MftRecordBuilder()
+            .FileName(Parent, 1, "PROGRA~1", MftLayout.NamespaceDos)
+            .FileName(Parent, 1, "Program Files");
+
+        var entry = Parse(record, pending: pending);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Name, Is.EqualTo("Program Files"));
+            Assert.That(pending.Alternates, Is.Empty);
+        }
+    }
+
+    [Test]
+    public void Имя_нулевой_длины_записью_не_принимается()
+    {
+        var record = new MftRecordBuilder()
+            .FileName(Parent, 1, string.Empty)
+            .ResidentData(16);
+
+        var entry = Parse(record);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(entry.Name, Is.Null);
+            Assert.That(entry.Exists, Is.False);
+        }
+    }
+
+    [Test]
     public void Имя_родитель_и_размер_читаются_из_базовой_записи()
     {
         var statistics = new MftStatistics();
@@ -48,41 +177,35 @@ public class MftReaderParseTests
     }
 
     [Test]
-    public void Имя_в_пространстве_dos_не_выбирается()
+    public void Нерезидентный_reparse_оставляет_тег_непрочитанным()
     {
-        var pending = new MftPending();
-
         var record = new MftRecordBuilder()
-            .FileName(Parent, 1, "PROGRA~1", space: MftLayout.NamespaceDos)
-            .FileName(Parent, 1, "Program Files");
+            .AsDirectory()
+            .FileName(Parent, 1, "ссылка")
+            .NonResidentReparse();
 
-        var entry = Parse(record, pending: pending);
+        var entry = Parse(record);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(entry.Name, Is.EqualTo("Program Files"));
-            Assert.That(pending.Alternates, Is.Empty);
+            Assert.That(entry.ReparseTag, Is.Zero);
+            Assert.That(entry.ReparseUnknown, Is.True);
+            Assert.That(entry.IsLink, Is.True);
         }
     }
 
     [Test]
-    public void Второе_имя_копится_отдельно_от_выбранного()
+    public void Пустая_запись_повреждением_не_считается()
     {
-        var pending = new MftPending();
+        var entries = new MftEntry[1];
+        var statistics = new MftStatistics();
 
-        var record = new MftRecordBuilder()
-            .FileName(Parent, 1, "ссылка.dll")
-            .FileName(60, 3, "оригинал.dll");
-
-        var entry = Parse(record, pending: pending);
+        MftReader.Parse(new byte[1024], 512, 0, entries, new(), statistics);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(entry.Name, Is.EqualTo("ссылка.dll"));
-            Assert.That(pending.Alternates[0], Has.Count.EqualTo(1));
-            Assert.That(pending.Alternates[0][0].Name, Is.EqualTo("оригинал.dll"));
-            Assert.That(pending.Alternates[0][0].Parent, Is.EqualTo(60));
-            Assert.That(pending.Alternates[0][0].ParentSequence, Is.EqualTo(3));
+            Assert.That(statistics.Damaged, Is.Zero);
+            Assert.That(statistics.RecordsScanned, Is.EqualTo(1));
         }
     }
 
@@ -109,44 +232,6 @@ public class MftReaderParseTests
     }
 
     [Test]
-    public void Атрибут_с_непригодной_длиной_оставляет_запись_в_дереве_и_считается_неполной()
-    {
-        var statistics = new MftStatistics();
-
-        var record = new MftRecordBuilder()
-            .FileName(Parent, 1, "битый.bin")
-            .BrokenAttribute();
-
-        var entry = Parse(record, statistics);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(statistics.Partial, Is.EqualTo(1));
-            Assert.That(statistics.Damaged, Is.Zero);
-            Assert.That(entry.Name, Is.EqualTo("битый.bin"));
-        }
-    }
-
-    [Test]
-    public void Длина_атрибута_у_края_int_не_роняет_разбор()
-    {
-        var statistics = new MftStatistics();
-
-        var record = new MftRecordBuilder()
-            .FileName(Parent, 1, "переполнение.bin")
-            .OverflowingAttribute();
-
-        var entry = Parse(record, statistics);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(statistics.Partial, Is.EqualTo(1));
-            Assert.That(statistics.Damaged, Is.Zero);
-            Assert.That(entry.Name, Is.EqualTo("переполнение.bin"));
-        }
-    }
-
-    [Test]
     public void Резидентный_data_за_границей_атрибута_размер_не_задаёт()
     {
         var statistics = new MftStatistics();
@@ -166,18 +251,17 @@ public class MftReaderParseTests
     }
 
     [Test]
-    public void Имя_нулевой_длины_записью_не_принимается()
+    public void Резидентный_data_расширения_за_границей_атрибута_размер_не_задаёт()
     {
-        var record = new MftRecordBuilder()
-            .FileName(Parent, 1, string.Empty)
-            .ResidentData(16);
+        var statistics = new MftStatistics();
+        var pending = new MftPending();
 
-        var entry = Parse(record);
+        Parse(new MftRecordBuilder().ExtensionOf(20).OversizedResidentData(4096), statistics, pending);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(entry.Name, Is.Null);
-            Assert.That(entry.Exists, Is.False);
+            Assert.That(pending.Sizes, Is.Empty);
+            Assert.That(statistics.Partial, Is.EqualTo(1));
         }
     }
 
@@ -201,35 +285,6 @@ public class MftReaderParseTests
     }
 
     [Test]
-    public void Запись_без_подписи_с_мусором_считается_повреждённой()
-    {
-        var statistics = new MftStatistics();
-
-        var record = new MftRecordBuilder()
-            .WithoutSignature()
-            .FileName(Parent, 1, "мусор.bin");
-
-        Parse(record, statistics);
-
-        Assert.That(statistics.Damaged, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void Пустая_запись_повреждением_не_считается()
-    {
-        var entries = new MftEntry[1];
-        var statistics = new MftStatistics();
-
-        MftReader.Parse(new byte[1024], 512, 0, entries, new(), statistics);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(statistics.Damaged, Is.Zero);
-            Assert.That(statistics.RecordsScanned, Is.EqualTo(1));
-        }
-    }
-
-    [Test]
     public void Тег_reparse_читается_из_резидентного_атрибута()
     {
         var record = new MftRecordBuilder()
@@ -244,61 +299,6 @@ public class MftReaderParseTests
             Assert.That(entry.ReparseTag, Is.EqualTo(JunctionTag));
             Assert.That(entry.ReparseUnknown, Is.False);
             Assert.That(entry.IsLink, Is.True);
-        }
-    }
-
-    [Test]
-    public void Нерезидентный_reparse_оставляет_тег_непрочитанным()
-    {
-        var record = new MftRecordBuilder()
-            .AsDirectory()
-            .FileName(Parent, 1, "ссылка")
-            .NonResidentReparse();
-
-        var entry = Parse(record);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(entry.ReparseTag, Is.Zero);
-            Assert.That(entry.ReparseUnknown, Is.True);
-            Assert.That(entry.IsLink, Is.True);
-        }
-    }
-
-    [Test]
-    public void Запись_расширение_отдаёт_размер_и_имя_базовой()
-    {
-        var pending = new MftPending();
-        var statistics = new MftStatistics();
-
-        var record = new MftRecordBuilder()
-            .ExtensionOf(12)
-            .FileName(Parent, 1, "огромный.iso")
-            .NonResidentData(9_000_000_000);
-
-        var entry = Parse(record, statistics, pending);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(entry.Present, Is.False);
-            Assert.That(statistics.Extensions, Is.EqualTo(1));
-            Assert.That(pending.Sizes[12].Size, Is.EqualTo(9_000_000_000));
-            Assert.That(pending.Alternates[12][0].Name, Is.EqualTo("огромный.iso"));
-        }
-    }
-
-    [Test]
-    public void Резидентный_data_расширения_за_границей_атрибута_размер_не_задаёт()
-    {
-        var statistics = new MftStatistics();
-        var pending = new MftPending();
-
-        Parse(new MftRecordBuilder().ExtensionOf(20).OversizedResidentData(4096), statistics, pending);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(pending.Sizes, Is.Empty);
-            Assert.That(statistics.Partial, Is.EqualTo(1));
         }
     }
 

@@ -1,9 +1,9 @@
-﻿using Microsoft.Extensions.Logging.Abstractions;
-using SpaceSnoop.Core.Cleanup;
-using KeepShell.Services;
+﻿using KeepShell.Services;
 using KeepShell.Services.Modal;
 using KeepShell.Services.Platform;
 using KeepShell.Testing;
+using Microsoft.Extensions.Logging.Abstractions;
+using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Wpf.ViewModels.Cleanup;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 
@@ -26,8 +26,10 @@ public sealed class DeveloperCleanupViewModelTests
 
         Assert.That(repository, Is.Not.Null);
         _root = Path.Combine(repository!.FullName, ".kc", "scratch", "developer-cleanup-vm-tests", Guid.NewGuid().ToString("N"));
-        _paths = Enum.GetValues<NuGetCacheKind>().Where(x => x != NuGetCacheKind.None)
+        _paths = Enum.GetValues<NuGetCacheKind>()
+            .Where(x => x != NuGetCacheKind.None)
             .ToDictionary(x => x, x => Path.Combine(_root, x.ToString()));
+
         foreach (var (kind, path) in _paths)
         {
             Directory.CreateDirectory(path);
@@ -46,142 +48,24 @@ public sealed class DeveloperCleanupViewModelTests
     }
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_root, true);
-
-    private DeveloperCleanupViewModel Create(bool confirm = false) => new(
-        new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("test-user", _paths))),
-        new NoopDialogs(showResult: confirm), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance,
-        CreateProjects(), CreateWorkloads(), CreateDotNetClean());
-
-    private DotNetCleanViewModel CreateDotNetClean() => new(new DotNetCleanService(_root), new NoopDialogs(),
-        new FakeFilePicker(), new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<DotNetCleanViewModel>.Instance);
-
-    private static ProjectCleanupViewModel CreateProjects() => new(new ProjectCleanupService(), new NoopDialogs(),
-        new FakeFilePicker(), new FakeShellLauncher(), new FakeUiDispatcher(), new MemorySettings(), NullLogger<ProjectCleanupViewModel>.Instance);
-
-    private WorkloadCleanupViewModel CreateWorkloads() => new(new WorkloadCleanupService(_root), new NoopDialogs(),
-        new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance);
-
-    [Test]
-    public void Статус_проекта_остаётся_в_родительской_строке_после_завершения_поиска()
+    public void TearDown()
     {
-        var vm = Create();
-        vm.Projects.StatusText = "Поиск завершён. Проверьте пути и выберите каталоги.";
-        vm.SelectedAreaIndex = 1;
-        Assert.That(vm.StatusCaption, Is.EqualTo(vm.Projects.StatusText));
-    }
-
-    [Test]
-    public async Task После_замера_выбраны_только_HTTP_и_plugins()
-    {
-        var vm = Create();
-        await vm.RefreshCommand.ExecuteAsync(null);
-        Assert.That(vm.Caches.Where(x => x.IsSelected).Select(x => x.Kind),
-            Is.EquivalentTo(new[] { NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache }));
-        Assert.That(vm.CanClean, Is.True);
-    }
-
-    [Test]
-    public async Task Отказ_от_подтверждения_сохраняет_файлы_и_план()
-    {
-        var vm = Create();
-        await vm.RefreshCommand.ExecuteAsync(null);
-        await vm.CleanCommand.ExecuteAsync(null);
-        Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.HttpCache], "cache.dat")), Is.True);
-        Assert.That(vm.CanClean, Is.True);
-        Assert.That(vm.ResultText, Is.Null);
-    }
-
-    [Test]
-    public async Task Снятие_и_рекомендуемый_выбор_обновляют_итог_без_выбора_пакетов()
-    {
-        var vm = Create();
-        await vm.RefreshCommand.ExecuteAsync(null);
-        vm.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages).IsSelected = true;
-        vm.ClearSelectionCommand.Execute(null);
-        Assert.Multiple(() =>
-        {
-            Assert.That(vm.HasSelectedBytes, Is.False);
-            Assert.That(vm.CanClean, Is.False);
-            Assert.That(vm.SelectionText, Is.EqualTo("Категорий: 0 из 4"));
-        });
-        vm.SelectRecommendedCommand.Execute(null);
-        Assert.Multiple(() =>
-        {
-            Assert.That(vm.Caches.Where(x => x.IsSelected).Select(x => x.Kind),
-                Is.EquivalentTo(new[] { NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache }));
-            Assert.That(vm.HasSelectedBytes, Is.True);
-            Assert.That(vm.SelectionText, Is.EqualTo("Категорий: 2 из 4"));
-            Assert.That(vm.CanClean, Is.True);
-        });
-    }
-
-    [Test]
-    public async Task Подтверждённая_очистка_не_удаляет_невыбранные_категории()
-    {
-        var vm = Create(confirm: true);
-        await vm.RefreshCommand.ExecuteAsync(null);
-        await vm.CleanCommand.ExecuteAsync(null);
-        Assert.Multiple(() =>
-        {
-            Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.HttpCache], "cache.dat")), Is.False);
-            Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.PluginsCache], "cache.dat")), Is.False);
-            Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.Temp], "cache.dat")), Is.True);
-            Assert.That(Directory.GetFiles(_paths[NuGetCacheKind.GlobalPackages], "*", SearchOption.AllDirectories).Length, Is.EqualTo(3));
-            Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 2"));
-            Assert.That(vm.IsBusy, Is.False);
-        });
-    }
-
-    [Test]
-    public async Task Ошибка_определения_путей_не_оставляет_исполнимый_план()
-    {
-        var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => throw new InvalidOperationException("SDK недоступен")),
-            new NoopDialogs(), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
-        await vm.RefreshCommand.ExecuteAsync(null);
-        Assert.That(vm.CanClean, Is.False);
-        Assert.That(vm.IsBusy, Is.False);
-        Assert.That(vm.StatusText, Does.Contain("SDK недоступен"));
-    }
-
-    [Test]
-    public async Task Ошибка_повторного_замера_не_теряет_результат_удаления()
-    {
-        var calls = 0;
-        var service = new NuGetCleanupService(_ => ++calls == 3
-            ? throw new InvalidOperationException("повторный замер недоступен")
-            : Task.FromResult(new NuGetCacheLocations("user", _paths)));
-        var vm = new DeveloperCleanupViewModel(service, new NoopDialogs(showResult: true), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
-        await vm.RefreshCommand.ExecuteAsync(null);
-        await vm.CleanCommand.ExecuteAsync(null);
-        Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 2"));
-        Assert.That(vm.StatusText, Does.Contain("повторный замер недоступен"));
-        Assert.That(vm.CanClean, Is.False);
-    }
-
-    [Test]
-    public async Task Подтверждение_содержит_безвозвратность_удаления()
-    {
-        ConfirmDialogViewModel? confirmation = null;
-        var dialogs = new NoopDialogs(show: model =>
-        {
-            confirmation = model as ConfirmDialogViewModel;
-            return false;
-        });
-        var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
-            dialogs, new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
-        await vm.RefreshCommand.ExecuteAsync(null);
-        await vm.CleanCommand.ExecuteAsync(null);
-        Assert.That(confirmation, Is.Not.Null);
-        Assert.That(confirmation!.Warning, Does.Contain("безвозвратно"));
+        Directory.Delete(_root, true);
     }
 
     [Test]
     public async Task Обновление_из_шапки_не_заменяет_план_во_время_подтверждения()
     {
         var dialogs = new PausedDialogs();
-        var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
-            dialogs, new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
+        var vm = new DeveloperCleanupViewModel(
+            new(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
+            dialogs,
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+
         await vm.RefreshCommand.ExecuteAsync(null);
         var rows = vm.Caches.ToArray();
         foreach (var row in rows)
@@ -211,24 +95,155 @@ public sealed class DeveloperCleanupViewModelTests
         }
     }
 
-    private sealed class PausedDialogs : IDialogService
+    [Test]
+    public async Task Отказ_от_подтверждения_сохраняет_файлы_и_план()
     {
-        internal TaskCompletionSource<bool> Confirmation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        public Task<bool> ShowAsync(IDialogViewModel viewModel) => Confirmation.Task;
-        public Task<bool> ReplaceAsync(IDialogViewModel viewModel) => throw new NotSupportedException();
-        public bool Confirm(string title, string message, bool defaultYes = false) => throw new NotSupportedException();
-        public bool ConfirmWarning(string title, string message, bool defaultYes = false) => throw new NotSupportedException();
-        public void Info(string title, string message) => throw new NotSupportedException();
-        public void Warning(string title, string message) => throw new NotSupportedException();
-        public void Error(string title, string message) => throw new NotSupportedException();
+        var vm = Create();
+        await vm.RefreshCommand.ExecuteAsync(null);
+        await vm.CleanCommand.ExecuteAsync(null);
+        Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.HttpCache], "cache.dat")), Is.True);
+        Assert.That(vm.CanClean, Is.True);
+        Assert.That(vm.ResultText, Is.Null);
+    }
+
+    [Test]
+    public async Task Ошибка_определения_путей_не_оставляет_исполнимый_план()
+    {
+        var vm = new DeveloperCleanupViewModel(
+            new(_ => throw new InvalidOperationException("SDK недоступен")),
+            new NoopDialogs(),
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+
+        await vm.RefreshCommand.ExecuteAsync(null);
+        Assert.That(vm.CanClean, Is.False);
+        Assert.That(vm.IsBusy, Is.False);
+        Assert.That(vm.StatusText, Does.Contain("SDK недоступен"));
+    }
+
+    [Test]
+    public async Task Ошибка_повторного_замера_не_теряет_результат_удаления()
+    {
+        var calls = 0;
+        var service = new NuGetCleanupService(_ => ++calls == 3
+            ? throw new InvalidOperationException("повторный замер недоступен")
+            : Task.FromResult(new NuGetCacheLocations("user", _paths)));
+
+        var vm = new DeveloperCleanupViewModel(service, new NoopDialogs(showResult: true), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
+        await vm.RefreshCommand.ExecuteAsync(null);
+        await vm.CleanCommand.ExecuteAsync(null);
+        Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 2"));
+        Assert.That(vm.StatusText, Does.Contain("повторный замер недоступен"));
+        Assert.That(vm.CanClean, Is.False);
+    }
+
+    [Test]
+    public async Task Подтверждение_содержит_безвозвратность_удаления()
+    {
+        ConfirmDialogViewModel? confirmation = null;
+        var dialogs = new NoopDialogs(
+            show: model =>
+            {
+                confirmation = model as ConfirmDialogViewModel;
+                return false;
+            });
+
+        var vm = new DeveloperCleanupViewModel(
+            new(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
+            dialogs,
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+
+        await vm.RefreshCommand.ExecuteAsync(null);
+        await vm.CleanCommand.ExecuteAsync(null);
+        Assert.That(confirmation, Is.Not.Null);
+        Assert.That(confirmation!.Warning, Does.Contain("безвозвратно"));
+    }
+
+    [Test]
+    public async Task Подтверждённая_очистка_не_удаляет_невыбранные_категории()
+    {
+        var vm = Create(confirm: true);
+        await vm.RefreshCommand.ExecuteAsync(null);
+        await vm.CleanCommand.ExecuteAsync(null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.HttpCache], "cache.dat")), Is.False);
+            Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.PluginsCache], "cache.dat")), Is.False);
+            Assert.That(File.Exists(Path.Combine(_paths[NuGetCacheKind.Temp], "cache.dat")), Is.True);
+            Assert.That(Directory.GetFiles(_paths[NuGetCacheKind.GlobalPackages], "*", SearchOption.AllDirectories).Length, Is.EqualTo(3));
+            Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 2"));
+            Assert.That(vm.IsBusy, Is.False);
+        });
+    }
+
+    [Test]
+    public async Task После_замера_выбраны_только_HTTP_и_plugins()
+    {
+        var vm = Create();
+        await vm.RefreshCommand.ExecuteAsync(null);
+        Assert.That(
+            vm.Caches.Where(x => x.IsSelected).Select(x => x.Kind),
+            Is.EquivalentTo(new[] { NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache }));
+
+        Assert.That(vm.CanClean, Is.True);
+    }
+
+    [Test]
+    public async Task Снятие_и_рекомендуемый_выбор_обновляют_итог_без_выбора_пакетов()
+    {
+        var vm = Create();
+        await vm.RefreshCommand.ExecuteAsync(null);
+        vm.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages).IsSelected = true;
+        vm.ClearSelectionCommand.Execute(null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.HasSelectedBytes, Is.False);
+            Assert.That(vm.CanClean, Is.False);
+            Assert.That(vm.SelectionText, Is.EqualTo("Категорий: 0 из 4"));
+        });
+
+        vm.SelectRecommendedCommand.Execute(null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                vm.Caches.Where(x => x.IsSelected).Select(x => x.Kind),
+                Is.EquivalentTo(new[] { NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache }));
+
+            Assert.That(vm.HasSelectedBytes, Is.True);
+            Assert.That(vm.SelectionText, Is.EqualTo("Категорий: 2 из 4"));
+            Assert.That(vm.CanClean, Is.True);
+        });
+    }
+
+    [Test]
+    public void Статус_проекта_остаётся_в_родительской_строке_после_завершения_поиска()
+    {
+        var vm = Create();
+        vm.Projects.StatusText = "Поиск завершён. Проверьте пути и выберите каталоги.";
+        vm.SelectedAreaIndex = 1;
+        Assert.That(vm.StatusCaption, Is.EqualTo(vm.Projects.StatusText));
     }
 
     [Test]
     public async Task Фоновый_вызов_меняет_коллекцию_только_через_диспетчер()
     {
         var dispatcher = new TrackingDispatcher();
-        var vm = new DeveloperCleanupViewModel(new NuGetCleanupService(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
-            new NoopDialogs(), dispatcher, NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
+        var vm = new DeveloperCleanupViewModel(
+            new(_ => Task.FromResult(new NuGetCacheLocations("user", _paths))),
+            new NoopDialogs(),
+            dispatcher,
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+
         var changedOutsideDispatcher = false;
         vm.Caches.CollectionChanged += (_, _) => changedOutsideDispatcher |= !dispatcher.InsideInvoke;
         await Task.Run(() => vm.RefreshCommand.ExecuteAsync(null));
@@ -236,10 +251,96 @@ public sealed class DeveloperCleanupViewModelTests
         Assert.That(changedOutsideDispatcher, Is.False);
     }
 
+    private DeveloperCleanupViewModel Create(bool confirm = false)
+    {
+        return new(
+            new(_ => Task.FromResult(new NuGetCacheLocations("test-user", _paths))),
+            new NoopDialogs(showResult: confirm),
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+    }
+
+    private DotNetCleanViewModel CreateDotNetClean()
+    {
+        return new(
+            new(_root),
+            new NoopDialogs(),
+            new FakeFilePicker(),
+            new FakeShellLauncher(),
+            new FakeUiDispatcher(),
+            NullLogger<DotNetCleanViewModel>.Instance);
+    }
+
+    private static ProjectCleanupViewModel CreateProjects()
+    {
+        return new(
+            new(),
+            new NoopDialogs(),
+            new FakeFilePicker(),
+            new FakeShellLauncher(),
+            new FakeUiDispatcher(),
+            new MemorySettings(),
+            NullLogger<ProjectCleanupViewModel>.Instance);
+    }
+
+    private WorkloadCleanupViewModel CreateWorkloads()
+    {
+        return new(
+            new(_root),
+            new NoopDialogs(),
+            new FakeShellLauncher(),
+            new FakeUiDispatcher(),
+            NullLogger<WorkloadCleanupViewModel>.Instance);
+    }
+
+    private sealed class PausedDialogs : IDialogService
+    {
+        internal TaskCompletionSource<bool> Confirmation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<bool> ShowAsync(IDialogViewModel viewModel)
+        {
+            return Confirmation.Task;
+        }
+
+        public Task<bool> ReplaceAsync(IDialogViewModel viewModel)
+        {
+            throw new NotSupportedException();
+        }
+
+        public bool Confirm(string title, string message, bool defaultYes = false)
+        {
+            throw new NotSupportedException();
+        }
+
+        public bool ConfirmWarning(string title, string message, bool defaultYes = false)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void Info(string title, string message)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void Warning(string title, string message)
+        {
+            throw new NotSupportedException();
+        }
+
+        public void Error(string title, string message)
+        {
+            throw new NotSupportedException();
+        }
+    }
+
     private sealed class TrackingDispatcher : IUiDispatcher
     {
-        internal bool InsideInvoke { get; private set; }
         public bool HasAccess => InsideInvoke;
+        internal bool InsideInvoke { get; private set; }
+
         public void Invoke(Action action)
         {
             var previous = InsideInvoke;
@@ -254,6 +355,9 @@ public sealed class DeveloperCleanupViewModelTests
             }
         }
 
-        public IUiTimer CreateTimer(TimeSpan interval, Action tick) => throw new NotSupportedException();
+        public IUiTimer CreateTimer(TimeSpan interval, Action tick)
+        {
+            throw new NotSupportedException();
+        }
     }
 }

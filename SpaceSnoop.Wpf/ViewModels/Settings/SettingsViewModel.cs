@@ -22,103 +22,17 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
     private readonly IShellLauncher _shell;
     private readonly IApplicationLifetime _lifetime;
     private readonly ToastNotifier _notifier;
-    private readonly IReadOnlyDictionary<string, SettingsResetPlan> _resetPlans;
-    private readonly IReadOnlyDictionary<string, SettingsResetField> _resetFields;
     private readonly ILogger<SettingsViewModel> _logger;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(McpConnectSnippet))]
     private int _selectedMcpFormatIndex;
 
-    public SettingsViewModel(
-        ThemeViewModel theme,
-        ShellPreferences shell,
-        OperationPreferences operations,
-        ScanPreferences scan,
-        UpdatePreferences update,
-        AppUpdateViewModel updater,
-        McpPreferences mcp,
-        McpServerHost mcpServer,
-        AgentPreferences agent,
-        AgentModelSelector agentModels,
-        AgentBackends agentBackends,
-        ISettingsStore settings,
-        IDialogService dialogs,
-        IClipboardService clipboard,
-        IShellLauncher shellLauncher,
-        IApplicationLifetime lifetime,
-        ToastNotifier notifier,
-        ILogger<SettingsViewModel> logger)
-    {
-        Agent = agent;
-        AgentModel = agentModels;
-        _agentBackends = agentBackends;
-        Theme = theme;
-        Shell = shell;
-        Operations = operations;
-        Scan = scan;
-        Update = update;
-        Updater = updater;
-        Mcp = mcp;
-        McpServer = mcpServer;
-        _settings = settings;
-        _dialogs = dialogs;
-        _clipboard = clipboard;
-        _shell = shellLauncher;
-        _lifetime = lifetime;
-        _notifier = notifier;
-        _logger = logger;
+    public IReadOnlyDictionary<string, SettingsResetPlan> ResetPlans { get; }
 
-        _resetPlans = SettingsResetCatalog.Build(theme, shell, scan, operations, update, mcp, agent, settings, ResetField);
-        SettingsResetCatalog.EnsureExhaustive(Sections, _resetPlans);
-
-        _resetFields = _resetPlans.Values
-            .SelectMany(plan => plan.Fields)
-            .ToDictionary(field => field.Key, StringComparer.Ordinal);
-
-        Theme.PropertyChanged += OnThemePropertyChanged;
-        Mcp.PropertyChanged += OnMcpPropertyChanged;
-        Shell.PropertyChanged += OnPreferencesPropertyChanged;
-        Scan.PropertyChanged += OnPreferencesPropertyChanged;
-        Operations.PropertyChanged += OnPreferencesPropertyChanged;
-        Update.PropertyChanged += OnPreferencesPropertyChanged;
-        Agent.PropertyChanged += OnPreferencesPropertyChanged;
-
-        Sections.Restore(settings.GetStringValue(SettingsKeys.SettingsSection));
-        Sections.PropertyChanged += OnSectionsPropertyChanged;
-    }
-
-    public IReadOnlyDictionary<string, SettingsResetPlan> ResetPlans => _resetPlans;
-
-    public IReadOnlyDictionary<string, SettingsResetField> ResetFields => _resetFields;
+    public IReadOnlyDictionary<string, SettingsResetField> ResetFields { get; }
 
     public SettingsSectionList Sections { get; } = CreateSections();
-
-    public static SettingsSectionList CreateSections()
-    {
-        return new(
-            new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, "тема оформления светлая тёмная tarkov как в системе windows масштаб шрифта размер текста заголовок страницы уведомления тосты производительность отклик память диагностика"),
-            new SettingsSection("startup", "Запуск", PackIconLucideKind.Power, "стартовая страница боковое меню навигация рейл свернуть права администратора предупреждение"),
-            new SettingsSection("scan", "Сканирование", PackIconLucideKind.HardDrive, "многопоточный обход потоки параллелизм тепловая подсветка интенсивность проводник открытие файлов тип носителя ssd hdd mft таблица ntfs жёсткие ссылки движок администратор подкаталог диск целиком память повторный скан прежний результат освободить предупреждать спрашивать вернуть системе замирание",
-            [
-                new SettingsSubsection("parallel", "Многопоточность"),
-                new SettingsSubsection("mft", "Таблица NTFS"),
-                new SettingsSubsection("memory", "Память"),
-                new SettingsSubsection("view", "Подсветка и проводник"),
-            ]),
-            new SettingsSection("sync", "Синхронизация", PackIconLucideKind.FolderSync, "исключения glob паттерны автодополнение путей git репозиторий группировка служебных каталогов плоский вид перезапись затираемый файл корзина",
-            [
-                new SettingsSubsection("paths", "Ввод путей"),
-                new SettingsSubsection("recycle", "Корзина"),
-                new SettingsSubsection("exclusions", "Исключения и группировка"),
-            ]),
-            new SettingsSection("delete", "Удаление", PackIconLucideKind.Trash2, "корзина безвозвратно подтверждение помеченные элементы"),
-            new SettingsSection("archive", "Архивация", PackIconLucideKind.FileArchive, "zip сжатие уровень упаковать оригинал корзина"),
-            new SettingsSection("update", "Обновления", PackIconLucideKind.Download, "github релизы репозиторий версия проверка скачивание изменения changelog"),
-            new SettingsSection("storage", "Файлы и хранение", PackIconLucideKind.Folder, "расположение данных appdata portable settings.toml путь логи журналы"),
-            new SettingsSection("mcp", "Доступ для агентов", PackIconLucideKind.Plug, "mcp сервер порт токен подключение json cli адрес изменяющие операции агент"),
-            new SettingsSection("agent", "Агент-чат", PackIconLucideKind.MessageCircle, "шнырь claude codex opencode cli модель глубина рассуждений транскрипт согласие"));
-    }
 
     public ThemeViewModel Theme { get; }
 
@@ -204,7 +118,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
             if (value != AppStorage.UseAppData)
             {
                 _ = ChangeStorageLocationAsync(value)
-                    .ContinueWith(task => _logger.StorageLocationChangeFailed(task.Exception!, AppStorage.DirectoryFor(value)),
+                    .ContinueWith(
+                        task => _logger.StorageLocationChangeFailed(task.Exception!, AppStorage.DirectoryFor(value)),
                         CancellationToken.None,
                         TaskContinuationOptions.OnlyOnFaulted,
                         TaskScheduler.Default);
@@ -290,6 +205,108 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
             OnPropertyChanged();
             RefreshResetAvailability();
         }
+    }
+
+    public SettingsViewModel(
+        ThemeViewModel theme,
+        ShellPreferences shell,
+        OperationPreferences operations,
+        ScanPreferences scan,
+        UpdatePreferences update,
+        AppUpdateViewModel updater,
+        McpPreferences mcp,
+        McpServerHost mcpServer,
+        AgentPreferences agent,
+        AgentModelSelector agentModels,
+        AgentBackends agentBackends,
+        ISettingsStore settings,
+        IDialogService dialogs,
+        IClipboardService clipboard,
+        IShellLauncher shellLauncher,
+        IApplicationLifetime lifetime,
+        ToastNotifier notifier,
+        ILogger<SettingsViewModel> logger)
+    {
+        Agent = agent;
+        AgentModel = agentModels;
+        _agentBackends = agentBackends;
+        Theme = theme;
+        Shell = shell;
+        Operations = operations;
+        Scan = scan;
+        Update = update;
+        Updater = updater;
+        Mcp = mcp;
+        McpServer = mcpServer;
+        _settings = settings;
+        _dialogs = dialogs;
+        _clipboard = clipboard;
+        _shell = shellLauncher;
+        _lifetime = lifetime;
+        _notifier = notifier;
+        _logger = logger;
+
+        ResetPlans = SettingsResetCatalog.Build(
+            theme,
+            shell,
+            scan,
+            operations,
+            update,
+            mcp,
+            agent,
+            settings,
+            ResetField);
+
+        SettingsResetCatalog.EnsureExhaustive(Sections, ResetPlans);
+
+        ResetFields = ResetPlans.Values
+            .SelectMany(plan => plan.Fields)
+            .ToDictionary(field => field.Key, StringComparer.Ordinal);
+
+        Theme.PropertyChanged += OnThemePropertyChanged;
+        Mcp.PropertyChanged += OnMcpPropertyChanged;
+        Shell.PropertyChanged += OnPreferencesPropertyChanged;
+        Scan.PropertyChanged += OnPreferencesPropertyChanged;
+        Operations.PropertyChanged += OnPreferencesPropertyChanged;
+        Update.PropertyChanged += OnPreferencesPropertyChanged;
+        Agent.PropertyChanged += OnPreferencesPropertyChanged;
+
+        Sections.Restore(settings.GetStringValue(SettingsKeys.SettingsSection));
+        Sections.PropertyChanged += OnSectionsPropertyChanged;
+    }
+
+    public static SettingsSectionList CreateSections()
+    {
+        return new(
+            new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, "тема оформления светлая тёмная tarkov как в системе windows масштаб шрифта размер текста заголовок страницы уведомления тосты производительность отклик память диагностика"),
+            new SettingsSection("startup", "Запуск", PackIconLucideKind.Power, "стартовая страница боковое меню навигация рейл свернуть права администратора предупреждение"),
+            new SettingsSection(
+                "scan",
+                "Сканирование",
+                PackIconLucideKind.HardDrive,
+                "многопоточный обход потоки параллелизм тепловая подсветка интенсивность проводник открытие файлов тип носителя ssd hdd mft таблица ntfs жёсткие ссылки движок администратор подкаталог диск целиком память повторный скан прежний результат освободить предупреждать спрашивать вернуть системе замирание",
+                [
+                    new("parallel", "Многопоточность"),
+                    new("mft", "Таблица NTFS"),
+                    new("memory", "Память"),
+                    new("view", "Подсветка и проводник"),
+                ]),
+            new SettingsSection(
+                "sync",
+                "Синхронизация",
+                PackIconLucideKind.FolderSync,
+                "исключения glob паттерны автодополнение путей git репозиторий группировка служебных каталогов плоский вид перезапись затираемый файл корзина",
+                [
+                    new("paths", "Ввод путей"),
+                    new("recycle", "Корзина"),
+                    new("exclusions", "Исключения и группировка"),
+                ]),
+            new SettingsSection("delete", "Удаление", PackIconLucideKind.Trash2, "корзина безвозвратно подтверждение помеченные элементы"),
+            new SettingsSection("archive", "Архивация", PackIconLucideKind.FileArchive, "zip сжатие уровень упаковать оригинал корзина"),
+            new SettingsSection("update", "Обновления", PackIconLucideKind.Download, "github релизы репозиторий версия проверка скачивание изменения changelog"),
+            new SettingsSection("storage", "Файлы и хранение", PackIconLucideKind.Folder, "расположение данных appdata portable settings.toml путь логи журналы"),
+            new SettingsSection("mcp", "Доступ для агентов", PackIconLucideKind.Plug, "mcp сервер порт токен подключение json cli адрес изменяющие операции агент"),
+            new SettingsSection("agent", "Агент-чат", PackIconLucideKind.MessageCircle, "шнырь claude codex opencode cli модель глубина рассуждений транскрипт согласие"));
     }
 
     private void OnSectionsPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -394,7 +411,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
     [RelayCommand(CanExecute = nameof(CanResetSection))]
     private void ResetSection(string? sectionKey)
     {
-        if (sectionKey is null || !_resetPlans.TryGetValue(sectionKey, out var plan) || !plan.CanReset)
+        if (sectionKey is null || !ResetPlans.TryGetValue(sectionKey, out var plan) || !plan.CanReset)
         {
             return;
         }
@@ -410,7 +427,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
 
     private bool CanResetSection(string? sectionKey)
     {
-        return sectionKey is not null && _resetPlans.TryGetValue(sectionKey, out var plan) && plan.CanReset;
+        return sectionKey is not null && ResetPlans.TryGetValue(sectionKey, out var plan) && plan.CanReset;
     }
 
     private void ResetField(SettingsResetField field)
@@ -425,7 +442,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
 
     private void RefreshResetAvailability()
     {
-        foreach (var field in _resetFields.Values)
+        foreach (var field in ResetFields.Values)
         {
             field.RefreshAvailability();
         }

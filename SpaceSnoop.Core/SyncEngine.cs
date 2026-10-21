@@ -219,30 +219,6 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
         logger.SyncTypeConflictBlocked(file.Action, file.RelativePath, file.TypeConflict);
     }
 
-    private readonly record struct DeleteGate(bool Left, bool Right, bool Reported)
-    {
-        public static DeleteGate Open { get; } = new(false, false, false);
-
-        public DeleteGate Inherit(DirectoryComparison dir)
-        {
-            return this with
-            {
-                Left = Left || dir.RightIncomplete || dir.DeleteLeftBlocked,
-                Right = Right || dir.LeftIncomplete || dir.DeleteRightBlocked,
-            };
-        }
-
-        public bool Blocks(SyncAction action, bool leftBlocked = false, bool rightBlocked = false)
-        {
-            return action switch
-            {
-                SyncAction.DeleteLeft => Left || leftBlocked,
-                SyncAction.DeleteRight => Right || rightBlocked,
-                _ => false,
-            };
-        }
-    }
-
     private static bool SubtreeBlocks(
         DirectoryComparison dir,
         SyncAction action,
@@ -510,6 +486,26 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
         }
     }
 
+    private readonly record struct DeleteGate(bool Left, bool Right, bool Reported)
+    {
+        public static DeleteGate Open { get; } = new(false, false, false);
+
+        public DeleteGate Inherit(DirectoryComparison dir)
+        {
+            return this with { Left = Left || dir.RightIncomplete || dir.DeleteLeftBlocked, Right = Right || dir.LeftIncomplete || dir.DeleteRightBlocked };
+        }
+
+        public bool Blocks(SyncAction action, bool leftBlocked = false, bool rightBlocked = false)
+        {
+            return action switch
+            {
+                SyncAction.DeleteLeft => Left || leftBlocked,
+                SyncAction.DeleteRight => Right || rightBlocked,
+                _ => false,
+            };
+        }
+    }
+
     private sealed class TransferTracker(IProgress<OperationProgress>? progress, SyncReport report)
     {
         private static readonly TimeSpan ReportInterval = TimeSpan.FromMilliseconds(120);
@@ -534,7 +530,7 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
 
             var now = _clock.Elapsed;
 
-            if (_lastReport is { } last && now - last < ReportInterval)
+            if (_lastReport is { } last && (now - last) < ReportInterval)
             {
                 return;
             }

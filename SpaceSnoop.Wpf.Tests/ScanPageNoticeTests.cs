@@ -5,7 +5,6 @@ using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Scan;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -32,11 +31,7 @@ public class ScanPageNoticeTests
         ISettingsStore settings = new MemorySettings();
         settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
 
-        _logging = KeepShellLogging.Bootstrap(new()
-        {
-            LogsDirectory = Path.Combine(_root, "logs"),
-            FileNamePrefix = AppInfo.LogFilePrefix,
-        });
+        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
 
         _services = App.ConfigureServices(settings, _logging);
         _dialogs = new();
@@ -62,6 +57,35 @@ public class ScanPageNoticeTests
         }
     }
 
+    [Test]
+    public void Итог_прежнего_скана_прячется_при_выборе_новой_цели_и_переезжает_в_кнопку_возврата()
+    {
+        var previous = Arrange("other");
+
+        Assert.That(_scan.ShowSummary, Is.True);
+
+        _scan.OpenPickerCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.ShowTargetPicker, Is.True);
+            Assert.That(_scan.ShowSummary, Is.False);
+            Assert.That(_scan.Summary.ReturnCaption, Is.EqualTo($"К результатам: other · {previous.TotalSizeText}"));
+        }
+    }
+
+    [Test]
+    public async Task Остановленный_первый_скан_о_прежнем_результате_молчит()
+    {
+        await CancelledScanAsync(Path.Combine(_root, "target"));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.ScanWasCancelled, Is.True);
+            Assert.That(_scan.CancelledReleasedPrevious, Is.False);
+        }
+    }
+
     [TestCase(true, TestName = "Остановленный повторный скан называет папку и говорит, что прежний результат убран")]
     [TestCase(false, TestName = "Остановленный повторный скан без снятия прежнего результата о его потере молчит")]
     public async Task Остановленный_повторный_скан(bool release)
@@ -81,65 +105,23 @@ public class ScanPageNoticeTests
     }
 
     [Test]
-    public async Task Остановленный_первый_скан_о_прежнем_результате_молчит()
+    public async Task Повторный_скан_и_Сканировать_снова_снимают_только_корень_своей_папки()
     {
-        await CancelledScanAsync(Path.Combine(_root, "target"));
+        var other = Arrange("other");
+        var target = Arrange("target");
+        _scan.Preferences.ReleaseBeforeRescan = true;
+        _scan.Preferences.ConfirmRescan = false;
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(_scan.ScanWasCancelled, Is.True);
-            Assert.That(_scan.CancelledReleasedPrevious, Is.False);
-        }
-    }
-
-    [Test]
-    public async Task Скрыть_убирает_сообщение_об_остановке()
-    {
-        await CancelledScanAsync(Path.Combine(_root, "target"));
-
-        _scan.DismissCancelledCommand.Execute(null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(_scan.ScanWasCancelled, Is.False);
-            Assert.That(_scan.RescanCancelledCommand.CanExecute(null), Is.False);
-        }
-    }
-
-    [Test]
-    public async Task Сканировать_снова_повторяет_остановленный_скан_той_же_папки()
-    {
-        var target = Path.Combine(_root, "target");
-        await File.WriteAllTextAsync(Path.Combine(target, "file.bin"), "data");
-        await CancelledScanAsync(target);
+        await CancelledScanAsync(target.AbsolutePath);
+        var afterCancel = _scan.Roots.Select(static root => root.AbsolutePath).ToList();
 
         await _scan.RescanCancelledCommand.ExecuteAsync(null);
         await SettleDriveLabelsAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_scan.ScanWasCancelled, Is.False);
-            Assert.That(_scan.HasResult, Is.True);
-            Assert.That(_scan.Roots[0].AbsolutePath, Is.EqualTo(target));
-            Assert.That(_scan.SelectedDrive, Is.EqualTo(target));
-        }
-    }
-
-    [Test]
-    public async Task Сканировать_снова_для_исчезнувшей_папки_объясняет_причину_и_убирает_сообщение()
-    {
-        var target = Path.Combine(_root, "target");
-        await CancelledScanAsync(target);
-        Directory.Delete(target);
-
-        await _scan.RescanCancelledCommand.ExecuteAsync(null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(_scan.ScanWasCancelled, Is.False);
-            Assert.That(_scan.HasResult, Is.False);
-            Assert.That(_dialogs.LastWarningMessage, Does.Contain(target));
-            Assert.That(_scan.RescanCancelledCommand.CanExecute(null), Is.False);
+            Assert.That(afterCancel, Is.EqualTo(new[] { other.AbsolutePath }));
+            Assert.That(_scan.Roots.Select(static root => root.AbsolutePath), Is.EqualTo(new[] { target.AbsolutePath, other.AbsolutePath }));
         }
     }
 
@@ -199,40 +181,53 @@ public class ScanPageNoticeTests
     }
 
     [Test]
-    public async Task Повторный_скан_и_Сканировать_снова_снимают_только_корень_своей_папки()
+    public async Task Сканировать_снова_для_исчезнувшей_папки_объясняет_причину_и_убирает_сообщение()
     {
-        var other = Arrange("other");
-        var target = Arrange("target");
-        _scan.Preferences.ReleaseBeforeRescan = true;
-        _scan.Preferences.ConfirmRescan = false;
+        var target = Path.Combine(_root, "target");
+        await CancelledScanAsync(target);
+        Directory.Delete(target);
 
-        await CancelledScanAsync(target.AbsolutePath);
-        var afterCancel = _scan.Roots.Select(static root => root.AbsolutePath).ToList();
+        await _scan.RescanCancelledCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.ScanWasCancelled, Is.False);
+            Assert.That(_scan.HasResult, Is.False);
+            Assert.That(_dialogs.LastWarningMessage, Does.Contain(target));
+            Assert.That(_scan.RescanCancelledCommand.CanExecute(null), Is.False);
+        }
+    }
+
+    [Test]
+    public async Task Сканировать_снова_повторяет_остановленный_скан_той_же_папки()
+    {
+        var target = Path.Combine(_root, "target");
+        await File.WriteAllTextAsync(Path.Combine(target, "file.bin"), "data");
+        await CancelledScanAsync(target);
 
         await _scan.RescanCancelledCommand.ExecuteAsync(null);
         await SettleDriveLabelsAsync();
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(afterCancel, Is.EqualTo(new[] { other.AbsolutePath }));
-            Assert.That(_scan.Roots.Select(static root => root.AbsolutePath), Is.EqualTo(new[] { target.AbsolutePath, other.AbsolutePath }));
+            Assert.That(_scan.ScanWasCancelled, Is.False);
+            Assert.That(_scan.HasResult, Is.True);
+            Assert.That(_scan.Roots[0].AbsolutePath, Is.EqualTo(target));
+            Assert.That(_scan.SelectedDrive, Is.EqualTo(target));
         }
     }
 
     [Test]
-    public void Итог_прежнего_скана_прячется_при_выборе_новой_цели_и_переезжает_в_кнопку_возврата()
+    public async Task Скрыть_убирает_сообщение_об_остановке()
     {
-        var previous = Arrange("other");
+        await CancelledScanAsync(Path.Combine(_root, "target"));
 
-        Assert.That(_scan.ShowSummary, Is.True);
-
-        _scan.OpenPickerCommand.Execute(null);
+        _scan.DismissCancelledCommand.Execute(null);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(_scan.ShowTargetPicker, Is.True);
-            Assert.That(_scan.ShowSummary, Is.False);
-            Assert.That(_scan.Summary.ReturnCaption, Is.EqualTo($"К результатам: other · {previous.TotalSizeText}"));
+            Assert.That(_scan.ScanWasCancelled, Is.False);
+            Assert.That(_scan.RescanCancelledCommand.CanExecute(null), Is.False);
         }
     }
 

@@ -17,17 +17,21 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanNodeContextMenu.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTreeRowTemplate.xaml" />
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTreemapTooltip.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanNodeContextMenu.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTreeRowTemplate.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTreemapTooltip.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="ToggleButton.Header"
                    TargetType="ToggleButton"
                    BasedOn="{StaticResource ToggleButton.Toolbar}">
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                 Value="True">
+                    <DataTrigger
+                        Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                        Value="True">
                         <Setter Property="Height"
                                 Value="{DynamicResource Control.Height.Compact}" />
                     </DataTrigger>
@@ -52,8 +56,9 @@
                         <Setter Property="Margin"
                                 Value="10,4,12,6" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                         Value="True">
+                            <DataTrigger
+                                Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                Value="True">
                                 <Setter Property="Margin"
                                         Value="10,0,12,2" />
                             </DataTrigger>
@@ -68,8 +73,9 @@
                                 <Style.Triggers>
                                     <MultiDataTrigger>
                                         <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                                       Value="True" />
+                                            <Condition
+                                                Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                                Value="True" />
                                             <Condition Binding="{Binding HasResult}"
                                                        Value="True" />
                                         </MultiDataTrigger.Conditions>
@@ -123,8 +129,9 @@
                                     <Setter Property="MinWidth"
                                             Value="132" />
                                     <Style.Triggers>
-                                        <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                                     Value="True">
+                                        <DataTrigger
+                                            Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                            Value="True">
                                             <Setter Property="MinWidth"
                                                     Value="0" />
                                             <Setter Property="Height"
@@ -370,8 +377,9 @@
                         <Setter Property="Description"
                                 Value="{Binding ScanTargetPath, StringFormat='Дерево появится, когда обход {0} закончится – ход виден в панели выше. Прервать можно кнопкой «Остановить» или клавишей Esc.'}" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                         Value="True">
+                            <DataTrigger
+                                Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                Value="True">
                                 <Setter Property="Description"
                                         Value="{x:Null}" />
                             </DataTrigger>

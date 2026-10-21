@@ -3,7 +3,6 @@ using SpaceSnoop.Wpf.Agent;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Chat;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -24,13 +23,14 @@ public class ChatHistoryTests
         File.Delete(_path);
     }
 
-    [TestCase("", ExpectedResult = ChatHistoryStore.UntitledConversation)]
-    [TestCase("   \r\n   ", ExpectedResult = ChatHistoryStore.UntitledConversation)]
-    [TestCase("Куда делось место на диске C?", ExpectedResult = "Куда делось место на диске C?")]
-    [TestCase("Первая строка\nвторая строка", ExpectedResult = "Первая строка")]
-    public string Заголовок_разговора_берётся_из_первой_строки_вопроса(string prompt)
+    [Test]
+    public void Битая_история_не_роняет_чат()
     {
-        return ChatHistoryStore.MakeTitle(prompt);
+        File.WriteAllText(_path, "{ не json");
+
+        var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, _path);
+
+        Assert.That(store.Load(), Is.Empty);
     }
 
     [Test]
@@ -48,6 +48,15 @@ public class ChatHistoryTests
             Assert.That(head, Is.EqualTo(Prompt[..head.Length]));
             Assert.That(Prompt[head.Length], Is.EqualTo(' '));
         }
+    }
+
+    [TestCase("", ExpectedResult = ChatHistoryStore.UntitledConversation)]
+    [TestCase("   \r\n   ", ExpectedResult = ChatHistoryStore.UntitledConversation)]
+    [TestCase("Куда делось место на диске C?", ExpectedResult = "Куда делось место на диске C?")]
+    [TestCase("Первая строка\nвторая строка", ExpectedResult = "Первая строка")]
+    public string Заголовок_разговора_берётся_из_первой_строки_вопроса(string prompt)
+    {
+        return ChatHistoryStore.MakeTitle(prompt);
     }
 
     [Test]
@@ -74,11 +83,7 @@ public class ChatHistoryTests
     public void Разговор_переживает_запись_и_чтение()
     {
         var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, _path);
-        var saved = Conversation("разговор", "Куда делось место?") with
-        {
-            Backend = AgentBackendKind.Codex,
-            SessionId = "session-42",
-        };
+        var saved = Conversation("разговор", "Куда делось место?") with { Backend = AgentBackendKind.Codex, SessionId = "session-42" };
 
         store.Save([saved]);
         var loaded = store.Load();
@@ -92,16 +97,6 @@ public class ChatHistoryTests
             Assert.That(loaded[0].Messages, Has.Count.EqualTo(2));
             Assert.That(loaded[0].Messages[1].Tools, Is.EqualTo(new[] { "scan_directory" }));
         }
-    }
-
-    [Test]
-    public void Битая_история_не_роняет_чат()
-    {
-        File.WriteAllText(_path, "{ не json");
-
-        var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, _path);
-
-        Assert.That(store.Load(), Is.Empty);
     }
 
     [Test]

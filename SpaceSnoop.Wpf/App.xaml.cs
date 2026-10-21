@@ -6,6 +6,7 @@ using SpaceSnoop.Wpf.Views;
 using SpaceSnoop.Wpf.Views.Behaviors;
 using System.Diagnostics;
 using System.IO;
+using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace SpaceSnoop.Wpf;
 
@@ -14,6 +15,133 @@ public partial class App : Application
     private ServiceProvider? _services;
     private KeepShellLogging? _logging;
     private ISettingsStore? _settings;
+
+    internal static ServiceProvider ConfigureServices(ISettingsStore settings, KeepShellLogging logging)
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton(settings);
+        services.AddKeepShellLogging(logging);
+
+        services.AddSingleton<DiskSpaceCalculator>();
+        services.AddSingleton<MftScanner>();
+        services.AddSingleton<ScanRunner>();
+
+        services.AddSingleton<DuplicateFinder>();
+        services.AddSingleton<DockerService>();
+        services.AddSingleton<ArchiveService>();
+        services.AddSingleton<CleanupService>();
+        services.AddSingleton<NuGetCleanupService>();
+        services.AddSingleton<ProjectCleanupService>();
+        services.AddSingleton(new WorkloadCleanupService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
+        services.AddSingleton<DotNetCleanService>(new DotNetCleanService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
+        services.AddSingleton<CompareDirectoriesUseCase>();
+        services.AddSingleton<ExecuteSyncUseCase>();
+
+        services.AddKeepShell();
+        services.AddKeepShellToasts();
+        services.AddSingleton<ToastNotifier>();
+        services.AddSingleton<ShellPreferences>();
+        services.AddSingleton<OperationPreferences>();
+        services.AddSingleton<ScanPreferences>();
+        services.AddSingleton<UpdatePreferences>();
+        services.AddSingleton<ThemeViewModel>();
+        services.AddSingleton<SystemTheme>();
+
+        services.AddSingleton(new ErrorReportOptions { IssueRepo = () => AppInfo.RepoSlug, LogFileGlobs = [AppInfo.LogFileGlob], SessionStartMarker = AppInfo.SessionStartMarker });
+
+        services.AddSingleton<ErrorReportService>();
+
+        services.AddKeepShellDiagnostics(
+            new()
+            {
+                AppName = AppInfo.Name,
+                AppVersion = AppInfo.Version,
+                DataDirectory = AppStorage.DataDirectory,
+                PortableStorage = !AppStorage.UseAppData,
+                SampleInterval = TimeSpan.FromMilliseconds(AppDefaults.PerformanceSampleIntervalMs),
+                WindowSamples = AppDefaults.PerformanceWindowSamples,
+                HistorySamples = AppDefaults.PerformanceHistorySamples,
+                HistoryPointsMax = AppDefaults.PerformanceHistoryPointsMax,
+                HitchThresholdMs = AppDefaults.PerformanceHitchMs,
+                HitchLogInterval = TimeSpan.FromSeconds(AppDefaults.PerformanceHitchLogIntervalSeconds),
+                HitchRowsMax = AppDefaults.PerformanceHitchRowsMax,
+                BundleHitchRows = AppDefaults.DiagnosticsHitchRows,
+                FrameSlowMs = AppDefaults.PerformanceFrameSlowMs,
+                FrameGapMs = AppDefaults.PerformanceFrameGapMs,
+                ChartRefresh = TimeSpan.FromMilliseconds(AppDefaults.PerformanceChartRefreshMs),
+                ChartWindow = AppDefaults.PerformanceChartWindowDefault,
+                ChartHeight = AppDefaults.PerformanceChartPageHeight,
+                ChartDotLimit = AppDefaults.PerformanceChartDotLimit,
+                BundleLogFiles = AppDefaults.DiagnosticsLogFiles,
+                BundleLogTailLines = AppDefaults.DiagnosticsLogTailLines,
+                BundleNameAttempts = AppDefaults.DiagnosticsNameAttempts,
+            });
+
+        services.AddSingleton<PerformanceOperations>();
+        services.AddSingleton<PerformanceHudViewModel>();
+        services.AddSingleton<ScanOperationsCard>();
+        services.AddSingleton<IDiagnosticsCard>(static provider => provider.GetRequiredService<ScanOperationsCard>());
+        services.AddSingleton<IDiagnosticsBundleSource>(static provider => new SpaceSnoopBundleSource(
+            provider.GetRequiredService<ISettingsStore>(),
+            provider.GetRequiredService<PerformanceOperations>(),
+            Path.Combine(AppStorage.DataDirectory, TomlSettingsFile.PrimaryFileName)));
+
+        services.AddSingleton<IDiagnosticsSecretSource, SpaceSnoopSecretSource>();
+
+        services.AddSingleton<ScanInspectorViewModel>();
+        services.AddSingleton<ScanNodeFactory>();
+        services.AddSingleton<DeleteProgressDialogFactory>();
+        services.AddSingleton<ArchiveProgressDialogFactory>();
+        services.AddSingleton<CleanupProgressDialogFactory>();
+
+        services.AddSingleton<DuplicateProgressDialogFactory>();
+
+        services.AddSingleton<AppNavigator>();
+        services.AddSingleton<IAppNavigator>(static provider => provider.GetRequiredService<AppNavigator>());
+
+        services.AddSingleton<ScanViewModel>();
+        services.AddSingleton<IScanAutomation>(static provider => provider.GetRequiredService<ScanViewModel>());
+        services.AddSingleton<SyncViewModel>();
+        services.AddSingleton<ISyncAutomation>(static provider => provider.GetRequiredService<SyncViewModel>());
+        services.AddSingleton<OverviewViewModel>();
+        services.AddSingleton<IScheduleRunner, ScheduleRunner>();
+        services.AddSingleton<ScheduleViewModel>();
+        services.AddSingleton<DockerViewModel>();
+        services.AddSingleton<CleanupViewModel>();
+        services.AddSingleton<ICleanupAutomation>(static provider => provider.GetRequiredService<CleanupViewModel>());
+        services.AddSingleton<CleanupPageViewModel>();
+        services.AddSingleton<DeveloperCleanupViewModel>();
+        services.AddSingleton<ProjectCleanupViewModel>();
+        services.AddSingleton<WorkloadCleanupViewModel>();
+        services.AddSingleton<DotNetCleanViewModel>();
+        services.AddSingleton<ChatViewModel>();
+        services.AddSingleton<LogsViewModel>();
+        services.AddSingleton<AboutViewModel>();
+        services.AddSingleton<SettingsViewModel>();
+
+        services.AddSingleton<AppUpdateViewModel>();
+        services.AddSingleton<ShellViewModel>();
+        services.AddSingleton<MainWindow>();
+
+        services.AddSingleton<AgentPreferences>();
+        services.AddSingleton<AgentModelSelector>();
+        services.AddSingleton(provider => new ChatHistoryStore(provider.GetRequiredService<ILogger<ChatHistoryStore>>()));
+        services.AddSingleton(provider => new AgentTranscriptStore(
+            provider.GetRequiredService<AgentPreferences>(),
+            provider.GetRequiredService<ILogger<AgentTranscriptStore>>()));
+
+        services.AddSingleton<ClaudeAgentBackend>();
+        services.AddSingleton<CodexAgentBackend>();
+        services.AddSingleton<OpenCodeAgentBackend>();
+        services.AddSingleton<AgentBackends>();
+
+        services.AddSingleton<McpPreferences>();
+        services.AddSingleton<McpBridge>();
+        services.AddSingleton<McpServerHost>();
+
+        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -33,12 +161,7 @@ public partial class App : Application
 
             var candidate = Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName);
 
-            _logging = KeepShellLogging.Bootstrap(new()
-            {
-                LogsDirectory = candidate,
-                FileNamePrefix = AppInfo.LogFilePrefix,
-                MinimumLevelOverrides = AppDefaults.LogLevelOverrides,
-            });
+            _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = candidate, FileNamePrefix = AppInfo.LogFilePrefix, MinimumLevelOverrides = AppDefaults.LogLevelOverrides });
 
             logsDirectory = candidate;
         }
@@ -50,7 +173,7 @@ public partial class App : Application
 
         if (syncIndex >= 0)
         {
-            var profileId = syncIndex + 1 < e.Args.Length ? e.Args[syncIndex + 1] : null;
+            var profileId = (syncIndex + 1) < e.Args.Length ? e.Args[syncIndex + 1] : null;
             RunHeadlessSync(profileId);
             return;
         }
@@ -134,6 +257,15 @@ public partial class App : Application
         }
     }
 
+    protected override void OnExit(ExitEventArgs e)
+    {
+        _settings?.Close();
+
+        _services?.Dispose();
+        _logging?.Dispose();
+        base.OnExit(e);
+    }
+
     private void ReportStartupFailure(Exception exception, string? logsDirectory)
     {
         Log.Fatal(exception, $"{AppInfo.Name}.Wpf не смог запуститься");
@@ -155,15 +287,6 @@ public partial class App : Application
         Shutdown(1);
     }
 
-    protected override void OnExit(ExitEventArgs e)
-    {
-        _settings?.Close();
-
-        _services?.Dispose();
-        _logging?.Dispose();
-        base.OnExit(e);
-    }
-
     private void ReportSettingsWriteFailures(ISettingsStore settings, ServiceProvider services)
     {
         var logger = _logging!.CreateLogger<App>();
@@ -180,7 +303,7 @@ public partial class App : Application
         };
     }
 
-    private static async Task RestoreNetworkDrivesAsync(ServiceProvider services, Microsoft.Extensions.Logging.ILogger logger)
+    private static async Task RestoreNetworkDrivesAsync(ServiceProvider services, ILogger logger)
     {
         try
         {
@@ -216,9 +339,6 @@ public partial class App : Application
             case StartupAdminAction.None when !isElevated:
                 Log.Information("Предупреждение о запуске без прав администратора отключено в настройках");
                 break;
-
-            default:
-                break;
         }
 
         try
@@ -230,139 +350,6 @@ public partial class App : Application
         {
             Log.Error(ex, "Вопрос о правах администратора не показан");
         }
-    }
-
-    internal static ServiceProvider ConfigureServices(ISettingsStore settings, KeepShellLogging logging)
-    {
-        var services = new ServiceCollection();
-
-        services.AddSingleton(settings);
-        services.AddKeepShellLogging(logging);
-
-        services.AddSingleton<DiskSpaceCalculator>();
-        services.AddSingleton<MftScanner>();
-        services.AddSingleton<ScanRunner>();
-
-        services.AddSingleton<DuplicateFinder>();
-        services.AddSingleton<DockerService>();
-        services.AddSingleton<ArchiveService>();
-        services.AddSingleton<CleanupService>();
-        services.AddSingleton<NuGetCleanupService>();
-        services.AddSingleton<ProjectCleanupService>();
-        services.AddSingleton(new WorkloadCleanupService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
-        services.AddSingleton<DotNetCleanService>(new DotNetCleanService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
-        services.AddSingleton<CompareDirectoriesUseCase>();
-        services.AddSingleton<ExecuteSyncUseCase>();
-
-        services.AddKeepShell();
-        services.AddKeepShellToasts();
-        services.AddSingleton<ToastNotifier>();
-        services.AddSingleton<ShellPreferences>();
-        services.AddSingleton<OperationPreferences>();
-        services.AddSingleton<ScanPreferences>();
-        services.AddSingleton<UpdatePreferences>();
-        services.AddSingleton<ThemeViewModel>();
-        services.AddSingleton<SystemTheme>();
-
-        services.AddSingleton(new ErrorReportOptions
-        {
-            IssueRepo = () => AppInfo.RepoSlug,
-            LogFileGlobs = [AppInfo.LogFileGlob],
-            SessionStartMarker = AppInfo.SessionStartMarker,
-        });
-
-        services.AddSingleton<ErrorReportService>();
-
-        services.AddKeepShellDiagnostics(new()
-        {
-            AppName = AppInfo.Name,
-            AppVersion = AppInfo.Version,
-            DataDirectory = AppStorage.DataDirectory,
-            PortableStorage = !AppStorage.UseAppData,
-            SampleInterval = TimeSpan.FromMilliseconds(AppDefaults.PerformanceSampleIntervalMs),
-            WindowSamples = AppDefaults.PerformanceWindowSamples,
-            HistorySamples = AppDefaults.PerformanceHistorySamples,
-            HistoryPointsMax = AppDefaults.PerformanceHistoryPointsMax,
-            HitchThresholdMs = AppDefaults.PerformanceHitchMs,
-            HitchLogInterval = TimeSpan.FromSeconds(AppDefaults.PerformanceHitchLogIntervalSeconds),
-            HitchRowsMax = AppDefaults.PerformanceHitchRowsMax,
-            BundleHitchRows = AppDefaults.DiagnosticsHitchRows,
-            FrameSlowMs = AppDefaults.PerformanceFrameSlowMs,
-            FrameGapMs = AppDefaults.PerformanceFrameGapMs,
-            ChartRefresh = TimeSpan.FromMilliseconds(AppDefaults.PerformanceChartRefreshMs),
-            ChartWindow = AppDefaults.PerformanceChartWindowDefault,
-            ChartHeight = AppDefaults.PerformanceChartPageHeight,
-            ChartDotLimit = AppDefaults.PerformanceChartDotLimit,
-            BundleLogFiles = AppDefaults.DiagnosticsLogFiles,
-            BundleLogTailLines = AppDefaults.DiagnosticsLogTailLines,
-            BundleNameAttempts = AppDefaults.DiagnosticsNameAttempts,
-        });
-
-        services.AddSingleton<PerformanceOperations>();
-        services.AddSingleton<PerformanceHudViewModel>();
-        services.AddSingleton<ScanOperationsCard>();
-        services.AddSingleton<IDiagnosticsCard>(static provider => provider.GetRequiredService<ScanOperationsCard>());
-        services.AddSingleton<IDiagnosticsBundleSource>(static provider => new SpaceSnoopBundleSource(
-            provider.GetRequiredService<ISettingsStore>(),
-            provider.GetRequiredService<PerformanceOperations>(),
-            Path.Combine(AppStorage.DataDirectory, TomlSettingsFile.PrimaryFileName)));
-        services.AddSingleton<IDiagnosticsSecretSource, SpaceSnoopSecretSource>();
-
-        services.AddSingleton<ScanInspectorViewModel>();
-        services.AddSingleton<ScanNodeFactory>();
-        services.AddSingleton<DeleteProgressDialogFactory>();
-        services.AddSingleton<ArchiveProgressDialogFactory>();
-        services.AddSingleton<CleanupProgressDialogFactory>();
-
-        services.AddSingleton<DuplicateProgressDialogFactory>();
-
-        services.AddSingleton<AppNavigator>();
-        services.AddSingleton<IAppNavigator>(static provider => provider.GetRequiredService<AppNavigator>());
-
-        services.AddSingleton<ScanViewModel>();
-        services.AddSingleton<IScanAutomation>(static provider => provider.GetRequiredService<ScanViewModel>());
-        services.AddSingleton<SyncViewModel>();
-        services.AddSingleton<ISyncAutomation>(static provider => provider.GetRequiredService<SyncViewModel>());
-        services.AddSingleton<OverviewViewModel>();
-        services.AddSingleton<IScheduleRunner, ScheduleRunner>();
-        services.AddSingleton<ScheduleViewModel>();
-        services.AddSingleton<DockerViewModel>();
-        services.AddSingleton<CleanupViewModel>();
-        services.AddSingleton<ICleanupAutomation>(static provider => provider.GetRequiredService<CleanupViewModel>());
-        services.AddSingleton<CleanupPageViewModel>();
-        services.AddSingleton<DeveloperCleanupViewModel>();
-        services.AddSingleton<ProjectCleanupViewModel>();
-        services.AddSingleton<WorkloadCleanupViewModel>();
-        services.AddSingleton<DotNetCleanViewModel>();
-        services.AddSingleton<ChatViewModel>();
-        services.AddSingleton<LogsViewModel>();
-        services.AddSingleton<AboutViewModel>();
-        services.AddSingleton<SettingsViewModel>();
-
-        services.AddSingleton<AppUpdateViewModel>();
-        services.AddSingleton<ShellViewModel>();
-        services.AddSingleton<MainWindow>();
-
-        services.AddSingleton<AgentPreferences>();
-        services.AddSingleton<AgentModelSelector>();
-        services.AddSingleton(provider => new ChatHistoryStore(provider.GetRequiredService<ILogger<ChatHistoryStore>>()));
-        services.AddSingleton(provider => new AgentTranscriptStore(
-            provider.GetRequiredService<AgentPreferences>(),
-            provider.GetRequiredService<ILogger<AgentTranscriptStore>>()));
-        services.AddSingleton<ClaudeAgentBackend>();
-        services.AddSingleton<CodexAgentBackend>();
-        services.AddSingleton<OpenCodeAgentBackend>();
-        services.AddSingleton<AgentBackends>();
-
-        services.AddSingleton<McpPreferences>();
-        services.AddSingleton<McpBridge>();
-        services.AddSingleton<McpServerHost>();
-
-        return services.BuildServiceProvider(new ServiceProviderOptions
-        {
-            ValidateOnBuild = true,
-            ValidateScopes = true,
-        });
     }
 
     private void RunGallery(IEnumerable<string> args)
@@ -434,7 +421,8 @@ public partial class App : Application
         DispatcherUnhandledException += (_, args) =>
         {
             Log.Error(args.Exception, "Необработанное исключение UI-потока");
-            StyledMessageBox.Show(UnexpectedErrorNote.Describe(logsDirectory),
+            StyledMessageBox.Show(
+                UnexpectedErrorNote.Describe(logsDirectory),
                 "Ошибка",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);

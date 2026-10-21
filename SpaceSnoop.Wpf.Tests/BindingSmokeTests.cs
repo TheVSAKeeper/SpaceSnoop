@@ -1,15 +1,15 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Services.Platform;
-using KeepShell.ViewModels;
 using KeepShell.Testing;
+using KeepShell.ViewModels;
 using KeepShell.Views.Controls;
+using MahApps.Metro.IconPacks;
 using Microsoft.Extensions.DependencyInjection;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Core.Duplicates;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Gallery;
-using SpaceSnoop.Wpf.Bootstrap.Platform;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels;
@@ -77,11 +77,7 @@ public class BindingSmokeTests
         ThemeManager.Apply(AppThemes.LightKey);
         ViewLocator.InstallIntoApplication();
 
-        _logging = KeepShellLogging.Bootstrap(new()
-        {
-            LogsDirectory = Path.Combine(_fixture.Root, "logs"),
-            FileNamePrefix = AppInfo.LogFilePrefix,
-        });
+        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_fixture.Root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
 
         _services = App.ConfigureServices(settings, _logging);
         _shell = _services.GetRequiredService<ShellViewModel>();
@@ -92,96 +88,6 @@ public class BindingSmokeTests
         VisualTestHost.Run(() => GalleryHost.ArrangeAsync(_services, _fixture));
 
         _sink = BindingErrorSink.Attach();
-    }
-
-    [TestCase(false)]
-    [TestCase(true)]
-    public void Пометка_игнорирования_видна_в_дереве_и_снимается_из_меню_без_ошибок_биндинга(bool map)
-    {
-        _shell.TryNavigate(SectionKey.Scan);
-        var scan = _services.GetRequiredService<ScanViewModel>();
-        var previousMode = scan.ViewMode;
-        scan.ViewMode = ScanViewMode.Tree;
-        Settle();
-
-        var target = Descendants<TreeViewItem>(_window)
-            .First(static item => item.DataContext is ScanNodeViewModel { IsRoot: false });
-        var node = (ScanNodeViewModel)target.DataContext;
-        var beforeOrder = scan.Roots[0].Children.ToArray();
-        var wasMarked = node.IsMarkedDeleted;
-        target.IsSelected = true;
-        var menu = target.ContextMenu;
-        Assert.That(menu, Is.Not.Null);
-
-        try
-        {
-            node.MarkDeletedCommand.Execute(null);
-            menu.PlacementTarget = target;
-            menu.IsOpen = true;
-            Settle();
-            var hide = menu.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, node.IgnoreCommand));
-            Assert.That(hide.Command, Is.SameAs(node.IgnoreCommand));
-            hide.Command.Execute(null);
-            menu.IsOpen = false;
-            Settle();
-            Assert.That(node.IsIgnored, Is.True);
-            Assert.That(scan.Roots[0].Children, Is.EqualTo(beforeOrder));
-            var ignoredRow = Descendants<TreeViewItem>(_window).Single(item => ReferenceEquals(item.DataContext, node));
-            Assert.That(ignoredRow.IsSelected, Is.True);
-            Assert.That(Descendants<MahApps.Metro.IconPacks.PackIconLucide>(ignoredRow)
-                .Any(static icon => icon.Kind == MahApps.Metro.IconPacks.PackIconLucideKind.EyeOff && icon.IsVisible), Is.True);
-            Assert.That(scan.SelectedNode, Is.SameAs(node));
-            scan.ViewMode = map ? ScanViewMode.Treemap : ScanViewMode.Tree;
-            Settle();
-
-            var restore = (Button)ViewCapture.Find(_window, "ResetIgnoredButton")!;
-            Assert.That(restore.IsVisible, Is.True);
-            Assert.That(restore.Command, Is.SameAs(scan.ResetIgnoredCommand));
-            var delete = Descendants<Button>(Descendant<ScanToolbar>(_window)!)
-                .Single(button => ReferenceEquals(button.Command, scan.Marks.DeleteMarkedCommand));
-            Assert.That(delete.IsVisible, Is.True);
-            Assert.That(VisualTreeHelper.GetParent(restore), Is.SameAs(VisualTreeHelper.GetParent(delete)));
-            Assert.That(restore.ActualHeight, Is.EqualTo(delete.ActualHeight).Within(0.1));
-            Assert.That(scan.HasIgnoredItems, Is.True);
-            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-
-            var directory = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..", ".kc", "scratch", "scan-hidden-items");
-            Directory.CreateDirectory(directory);
-            var frame = Path.GetFullPath(Path.Combine(directory, map ? "ignored-map.png" : "ignored-tree.png"));
-            ViewCapture.Save(Descendant<ScanView>(_window)!, frame, 1);
-            TestContext.Out.WriteLine(frame);
-
-            scan.ViewMode = ScanViewMode.Tree;
-            Settle();
-            menu.PlacementTarget = Descendants<TreeViewItem>(_window).Single(item => ReferenceEquals(item.DataContext, node));
-            menu.IsOpen = true;
-            Settle();
-            var unignore = menu.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, node.UnignoreCommand));
-            Assert.That(unignore.Visibility, Is.EqualTo(Visibility.Visible));
-            unignore.Command.Execute(null);
-            menu.IsOpen = false;
-            Settle();
-            Assert.That(scan.HasIgnoredItems, Is.False);
-            Assert.That(restore.IsVisible, Is.False);
-            Assert.That(node.IsIgnored, Is.False);
-            Assert.That(scan.SelectedNode, Is.SameAs(node));
-            node.IgnoreCommand.Execute(null);
-            Settle();
-            restore.Command.Execute(null);
-            Settle();
-            Assert.That(node.IsIgnored, Is.False);
-            Assert.That(scan.HasIgnoredItems, Is.False);
-        }
-        finally
-        {
-            menu.IsOpen = false;
-            scan.ResetIgnoredCommand.Execute(null);
-            if (!wasMarked)
-            {
-                node.UnmarkDeletedCommand.Execute(null);
-            }
-            scan.ViewMode = previousMode;
-        }
     }
 
     [OneTimeTearDown]
@@ -211,16 +117,6 @@ public class BindingSmokeTests
         _sink.Clear();
     }
 
-    [TestCaseSource(nameof(Pages))]
-    public void Разметка_страницы_не_теряет_биндинги(string page)
-    {
-        Assert.That(_shell.TryNavigate(page), Is.True, $"Страница «{page}» не открылась.");
-
-        Settle();
-
-        Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-    }
-
     [Test]
     public void Алиас_docker_открывает_Очистку_на_секции_Docker()
     {
@@ -240,156 +136,39 @@ public class BindingSmokeTests
     }
 
     [Test]
-    public void Раздел_разработки_показывает_четыре_кэша_без_потери_биндингов()
+    public void Возврат_на_настройки_сохраняет_фильтр_разделов()
     {
-        Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
-        var development = _services.GetRequiredService<DeveloperCleanupViewModel>();
-        var page = _services.GetRequiredService<CleanupPageViewModel>();
-        development.ShowForAutomation();
-        page.SelectedSectionIndex = 2;
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var rail = Descendant<SettingsRail>(_window) ?? throw new InvalidOperationException("На странице настроек нет рейла разделов.");
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+
         try
         {
+            rail.SetCurrentValue(SettingsRail.SearchTextProperty, "шнырь");
             Settle();
-            Assert.Multiple(() =>
+
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+            Settle();
+
+            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась второй раз.");
+            Settle();
+
+            var reopened = Descendant<SettingsRail>(_window) ?? throw new InvalidOperationException("Вернувшаяся страница настроек осталась без рейла.");
+
+            using (Assert.EnterMultipleScope())
             {
-                Assert.That(page.IsDevelopmentActive, Is.True);
-                Assert.That(page.Sections.Count, Is.EqualTo(3));
-                Assert.That(development.Caches.Count, Is.EqualTo(4));
+                Assert.That(reopened, Is.Not.SameAs(rail), "Страница вернулась тем же рейлом – регрессию проверять не на чем.");
+                Assert.That(reopened.Sections, Is.SameAs(sections), "Разделы у страницы новые – терять фильтр было негде.");
+                Assert.That(reopened.SearchText, Is.EqualTo("шнырь"), "Новый рейл затёр запрос, который держал список разделов.");
+                Assert.That(sections.Items.Where(section => section.IsVisible).Select(section => section.Key), Is.EqualTo(new[] { "agent" }));
                 Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-            });
+            }
         }
         finally
         {
-            page.SelectedSectionIndex = 0;
-        }
-    }
-
-    [TestCase(1100d, 900d, 1d)]
-    [TestCase(880d, 800d, 1.6d)]
-    public void Раскрытые_пути_кэшей_доступны_для_выделения_и_помещаются_по_ширине(double width, double height, double fontScale)
-    {
-        var preferences = _services.GetRequiredService<ShellPreferences>();
-        var page = _services.GetRequiredService<CleanupPageViewModel>();
-        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
-        try
-        {
-            _window.Width = width;
-            _window.Height = height;
-            preferences.FontScale = fontScale;
-            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
-            page.Development.ShowForAutomation();
-            page.SelectedSectionIndex = 2;
-            Settle();
-            var view = Descendant<DeveloperCleanupView>(_window)!;
-            var details = Descendants<Expander>(view).Where(x => x.IsVisible).ToArray();
-            Assert.That(details, Has.Length.EqualTo(4));
-            foreach (var detail in details)
-            {
-                detail.IsExpanded = true;
-            }
-
-            Settle();
-            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
-            Assert.That(paths.Select(x => x.Text), Is.EquivalentTo(page.Development.Caches.Select(x => x.Path)));
-            foreach (var path in paths)
-            {
-                path.BringIntoView();
-                Settle();
-                Assert.That(path.Focusable && path.IsTabStop && path.IsEnabled && path.IsVisible, Is.True,
-                    "Полный путь не допускает фокуса и выделения текста.");
-                var bounds = path.TransformToAncestor(view).TransformBounds(new(path.RenderSize));
-                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
-                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1), "Путь выходит за ширину страницы.");
-            }
-
-            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-        }
-        finally
-        {
-            page.SelectedSectionIndex = 0;
-            preferences.FontScale = oldScale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
-            Settle();
-        }
-    }
-
-    [TestCase(1100d, 900d, 1d)]
-    [TestCase(880d, 800d, 1.6d)]
-    public void Проектные_артефакты_показывают_пути_и_выбор_без_выхода_за_ширину(double width, double height, double fontScale)
-    {
-        var preferences = _services.GetRequiredService<ShellPreferences>();
-        var page = _services.GetRequiredService<CleanupPageViewModel>();
-        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
-        try
-        {
-            _window.Width = width;
-            _window.Height = height;
-            preferences.FontScale = fontScale;
-            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
-            page.Development.ShowForAutomation();
-            page.Development.Projects.ShowForAutomation();
-            page.Development.SelectedAreaIndex = 1;
-            page.SelectedSectionIndex = 2;
-            Settle();
-            var view = Descendant<ProjectCleanupView>(_window)!;
-            Assert.That(view.IsVisible, Is.True);
-            var projects = page.Development.Projects;
-            Assert.That(((PropertyGroupDescription)projects.RowsView.GroupDescriptions.Single()).PropertyName,
-                Is.EqualTo(nameof(ProjectArtifactViewModel.ProjectDirectory)));
-            Assert.That(projects.RowsView.Groups!.Count, Is.GreaterThan(1));
-            var appRows = projects.Artifacts.Where(x => x.ProjectDirectory == @"C:\Sources\Projects\App").ToArray();
-            Assert.That(appRows.Select(x => x.ProjectBytes), Is.All.EqualTo(appRows.Sum(x => x.Bytes)));
-            Assert.That(projects.RowsView.SortDescriptions[0].PropertyName, Is.EqualTo(nameof(ProjectArtifactViewModel.ProjectBytes)));
-            Assert.That(projects.RowsView.SortDescriptions[0].Direction, Is.EqualTo(ListSortDirection.Descending));
-            projects.LargestFirst = false;
-            Assert.That(projects.RowsView.SortDescriptions[0].Direction, Is.EqualTo(ListSortDirection.Ascending));
-            projects.LargestFirst = true;
-            var list = Descendants<ListBox>(view).Single(x => x.Name == "ProjectArtifacts");
-            Assert.That(list.Items.Count, Is.EqualTo(projects.Artifacts.Count));
-            foreach (var artifact in projects.Artifacts)
-            {
-                list.ScrollIntoView(artifact);
-                Settle();
-                var container = Descendants<ListBoxItem>(list).FirstOrDefault(x => ReferenceEquals(x.DataContext, artifact));
-                Assert.That(container, Is.Not.Null);
-                var path = Descendants<TextBox>(container!).Single(x => AutomationProperties.GetName(x) == "Путь проектных артефактов");
-                Assert.That(path.Text, Is.EqualTo(artifact.Path));
-                path.BringIntoView();
-                Settle();
-                Assert.That(path.IsVisible && path.IsEnabled && path.Focusable && path.IsTabStop, Is.True);
-                var bounds = path.TransformToAncestor(view).TransformBounds(new(path.RenderSize));
-                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
-                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
-            }
-            var preview = Descendants<Expander>(list).First();
-            preview.IsExpanded = true;
-            Settle();
-            var previewList = Descendants<ListBox>(preview).First();
-            previewList.ScrollIntoView(previewList.Items[0]);
-            Settle();
-            var previewPath = Descendants<TextBox>(previewList).FirstOrDefault(x => AutomationProperties.GetName(x) == "Путь файла в снимке артефактов"
-                && x.Text.Length > 0);
-            Assert.That(previewPath, Is.Not.Null);
-            previewPath!.BringIntoView();
-            Settle();
-            var previewBounds = previewPath.TransformToAncestor(view).TransformBounds(new(previewPath.RenderSize));
-            Assert.That(previewBounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
-            Assert.That(Descendants<TextBlock>(view).Any(x => x.Text.StartsWith("C:\\Sources\\Projects", StringComparison.Ordinal)), Is.True);
-            projects.SearchText = "coverage";
-            Assert.That(projects.RowsView.Cast<ProjectArtifactViewModel>().Select(x => x.Kind),
-                Is.EquivalentTo(new[] { ProjectArtifactKind.Coverage }));
-            projects.SearchText = string.Empty;
-            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-        }
-        finally
-        {
-            page.Development.SelectedAreaIndex = 0;
-            page.Development.Projects.ResetForAutomation();
-            page.SelectedSectionIndex = 0;
-            preferences.FontScale = oldScale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
+            Descendant<SettingsRail>(_window)?.SetCurrentValue(SettingsRail.SearchTextProperty, string.Empty);
             Settle();
         }
     }
@@ -464,6 +243,51 @@ public class BindingSmokeTests
         });
     }
 
+    [TestCase(false, TestName = "Выбор плитки тома через UI Automation меняет цель скана")]
+    [TestCase(true, TestName = "Выбор недавнего каталога через UI Automation меняет цель скана")]
+    public void Выбор_плитки_через_UI_Automation_меняет_цель_скана(bool recentTarget)
+    {
+        var page = _services.GetRequiredService<ScanViewModel>();
+        var volume = page.Drives.Volumes[0].Path;
+        var recent = _fixture.Root;
+        var selected = page.SelectedDrive;
+
+        Assume.That(page.Drives.HasDrive(recent), Is.False, "Каталог стенда уже в списке – убирать его после кейса нельзя.");
+
+        try
+        {
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+
+            page.Drives.AddDrive(recent);
+            var (from, to) = recentTarget ? (volume, recent) : (recent, volume);
+            page.SelectedDrive = from;
+            page.IsPickerOpen = true;
+            Settle();
+
+            var tile = Descendants<CommandRadioButton>(_window)
+                    .FirstOrDefault(button => button.DataContext is DriveItem item && string.Equals(item.Path, to, StringComparison.OrdinalIgnoreCase))
+                ?? throw new InvalidOperationException($"Плитка {to} не найдена.");
+
+            var peer = UIElementAutomationPeer.CreatePeerForElement(tile);
+
+            ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
+            Settle();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(page.SelectedDrive, Is.EqualTo(to).IgnoreCase);
+                Assert.That(tile.IsChecked, Is.True);
+            }
+        }
+        finally
+        {
+            page.IsPickerOpen = false;
+            page.Drives.RemoveDrive(recent);
+            page.SelectedDrive = selected;
+            Settle();
+        }
+    }
+
     [Test]
     public void Выбор_цели_сканирования_не_теряет_биндинги()
     {
@@ -503,643 +327,6 @@ public class BindingSmokeTests
         {
             page.IsPickerOpen = false;
             page.Drives.RemoveDrive(recent);
-            Settle();
-        }
-    }
-
-    [TestCase(false)]
-    [TestCase(true)]
-    public void Кнопка_скана_в_окне_900_на_600_видна_без_прокрутки(bool firstRun)
-    {
-        var page = _services.GetRequiredService<ScanViewModel>();
-        var recents = Directory.GetDirectories(_fixture.Root, "*", SearchOption.AllDirectories)
-            .Prepend(_fixture.Root)
-            .Where(path => !page.Drives.HasDrive(path))
-            .Take(RecentProbeCount)
-            .ToArray();
-        var (width, height, welcome, elevated) = (_window.Width, _window.Height, page.FirstRun.IsVisible, page.FirstRun.IsElevated);
-
-        try
-        {
-            _window.Width = FirstScreenWidth;
-            _window.Height = FirstScreenHeight;
-
-            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
-
-            foreach (var path in recents)
-            {
-                page.Drives.AddDrive(path);
-            }
-
-            if (firstRun)
-            {
-                page.FirstRun.ShowForAutomation(isElevated: false);
-            }
-
-            page.IsPickerOpen = true;
-            Settle();
-
-            var view = Descendant<ScanView>(_window) ?? throw new InvalidOperationException("Страница скана не найдена.");
-            var start = (Button)(ViewCapture.Find(_window, "StartButton") ?? throw new InvalidOperationException("Кнопка «Сканировать» не найдена."));
-            var scroll = (ScrollViewer)(ViewCapture.Find(_window, "PickerScroll") ?? throw new InvalidOperationException("Прокрутка выбора цели не найдена."));
-            var button = start.TransformToAncestor(_window).TransformBounds(new(start.RenderSize));
-            var area = view.TransformToAncestor(_window).TransformBounds(new(view.RenderSize));
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(scroll.ScrollableHeight, Is.GreaterThan(0), "Выбор цели влез целиком – кейс ничего не проверяет.");
-                Assert.That(area.Bottom, Is.LessThanOrEqualTo(_window.ActualHeight + 0.5), "Страница скана выше окна – край страницы не край видимой области.");
-                Assert.That(start.IsVisible, Is.True, "Кнопка «Сканировать» не показана.");
-                Assert.That(button.Top, Is.GreaterThanOrEqualTo(area.Top), "Кнопка «Сканировать» выше страницы.");
-                Assert.That(button.Bottom, Is.LessThanOrEqualTo(area.Bottom + 0.5), $"Кнопка «Сканировать» уходит за нижний край страницы на {button.Bottom - area.Bottom:F0} px.");
-            }
-        }
-        finally
-        {
-            page.IsPickerOpen = false;
-            page.FirstRun.ShowForAutomation(elevated);
-            page.FirstRun.IsVisible = welcome;
-
-            foreach (var path in recents)
-            {
-                page.Drives.RemoveDrive(path);
-            }
-
-            _window.Width = width;
-            _window.Height = height;
-            Settle();
-        }
-    }
-
-    [TestCase(false, TestName = "Выбор плитки тома через UI Automation меняет цель скана")]
-    [TestCase(true, TestName = "Выбор недавнего каталога через UI Automation меняет цель скана")]
-    public void Выбор_плитки_через_UI_Automation_меняет_цель_скана(bool recentTarget)
-    {
-        var page = _services.GetRequiredService<ScanViewModel>();
-        var volume = page.Drives.Volumes[0].Path;
-        var recent = _fixture.Root;
-        var selected = page.SelectedDrive;
-
-        Assume.That(page.Drives.HasDrive(recent), Is.False, "Каталог стенда уже в списке – убирать его после кейса нельзя.");
-
-        try
-        {
-            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
-
-            page.Drives.AddDrive(recent);
-            var (from, to) = recentTarget ? (volume, recent) : (recent, volume);
-            page.SelectedDrive = from;
-            page.IsPickerOpen = true;
-            Settle();
-
-            var tile = Descendants<CommandRadioButton>(_window)
-                           .FirstOrDefault(button => button.DataContext is DriveItem item && string.Equals(item.Path, to, StringComparison.OrdinalIgnoreCase))
-                       ?? throw new InvalidOperationException($"Плитка {to} не найдена.");
-            var peer = UIElementAutomationPeer.CreatePeerForElement(tile);
-
-            ((ISelectionItemProvider)peer.GetPattern(PatternInterface.SelectionItem)).Select();
-            Settle();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(page.SelectedDrive, Is.EqualTo(to).IgnoreCase);
-                Assert.That(tile.IsChecked, Is.True);
-            }
-        }
-        finally
-        {
-            page.IsPickerOpen = false;
-            page.Drives.RemoveDrive(recent);
-            page.SelectedDrive = selected;
-            Settle();
-        }
-    }
-
-    [Test]
-    public void Панель_дубликатов_не_теряет_биндинги()
-    {
-        var report = FindDuplicates();
-        var page = _services.GetRequiredService<ScanViewModel>();
-
-        Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
-        Settle();
-
-        _sink.Clear();
-        page.Duplicates.Apply(report);
-        page.ViewMode = ScanViewMode.Duplicates;
-        Settle();
-
-        var panel = ViewCapture.Find(_window, "Duplicates");
-
-        try
-        {
-            Assert.Multiple(() =>
-            {
-                Assert.That(report.Groups, Has.Count.EqualTo(2), "Дерево-образец не дало двух групп дубликатов.");
-                Assert.That(panel?.IsVisible, Is.True, "Панель дубликатов не показана в третьем режиме.");
-                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-            });
-
-            SaveFrame(panel, "scan-duplicates");
-        }
-        finally
-        {
-            page.ViewMode = ScanViewMode.Tree;
-            page.Duplicates.Clear();
-            Settle();
-        }
-    }
-
-    private static DuplicateReport FindDuplicates()
-    {
-        var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "spacesnoop-duplicates", Guid.NewGuid().ToString("N")));
-        var nested = root.CreateSubdirectory("Загрузки");
-
-        var photo = new byte[96 * 1024];
-        var archive = new byte[640 * 1024];
-        Random.Shared.NextBytes(photo);
-        Random.Shared.NextBytes(archive);
-
-        File.WriteAllBytes(Path.Combine(root.FullName, "отпуск.jpg"), photo);
-        File.WriteAllBytes(Path.Combine(root.FullName, "отпуск (1).jpg"), photo);
-        File.WriteAllBytes(Path.Combine(nested.FullName, "отпуск - копия.jpg"), photo);
-        File.WriteAllBytes(Path.Combine(root.FullName, "дистрибутив.zip"), archive);
-        File.WriteAllBytes(Path.Combine(nested.FullName, "дистрибутив.zip"), archive);
-
-        var tree = new DiskSpaceCalculator().Calculate(root);
-        tree.FixAbsolutePath(root);
-
-        return new DuplicateFinder().Find(tree, DuplicateOptions.Default, null, CancellationToken.None);
-    }
-
-    private static void SaveFrame(FrameworkElement? panel, string name)
-    {
-        if (panel is null)
-        {
-            return;
-        }
-
-        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "spacesnoop-frames"));
-        var file = Path.Combine(directory.FullName, $"{name}.png");
-        ViewCapture.Save(panel, file, AppDefaults.ViewCaptureScaleDefault);
-        TestContext.Out.WriteLine($"Кадр «{name}»: {file}");
-    }
-
-    [Test]
-    public void Возврат_на_настройки_сохраняет_фильтр_разделов()
-    {
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var rail = Descendant<SettingsRail>(_window) ?? throw new InvalidOperationException("На странице настроек нет рейла разделов.");
-        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
-
-        try
-        {
-            rail.SetCurrentValue(SettingsRail.SearchTextProperty, "шнырь");
-            Settle();
-
-            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
-            Settle();
-
-            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась второй раз.");
-            Settle();
-
-            var reopened = Descendant<SettingsRail>(_window) ?? throw new InvalidOperationException("Вернувшаяся страница настроек осталась без рейла.");
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(reopened, Is.Not.SameAs(rail), "Страница вернулась тем же рейлом – регрессию проверять не на чем.");
-                Assert.That(reopened.Sections, Is.SameAs(sections), "Разделы у страницы новые – терять фильтр было негде.");
-                Assert.That(reopened.SearchText, Is.EqualTo("шнырь"), "Новый рейл затёр запрос, который держал список разделов.");
-                Assert.That(sections.Items.Where(section => section.IsVisible).Select(section => section.Key), Is.EqualTo(new[] { "agent" }));
-                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-            }
-        }
-        finally
-        {
-            (Descendant<SettingsRail>(_window))?.SetCurrentValue(SettingsRail.SearchTextProperty, string.Empty);
-            Settle();
-        }
-    }
-
-    [Test]
-    public void Потерянный_путь_биндинга_виден_тесту()
-    {
-        var probe = new TextBlock { DataContext = _shell };
-        probe.SetBinding(TextBlock.TextProperty, new Binding("НетТакогоСвойства"));
-
-        Settle();
-
-        Assert.That(_sink.Errors, Is.Not.Empty, "Сенсор ошибок биндинга молчит – остальные проверки этого набора ничего не значат.");
-    }
-
-    [Test]
-    public void Кнопка_сброса_строки_настроек_видна_только_у_изменённого_значения()
-    {
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var settings = _services.GetRequiredService<SettingsViewModel>();
-        settings.Sections.SelectCommand.Execute(settings.Sections["scan"]);
-        Settle();
-
-        var scan = _services.GetRequiredService<ScanPreferences>();
-        var button = RowResetButton("Сбросить: число параллельных потоков");
-
-        Assert.That(button.Visibility, Is.EqualTo(Visibility.Hidden), "Нетронутая строка показывает кнопку сброса.");
-
-        scan.MaxParallelism = 1;
-        Settle();
-
-        Assert.That(button.Visibility, Is.EqualTo(Visibility.Visible), "Изменённая строка осталась без кнопки сброса: биндинг ResetFields[…] не дошёл до команды.");
-
-        button.Command.Execute(button.CommandParameter);
-        Settle();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism), "Нажатие не вернуло настройку к заводскому значению.");
-            Assert.That(button.Visibility, Is.EqualTo(Visibility.Hidden), "Вернувшаяся к умолчанию строка держит кнопку видимой.");
-            Assert.That(button.ActualWidth, Is.GreaterThan(0), "Спрятанная кнопка отдала своё место – строка прыгает при возврате к умолчанию.");
-            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-        }
-    }
-
-    [Test]
-    public void Каждая_сбрасываемая_настройка_имеет_кнопку_в_своей_строке()
-    {
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var names = Descendants<Button>(_window)
-            .Select(AutomationProperties.GetName)
-            .ToHashSet(StringComparer.Ordinal);
-
-        var missing = _services.GetRequiredService<SettingsViewModel>().ResetFields.Values
-            .Where(field => field.Key != SettingsKeys.AgentHistoryVisible)
-            .Where(field => !names.Contains(field.AutomationName))
-            .Select(field => field.Label)
-            .ToArray();
-
-        Assert.That(missing, Is.Empty, $"Настройка сбрасывается разделом, но кнопки в своей строке не получила: {string.Join(", ", missing)}. Заведите её в карточке или объявите исключением здесь.");
-    }
-
-    [Test]
-    public void Каждый_подпункт_настроек_находит_свой_блок_в_карточке()
-    {
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
-        var restore = sections.SelectedPath;
-        var missing = new List<string>();
-
-        foreach (var section in sections.Items.Where(section => section.Children.Count > 0))
-        {
-            sections.SelectCommand.Execute(section);
-            Settle();
-
-            var anchors = Descendants<FrameworkElement>(_window)
-                .Where(element => element.IsVisible)
-                .Select(SettingsBlock.GetKey)
-                .Where(key => key is { Length: > 0 })
-                .ToHashSet(StringComparer.Ordinal);
-
-            missing.AddRange(section.Children
-                .Where(child => !anchors.Contains(child.Key))
-                .Select(child => $"{section.Title} – {child.Title}"));
-        }
-
-        sections.Restore(restore);
-        Settle();
-
-        Assert.That(missing, Is.Empty, $"Подпункт рейла не нашёл своего блока в карточке, поэтому нажатие на него никуда не прокрутит: {string.Join(", ", missing)}. Пометьте блок через SettingsBlock.Key или уберите подпункт.");
-    }
-
-    [Test]
-    public void Прокрутка_настроек_держит_подсветку_на_краях_карточки()
-    {
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
-        var restore = sections.SelectedPath;
-        var cards = Descendants<ScrollViewer>(_window).FirstOrDefault(viewer => viewer.Name == "Cards");
-
-        Assert.That(cards, Is.Not.Null, "Прокручиваемая карточка настроек не найдена.");
-
-        try
-        {
-            cards.MaxHeight = SettingsCardsProbeHeight;
-
-            var section = sections.Items.FirstOrDefault(item => item.Children.Count > 1 && Scrollable(sections, item, cards));
-
-            Assert.That(section, Is.Not.Null, "Ни одна карточка с подпунктами не прокручивается на этом окне – сценарий краёв невыразим.");
-
-            var last = section.Children[^1];
-            sections.SelectChildCommand.Execute(last);
-            Settle();
-
-            Assert.That(sections.SelectedChild, Is.SameAs(last),
-                $"Клик по последнему подпункту «{last.Title}» подсветил «{sections.SelectedChild?.Title}»: прокрутку зажало по ScrollableHeight.");
-
-            cards.ScrollToTop();
-            Settle();
-
-            Assert.That(sections.SelectedChild, Is.SameAs(section.Children[0]),
-                $"Прокрутка в самый верх оставила подсвеченным «{sections.SelectedChild?.Title}» вместо первого подпункта.");
-        }
-        finally
-        {
-            cards.MaxHeight = double.PositiveInfinity;
-            sections.Restore(restore);
-            Settle();
-        }
-    }
-
-    [Test]
-    public void Кнопка_строки_настроек_сбрасывает_свою_настройку_а_не_соседнюю()
-    {
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var buttons = RowResetButtons();
-
-        Assert.That(buttons, Is.Not.Empty, "На странице настроек не нашлось ни одной кнопки сброса строки.");
-
-        foreach (var button in buttons)
-        {
-            var box = RowCheckBox(button);
-
-            if (box is null)
-            {
-                continue;
-            }
-
-            var before = buttons.ToDictionary(candidate => candidate, CanReset);
-
-            box.SetCurrentValue(ToggleButton.IsCheckedProperty, !(box.IsChecked ?? false));
-            Settle();
-
-            var flipped = buttons.Where(candidate => CanReset(candidate) != before[candidate]).ToArray();
-
-            box.SetCurrentValue(ToggleButton.IsCheckedProperty, !(box.IsChecked ?? false));
-            Settle();
-
-            Assert.That(flipped, Is.EqualTo(new[] { button }),
-                $"Правка строки «{box.Content}» отозвалась не на своей кнопке: {string.Join(", ", flipped.Select(AutomationProperties.GetName))}. Кнопка привязана к чужой настройке.");
-        }
-    }
-
-    [Test]
-    public void Правка_настройки_мимо_страницы_поднимает_кнопку_сброса_при_возврате()
-    {
-        var store = _services.GetRequiredService<ISettingsStore>();
-
-        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-        Settle();
-
-        var settings = _services.GetRequiredService<SettingsViewModel>();
-        settings.Sections.SelectCommand.Execute(settings.Sections["sync"]);
-        Settle();
-
-        Assert.That(RowResetButton("Сбросить: git-папки").Visibility, Is.EqualTo(Visibility.Hidden), "Политика git-папок не на умолчании – проверять нечего.");
-
-        try
-        {
-            store.SetEnum(SettingsKeys.SyncGitFolders, GitFolderPromptChoice.Skip);
-
-            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
-            Settle();
-
-            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась второй раз.");
-            Settle();
-
-            Assert.That(RowResetButton("Сбросить: git-папки").Visibility, Is.EqualTo(Visibility.Visible),
-                "Настройку правит и страница синхронизации, мимо холдеров; вернувшаяся страница настроек не пересчитала доступность сброса.");
-        }
-        finally
-        {
-            store.SetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault);
-            (_window.DataContext as ShellViewModel)?.ToString();
-        }
-    }
-
-    [Test]
-    public void Настройки_при_крупном_шрифте_в_маленьком_окне_читаются_и_не_уходят_за_край()
-    {
-        var shell = _services.GetRequiredService<ShellPreferences>();
-        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
-        var (width, height, scale, restore) = (_window.Width, _window.Height, shell.FontScale, sections.SelectedPath);
-
-        try
-        {
-            _window.Width = SmallWindowWidth;
-            _window.Height = SmallWindowHeight;
-            shell.FontScale = FontScaleManager.MaxScale;
-
-            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
-            Settle();
-
-            var cards = Descendants<ScrollViewer>(_window).First(viewer => viewer.Name == "Cards");
-            var host = (FrameworkElement)cards.Content;
-            var problems = new List<string>();
-
-            foreach (var section in sections.Items)
-            {
-                sections.SelectCommand.Execute(section);
-                Settle();
-
-                foreach (var element in Descendants<FrameworkElement>(host).Where(element => element.IsVisible && element is TextBlock or Control))
-                {
-                    var bounds = element.TransformToAncestor(host).TransformBounds(new(element.RenderSize));
-
-                    if (element is TextBlock { Text.Length: >= NarrowTextMinLength } text && text.ActualWidth < NarrowTextWidth)
-                    {
-                        problems.Add($"{section.Title}: текст «{text.Text}» сжат до {text.ActualWidth:F0} px");
-                    }
-                    else if (element is Control && bounds.Right > host.ActualWidth + 1)
-                    {
-                        problems.Add($"{section.Title}: {element.GetType().Name} «{AutomationProperties.GetName(element)}» уходит за край на {bounds.Right - host.ActualWidth:F0} px");
-                    }
-                }
-            }
-
-            sections.SelectCommand.Execute(sections["appearance"]);
-            Settle();
-
-            var slider = Descendants<Slider>(cards).Single(candidate => candidate.IsVisible);
-            var reset = RowResetButton("Сбросить: масштаб шрифта");
-            reset.Command.Execute(reset.CommandParameter);
-            Settle();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
-                Assert.That(slider.ActualWidth, Is.GreaterThan(0), "Ползунок масштаба шрифта не отрисован.");
-                Assert.That(shell.FontScale, Is.EqualTo(FontScaleManager.DefaultScale), "Кнопка строки не вернула масштаб к 100 %.");
-            }
-        }
-        finally
-        {
-            shell.FontScale = scale;
-            _window.Width = width;
-            _window.Height = height;
-            sections.Restore(restore);
-            Settle();
-        }
-    }
-
-    [Test]
-    public void Плашка_прав_в_тесном_заголовке_видна_целиком_или_иконкой_и_заголовок_не_обрезан()
-    {
-        var shell = _services.GetRequiredService<ShellPreferences>();
-        var (width, height, scale) = (_window.Width, _window.Height, shell.FontScale);
-        var title = Descendants<TitleBarView>(_window).Single();
-        var pill = (FrameworkElement)title.FindName("ElevationPill")!;
-        var icon = (FrameworkElement)title.FindName("ElevationIcon")!;
-        var slot = (FrameworkElement)title.FindName("ElevationSlot")!;
-
-        try
-        {
-            _window.Width = SmallWindowWidth;
-            _window.Height = SmallWindowHeight;
-            shell.FontScale = FontScaleManager.MaxScale;
-            Settle();
-
-            var room = ((Grid)slot.Parent).ColumnDefinitions[Grid.GetColumn(slot)].ActualWidth - slot.Margin.Left;
-            var fits = pill.DesiredSize.Width <= room;
-            var shown = fits ? pill : icon;
-            var right = shown.TransformToAncestor(title).Transform(new(shown.ActualWidth, 0)).X;
-            var named = Descendants<FrameworkElement>(icon).Where(element => element.IsVisible && AutomationProperties.GetName(element).Length > 0).ToList();
-            var titleSlot = (FrameworkElement)VisualTreeHelper.GetParent(title);
-
-            title.Measure(new(title.ActualWidth, double.PositiveInfinity));
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(pill.IsVisible, Is.EqualTo(fits), $"Плашка шириной {pill.DesiredSize.Width:F0} при месте {room:F0}: показан не тот вариант.");
-                Assert.That(icon.IsVisible, Is.EqualTo(!fits), "Иконка и полная плашка видны не взаимоисключающе.");
-                Assert.That(right, Is.LessThanOrEqualTo(room + slot.TransformToAncestor(title).Transform(default).X + 0.5), "Видимый вариант плашки прав обрезан справа.");
-                Assert.That(fits || named.Count > 0, Is.True, "У иконки режима запуска нет имени для диктора.");
-                Assert.That(titleSlot.ActualHeight, Is.GreaterThanOrEqualTo(title.DesiredSize.Height - 0.5), "Заголовок окна при крупном шрифте режется снизу.");
-            }
-        }
-        finally
-        {
-            shell.FontScale = scale;
-            _window.Width = width;
-            _window.Height = height;
-            Settle();
-        }
-    }
-
-    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Запрос прав при крупном шрифте в узком окне ставит исходы столбиком и не режет кнопки")]
-    [TestCase(1280d, 800d, false, TestName = "Запрос прав в обычном окне держит исходы одним рядом справа")]
-    public void Кнопки_запроса_прав(double width, double height, bool bigFont)
-    {
-        var shell = _services.GetRequiredService<ShellPreferences>();
-        var modals = _services.GetRequiredService<ModalHostViewModel>();
-        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
-
-        try
-        {
-            _window.Width = width;
-            _window.Height = height;
-            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
-            _ = modals.ShowAsync(AdminStartupPrompt.BuildConfirm());
-            Settle();
-
-            var view = Descendant<ConfirmDialogView>(_window) ?? throw new InvalidOperationException("Диалог подтверждения не показан.");
-            var row = (FrameworkElement)view.FindName("ChoiceRow");
-            var column = (FrameworkElement)view.FindName("ChoiceColumn");
-            var buttons = Descendants<Button>(view).Where(button => button.IsVisible).ToList();
-            var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
-
-            SaveFrame(view, bigFont ? "confirm-admin-column" : "confirm-admin-row");
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Не перезапускать", "Больше не спрашивать", "Перезапустить" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
-                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда исходов.");
-                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик исходов видны не взаимоисключающе.");
-                Assert.That(buttons.Where(static button => button.ActualWidth < button.DesiredSize.Width - 0.5).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
-                Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > view.ActualWidth + 0.5), Is.Empty, "Кнопка выходит за край диалога.");
-
-                if (bigFont)
-                {
-                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[2].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
-                    Assert.That(bounds.Select(static rect => rect.Width).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
-                }
-                else
-                {
-                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Исходы в обычном окне не в один ряд.");
-                }
-            }
-        }
-        finally
-        {
-            modals.RequestCancel();
-            shell.FontScale = scale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
-            Settle();
-        }
-    }
-
-    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Вопрос про git-папки при крупном шрифте в узком окне ставит кнопки столбиком на всю ширину")]
-    [TestCase(1280d, 800d, false, TestName = "Вопрос про git-папки в обычном окне держит кнопки одним рядом справа")]
-    public void Кнопки_вопроса_про_git_папки(double width, double height, bool bigFont)
-    {
-        var shell = _services.GetRequiredService<ShellPreferences>();
-        var modals = _services.GetRequiredService<ModalHostViewModel>();
-        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
-
-        try
-        {
-            _window.Width = width;
-            _window.Height = height;
-            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
-            _ = modals.ShowAsync(new GitFolderPromptViewModel(3));
-            Settle();
-
-            var view = Descendant<GitFolderPromptView>(_window) ?? throw new InvalidOperationException("Вопрос про git-папки не показан.");
-            var column = (FrameworkElement)view.FindName("ChoiceColumn");
-            var row = (FrameworkElement)view.FindName("ChoiceRow");
-            var buttons = Descendants<Button>(view).Where(static button => button.IsVisible).ToList();
-            var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
-
-            SaveFrame(view, bigFont ? "git-column" : "git-row");
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Синхронизировать .git", "Пропустить .git" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
-                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда кнопок.");
-                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик кнопок видны не взаимоисключающе.");
-                Assert.That(buttons.Where(static button => button.ActualWidth < button.DesiredSize.Width - button.Margin.Left - button.Margin.Right - 0.5).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
-                Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > view.ActualWidth + 0.5), Is.Empty, "Кнопка выходит за край диалога.");
-                Assert.That(buttons.Count(static button => button.IsDefault), Is.EqualTo(1), "Enter подтверждает не одну кнопку.");
-                Assert.That(buttons.Count(static button => button.IsCancel), Is.EqualTo(1), "Escape отвечает не одной кнопкой.");
-
-                if (bigFont)
-                {
-                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[1].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
-                    Assert.That(bounds.Select(static rect => Math.Round(rect.Width)).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
-                }
-                else
-                {
-                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Кнопки в обычном окне не в один ряд.");
-                    Assert.That(buttons[1].TransformToAncestor(row).TransformBounds(new(buttons[1].RenderSize)).Right, Is.EqualTo(row.ActualWidth).Within(1), "Ряд кнопок не прижат вправо.");
-                }
-            }
-        }
-        finally
-        {
-            modals.RequestCancel();
-            shell.FontScale = scale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
             Settle();
         }
     }
@@ -1197,12 +384,12 @@ public class BindingSmokeTests
                 Assert.That(railBottom, Is.LessThanOrEqualTo(content.ActualHeight + 0.5), "Подпись свёрнутых деталей режется снизу.");
                 Assert.That(tree.GetValue(AutomationProperties.NameProperty), Is.EqualTo("Структура каталога"), "Дерево без имени для экранного диктора.");
                 Assert.That(structure.TreeRowCapacity() * row.ActualHeight, Is.EqualTo(viewport.ActualHeight).Within(1), "Запас строк дерева посчитан не по его настоящей высоте.");
-                Assert.That(railBounds.Where(rect => rect.Bottom > content.ActualHeight + 0.5), Is.Empty, "Кнопка свёрнутых деталей режется снизу.");
+                Assert.That(railBounds.Where(rect => rect.Bottom > (content.ActualHeight + 0.5)), Is.Empty, "Кнопка свёрнутых деталей режется снизу.");
                 Assert.That(railActions.IsVisible || moreButton.IsVisible, Is.True, "Действия выбранного узла недоступны из свёрнутых деталей.");
 
                 if (moreButton.IsVisible)
                 {
-                    moreButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+                    moreButton.RaiseEvent(new(ButtonBase.ClickEvent));
                     Settle();
                     Assert.That(moreMenu.IsOpen, Is.True, "Кнопка «Ещё» не открыла меню действий.");
                     Assert.That(moreMenu.Items.OfType<MenuItem>().Count(static item => item.Visibility == Visibility.Visible), Is.EqualTo(actionCount), "В меню «Ещё» не все действия свёрнутых деталей.");
@@ -1220,6 +407,849 @@ public class BindingSmokeTests
             _window.Height = oldHeight;
             Settle();
         }
+    }
+
+    [Test]
+    public void Каждая_сбрасываемая_настройка_имеет_кнопку_в_своей_строке()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var names = Descendants<Button>(_window)
+            .Select(AutomationProperties.GetName)
+            .ToHashSet(StringComparer.Ordinal);
+
+        var missing = _services.GetRequiredService<SettingsViewModel>()
+            .ResetFields.Values
+            .Where(field => field.Key != SettingsKeys.AgentHistoryVisible)
+            .Where(field => !names.Contains(field.AutomationName))
+            .Select(field => field.Label)
+            .ToArray();
+
+        Assert.That(missing, Is.Empty, $"Настройка сбрасывается разделом, но кнопки в своей строке не получила: {string.Join(", ", missing)}. Заведите её в карточке или объявите исключением здесь.");
+    }
+
+    [Test]
+    public void Каждый_подпункт_настроек_находит_свой_блок_в_карточке()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var restore = sections.SelectedPath;
+        var missing = new List<string>();
+
+        foreach (var section in sections.Items.Where(section => section.Children.Count > 0))
+        {
+            sections.SelectCommand.Execute(section);
+            Settle();
+
+            var anchors = Descendants<FrameworkElement>(_window)
+                .Where(element => element.IsVisible)
+                .Select(SettingsBlock.GetKey)
+                .Where(key => key is { Length: > 0 })
+                .ToHashSet(StringComparer.Ordinal);
+
+            missing.AddRange(
+                section.Children
+                    .Where(child => !anchors.Contains(child.Key))
+                    .Select(child => $"{section.Title} – {child.Title}"));
+        }
+
+        sections.Restore(restore);
+        Settle();
+
+        Assert.That(missing, Is.Empty, $"Подпункт рейла не нашёл своего блока в карточке, поэтому нажатие на него никуда не прокрутит: {string.Join(", ", missing)}. Пометьте блок через SettingsBlock.Key или уберите подпункт.");
+    }
+
+    [Test]
+    public void Кнопка_сброса_строки_настроек_видна_только_у_изменённого_значения()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var settings = _services.GetRequiredService<SettingsViewModel>();
+        settings.Sections.SelectCommand.Execute(settings.Sections["scan"]);
+        Settle();
+
+        var scan = _services.GetRequiredService<ScanPreferences>();
+        var button = RowResetButton("Сбросить: число параллельных потоков");
+
+        Assert.That(button.Visibility, Is.EqualTo(Visibility.Hidden), "Нетронутая строка показывает кнопку сброса.");
+
+        scan.MaxParallelism = 1;
+        Settle();
+
+        Assert.That(button.Visibility, Is.EqualTo(Visibility.Visible), "Изменённая строка осталась без кнопки сброса: биндинг ResetFields[…] не дошёл до команды.");
+
+        button.Command.Execute(button.CommandParameter);
+        Settle();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(scan.MaxParallelism, Is.EqualTo(scan.DefaultParallelism), "Нажатие не вернуло настройку к заводскому значению.");
+            Assert.That(button.Visibility, Is.EqualTo(Visibility.Hidden), "Вернувшаяся к умолчанию строка держит кнопку видимой.");
+            Assert.That(button.ActualWidth, Is.GreaterThan(0), "Спрятанная кнопка отдала своё место – строка прыгает при возврате к умолчанию.");
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Кнопка_скана_в_окне_900_на_600_видна_без_прокрутки(bool firstRun)
+    {
+        var page = _services.GetRequiredService<ScanViewModel>();
+        var recents = Directory.GetDirectories(_fixture.Root, "*", SearchOption.AllDirectories)
+            .Prepend(_fixture.Root)
+            .Where(path => !page.Drives.HasDrive(path))
+            .Take(RecentProbeCount)
+            .ToArray();
+
+        var (width, height, welcome, elevated) = (_window.Width, _window.Height, page.FirstRun.IsVisible, page.FirstRun.IsElevated);
+
+        try
+        {
+            _window.Width = FirstScreenWidth;
+            _window.Height = FirstScreenHeight;
+
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+
+            foreach (var path in recents)
+            {
+                page.Drives.AddDrive(path);
+            }
+
+            if (firstRun)
+            {
+                page.FirstRun.ShowForAutomation(isElevated: false);
+            }
+
+            page.IsPickerOpen = true;
+            Settle();
+
+            var view = Descendant<ScanView>(_window) ?? throw new InvalidOperationException("Страница скана не найдена.");
+            var start = (Button)(ViewCapture.Find(_window, "StartButton") ?? throw new InvalidOperationException("Кнопка «Сканировать» не найдена."));
+            var scroll = (ScrollViewer)(ViewCapture.Find(_window, "PickerScroll") ?? throw new InvalidOperationException("Прокрутка выбора цели не найдена."));
+            var button = start.TransformToAncestor(_window).TransformBounds(new(start.RenderSize));
+            var area = view.TransformToAncestor(_window).TransformBounds(new(view.RenderSize));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(scroll.ScrollableHeight, Is.GreaterThan(0), "Выбор цели влез целиком – кейс ничего не проверяет.");
+                Assert.That(area.Bottom, Is.LessThanOrEqualTo(_window.ActualHeight + 0.5), "Страница скана выше окна – край страницы не край видимой области.");
+                Assert.That(start.IsVisible, Is.True, "Кнопка «Сканировать» не показана.");
+                Assert.That(button.Top, Is.GreaterThanOrEqualTo(area.Top), "Кнопка «Сканировать» выше страницы.");
+                Assert.That(button.Bottom, Is.LessThanOrEqualTo(area.Bottom + 0.5), $"Кнопка «Сканировать» уходит за нижний край страницы на {button.Bottom - area.Bottom:F0} px.");
+            }
+        }
+        finally
+        {
+            page.IsPickerOpen = false;
+            page.FirstRun.ShowForAutomation(elevated);
+            page.FirstRun.IsVisible = welcome;
+
+            foreach (var path in recents)
+            {
+                page.Drives.RemoveDrive(path);
+            }
+
+            _window.Width = width;
+            _window.Height = height;
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Кнопка_строки_настроек_сбрасывает_свою_настройку_а_не_соседнюю()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var buttons = RowResetButtons();
+
+        Assert.That(buttons, Is.Not.Empty, "На странице настроек не нашлось ни одной кнопки сброса строки.");
+
+        foreach (var button in buttons)
+        {
+            var box = RowCheckBox(button);
+
+            if (box is null)
+            {
+                continue;
+            }
+
+            var before = buttons.ToDictionary(candidate => candidate, CanReset);
+
+            box.SetCurrentValue(ToggleButton.IsCheckedProperty, !(box.IsChecked ?? false));
+            Settle();
+
+            var flipped = buttons.Where(candidate => CanReset(candidate) != before[candidate]).ToArray();
+
+            box.SetCurrentValue(ToggleButton.IsCheckedProperty, !(box.IsChecked ?? false));
+            Settle();
+
+            Assert.That(
+                flipped,
+                Is.EqualTo(new[] { button }),
+                $"Правка строки «{box.Content}» отозвалась не на своей кнопке: {string.Join(", ", flipped.Select(AutomationProperties.GetName))}. Кнопка привязана к чужой настройке.");
+        }
+    }
+
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Вопрос про git-папки при крупном шрифте в узком окне ставит кнопки столбиком на всю ширину")]
+    [TestCase(1280d, 800d, false, TestName = "Вопрос про git-папки в обычном окне держит кнопки одним рядом справа")]
+    public void Кнопки_вопроса_про_git_папки(double width, double height, bool bigFont)
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var modals = _services.GetRequiredService<ModalHostViewModel>();
+        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
+
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
+            _ = modals.ShowAsync(new GitFolderPromptViewModel(3));
+            Settle();
+
+            var view = Descendant<GitFolderPromptView>(_window) ?? throw new InvalidOperationException("Вопрос про git-папки не показан.");
+            var column = (FrameworkElement)view.FindName("ChoiceColumn");
+            var row = (FrameworkElement)view.FindName("ChoiceRow");
+            var buttons = Descendants<Button>(view).Where(static button => button.IsVisible).ToList();
+            var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
+
+            SaveFrame(view, bigFont ? "git-column" : "git-row");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Синхронизировать .git", "Пропустить .git" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда кнопок.");
+                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик кнопок видны не взаимоисключающе.");
+                Assert.That(buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - button.Margin.Left - button.Margin.Right - 0.5)).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
+                Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > (view.ActualWidth + 0.5)), Is.Empty, "Кнопка выходит за край диалога.");
+                Assert.That(buttons.Count(static button => button.IsDefault), Is.EqualTo(1), "Enter подтверждает не одну кнопку.");
+                Assert.That(buttons.Count(static button => button.IsCancel), Is.EqualTo(1), "Escape отвечает не одной кнопкой.");
+
+                if (bigFont)
+                {
+                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[1].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
+                    Assert.That(bounds.Select(static rect => Math.Round(rect.Width)).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
+                }
+                else
+                {
+                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Кнопки в обычном окне не в один ряд.");
+                    Assert.That(buttons[1].TransformToAncestor(row).TransformBounds(new(buttons[1].RenderSize)).Right, Is.EqualTo(row.ActualWidth).Within(1), "Ряд кнопок не прижат вправо.");
+                }
+            }
+        }
+        finally
+        {
+            modals.RequestCancel();
+            shell.FontScale = scale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Запрос прав при крупном шрифте в узком окне ставит исходы столбиком и не режет кнопки")]
+    [TestCase(1280d, 800d, false, TestName = "Запрос прав в обычном окне держит исходы одним рядом справа")]
+    public void Кнопки_запроса_прав(double width, double height, bool bigFont)
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var modals = _services.GetRequiredService<ModalHostViewModel>();
+        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
+
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
+            _ = modals.ShowAsync(AdminStartupPrompt.BuildConfirm());
+            Settle();
+
+            var view = Descendant<ConfirmDialogView>(_window) ?? throw new InvalidOperationException("Диалог подтверждения не показан.");
+            var row = (FrameworkElement)view.FindName("ChoiceRow");
+            var column = (FrameworkElement)view.FindName("ChoiceColumn");
+            var buttons = Descendants<Button>(view).Where(button => button.IsVisible).ToList();
+            var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
+
+            SaveFrame(view, bigFont ? "confirm-admin-column" : "confirm-admin-row");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Не перезапускать", "Больше не спрашивать", "Перезапустить" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда исходов.");
+                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик исходов видны не взаимоисключающе.");
+                Assert.That(buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - 0.5)).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
+                Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > (view.ActualWidth + 0.5)), Is.Empty, "Кнопка выходит за край диалога.");
+
+                if (bigFont)
+                {
+                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[2].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
+                    Assert.That(bounds.Select(static rect => rect.Width).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
+                }
+                else
+                {
+                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Исходы в обычном окне не в один ряд.");
+                }
+            }
+        }
+        finally
+        {
+            modals.RequestCancel();
+            shell.FontScale = scale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Контекст_dotnet_clean_помещается_по_ширине_и_остаётся_безопасной_демонстрацией(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.Development.DotNetClean.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 3;
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<DotNetCleanView>(_window)!;
+            var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(page.Development.DotNetClean.IsTrusted, Is.False);
+                Assert.That(page.Development.DotNetClean.CleanCommand.CanExecute(null), Is.False);
+                Assert.That(fields.Any(x => x.Text.Contains("--disable-build-servers")), Is.True);
+                Assert.That(fields.Any(x => x.Text.Contains(@"C:\workspace\sample\Sample.csproj")), Is.True);
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+
+            foreach (var field in fields)
+            {
+                var bounds = field.TransformToAncestor(view).TransformBounds(new(field.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            }
+        }
+        finally
+        {
+            page.Development.SelectedAreaIndex = 0;
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+        }
+    }
+
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Контекст_workloads_помещается_по_ширине_без_запуска_команды(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.Development.Workloads.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 2;
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<WorkloadCleanupView>(_window)!;
+            var workloads = Descendants<Expander>(view).Single(x => Equals(x.Header, "Вывод CLI об установленных workloads"));
+            workloads.IsExpanded = true;
+            Settle();
+            var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
+            Assert.Multiple(() =>
+            {
+                Assert.That(fields.Any(x => x.Text.Contains("maui-windows")), Is.True);
+                Assert.That(page.Development.Workloads.CleanCommand.CanExecute(null), Is.False);
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+
+            foreach (var field in fields)
+            {
+                Assert.That(field.Focusable && field.IsTabStop && field.IsEnabled, Is.True);
+                var bounds = field.TransformToAncestor(view).TransformBounds(new(field.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            }
+        }
+        finally
+        {
+            page.Development.ShowForAutomation();
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+        }
+    }
+
+    [Test]
+    public void Настройки_при_крупном_шрифте_в_маленьком_окне_читаются_и_не_уходят_за_край()
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var (width, height, scale, restore) = (_window.Width, _window.Height, shell.FontScale, sections.SelectedPath);
+
+        try
+        {
+            _window.Width = SmallWindowWidth;
+            _window.Height = SmallWindowHeight;
+            shell.FontScale = FontScaleManager.MaxScale;
+
+            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+            Settle();
+
+            var cards = Descendants<ScrollViewer>(_window).First(viewer => viewer.Name == "Cards");
+            var host = (FrameworkElement)cards.Content;
+            var problems = new List<string>();
+
+            foreach (var section in sections.Items)
+            {
+                sections.SelectCommand.Execute(section);
+                Settle();
+
+                foreach (var element in Descendants<FrameworkElement>(host).Where(element => element.IsVisible && element is TextBlock or Control))
+                {
+                    var bounds = element.TransformToAncestor(host).TransformBounds(new(element.RenderSize));
+
+                    if (element is TextBlock { Text.Length: >= NarrowTextMinLength } text && text.ActualWidth < NarrowTextWidth)
+                    {
+                        problems.Add($"{section.Title}: текст «{text.Text}» сжат до {text.ActualWidth:F0} px");
+                    }
+                    else if (element is Control && bounds.Right > (host.ActualWidth + 1))
+                    {
+                        problems.Add($"{section.Title}: {element.GetType().Name} «{AutomationProperties.GetName(element)}» уходит за край на {bounds.Right - host.ActualWidth:F0} px");
+                    }
+                }
+            }
+
+            sections.SelectCommand.Execute(sections["appearance"]);
+            Settle();
+
+            var slider = Descendants<Slider>(cards).Single(candidate => candidate.IsVisible);
+            var reset = RowResetButton("Сбросить: масштаб шрифта");
+            reset.Command.Execute(reset.CommandParameter);
+            Settle();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problems, Is.Empty, () => string.Join(Environment.NewLine, problems));
+                Assert.That(slider.ActualWidth, Is.GreaterThan(0), "Ползунок масштаба шрифта не отрисован.");
+                Assert.That(shell.FontScale, Is.EqualTo(FontScaleManager.DefaultScale), "Кнопка строки не вернула масштаб к 100 %.");
+            }
+        }
+        finally
+        {
+            shell.FontScale = scale;
+            _window.Width = width;
+            _window.Height = height;
+            sections.Restore(restore);
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Панель_дубликатов_не_теряет_биндинги()
+    {
+        var report = FindDuplicates();
+        var page = _services.GetRequiredService<ScanViewModel>();
+
+        Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+        Settle();
+
+        _sink.Clear();
+        page.Duplicates.Apply(report);
+        page.ViewMode = ScanViewMode.Duplicates;
+        Settle();
+
+        var panel = ViewCapture.Find(_window, "Duplicates");
+
+        try
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(report.Groups, Has.Count.EqualTo(2), "Дерево-образец не дало двух групп дубликатов.");
+                Assert.That(panel?.IsVisible, Is.True, "Панель дубликатов не показана в третьем режиме.");
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+
+            SaveFrame(panel, "scan-duplicates");
+        }
+        finally
+        {
+            page.ViewMode = ScanViewMode.Tree;
+            page.Duplicates.Clear();
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Плашка_прав_в_тесном_заголовке_видна_целиком_или_иконкой_и_заголовок_не_обрезан()
+    {
+        var shell = _services.GetRequiredService<ShellPreferences>();
+        var (width, height, scale) = (_window.Width, _window.Height, shell.FontScale);
+        var title = Descendants<TitleBarView>(_window).Single();
+        var pill = (FrameworkElement)title.FindName("ElevationPill")!;
+        var icon = (FrameworkElement)title.FindName("ElevationIcon")!;
+        var slot = (FrameworkElement)title.FindName("ElevationSlot")!;
+
+        try
+        {
+            _window.Width = SmallWindowWidth;
+            _window.Height = SmallWindowHeight;
+            shell.FontScale = FontScaleManager.MaxScale;
+            Settle();
+
+            var room = ((Grid)slot.Parent).ColumnDefinitions[Grid.GetColumn(slot)].ActualWidth - slot.Margin.Left;
+            var fits = pill.DesiredSize.Width <= room;
+            var shown = fits ? pill : icon;
+            var right = shown.TransformToAncestor(title).Transform(new(shown.ActualWidth, 0)).X;
+            var named = Descendants<FrameworkElement>(icon).Where(element => element.IsVisible && AutomationProperties.GetName(element).Length > 0).ToList();
+            var titleSlot = (FrameworkElement)VisualTreeHelper.GetParent(title);
+
+            title.Measure(new(title.ActualWidth, double.PositiveInfinity));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(pill.IsVisible, Is.EqualTo(fits), $"Плашка шириной {pill.DesiredSize.Width:F0} при месте {room:F0}: показан не тот вариант.");
+                Assert.That(icon.IsVisible, Is.EqualTo(!fits), "Иконка и полная плашка видны не взаимоисключающе.");
+                Assert.That(right, Is.LessThanOrEqualTo(room + slot.TransformToAncestor(title).Transform(default).X + 0.5), "Видимый вариант плашки прав обрезан справа.");
+                Assert.That(fits || named.Count > 0, Is.True, "У иконки режима запуска нет имени для диктора.");
+                Assert.That(titleSlot.ActualHeight, Is.GreaterThanOrEqualTo(title.DesiredSize.Height - 0.5), "Заголовок окна при крупном шрифте режется снизу.");
+            }
+        }
+        finally
+        {
+            shell.FontScale = scale;
+            _window.Width = width;
+            _window.Height = height;
+            Settle();
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Пометка_игнорирования_видна_в_дереве_и_снимается_из_меню_без_ошибок_биндинга(bool map)
+    {
+        _shell.TryNavigate(SectionKey.Scan);
+        var scan = _services.GetRequiredService<ScanViewModel>();
+        var previousMode = scan.ViewMode;
+        scan.ViewMode = ScanViewMode.Tree;
+        Settle();
+
+        var target = Descendants<TreeViewItem>(_window)
+            .First(static item => item.DataContext is ScanNodeViewModel { IsRoot: false });
+
+        var node = (ScanNodeViewModel)target.DataContext;
+        var beforeOrder = scan.Roots[0].Children.ToArray();
+        var wasMarked = node.IsMarkedDeleted;
+        target.IsSelected = true;
+        var menu = target.ContextMenu;
+        Assert.That(menu, Is.Not.Null);
+
+        try
+        {
+            node.MarkDeletedCommand.Execute(null);
+            menu.PlacementTarget = target;
+            menu.IsOpen = true;
+            Settle();
+            var hide = menu.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, node.IgnoreCommand));
+            Assert.That(hide.Command, Is.SameAs(node.IgnoreCommand));
+            hide.Command.Execute(null);
+            menu.IsOpen = false;
+            Settle();
+            Assert.That(node.IsIgnored, Is.True);
+            Assert.That(scan.Roots[0].Children, Is.EqualTo(beforeOrder));
+            var ignoredRow = Descendants<TreeViewItem>(_window).Single(item => ReferenceEquals(item.DataContext, node));
+            Assert.That(ignoredRow.IsSelected, Is.True);
+            Assert.That(
+                Descendants<PackIconLucide>(ignoredRow)
+                    .Any(static icon => icon.Kind == PackIconLucideKind.EyeOff && icon.IsVisible),
+                Is.True);
+
+            Assert.That(scan.SelectedNode, Is.SameAs(node));
+            scan.ViewMode = map ? ScanViewMode.Treemap : ScanViewMode.Tree;
+            Settle();
+
+            var restore = (Button)ViewCapture.Find(_window, "ResetIgnoredButton")!;
+            Assert.That(restore.IsVisible, Is.True);
+            Assert.That(restore.Command, Is.SameAs(scan.ResetIgnoredCommand));
+            var delete = Descendants<Button>(Descendant<ScanToolbar>(_window)!)
+                .Single(button => ReferenceEquals(button.Command, scan.Marks.DeleteMarkedCommand));
+
+            Assert.That(delete.IsVisible, Is.True);
+            Assert.That(VisualTreeHelper.GetParent(restore), Is.SameAs(VisualTreeHelper.GetParent(delete)));
+            Assert.That(restore.ActualHeight, Is.EqualTo(delete.ActualHeight).Within(0.1));
+            Assert.That(scan.HasIgnoredItems, Is.True);
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+
+            var directory = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..", ".kc", "scratch", "scan-hidden-items");
+            Directory.CreateDirectory(directory);
+            var frame = Path.GetFullPath(Path.Combine(directory, map ? "ignored-map.png" : "ignored-tree.png"));
+            ViewCapture.Save(Descendant<ScanView>(_window)!, frame);
+            TestContext.Out.WriteLine(frame);
+
+            scan.ViewMode = ScanViewMode.Tree;
+            Settle();
+            menu.PlacementTarget = Descendants<TreeViewItem>(_window).Single(item => ReferenceEquals(item.DataContext, node));
+            menu.IsOpen = true;
+            Settle();
+            var unignore = menu.Items.OfType<MenuItem>().Single(item => ReferenceEquals(item.Command, node.UnignoreCommand));
+            Assert.That(unignore.Visibility, Is.EqualTo(Visibility.Visible));
+            unignore.Command.Execute(null);
+            menu.IsOpen = false;
+            Settle();
+            Assert.That(scan.HasIgnoredItems, Is.False);
+            Assert.That(restore.IsVisible, Is.False);
+            Assert.That(node.IsIgnored, Is.False);
+            Assert.That(scan.SelectedNode, Is.SameAs(node));
+            node.IgnoreCommand.Execute(null);
+            Settle();
+            restore.Command.Execute(null);
+            Settle();
+            Assert.That(node.IsIgnored, Is.False);
+            Assert.That(scan.HasIgnoredItems, Is.False);
+        }
+        finally
+        {
+            menu.IsOpen = false;
+            scan.ResetIgnoredCommand.Execute(null);
+            if (!wasMarked)
+            {
+                node.UnmarkDeletedCommand.Execute(null);
+            }
+
+            scan.ViewMode = previousMode;
+        }
+    }
+
+    [Test]
+    public void Потерянный_путь_биндинга_виден_тесту()
+    {
+        var probe = new TextBlock { DataContext = _shell };
+        probe.SetBinding(TextBlock.TextProperty, new Binding("НетТакогоСвойства"));
+
+        Settle();
+
+        Assert.That(_sink.Errors, Is.Not.Empty, "Сенсор ошибок биндинга молчит – остальные проверки этого набора ничего не значат.");
+    }
+
+    [Test]
+    public void Правка_настройки_мимо_страницы_поднимает_кнопку_сброса_при_возврате()
+    {
+        var store = _services.GetRequiredService<ISettingsStore>();
+
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var settings = _services.GetRequiredService<SettingsViewModel>();
+        settings.Sections.SelectCommand.Execute(settings.Sections["sync"]);
+        Settle();
+
+        Assert.That(RowResetButton("Сбросить: git-папки").Visibility, Is.EqualTo(Visibility.Hidden), "Политика git-папок не на умолчании – проверять нечего.");
+
+        try
+        {
+            store.SetEnum(SettingsKeys.SyncGitFolders, GitFolderPromptChoice.Skip);
+
+            Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
+            Settle();
+
+            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась второй раз.");
+            Settle();
+
+            Assert.That(
+                RowResetButton("Сбросить: git-папки").Visibility,
+                Is.EqualTo(Visibility.Visible),
+                "Настройку правит и страница синхронизации, мимо холдеров; вернувшаяся страница настроек не пересчитала доступность сброса.");
+        }
+        finally
+        {
+            store.SetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault);
+            (_window.DataContext as ShellViewModel)?.ToString();
+        }
+    }
+
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Проектные_артефакты_показывают_пути_и_выбор_без_выхода_за_ширину(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.Development.Projects.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 1;
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<ProjectCleanupView>(_window)!;
+            Assert.That(view.IsVisible, Is.True);
+            var projects = page.Development.Projects;
+            Assert.That(
+                ((PropertyGroupDescription)projects.RowsView.GroupDescriptions.Single()).PropertyName,
+                Is.EqualTo(nameof(ProjectArtifactViewModel.ProjectDirectory)));
+
+            Assert.That(projects.RowsView.Groups!.Count, Is.GreaterThan(1));
+            var appRows = projects.Artifacts.Where(x => x.ProjectDirectory == @"C:\Sources\Projects\App").ToArray();
+            Assert.That(appRows.Select(x => x.ProjectBytes), Is.All.EqualTo(appRows.Sum(x => x.Bytes)));
+            Assert.That(projects.RowsView.SortDescriptions[0].PropertyName, Is.EqualTo(nameof(ProjectArtifactViewModel.ProjectBytes)));
+            Assert.That(projects.RowsView.SortDescriptions[0].Direction, Is.EqualTo(ListSortDirection.Descending));
+            projects.LargestFirst = false;
+            Assert.That(projects.RowsView.SortDescriptions[0].Direction, Is.EqualTo(ListSortDirection.Ascending));
+            projects.LargestFirst = true;
+            var list = Descendants<ListBox>(view).Single(x => x.Name == "ProjectArtifacts");
+            Assert.That(list.Items.Count, Is.EqualTo(projects.Artifacts.Count));
+            foreach (var artifact in projects.Artifacts)
+            {
+                list.ScrollIntoView(artifact);
+                Settle();
+                var container = Descendants<ListBoxItem>(list).FirstOrDefault(x => ReferenceEquals(x.DataContext, artifact));
+                Assert.That(container, Is.Not.Null);
+                var path = Descendants<TextBox>(container!).Single(x => AutomationProperties.GetName(x) == "Путь проектных артефактов");
+                Assert.That(path.Text, Is.EqualTo(artifact.Path));
+                path.BringIntoView();
+                Settle();
+                Assert.That(path.IsVisible && path.IsEnabled && path.Focusable && path.IsTabStop, Is.True);
+                var bounds = path.TransformToAncestor(view).TransformBounds(new(path.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            }
+
+            var preview = Descendants<Expander>(list).First();
+            preview.IsExpanded = true;
+            Settle();
+            var previewList = Descendants<ListBox>(preview).First();
+            previewList.ScrollIntoView(previewList.Items[0]);
+            Settle();
+            var previewPath = Descendants<TextBox>(previewList)
+                .FirstOrDefault(x => AutomationProperties.GetName(x) == "Путь файла в снимке артефактов"
+                    && x.Text.Length > 0);
+
+            Assert.That(previewPath, Is.Not.Null);
+            previewPath!.BringIntoView();
+            Settle();
+            var previewBounds = previewPath.TransformToAncestor(view).TransformBounds(new(previewPath.RenderSize));
+            Assert.That(previewBounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            Assert.That(Descendants<TextBlock>(view).Any(x => x.Text.StartsWith("C:\\Sources\\Projects", StringComparison.Ordinal)), Is.True);
+            projects.SearchText = "coverage";
+            Assert.That(
+                projects.RowsView.Cast<ProjectArtifactViewModel>().Select(x => x.Kind),
+                Is.EquivalentTo(new[] { ProjectArtifactKind.Coverage }));
+
+            projects.SearchText = string.Empty;
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+        finally
+        {
+            page.Development.SelectedAreaIndex = 0;
+            page.Development.Projects.ResetForAutomation();
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Прокрутка_настроек_держит_подсветку_на_краях_карточки()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+        Settle();
+
+        var sections = _services.GetRequiredService<SettingsViewModel>().Sections;
+        var restore = sections.SelectedPath;
+        var cards = Descendants<ScrollViewer>(_window).FirstOrDefault(viewer => viewer.Name == "Cards");
+
+        Assert.That(cards, Is.Not.Null, "Прокручиваемая карточка настроек не найдена.");
+
+        try
+        {
+            cards.MaxHeight = SettingsCardsProbeHeight;
+
+            var section = sections.Items.FirstOrDefault(item => item.Children.Count > 1 && Scrollable(sections, item, cards));
+
+            Assert.That(section, Is.Not.Null, "Ни одна карточка с подпунктами не прокручивается на этом окне – сценарий краёв невыразим.");
+
+            var last = section.Children[^1];
+            sections.SelectChildCommand.Execute(last);
+            Settle();
+
+            Assert.That(
+                sections.SelectedChild,
+                Is.SameAs(last),
+                $"Клик по последнему подпункту «{last.Title}» подсветил «{sections.SelectedChild?.Title}»: прокрутку зажало по ScrollableHeight.");
+
+            cards.ScrollToTop();
+            Settle();
+
+            Assert.That(
+                sections.SelectedChild,
+                Is.SameAs(section.Children[0]),
+                $"Прокрутка в самый верх оставила подсвеченным «{sections.SelectedChild?.Title}» вместо первого подпункта.");
+        }
+        finally
+        {
+            cards.MaxHeight = double.PositiveInfinity;
+            sections.Restore(restore);
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Раздел_разработки_показывает_четыре_кэша_без_потери_биндингов()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+        var development = _services.GetRequiredService<DeveloperCleanupViewModel>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        development.ShowForAutomation();
+        page.SelectedSectionIndex = 2;
+        try
+        {
+            Settle();
+            Assert.Multiple(() =>
+            {
+                Assert.That(page.IsDevelopmentActive, Is.True);
+                Assert.That(page.Sections.Count, Is.EqualTo(3));
+                Assert.That(development.Caches.Count, Is.EqualTo(4));
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+        }
+        finally
+        {
+            page.SelectedSectionIndex = 0;
+        }
+    }
+
+    [TestCaseSource(nameof(Pages))]
+    public void Разметка_страницы_не_теряет_биндинги(string page)
+    {
+        Assert.That(_shell.TryNavigate(page), Is.True, $"Страница «{page}» не открылась.");
+
+        Settle();
+
+        Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
     }
 
     [TestCase("scan", "Сколько ставить")]
@@ -1257,6 +1287,94 @@ public class BindingSmokeTests
         {
             return [.. row.Children.Cast<FrameworkElement>().Skip(1).Select(child => Math.Round(child.TransformToAncestor(row).Transform(default).Y, 1))];
         }
+    }
+
+    [TestCase(1100d, 900d, 1d)]
+    [TestCase(880d, 800d, 1.6d)]
+    public void Раскрытые_пути_кэшей_доступны_для_выделения_и_помещаются_по_ширине(double width, double height, double fontScale)
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            _window.Width = width;
+            _window.Height = height;
+            preferences.FontScale = fontScale;
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            page.SelectedSectionIndex = 2;
+            Settle();
+            var view = Descendant<DeveloperCleanupView>(_window)!;
+            var details = Descendants<Expander>(view).Where(x => x.IsVisible).ToArray();
+            Assert.That(details, Has.Length.EqualTo(4));
+            foreach (var detail in details)
+            {
+                detail.IsExpanded = true;
+            }
+
+            Settle();
+            var paths = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
+            Assert.That(paths.Select(x => x.Text), Is.EquivalentTo(page.Development.Caches.Select(x => x.Path)));
+            foreach (var path in paths)
+            {
+                path.BringIntoView();
+                Settle();
+                Assert.That(
+                    path.Focusable && path.IsTabStop && path.IsEnabled && path.IsVisible,
+                    Is.True,
+                    "Полный путь не допускает фокуса и выделения текста.");
+
+                var bounds = path.TransformToAncestor(view).TransformBounds(new(path.RenderSize));
+                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
+                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1), "Путь выходит за ширину страницы.");
+            }
+
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+        finally
+        {
+            page.SelectedSectionIndex = 0;
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    private static DuplicateReport FindDuplicates()
+    {
+        var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "spacesnoop-duplicates", Guid.NewGuid().ToString("N")));
+        var nested = root.CreateSubdirectory("Загрузки");
+
+        var photo = new byte[96 * 1024];
+        var archive = new byte[640 * 1024];
+        Random.Shared.NextBytes(photo);
+        Random.Shared.NextBytes(archive);
+
+        File.WriteAllBytes(Path.Combine(root.FullName, "отпуск.jpg"), photo);
+        File.WriteAllBytes(Path.Combine(root.FullName, "отпуск (1).jpg"), photo);
+        File.WriteAllBytes(Path.Combine(nested.FullName, "отпуск - копия.jpg"), photo);
+        File.WriteAllBytes(Path.Combine(root.FullName, "дистрибутив.zip"), archive);
+        File.WriteAllBytes(Path.Combine(nested.FullName, "дистрибутив.zip"), archive);
+
+        var tree = new DiskSpaceCalculator().Calculate(root);
+        tree.FixAbsolutePath(root);
+
+        return new DuplicateFinder().Find(tree, DuplicateOptions.Default, null, CancellationToken.None);
+    }
+
+    private static void SaveFrame(FrameworkElement? panel, string name)
+    {
+        if (panel is null)
+        {
+            return;
+        }
+
+        var directory = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "spacesnoop-frames"));
+        var file = Path.Combine(directory.FullName, $"{name}.png");
+        ViewCapture.Save(panel, file);
+        TestContext.Out.WriteLine($"Кадр «{name}»: {file}");
     }
 
     private static T? Ancestor<T>(DependencyObject element)
@@ -1301,7 +1419,7 @@ public class BindingSmokeTests
     private Button RowResetButton(string automationName)
     {
         return Descendants<Button>(_window).FirstOrDefault(button => AutomationProperties.GetName(button) == automationName)
-               ?? throw new InvalidOperationException($"Кнопка сброса строки «{automationName}» не найдена на странице настроек.");
+            ?? throw new InvalidOperationException($"Кнопка сброса строки «{automationName}» не найдена на странице настроек.");
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject root)
@@ -1344,98 +1462,6 @@ public class BindingSmokeTests
         }
 
         return null;
-    }
-
-    [TestCase(1100d, 900d, 1d)]
-    [TestCase(880d, 800d, 1.6d)]
-    public void Контекст_workloads_помещается_по_ширине_без_запуска_команды(double width, double height, double fontScale)
-    {
-        var preferences = _services.GetRequiredService<ShellPreferences>();
-        var page = _services.GetRequiredService<CleanupPageViewModel>();
-        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
-        try
-        {
-            _window.Width = width;
-            _window.Height = height;
-            preferences.FontScale = fontScale;
-            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
-            page.Development.ShowForAutomation();
-            page.Development.Workloads.ShowForAutomation();
-            page.Development.SelectedAreaIndex = 2;
-            page.SelectedSectionIndex = 2;
-            Settle();
-            var view = Descendant<WorkloadCleanupView>(_window)!;
-            var workloads = Descendants<Expander>(view).Single(x => Equals(x.Header, "Вывод CLI об установленных workloads"));
-            workloads.IsExpanded = true;
-            Settle();
-            var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
-            Assert.Multiple(() =>
-            {
-                Assert.That(fields.Any(x => x.Text.Contains("maui-windows")), Is.True);
-                Assert.That(page.Development.Workloads.CleanCommand.CanExecute(null), Is.False);
-                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-            });
-            foreach (var field in fields)
-            {
-                Assert.That(field.Focusable && field.IsTabStop && field.IsEnabled, Is.True);
-                var bounds = field.TransformToAncestor(view).TransformBounds(new(field.RenderSize));
-                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
-                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
-            }
-        }
-        finally
-        {
-            page.Development.ShowForAutomation();
-            page.SelectedSectionIndex = 0;
-            preferences.FontScale = oldScale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
-        }
-    }
-
-    [TestCase(1100d, 900d, 1d)]
-    [TestCase(880d, 800d, 1.6d)]
-    public void Контекст_dotnet_clean_помещается_по_ширине_и_остаётся_безопасной_демонстрацией(double width, double height, double fontScale)
-    {
-        var preferences = _services.GetRequiredService<ShellPreferences>();
-        var page = _services.GetRequiredService<CleanupPageViewModel>();
-        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
-        try
-        {
-            _window.Width = width;
-            _window.Height = height;
-            preferences.FontScale = fontScale;
-            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
-            page.Development.ShowForAutomation();
-            page.Development.DotNetClean.ShowForAutomation();
-            page.Development.SelectedAreaIndex = 3;
-            page.SelectedSectionIndex = 2;
-            Settle();
-            var view = Descendant<DotNetCleanView>(_window)!;
-            var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
-            Assert.Multiple(() =>
-            {
-                Assert.That(page.Development.DotNetClean.IsTrusted, Is.False);
-                Assert.That(page.Development.DotNetClean.CleanCommand.CanExecute(null), Is.False);
-                Assert.That(fields.Any(x => x.Text.Contains("--disable-build-servers")), Is.True);
-                Assert.That(fields.Any(x => x.Text.Contains(@"C:\workspace\sample\Sample.csproj")), Is.True);
-                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
-            });
-            foreach (var field in fields)
-            {
-                var bounds = field.TransformToAncestor(view).TransformBounds(new(field.RenderSize));
-                Assert.That(bounds.Left, Is.GreaterThanOrEqualTo(0));
-                Assert.That(bounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
-            }
-        }
-        finally
-        {
-            page.Development.SelectedAreaIndex = 0;
-            page.SelectedSectionIndex = 0;
-            preferences.FontScale = oldScale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
-        }
     }
 
     private void Settle()

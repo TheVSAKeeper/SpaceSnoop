@@ -17,18 +17,18 @@ public static class McpConnectSnippets
     private static string Json(string url, string token)
     {
         return $$"""
-                 {
-                   "mcpServers": {
-                     "{{AgentPrompt.ServerName}}": {
-                       "type": "http",
-                       "url": "{{url}}",
-                       "headers": {
-                         "Authorization": "Bearer {{token}}"
-                       }
-                     }
-                   }
-                 }
-                 """;
+            {
+              "mcpServers": {
+                "{{AgentPrompt.ServerName}}": {
+                  "type": "http",
+                  "url": "{{url}}",
+                  "headers": {
+                    "Authorization": "Bearer {{token}}"
+                  }
+                }
+              }
+            }
+            """;
     }
 
     private static string Claude(string url, string token)
@@ -39,29 +39,29 @@ public static class McpConnectSnippets
     private static string Codex(string url, string token)
     {
         return $$"""
-                 # Токен – в переменную окружения: {{AgentBackendBase.TokenVariable}}={{token}}
-                 [mcp_servers.{{AgentPrompt.ServerName}}]
-                 url = "{{url}}"
-                 bearer_token_env_var = "{{AgentBackendBase.TokenVariable}}"
-                 """;
+            # Токен – в переменную окружения: {{AgentBackendBase.TokenVariable}}={{token}}
+            [mcp_servers.{{AgentPrompt.ServerName}}]
+            url = "{{url}}"
+            bearer_token_env_var = "{{AgentBackendBase.TokenVariable}}"
+            """;
     }
 
     private static string OpenCode(string url, string token)
     {
         return $$"""
-                 {
-                   "mcp": {
-                     "{{AgentPrompt.ServerName}}": {
-                       "type": "remote",
-                       "enabled": true,
-                       "url": "{{url}}",
-                       "headers": {
-                         "Authorization": "Bearer {{token}}"
-                       }
-                     }
-                   }
-                 }
-                 """;
+            {
+              "mcp": {
+                "{{AgentPrompt.ServerName}}": {
+                  "type": "remote",
+                  "enabled": true,
+                  "url": "{{url}}",
+                  "headers": {
+                    "Authorization": "Bearer {{token}}"
+                  }
+                }
+              }
+            }
+            """;
     }
 
     private static string Endpoint(string url, string token)

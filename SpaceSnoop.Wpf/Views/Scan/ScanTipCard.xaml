@@ -22,8 +22,9 @@
                 <Setter Property="Margin"
                         Value="0,0,0,12" />
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                 Value="True">
+                    <DataTrigger
+                        Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                        Value="True">
                         <Setter Property="Padding"
                                 Value="14,3,6,3" />
                         <Setter Property="Margin"
@@ -51,8 +52,9 @@
                         <Setter Property="VerticalAlignment"
                                 Value="Top" />
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                         Value="True">
+                            <DataTrigger
+                                Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                Value="True">
                                 <Setter Property="Margin"
                                         Value="0,0,10,0" />
                                 <Setter Property="VerticalAlignment"
@@ -87,8 +89,9 @@
                             <Setter Property="TextWrapping"
                                     Value="Wrap" />
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                             Value="True">
+                                <DataTrigger
+                                    Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                    Value="True">
                                     <Setter Property="TextWrapping"
                                             Value="NoWrap" />
                                     <Setter Property="TextTrimming"
@@ -155,8 +158,9 @@
                             <Style.Triggers>
                                 <MultiDataTrigger>
                                     <MultiDataTrigger.Conditions>
-                                        <Condition Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                                   Value="True" />
+                                        <Condition
+                                            Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                            Value="True" />
                                         <Condition Binding="{Binding IsChecked, ElementName=ExpandToggle}"
                                                    Value="False" />
                                     </MultiDataTrigger.Conditions>
@@ -178,8 +182,9 @@
                     <Style TargetType="Button"
                            BasedOn="{StaticResource Button.Secondary}">
                         <Style.Triggers>
-                            <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                         Value="True">
+                            <DataTrigger
+                                Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                Value="True">
                                 <Setter Property="Padding"
                                         Value="12,2" />
                             </DataTrigger>

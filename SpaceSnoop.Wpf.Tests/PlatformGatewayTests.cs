@@ -1,22 +1,18 @@
-﻿using KeepShell.Bootstrap;
-using KeepShell.Testing;
-using KeepShell.ViewModels;
+﻿using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
-using SpaceSnoop.Wpf.Bootstrap.Storage;
-using SpaceSnoop.Wpf.Diagnostics;
-using SpaceSnoop.Wpf.ViewModels;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Schedule;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
 public class PlatformGatewayTests
 {
+    private string _tempDir = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -33,7 +29,26 @@ public class PlatformGatewayTests
         }
     }
 
-    private string _tempDir = null!;
+    [TestCase(true, "Запущено в фоне – результат появится в истории.")]
+    [TestCase(false, "Не удалось запустить")]
+    public void Профиль_расписания_сообщает_о_судьбе_фонового_запуска(bool succeeds, string expected)
+    {
+        var settings = new MemorySettings();
+        SyncProfileStore.Save(settings, [new() { Id = "one", Name = "Один", Left = @"C:\A", Right = @"C:\B" }]);
+
+        var shell = new FakeShellLauncher { Succeeds = succeeds };
+        var schedule = new ScheduleViewModel(settings, new NoopDialogs(), new FakeFilePicker(), shell, new FakeScheduleRunner(), NullLogger<ScheduleViewModel>.Instance);
+
+        var profile = schedule.Profiles[0];
+        profile.RunNowCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(shell.Started, Has.Count.EqualTo(1));
+            Assert.That(shell.Started[0], Does.Contain(AppInfo.SyncArgument).And.EndWith("one"));
+            Assert.That(profile.Message, Is.EqualTo(expected));
+        }
+    }
 
     [TestCase(true, true, false)]
     [TestCase(false, true, true)]
@@ -58,27 +73,6 @@ public class PlatformGatewayTests
         {
             Assert.That(shell.Revealed, Is.EqualTo(expectReveal ? new[] { node.Space!.AbsolutePath } : []));
             Assert.That(shell.Opened, Is.EqualTo(expectReveal ? [] : new[] { node.Space!.AbsolutePath }));
-        }
-    }
-
-    [TestCase(true, "Запущено в фоне – результат появится в истории.")]
-    [TestCase(false, "Не удалось запустить")]
-    public void Профиль_расписания_сообщает_о_судьбе_фонового_запуска(bool succeeds, string expected)
-    {
-        var settings = new MemorySettings();
-        SyncProfileStore.Save(settings, [new() { Id = "one", Name = "Один", Left = @"C:\A", Right = @"C:\B" }]);
-
-        var shell = new FakeShellLauncher { Succeeds = succeeds };
-        var schedule = new ScheduleViewModel(settings, new NoopDialogs(), new FakeFilePicker(), shell, new FakeScheduleRunner(), NullLogger<ScheduleViewModel>.Instance);
-
-        var profile = schedule.Profiles[0];
-        profile.RunNowCommand.Execute(null);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(shell.Started, Has.Count.EqualTo(1));
-            Assert.That(shell.Started[0], Does.Contain(AppInfo.SyncArgument).And.EndWith("one"));
-            Assert.That(profile.Message, Is.EqualTo(expected));
         }
     }
 

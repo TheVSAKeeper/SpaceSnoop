@@ -21,37 +21,13 @@ public class SyncRowsProjectorTests
         }
     }
 
-    [TestCase(false, false, ExpectedResult = "docs/report.txt|src/main.cs")]
-    [TestCase(true, false, ExpectedResult = "docs/report.txt|docs/same.txt|readme.md|src/main.cs")]
-    [TestCase(false, true, ExpectedResult = "src/main.cs")]
-    [TestCase(true, true, ExpectedResult = "docs/same.txt|readme.md|src/main.cs")]
-    public string Фильтры_показа_решают_состав_плоского_списка(bool showIdentical, bool hideApplied)
-    {
-        var root = BuildRoot();
-        var applied = root.SubDirectories[0].Files[0];
-
-        return Joined(new()
-        {
-            Result = Comparison(root),
-            FlatView = true,
-            ShowIdentical = showIdentical,
-            HideApplied = hideApplied,
-            Outcomes = new() { [applied] = SyncOutcome.Applied },
-        });
-    }
-
     [TestCase(false, ExpectedResult = "src|main.cs")]
     [TestCase(true, ExpectedResult = "src/main.cs")]
     public string Поиск_оставляет_совпавшие_файлы_и_ветку_до_них(bool flat)
     {
         var root = BuildRoot();
 
-        return Joined(new()
-        {
-            Result = Comparison(root),
-            FlatView = flat,
-            SearchText = " main ",
-        });
+        return Joined(new() { Result = Comparison(root), FlatView = flat, SearchText = " main " });
     }
 
     [Test]
@@ -78,23 +54,43 @@ public class SyncRowsProjectorTests
         var root = BuildRoot();
         root.SubDirectories.Add(Dir("bin", ComparisonStatus.Modified, File("app.dll", "bin/app.dll", ComparisonStatus.LeftOnly)));
 
-        return Joined(new()
-        {
-            Result = Comparison(root),
-            FlatView = true,
-            GroupFolders = "bin,obj",
-            GitGroupExpanded = groupExpanded,
-        });
+        return Joined(
+            new()
+            {
+                Result = Comparison(root), FlatView = true, GroupFolders = "bin,obj", GitGroupExpanded = groupExpanded,
+            });
+    }
+
+    [TestCase(false, false, ExpectedResult = "docs/report.txt|src/main.cs")]
+    [TestCase(true, false, ExpectedResult = "docs/report.txt|docs/same.txt|readme.md|src/main.cs")]
+    [TestCase(false, true, ExpectedResult = "src/main.cs")]
+    [TestCase(true, true, ExpectedResult = "docs/same.txt|readme.md|src/main.cs")]
+    public string Фильтры_показа_решают_состав_плоского_списка(bool showIdentical, bool hideApplied)
+    {
+        var root = BuildRoot();
+        var applied = root.SubDirectories[0].Files[0];
+
+        return Joined(
+            new()
+            {
+                Result = Comparison(root),
+                FlatView = true,
+                ShowIdentical = showIdentical,
+                HideApplied = hideApplied,
+                Outcomes = new() { [applied] = SyncOutcome.Applied },
+            });
     }
 
     private static DirectoryComparison BuildRoot()
     {
         var root = Dir("", ComparisonStatus.Modified, File("readme.md", "readme.md", ComparisonStatus.Identical));
 
-        root.SubDirectories.Add(Dir("docs",
-            ComparisonStatus.Modified,
-            File("report.txt", "docs/report.txt", ComparisonStatus.Modified),
-            File("same.txt", "docs/same.txt", ComparisonStatus.Identical)));
+        root.SubDirectories.Add(
+            Dir(
+                "docs",
+                ComparisonStatus.Modified,
+                File("report.txt", "docs/report.txt", ComparisonStatus.Modified),
+                File("same.txt", "docs/same.txt", ComparisonStatus.Identical)));
 
         root.SubDirectories.Add(Dir("src", ComparisonStatus.Modified, File("main.cs", "src/main.cs", ComparisonStatus.LeftOnly)));
 

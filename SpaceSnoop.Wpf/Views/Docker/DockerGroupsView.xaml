@@ -75,7 +75,8 @@
                                 IsEnabled="{Binding DataContext.CanRun, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 Visibility="{Binding ConfirmingDelete, Converter={StaticResource InverseBoolToVisibility}}"
                                 AutomationProperties.Name="Удалить объект"
-                                ToolTip="{Binding DeleteTooltip}" ToolTipService.ShowOnDisabled="True">
+                                ToolTip="{Binding DeleteTooltip}"
+                                ToolTipService.ShowOnDisabled="True">
                             <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
                                                       Width="15"
                                                       Height="15"
@@ -160,16 +161,21 @@
                                            VerticalAlignment="Center" />
                             </Grid>
 
-                            <TextBlock Text="{Binding SizeExplanation}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,6"
+                            <TextBlock Text="{Binding SizeExplanation}"
+                                       Style="{StaticResource Caption}"
+                                       TextWrapping="Wrap"
+                                       Margin="0,2,0,6"
                                        Visibility="{Binding SizeExplanation, Converter={StaticResource NullToVisibility}}" />
                             <ItemsControl ItemsSource="{Binding Preview}"
                                           ItemTemplate="{StaticResource Docker.ObjectRow}" />
 
-                            <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                            <ScrollViewer MaxHeight="360"
+                                          VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
                                           Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
-                            <ItemsControl ItemsSource="{Binding Rest}"
-                                          ItemTemplate="{StaticResource Docker.ObjectRow}"
-                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}" />
+                                <ItemsControl ItemsSource="{Binding Rest}"
+                                              ItemTemplate="{StaticResource Docker.ObjectRow}"
+                                              Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}" />
                             </ScrollViewer>
 
                             <Button Style="{StaticResource Button.Ghost}"

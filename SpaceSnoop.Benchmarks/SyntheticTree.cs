@@ -178,7 +178,7 @@ internal static class SyntheticTree
 
     private static int Share(int budget, int children, int index)
     {
-        return (budget / children) + (index < budget % children ? 1 : 0);
+        return (budget / children) + (index < (budget % children) ? 1 : 0);
     }
 
     private static FileComparison CreateFile(CompareState state, string relative, int index)
@@ -253,9 +253,8 @@ internal static class SyntheticTree
 
     private abstract class ScanState
     {
-        public int Created { get; set; }
-
         public abstract void AddFiles(DirectorySpace directory, int count);
+        public int Created { get; set; }
     }
 
     private sealed class SampleScanState(IReadOnlyList<FileInfo> samples) : ScanState

@@ -6,6 +6,8 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class ScanSortStateTests
 {
+    private string _tempDir = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -21,8 +23,6 @@ public class ScanSortStateTests
             Directory.Delete(_tempDir, true);
         }
     }
-
-    private string _tempDir = null!;
 
     [Test]
     public void Каталог_всегда_раньше_файла_независимо_от_поля_и_инверсии([Values(false, true)] bool invert)
@@ -40,16 +40,14 @@ public class ScanSortStateTests
     }
 
     [Test]
-    public void По_размеру_сортирует_по_возрастанию_а_инверсия_переворачивает()
+    public void По_дате_создания_сортирует_по_возрастанию()
     {
-        var small = MakeDir("s", 10);
-        var big = MakeDir("b", 1000);
+        var older = MakeDir("o", 1, new(2020, 1, 1));
+        var newer = MakeDir("n", 1, new(2024, 1, 1));
 
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(new ScanSortState { Field = ScanSortField.Size, Invert = false }.Compare(small, big), Is.LessThan(0));
-            Assert.That(new ScanSortState { Field = ScanSortField.Size, Invert = true }.Compare(small, big), Is.GreaterThan(0));
-        }
+        var sorter = new ScanSortState { Field = ScanSortField.CreationDate, Invert = false };
+
+        Assert.That(sorter.Compare(older, newer), Is.LessThan(0));
     }
 
     [Test]
@@ -61,17 +59,6 @@ public class ScanSortStateTests
         var sorter = new ScanSortState { Field = ScanSortField.Name, Invert = false };
 
         Assert.That(sorter.Compare(alpha, beta), Is.LessThan(0));
-    }
-
-    [Test]
-    public void По_дате_создания_сортирует_по_возрастанию()
-    {
-        var older = MakeDir("o", 1, new(2020, 1, 1));
-        var newer = MakeDir("n", 1, new(2024, 1, 1));
-
-        var sorter = new ScanSortState { Field = ScanSortField.CreationDate, Invert = false };
-
-        Assert.That(sorter.Compare(older, newer), Is.LessThan(0));
     }
 
     [Test]
@@ -89,6 +76,19 @@ public class ScanSortStateTests
             Assert.That(many.TotalFileCount, Is.EqualTo(5));
             Assert.That(new ScanSortState { Field = ScanSortField.FileCount, Invert = false }.Compare(few, many), Is.LessThan(0));
             Assert.That(new ScanSortState { Field = ScanSortField.FileCount, Invert = true }.Compare(few, many), Is.GreaterThan(0));
+        }
+    }
+
+    [Test]
+    public void По_размеру_сортирует_по_возрастанию_а_инверсия_переворачивает()
+    {
+        var small = MakeDir("s", 10);
+        var big = MakeDir("b", 1000);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(new ScanSortState { Field = ScanSortField.Size, Invert = false }.Compare(small, big), Is.LessThan(0));
+            Assert.That(new ScanSortState { Field = ScanSortField.Size, Invert = true }.Compare(small, big), Is.GreaterThan(0));
         }
     }
 

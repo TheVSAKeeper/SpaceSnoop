@@ -18,12 +18,12 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     private readonly OperationProgressState _progress = new();
     private readonly IUiTimer _progressTimer;
 
+    private readonly Stopwatch _clock = new();
+
     private CancellationTokenSource? _cts;
     private bool _isIndeterminate = true;
     private double _progressValue;
     private double _progressMax = 1;
-
-    private readonly Stopwatch _clock = new();
 
     private RunShape _shape;
     private PerformanceOperation? _measured;
@@ -47,22 +47,6 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     [ObservableProperty]
     private bool _hasProgressRate;
 
-    public SyncSessionViewModel(
-        IDialogService dialogs,
-        ILogger logger,
-        ToastNotifier notifier,
-        PerformanceOperations performance,
-        IUiDispatcher uiDispatcher,
-        Action<string> reportSummary)
-    {
-        _dialogs = dialogs;
-        _logger = logger;
-        _notifier = notifier;
-        _performance = performance;
-        _reportSummary = reportSummary;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
-    }
-
     public bool IsIndeterminate
     {
         get => _isIndeterminate;
@@ -83,17 +67,34 @@ public sealed partial class SyncSessionViewModel : ObservableObject
 
     public ICommand CancelCommand => CancelOperationCommand;
 
+    internal bool LastOperationCancelled { get; private set; }
+
+    public SyncSessionViewModel(
+        IDialogService dialogs,
+        ILogger logger,
+        ToastNotifier notifier,
+        PerformanceOperations performance,
+        IUiDispatcher uiDispatcher,
+        Action<string> reportSummary)
+    {
+        _dialogs = dialogs;
+        _logger = logger;
+        _notifier = notifier;
+        _performance = performance;
+        _reportSummary = reportSummary;
+        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+    }
+
     internal static string DescribeRate(string name, SyncReport report, TimeSpan elapsed)
     {
-        var finished = new PerformanceOperation(name,
+        var finished = new PerformanceOperation(
+            name,
             report.SuccessCount + report.Errors.Count,
             report.CopiedBytes,
             elapsed);
 
         return PerformanceText.Rate(finished) is { } rate ? $" Скорость: {rate}." : string.Empty;
     }
-
-    internal bool LastOperationCancelled { get; private set; }
 
     internal void ShowBusyForAutomation(string caption, OperationProgress update, TimeSpan elapsed, int total = 0, long totalBytes = 0)
     {
@@ -266,7 +267,8 @@ public sealed partial class SyncSessionViewModel : ObservableObject
         StatusCaption = head;
         ProgressDetail = head + tail;
 
-        var current = new PerformanceOperation(shape.Operation,
+        var current = new PerformanceOperation(
+            shape.Operation,
             update.Completed,
             update.Bytes,
             elapsed,

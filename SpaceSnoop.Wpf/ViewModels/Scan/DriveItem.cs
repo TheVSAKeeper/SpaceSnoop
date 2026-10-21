@@ -1,5 +1,4 @@
 ﻿using MahApps.Metro.IconPacks;
-
 using System.IO;
 using System.Security;
 
@@ -21,13 +20,6 @@ public sealed class DriveItem : ObservableObject
     private Task? _loading;
     private int _generation;
     private bool _isSelected;
-
-    public DriveItem(string path)
-    {
-        Path = path;
-        IsDirectory = !IsVolumeRoot(path);
-        Title = BuildTitle(path, IsDirectory);
-    }
 
     public string Path { get; }
 
@@ -85,6 +77,13 @@ public sealed class DriveItem : ObservableObject
 
             return Caption is { } caption ? $"{kind} {Title}, {caption}" : $"{kind} {Title}";
         }
+    }
+
+    public DriveItem(string path)
+    {
+        Path = path;
+        IsDirectory = !IsVolumeRoot(path);
+        Title = BuildTitle(path, IsDirectory);
     }
 
     public Task LoadAsync()
@@ -197,7 +196,7 @@ public sealed class DriveItem : ObservableObject
         var root = System.IO.Path.GetPathRoot(trimmed) ?? string.Empty;
         var parts = trimmed[root.Length..].Split(Separators, StringSplitOptions.RemoveEmptyEntries);
 
-        if (parts.Length <= TitleSegments + 1)
+        if (parts.Length <= (TitleSegments + 1))
         {
             return trimmed;
         }
@@ -229,7 +228,8 @@ public sealed class DriveItem : ObservableObject
 
             var label = drive.VolumeLabel;
 
-            return new(true,
+            return new(
+                true,
                 true,
                 string.IsNullOrWhiteSpace(label) ? null : label,
                 drive.DriveType,

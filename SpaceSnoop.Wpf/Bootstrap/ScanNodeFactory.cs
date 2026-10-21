@@ -8,8 +8,6 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
     public event Action<ScanNodeViewModel>? UnignoreRequested;
     internal event Action<ScanMarkSnapshot>? MarksChanged;
 
-    internal Func<SpaceBase, SpaceBase, ScanMarkSnapshot>? MarkSnapshot { get; set; }
-
     public bool MarksPresent { get; set; }
 
     public ScanVisibility Visibility { get; } = new();
@@ -20,6 +18,8 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
 
     public IShellLauncher Shell => shell;
 
+    internal Func<SpaceBase, SpaceBase, ScanMarkSnapshot>? MarkSnapshot { get; set; }
+
     public ScanNodeViewModel Create(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, ScanSortState sort)
     {
         return new(space, siblingMax, parentTotal, root, null, sort, this);
@@ -28,16 +28,6 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
     public ScanNodeViewModel CreateRoot(SpaceBase space, ScanSortState sort)
     {
         return new(space, space.TotalSize, space.TotalSize, space, DriveCapacity.TryRead(space.AbsolutePath), sort, this);
-    }
-
-    internal ScanMarkSnapshot CaptureMarks(SpaceBase space, SpaceBase root)
-    {
-        return MarkSnapshot?.Invoke(root, space) ?? ScanTreeEditor.CaptureMarks(root, space, MarksPresent);
-    }
-
-    internal void RaiseMarksChanged(ScanMarkSnapshot before)
-    {
-        MarksChanged?.Invoke(before);
     }
 
     public void RequestArchive(ScanNodeViewModel node)
@@ -58,5 +48,15 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
     public void RequestUnignore(ScanNodeViewModel node)
     {
         UnignoreRequested?.Invoke(node);
+    }
+
+    internal ScanMarkSnapshot CaptureMarks(SpaceBase space, SpaceBase root)
+    {
+        return MarkSnapshot?.Invoke(root, space) ?? ScanTreeEditor.CaptureMarks(root, space, MarksPresent);
+    }
+
+    internal void RaiseMarksChanged(ScanMarkSnapshot before)
+    {
+        MarksChanged?.Invoke(before);
     }
 }

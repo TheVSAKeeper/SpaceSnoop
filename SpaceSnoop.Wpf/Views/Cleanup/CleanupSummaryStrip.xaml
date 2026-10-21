@@ -11,7 +11,9 @@
     <Border Style="{StaticResource Card}"
             Margin="0,0,0,10">
         <Grid>
-            <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -48,7 +50,11 @@
                 </TextBlock>
             </StackPanel>
 
-            <Button Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="1" HorizontalAlignment="Right" Margin="0,8,0,0"
+            <Button Grid.Column="0"
+                    Grid.ColumnSpan="4"
+                    Grid.Row="1"
+                    HorizontalAlignment="Right"
+                    Margin="0,8,0,0"
                     Style="{StaticResource Button.Base}"
                     Command="{Binding CleanSelectedCommand}"
                     VerticalAlignment="Center"

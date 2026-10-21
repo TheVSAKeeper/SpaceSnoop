@@ -1,5 +1,4 @@
 ﻿using MahApps.Metro.IconPacks;
-using SpaceSnoop.Core.Cleanup;
 
 namespace SpaceSnoop.Wpf.ViewModels.Cleanup;
 
@@ -53,12 +52,6 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
-    public CleanupTargetViewModel(CleanupTarget target)
-    {
-        Model = target;
-        IconKind = IconFor(target.Id);
-    }
-
     public CleanupTarget Model { get; }
 
     public PackIconLucideKind IconKind { get; }
@@ -108,6 +101,12 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
         : $"{Files:N0} {Plural.Word(Files, "файл", "файла", "файлов")}";
 
     public string AvailabilityText => HasAvailabilityIssue ? CleanupText.Availability(Availability) : string.Empty;
+
+    public CleanupTargetViewModel(CleanupTarget target)
+    {
+        Model = target;
+        IconKind = IconFor(target.Id);
+    }
 
     public void Apply(CleanupMeasurement measurement)
     {

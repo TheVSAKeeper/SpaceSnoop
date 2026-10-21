@@ -26,7 +26,7 @@ public sealed class DockerRefreshThreadTests
     public void Опрос_Docker_вне_потока_диспетчера_наполняет_привязанные_списки()
     {
         var view = new DockerViewModel(
-            new DockerService(new YieldingRunner()),
+            new(new YieldingRunner()),
             new NoopDialogs(),
             new DispatcherUiDispatcher(Dispatcher.CurrentDispatcher),
             NullLogger<DockerViewModel>.Instance);

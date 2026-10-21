@@ -7,14 +7,6 @@ public class McpAuthTests
 {
     private const string Token = "e7605ca560754c5c87756c415c02283b";
 
-    [TestCase("Bearer e7605ca560754c5c87756c415c02283b")]
-    [TestCase("bearer e7605ca560754c5c87756c415c02283b")]
-    [TestCase("Bearer  e7605ca560754c5c87756c415c02283b ")]
-    public void Верный_токен_в_заголовке_Authorization_пропускается(string authorization)
-    {
-        Assert.That(McpAuth.IsAuthorized(authorization, null, Token), Is.True);
-    }
-
     [TestCase(null, null)]
     [TestCase("", "")]
     [TestCase("Bearer другой", null)]
@@ -25,20 +17,18 @@ public class McpAuthTests
         Assert.That(McpAuth.IsAuthorized(authorization, tokenHeader, Token), Is.False);
     }
 
+    [TestCase("Bearer e7605ca560754c5c87756c415c02283b")]
+    [TestCase("bearer e7605ca560754c5c87756c415c02283b")]
+    [TestCase("Bearer  e7605ca560754c5c87756c415c02283b ")]
+    public void Верный_токен_в_заголовке_Authorization_пропускается(string authorization)
+    {
+        Assert.That(McpAuth.IsAuthorized(authorization, null, Token), Is.True);
+    }
+
     [Test]
     public void Отдельный_заголовок_с_токеном_пропускается()
     {
         Assert.That(McpAuth.IsAuthorized(null, Token, Token), Is.True);
-    }
-
-    [Test]
-    public void Пустой_токен_не_пропускает_никого()
-    {
-        Assert.Multiple(() =>
-        {
-            Assert.That(McpAuth.IsAuthorized(null, null, string.Empty), Is.False);
-            Assert.That(McpAuth.IsAuthorized("Bearer " + Token, null, string.Empty), Is.False);
-        });
     }
 
     [TestCase(null)]
@@ -49,6 +39,16 @@ public class McpAuthTests
     public void Петлевой_или_отсутствующий_Origin_пропускается(string? origin)
     {
         Assert.That(McpAuth.IsOriginAllowed(origin), Is.True);
+    }
+
+    [Test]
+    public void Пустой_токен_не_пропускает_никого()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(McpAuth.IsAuthorized(null, null, string.Empty), Is.False);
+            Assert.That(McpAuth.IsAuthorized("Bearer " + Token, null, string.Empty), Is.False);
+        });
     }
 
     [TestCase("https://evil.example")]

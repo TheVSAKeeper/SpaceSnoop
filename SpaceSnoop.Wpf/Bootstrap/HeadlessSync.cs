@@ -119,7 +119,8 @@ internal sealed class HeadlessSync
             exclusions = settings.GetStringValue(SettingsKeys.DefaultExclusions) ?? string.Empty;
         }
 
-        return new("глобальные настройки",
+        return new(
+            "глобальные настройки",
             (settings.GetStringValue(SettingsKeys.SyncLeft) ?? string.Empty).Trim(),
             (settings.GetStringValue(SettingsKeys.SyncRight) ?? string.Empty).Trim(),
             MapMode(settings.GetInt(SettingsKeys.SyncMode)),
@@ -160,7 +161,7 @@ internal sealed class HeadlessSync
     private static bool IsMirrorSourceEmpty(RunOptions options)
     {
         return SyncProfile.MirrorSource(options.Mode, options.Winner, options.Left, options.Right) is { } mirrorSource
-               && (!Directory.Exists(mirrorSource) || !Directory.EnumerateFileSystemEntries(mirrorSource).Any());
+            && (!Directory.Exists(mirrorSource) || !Directory.EnumerateFileSystemEntries(mirrorSource).Any());
     }
 
     private static bool TryAcquire(Mutex mutex)

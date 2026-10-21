@@ -243,9 +243,10 @@
                             <Grid Grid.Column="2"
                                   Margin="14,0,2,0"
                                   VerticalAlignment="Center">
-                                <TextBlock Text="{Binding DataContext.WidestSizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                           Visibility="Hidden"
-                                           FontSize="{DynamicResource Font.Size.Caption}" />
+                                <TextBlock
+                                    Text="{Binding DataContext.WidestSizeText, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    Visibility="Hidden"
+                                    FontSize="{DynamicResource Font.Size.Caption}" />
                                 <TextBlock Text="{Binding SizeText}"
                                            HorizontalAlignment="Right"
                                            FontSize="{DynamicResource Font.Size.Caption}"

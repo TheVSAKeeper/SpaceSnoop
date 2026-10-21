@@ -1,6 +1,6 @@
 ﻿using KeepShell.Diagnostics;
-using System.IO.Compression;
 using Serilog.Events;
+using System.IO.Compression;
 
 namespace SpaceSnoop.Wpf.Bootstrap;
 
@@ -160,9 +160,5 @@ public static class AppDefaults
     public const bool UpdateAutoDownloadDefault = false;
     public const long SelfContainedExeThreshold = 50_000_000;
 
-    public static readonly IReadOnlyDictionary<string, LogEventLevel> LogLevelOverrides = new Dictionary<string, LogEventLevel>
-    {
-        ["SpaceSnoop.Core.DiskSpaceCalculator"] = LogEventLevel.Information,
-        ["SpaceSnoop.Core.DirectoryComparer"] = LogEventLevel.Information,
-    };
+    public static readonly IReadOnlyDictionary<string, LogEventLevel> LogLevelOverrides = new Dictionary<string, LogEventLevel> { ["SpaceSnoop.Core.DiskSpaceCalculator"] = LogEventLevel.Information, ["SpaceSnoop.Core.DirectoryComparer"] = LogEventLevel.Information };
 }

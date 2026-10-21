@@ -9,6 +9,16 @@ public class McpConnectSnippetsTests
 
     private const string Token = "тестовый-токен-42";
 
+    [TestCase(-1)]
+    [TestCase(5)]
+    [TestCase(int.MaxValue)]
+    public void Индекс_вне_диапазона_даёт_JSON(int formatIndex)
+    {
+        var snippet = McpConnectSnippets.For(formatIndex, Url, Token);
+
+        Assert.That(snippet, Is.EqualTo(McpConnectSnippets.For(0, Url, Token)));
+    }
+
     [TestCase(0, "\"mcpServers\"")]
     [TestCase(1, "claude mcp add")]
     [TestCase(2, "[mcp_servers.spacesnoop]")]
@@ -19,16 +29,6 @@ public class McpConnectSnippetsTests
         var snippet = McpConnectSnippets.For(formatIndex, Url, Token);
 
         Assert.That(snippet, Does.Contain(marker));
-    }
-
-    [TestCase(-1)]
-    [TestCase(5)]
-    [TestCase(int.MaxValue)]
-    public void Индекс_вне_диапазона_даёт_JSON(int formatIndex)
-    {
-        var snippet = McpConnectSnippets.For(formatIndex, Url, Token);
-
-        Assert.That(snippet, Is.EqualTo(McpConnectSnippets.For(0, Url, Token)));
     }
 
     [Test]

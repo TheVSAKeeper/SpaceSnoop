@@ -39,7 +39,7 @@ internal sealed class ScanArchiveViewModel
 
     internal ArchiveRequest CreateArchiveRequest(DirectorySpace dir, bool deleteOriginal)
     {
-        return _archiveDialogFactory.CreateRequest(dir, deleteOriginal, interactive: false);
+        return _archiveDialogFactory.CreateRequest(dir, deleteOriginal, false);
     }
 
     internal async Task<ArchiveOutcome> ArchiveFromAutomationAsync(

@@ -1,6 +1,4 @@
 ﻿using KeepShell.Services;
-using KeepShell.Services.Modal;
-using KeepShell.Services.Platform;
 using KeepShell.Testing;
 using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core.Cleanup;
@@ -15,6 +13,7 @@ public sealed class DotNetCleanViewModelTests
     private string _root = null!;
     private string _project = null!;
     private List<string[]> _calls = null!;
+
     private Func<string, IReadOnlyList<string>, string, string, TimeSpan, CancellationToken,
         IReadOnlyDictionary<string, string>?, Task<DotNetCliResult>>? _runOverride;
 
@@ -22,7 +21,11 @@ public sealed class DotNetCleanViewModelTests
     public void SetUp()
     {
         var repository = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".kc"))) repository = repository.Parent;
+        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".kc")))
+        {
+            repository = repository.Parent;
+        }
+
         Assert.That(repository, Is.Not.Null);
         _root = Path.Combine(repository!.FullName, ".kc", "scratch", "developer-cleanup-stages-5-7", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
@@ -33,20 +36,10 @@ public sealed class DotNetCleanViewModelTests
     }
 
     [TearDown]
-    public void TearDown() => Directory.Delete(_root, true);
-
-    private DotNetCleanService CreateService() => new(() => @"C:\Program Files\dotnet\dotnet.exe",
-        (executable, args, workingDirectory, logPath, timeout, token, environment) =>
-        {
-            _calls.Add(args.ToArray());
-            if (_runOverride is not null) return _runOverride(executable, args, workingDirectory, logPath, timeout, token, environment);
-            var text = args.SequenceEqual(new[] { "--version" }) ? "10.0.303" : "partial clean output";
-            return Task.FromResult(new DotNetCliResult(DotNetCliOutcome.Succeeded, 0, text, logPath, false, null));
-        }, name => Path.Combine(_root, name + ".log"), () => DateTime.UtcNow);
-
-    private DotNetCleanViewModel Create(IDialogService? dialogs = null, FakeFilePicker? picker = null) => new(
-        CreateService(), dialogs ?? new NoopDialogs(showResult: true), picker ?? new FakeFilePicker(),
-        new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<DotNetCleanViewModel>.Instance);
+    public void TearDown()
+    {
+        Directory.Delete(_root, true);
+    }
 
     [Test]
     public async Task Без_доверия_проверка_и_выбор_файла_не_запускают_dotnet()
@@ -63,52 +56,6 @@ public sealed class DotNetCleanViewModelTests
         });
     }
 
-    [Test]
-    public async Task Проверка_показывает_контекст_и_изменение_параметров_сбрасывает_план()
-    {
-        var vm = Create();
-        vm.ProjectPath = _project;
-        vm.IsTrusted = true;
-        await vm.InspectCommand.ExecuteAsync(null);
-        Assert.That(vm.DisplayPlan!.Command, Does.Contain("--configuration"));
-        Assert.That(_calls, Has.Count.EqualTo(1));
-        vm.Framework = "net10.0";
-        Assert.Multiple(() =>
-        {
-            Assert.That(vm.HasPlan, Is.False);
-            Assert.That(vm.CanClean, Is.False);
-            Assert.That(vm.LogPath, Is.Null);
-        });
-    }
-
-    [Test]
-    public async Task Смена_пути_сбрасывает_доверие_а_отказ_не_запускает_очистку()
-    {
-        ConfirmDialogViewModel? confirmation = null;
-        var cancelWasEnabled = true;
-        DotNetCleanViewModel? vm = null;
-        var dialogs = new NoopDialogs(show: model =>
-        {
-            confirmation = model as ConfirmDialogViewModel;
-            cancelWasEnabled = vm!.CanCancel;
-            return false;
-        });
-        vm = Create(dialogs);
-        vm.ProjectPath = _project;
-        vm.IsTrusted = true;
-        await vm.InspectCommand.ExecuteAsync(null);
-        await vm.CleanCommand.ExecuteAsync(null);
-        vm.ProjectPath = Path.Combine(_root, "Other.csproj");
-        Assert.Multiple(() =>
-        {
-            Assert.That(confirmation!.Warning, Does.Contain("вне каталога проекта"));
-            Assert.That(cancelWasEnabled, Is.False);
-            Assert.That(_calls.Any(x => x.Contains("clean")), Is.False);
-            Assert.That(vm.IsTrusted, Is.False);
-            Assert.That(vm.CanClean, Is.False);
-        });
-    }
-
     [TestCase("path")]
     [TestCase("configuration")]
     [TestCase("framework")]
@@ -117,18 +64,35 @@ public sealed class DotNetCleanViewModelTests
     public async Task Изменение_входа_в_подтверждении_запрещает_запуск(string change)
     {
         DotNetCleanViewModel? vm = null;
-        var dialogs = new NoopDialogs(show: _ =>
-        {
-            switch (change)
+        var dialogs = new NoopDialogs(
+            show: _ =>
             {
-                case "path": vm!.ProjectPath = Path.Combine(_root, "Other.csproj"); break;
-                case "configuration": vm!.Configuration = "Release"; break;
-                case "framework": vm!.Framework = "net10.0"; break;
-                case "runtime": vm!.Runtime = "win-x64"; break;
-                case "trust": vm!.IsTrusted = false; break;
-            }
-            return true;
-        });
+                switch (change)
+                {
+                    case "path":
+                        vm!.ProjectPath = Path.Combine(_root, "Other.csproj");
+                        break;
+
+                    case "configuration":
+                        vm!.Configuration = "Release";
+                        break;
+
+                    case "framework":
+                        vm!.Framework = "net10.0";
+                        break;
+
+                    case "runtime":
+                        vm!.Runtime = "win-x64";
+                        break;
+
+                    case "trust":
+                        vm!.IsTrusted = false;
+                        break;
+                }
+
+                return true;
+            });
+
         vm = Create(dialogs);
         vm.ProjectPath = _project;
         vm.IsTrusted = true;
@@ -154,6 +118,138 @@ public sealed class DotNetCleanViewModelTests
     }
 
     [Test]
+    public async Task Отмена_запущенной_команды_передаёт_токен_и_оставляет_частичный_исход()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _runOverride = async (exe, args, cwd, log, timeout, token, env) =>
+        {
+            if (args.Contains("clean"))
+            {
+                started.SetResult();
+                await Task.Delay(Timeout.Infinite, token);
+            }
+
+            return new(DotNetCliOutcome.Succeeded, 0, "10.0.303", log, false, null);
+        };
+
+        var vm = Create();
+        vm.ProjectPath = _project;
+        vm.IsTrusted = true;
+        await vm.InspectCommand.ExecuteAsync(null);
+        var clean = vm.CleanCommand.ExecuteAsync(null);
+        await started.Task;
+        vm.CancelCommand!.Execute(null);
+        await clean;
+        Assert.That(vm.ResultText, Does.Contain("частичным"));
+    }
+
+    [Test]
+    public async Task Проверка_показывает_контекст_и_изменение_параметров_сбрасывает_план()
+    {
+        var vm = Create();
+        vm.ProjectPath = _project;
+        vm.IsTrusted = true;
+        await vm.InspectCommand.ExecuteAsync(null);
+        Assert.That(vm.DisplayPlan!.Command, Does.Contain("--configuration"));
+        Assert.That(_calls, Has.Count.EqualTo(1));
+        vm.Framework = "net10.0";
+        Assert.Multiple(() =>
+        {
+            Assert.That(vm.HasPlan, Is.False);
+            Assert.That(vm.CanClean, Is.False);
+            Assert.That(vm.LogPath, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task Родительская_страница_блокирует_соседние_очистки_во_время_проверки()
+    {
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _runOverride = async (exe, args, cwd, log, timeout, token, env) =>
+        {
+            if (args.Contains("--version"))
+            {
+                started.SetResult();
+                await Task.Delay(Timeout.Infinite, token);
+            }
+
+            return new(DotNetCliOutcome.Succeeded, 0, "10.0.303", log, false, null);
+        };
+
+        var projects = new ProjectCleanupViewModel(
+            new(),
+            new NoopDialogs(),
+            new FakeFilePicker(),
+            new FakeShellLauncher(),
+            new FakeUiDispatcher(),
+            new MemorySettings(),
+            NullLogger<ProjectCleanupViewModel>.Instance);
+
+        var workloads = new WorkloadCleanupViewModel(
+            new(_root),
+            new NoopDialogs(),
+            new FakeShellLauncher(),
+            new FakeUiDispatcher(),
+            NullLogger<WorkloadCleanupViewModel>.Instance);
+
+        var vm = Create();
+        var parent = new DeveloperCleanupViewModel(
+            new(),
+            new NoopDialogs(),
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            projects,
+            workloads,
+            vm);
+
+        vm.ProjectPath = _project;
+        vm.IsTrusted = true;
+        var inspect = vm.InspectCommand.ExecuteAsync(null);
+        await started.Task;
+        Assert.Multiple(() =>
+        {
+            Assert.That(parent.IsBusy, Is.True);
+            Assert.That(parent.RefreshCommand.CanExecute(null), Is.False);
+            Assert.That(workloads.IsHostBusy, Is.True);
+            Assert.That(projects.IsHostBusy, Is.True);
+            Assert.That(parent.CancelCommand, Is.SameAs(vm.CancelCommand));
+        });
+
+        vm.CancelCommand!.Execute(null);
+        await inspect;
+    }
+
+    [Test]
+    public async Task Смена_пути_сбрасывает_доверие_а_отказ_не_запускает_очистку()
+    {
+        ConfirmDialogViewModel? confirmation = null;
+        var cancelWasEnabled = true;
+        DotNetCleanViewModel? vm = null;
+        var dialogs = new NoopDialogs(
+            show: model =>
+            {
+                confirmation = model as ConfirmDialogViewModel;
+                cancelWasEnabled = vm!.CanCancel;
+                return false;
+            });
+
+        vm = Create(dialogs);
+        vm.ProjectPath = _project;
+        vm.IsTrusted = true;
+        await vm.InspectCommand.ExecuteAsync(null);
+        await vm.CleanCommand.ExecuteAsync(null);
+        vm.ProjectPath = Path.Combine(_root, "Other.csproj");
+        Assert.Multiple(() =>
+        {
+            Assert.That(confirmation!.Warning, Does.Contain("вне каталога проекта"));
+            Assert.That(cancelWasEnabled, Is.False);
+            Assert.That(_calls.Any(x => x.Contains("clean")), Is.False);
+            Assert.That(vm.IsTrusted, Is.False);
+            Assert.That(vm.CanClean, Is.False);
+        });
+    }
+
+    [Test]
     public async Task Успешное_и_ошибочное_выполнение_сохраняют_вывод_и_путь_журнала()
     {
         var vm = Create();
@@ -168,70 +264,46 @@ public sealed class DotNetCleanViewModelTests
         failed.ProjectPath = _project;
         failed.IsTrusted = true;
         await failed.InspectCommand.ExecuteAsync(null);
-        _runOverride = (exe, args, cwd, log, timeout, token, env) => Task.FromResult(new DotNetCliResult(
-            args.Contains("--version") ? DotNetCliOutcome.Succeeded : DotNetCliOutcome.Failed,
-            args.Contains("--version") ? 0 : 7, args.Contains("--version") ? "10.0.303" : "failure tail", log, false, "failed"));
+        _runOverride = (exe, args, cwd, log, timeout, token, env) => Task.FromResult(
+            new DotNetCliResult(
+                args.Contains("--version") ? DotNetCliOutcome.Succeeded : DotNetCliOutcome.Failed,
+                args.Contains("--version") ? 0 : 7,
+                args.Contains("--version") ? "10.0.303" : "failure tail",
+                log,
+                false,
+                "failed"));
+
         await failed.CleanCommand.ExecuteAsync(null);
         Assert.That(failed.ResultText, Does.Contain("failure tail"));
     }
 
-    [Test]
-    public async Task Отмена_запущенной_команды_передаёт_токен_и_оставляет_частичный_исход()
+    private DotNetCleanService CreateService()
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _runOverride = async (exe, args, cwd, log, timeout, token, env) =>
-        {
-            if (args.Contains("clean"))
+        return new(
+            () => @"C:\Program Files\dotnet\dotnet.exe",
+            (executable, args, workingDirectory, logPath, timeout, token, environment) =>
             {
-                started.SetResult();
-                await Task.Delay(Timeout.Infinite, token);
-            }
-            return new DotNetCliResult(DotNetCliOutcome.Succeeded, 0, "10.0.303", log, false, null);
-        };
-        var vm = Create();
-        vm.ProjectPath = _project;
-        vm.IsTrusted = true;
-        await vm.InspectCommand.ExecuteAsync(null);
-        var clean = vm.CleanCommand.ExecuteAsync(null);
-        await started.Task;
-        vm.CancelCommand!.Execute(null);
-        await clean;
-        Assert.That(vm.ResultText, Does.Contain("частичным"));
+                _calls.Add(args.ToArray());
+                if (_runOverride is not null)
+                {
+                    return _runOverride(executable, args, workingDirectory, logPath, timeout, token, environment);
+                }
+
+                var text = args.SequenceEqual(new[] { "--version" }) ? "10.0.303" : "partial clean output";
+                return Task.FromResult(new DotNetCliResult(DotNetCliOutcome.Succeeded, 0, text, logPath, false, null));
+            },
+            name => Path.Combine(_root, name + ".log"),
+            () => DateTime.UtcNow);
     }
 
-    [Test]
-    public async Task Родительская_страница_блокирует_соседние_очистки_во_время_проверки()
+    private DotNetCleanViewModel Create(IDialogService? dialogs = null, FakeFilePicker? picker = null)
     {
-        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        _runOverride = async (exe, args, cwd, log, timeout, token, env) =>
-        {
-            if (args.Contains("--version"))
-            {
-                started.SetResult();
-                await Task.Delay(Timeout.Infinite, token);
-            }
-            return new DotNetCliResult(DotNetCliOutcome.Succeeded, 0, "10.0.303", log, false, null);
-        };
-        var projects = new ProjectCleanupViewModel(new ProjectCleanupService(), new NoopDialogs(), new FakeFilePicker(),
-            new FakeShellLauncher(), new FakeUiDispatcher(), new MemorySettings(), NullLogger<ProjectCleanupViewModel>.Instance);
-        var workloads = new WorkloadCleanupViewModel(new WorkloadCleanupService(_root), new NoopDialogs(),
-            new FakeShellLauncher(), new FakeUiDispatcher(), NullLogger<WorkloadCleanupViewModel>.Instance);
-        var vm = Create();
-        var parent = new DeveloperCleanupViewModel(new NuGetCleanupService(), new NoopDialogs(), new FakeUiDispatcher(),
-            NullLogger<DeveloperCleanupViewModel>.Instance, projects, workloads, vm);
-        vm.ProjectPath = _project;
-        vm.IsTrusted = true;
-        var inspect = vm.InspectCommand.ExecuteAsync(null);
-        await started.Task;
-        Assert.Multiple(() =>
-        {
-            Assert.That(parent.IsBusy, Is.True);
-            Assert.That(parent.RefreshCommand.CanExecute(null), Is.False);
-            Assert.That(workloads.IsHostBusy, Is.True);
-            Assert.That(projects.IsHostBusy, Is.True);
-            Assert.That(parent.CancelCommand, Is.SameAs(vm.CancelCommand));
-        });
-        vm.CancelCommand!.Execute(null);
-        await inspect;
+        return new(
+            CreateService(),
+            dialogs ?? new NoopDialogs(showResult: true),
+            picker ?? new FakeFilePicker(),
+            new FakeShellLauncher(),
+            new FakeUiDispatcher(),
+            NullLogger<DotNetCleanViewModel>.Instance);
     }
 }

@@ -158,8 +158,7 @@ internal static class MftReader
 
         if (map.Length < needed)
         {
-            throw new InvalidDataException(
-                $"Том {letter}: отрезки $MFT покрывают {map.Length:N0} Б из {needed:N0} Б, разметка неполна");
+            throw new InvalidDataException($"Том {letter}: отрезки $MFT покрывают {map.Length:N0} Б из {needed:N0} Б, разметка неполна");
         }
 
         var entries = new MftEntry[records];
@@ -170,11 +169,7 @@ internal static class MftReader
         var alignment = Math.Max((int)bytesPerSector, BufferAlignment);
         var workers = new ConcurrentStack<MftWorker>();
 
-        var options = new ParallelOptions
-        {
-            CancellationToken = cancel,
-            MaxDegreeOfParallelism = Math.Max(1, threads),
-        };
+        var options = new ParallelOptions { CancellationToken = cancel, MaxDegreeOfParallelism = Math.Max(1, threads) };
 
         try
         {
@@ -182,7 +177,7 @@ internal static class MftReader
                 0,
                 blocks,
                 options,
-                () => workers.TryPop(out var idle) ? idle : new MftWorker(blockRecords * recordSize, alignment),
+                () => workers.TryPop(out var idle) ? idle : new(blockRecords * recordSize, alignment),
                 (block, _, worker) =>
                 {
                     var start = block * blockRecords;
@@ -302,11 +297,6 @@ internal static class MftReader
         }
     }
 
-    private static bool DropStaleNames(List<MftName> names, ushort sequence)
-    {
-        return names.RemoveAll(name => !MftLayout.SameGeneration(sequence, name.BaseSequence)) > 0;
-    }
-
     internal static void Parse(
         Span<byte> record,
         int bytesPerSector,
@@ -378,7 +368,7 @@ internal static class MftReader
         var names = 0;
         var position = (int)BinaryPrimitives.ReadUInt16LittleEndian(record[0x14..]);
 
-        while (position + 8 <= record.Length)
+        while ((position + 8) <= record.Length)
         {
             var type = BinaryPrimitives.ReadUInt32LittleEndian(record[position..]);
 
@@ -389,7 +379,7 @@ internal static class MftReader
 
             var length = (int)BinaryPrimitives.ReadUInt32LittleEndian(record[(position + 4)..]);
 
-            if (length <= 0 || length > record.Length - position || length < ResidentHeaderBytes)
+            if (length <= 0 || length > (record.Length - position) || length < ResidentHeaderBytes)
             {
                 statistics.Partial++;
                 break;
@@ -422,6 +412,11 @@ internal static class MftReader
         }
 
         entries[index] = entry;
+    }
+
+    private static bool DropStaleNames(List<MftName> names, ushort sequence)
+    {
+        return names.RemoveAll(name => !MftLayout.SameGeneration(sequence, name.BaseSequence)) > 0;
     }
 
     private static void Merge(MftPart[] parts, MftPending pending, MftStatistics statistics)
@@ -472,7 +467,7 @@ internal static class MftReader
         {
             size = BinaryPrimitives.ReadUInt32LittleEndian(attribute[0x10..]);
 
-            if (BinaryPrimitives.ReadUInt16LittleEndian(attribute[0x14..]) + size > attribute.Length)
+            if ((BinaryPrimitives.ReadUInt16LittleEndian(attribute[0x14..]) + size) > attribute.Length)
             {
                 statistics.Partial++;
                 return;
@@ -513,7 +508,7 @@ internal static class MftReader
 
                 if (candidateNamespace == MftLayout.NamespaceDos
                     || candidateLength == 0
-                    || value.Length < FileNameHeaderBytes + candidateLength * 2)
+                    || value.Length < (FileNameHeaderBytes + (candidateLength * 2)))
                 {
                     break;
                 }
@@ -536,9 +531,6 @@ internal static class MftReader
                 entry.ReparseTag = BinaryPrimitives.ReadUInt32LittleEndian(value);
                 entry.ReparseUnknown = false;
                 break;
-
-            default:
-                break;
         }
     }
 
@@ -551,7 +543,7 @@ internal static class MftReader
     {
         var position = (int)BinaryPrimitives.ReadUInt16LittleEndian(record[0x14..]);
 
-        while (position + 8 <= record.Length)
+        while ((position + 8) <= record.Length)
         {
             var type = BinaryPrimitives.ReadUInt32LittleEndian(record[position..]);
 
@@ -562,7 +554,7 @@ internal static class MftReader
 
             var length = (int)BinaryPrimitives.ReadUInt32LittleEndian(record[(position + 4)..]);
 
-            if (length <= 0 || length > record.Length - position || length < ResidentHeaderBytes)
+            if (length <= 0 || length > (record.Length - position) || length < ResidentHeaderBytes)
             {
                 statistics.Partial++;
                 return;
@@ -593,7 +585,7 @@ internal static class MftReader
     {
         var position = (int)BinaryPrimitives.ReadUInt16LittleEndian(record[0x14..]);
 
-        while (position + 8 <= record.Length)
+        while ((position + 8) <= record.Length)
         {
             var type = BinaryPrimitives.ReadUInt32LittleEndian(record[position..]);
 
@@ -604,7 +596,7 @@ internal static class MftReader
 
             var length = (int)BinaryPrimitives.ReadUInt32LittleEndian(record[(position + 4)..]);
 
-            if (length <= 0 || length > record.Length - position || length < ResidentHeaderBytes)
+            if (length <= 0 || length > (record.Length - position) || length < ResidentHeaderBytes)
             {
                 return;
             }
@@ -643,7 +635,7 @@ internal static class MftReader
 
         var nameLength = value[0x40];
 
-        if (nameLength == 0 || value.Length < FileNameHeaderBytes + nameLength * 2)
+        if (nameLength == 0 || value.Length < (FileNameHeaderBytes + (nameLength * 2)))
         {
             return;
         }
@@ -680,7 +672,7 @@ internal static class MftReader
         byte[]? list = null;
         var bytes = 0L;
 
-        while (position + 8 <= record.Length)
+        while ((position + 8) <= record.Length)
         {
             var type = BinaryPrimitives.ReadUInt32LittleEndian(record.AsSpan(position));
 
@@ -691,7 +683,7 @@ internal static class MftReader
 
             var length = (int)BinaryPrimitives.ReadUInt32LittleEndian(record.AsSpan(position + 4));
 
-            if (length <= 0 || length > record.Length - position)
+            if (length <= 0 || length > (record.Length - position))
             {
                 break;
             }
@@ -762,7 +754,7 @@ internal static class MftReader
             var valueOffset = BinaryPrimitives.ReadUInt16LittleEndian(attribute[0x14..]);
             var valueLength = (int)BinaryPrimitives.ReadUInt32LittleEndian(attribute[0x10..]);
 
-            if (valueOffset + valueLength > attribute.Length)
+            if ((valueOffset + valueLength) > attribute.Length)
             {
                 throw new InvalidDataException($"Том {letter}: $ATTRIBUTE_LIST записи $MFT обрезан");
             }
@@ -801,8 +793,7 @@ internal static class MftReader
 
         if (map.Length < aligned)
         {
-            throw new InvalidDataException(
-                $"Том {letter}: отрезки $ATTRIBUTE_LIST покрывают {map.Length:N0} Б из {size:N0} Б");
+            throw new InvalidDataException($"Том {letter}: отрезки $ATTRIBUTE_LIST покрывают {map.Length:N0} Б из {size:N0} Б");
         }
 
         var value = new byte[aligned];
@@ -833,25 +824,22 @@ internal static class MftReader
 
             if (extent.Vcn > covered)
             {
-                throw new InvalidDataException(
-                    $"Том {letter}: экстенты $MFT не сходятся, после {covered:N0} кластеров в списке идёт VCN {extent.Vcn:N0}");
+                throw new InvalidDataException($"Том {letter}: экстенты $MFT не сходятся, после {covered:N0} кластеров в списке идёт VCN {extent.Vcn:N0}");
             }
 
             var map = new MftMap(runs, bytesPerCluster);
             var offset = (long)extent.Record * recordSize;
 
-            if (offset + recordSize > map.Length)
+            if ((offset + recordSize) > map.Length)
             {
-                throw new InvalidDataException(
-                    $"Том {letter}: запись-расширение $MFT {extent.Record:N0} лежит вне прочитанной части таблицы");
+                throw new InvalidDataException($"Том {letter}: запись-расширение $MFT {extent.Record:N0} лежит вне прочитанной части таблицы");
             }
 
             map.Read(volume, offset, record);
 
             if (!"FILE"u8.SequenceEqual(record.AsSpan(0, 4)) || !MftLayout.ApplyFixup(record, bytesPerSector))
             {
-                throw new InvalidDataException(
-                    $"Том {letter}: запись-расширение $MFT {extent.Record:N0} не читается как запись NTFS");
+                throw new InvalidDataException($"Том {letter}: запись-расширение $MFT {extent.Record:N0} не читается как запись NTFS");
             }
 
             runs.AddRange(ReadExtentRuns(record, extent, letter));
@@ -863,12 +851,12 @@ internal static class MftReader
         var extents = new List<MftExtent>();
         var position = 0;
 
-        while (position + AttributeListEntryBytes <= list.Length)
+        while ((position + AttributeListEntryBytes) <= list.Length)
         {
             var type = BinaryPrimitives.ReadUInt32LittleEndian(list.AsSpan(position));
             var length = BinaryPrimitives.ReadUInt16LittleEndian(list.AsSpan(position + 4));
 
-            if (length < AttributeListEntryBytes || position + length > list.Length)
+            if (length < AttributeListEntryBytes || (position + length) > list.Length)
             {
                 break;
             }
@@ -894,7 +882,7 @@ internal static class MftReader
     {
         var position = (int)BinaryPrimitives.ReadUInt16LittleEndian(record.AsSpan(0x14));
 
-        while (position + 8 <= record.Length)
+        while ((position + 8) <= record.Length)
         {
             var type = BinaryPrimitives.ReadUInt32LittleEndian(record.AsSpan(position));
 
@@ -905,7 +893,7 @@ internal static class MftReader
 
             var length = (int)BinaryPrimitives.ReadUInt32LittleEndian(record.AsSpan(position + 4));
 
-            if (length <= 0 || length > record.Length - position)
+            if (length <= 0 || length > (record.Length - position))
             {
                 break;
             }
@@ -938,8 +926,7 @@ internal static class MftReader
             position += length;
         }
 
-        throw new InvalidDataException(
-            $"Том {letter}: в записи-расширении $MFT {extent.Record:N0} нет $DATA с VCN {extent.Vcn:N0}");
+        throw new InvalidDataException($"Том {letter}: в записи-расширении $MFT {extent.Record:N0} нет $DATA с VCN {extent.Vcn:N0}");
     }
 
     private static long Clusters(List<MftRun> runs)
@@ -983,7 +970,7 @@ internal sealed class MftWorker : IDisposable
     {
         _data = new byte[bytes + alignment];
         _pin = GCHandle.Alloc(_data, GCHandleType.Pinned);
-        _offset = (int)((alignment - _pin.AddrOfPinnedObject().ToInt64() % alignment) % alignment);
+        _offset = (int)((alignment - (_pin.AddrOfPinnedObject().ToInt64() % alignment)) % alignment);
     }
 
     public Span<byte> Buffer(int bytes)
@@ -1024,7 +1011,7 @@ internal sealed class MftMap
 
     public void Read(IMftVolume volume, long logical, Span<byte> buffer)
     {
-        if (logical < 0 || logical + buffer.Length > Length)
+        if (logical < 0 || (logical + buffer.Length) > Length)
         {
             throw new EndOfStreamException($"Чтение $MFT вышло за разметку: {logical:N0} + {buffer.Length:N0} Б при длине {Length:N0} Б");
         }
@@ -1036,9 +1023,9 @@ internal sealed class MftMap
             var position = logical + written;
             var index = Find(position);
             var inside = position - _starts[index];
-            var take = (int)Math.Min(buffer.Length - written, _runs[index].Count * _bytesPerCluster - inside);
+            var take = (int)Math.Min(buffer.Length - written, (_runs[index].Count * _bytesPerCluster) - inside);
 
-            volume.ReadAt(_runs[index].Cluster * _bytesPerCluster + inside, buffer.Slice(written, take));
+            volume.ReadAt((_runs[index].Cluster * _bytesPerCluster) + inside, buffer.Slice(written, take));
             written += take;
         }
     }

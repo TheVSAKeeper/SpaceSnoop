@@ -199,8 +199,8 @@ csharp_space_between_parentheses = false
 csharp_space_between_square_brackets = false
 
 # Предпочтения переноса
-csharp_preserve_single_line_blocks = true
-csharp_preserve_single_line_statements = true
+csharp_preserve_single_line_blocks = false
+csharp_preserve_single_line_statements = false
 
 #### Стили именования ####
 
@@ -247,7 +247,17 @@ dotnet_naming_style.begins_with_i.capitalization = pascal_case
 # ReSharper properties
 resharper_object_creation_when_type_not_evident = target_typed
 resharper_prefer_explicit_discard_declaration = false
-resharper_wrap_object_and_collection_initializer_style = chop_always
+resharper_csharp_wrap_arguments_style = chop_if_long
+resharper_csharp_wrap_after_invocation_lpar = true
+resharper_csharp_place_simple_initializer_on_single_line = true
+resharper_csharp_keep_existing_initializer_arrangement = false
+resharper_csharp_place_abstract_accessorholder_on_single_line = true
+resharper_csharp_align_multiline_binary_expressions_chain = false
+resharper_csharp_align_multiline_binary_patterns = false
+resharper_csharp_align_multiline_statement_conditions = false
+resharper_csharp_indent_raw_literal_string = indent
+resharper_csharp_null_checking_pattern_style = not_null_pattern
+resharper_wrap_object_and_collection_initializer_style = chop_if_long
 
 # CA1515: Рассмотрите возможность сделать общедоступные типы внутренними
 dotnet_diagnostic.ca1515.severity = none
@@ -338,6 +348,9 @@ dotnet_diagnostic.ca1724.severity = none
 
 # T0000: Do not use 'Get' prefix (SonarAnalyzer.CSharp.Styling)
 dotnet_diagnostic.T0000.severity = none
+
+# T0003: ValueTuple is built into the target .NET runtime
+dotnet_diagnostic.T0003.severity = none
 
 # T0043: Do not use primary constructors (SonarAnalyzer.CSharp.Styling)
 dotnet_diagnostic.T0043.severity = none

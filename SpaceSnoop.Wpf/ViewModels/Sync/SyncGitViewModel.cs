@@ -11,8 +11,6 @@ public sealed partial class SyncGitViewModel : ObservableObject
     private readonly ILogger _logger;
     private readonly GitService _git = new();
 
-    private GitRepoState? _leftGit;
-    private GitRepoState? _rightGit;
     private string? _leftPath;
     private string? _rightPath;
     private CancellationTokenSource? _read;
@@ -23,52 +21,44 @@ public sealed partial class SyncGitViewModel : ObservableObject
     [ObservableProperty]
     private int _gitHistoryCount;
 
-    public SyncGitViewModel(ISettingsStore settings, IDialogService dialogs, ILogger logger)
-    {
-        _settings = settings;
-        _dialogs = dialogs;
-        _logger = logger;
-        _gitHistoryCount = settings.GetInt(SettingsKeys.SyncGitHistoryCount, AppDefaults.GitHistoryCountDefault);
-    }
-
     public event Action? StateChanged;
 
     public static int[] GitHistoryCounts { get; } = [4, 8, 16, 32];
 
-    public bool HasGit => _leftGit is not null || _rightGit is not null;
+    public bool HasGit => LeftState is not null || RightState is not null;
 
-    public bool LeftIsRepo => _leftGit is not null;
+    public bool LeftIsRepo => LeftState is not null;
 
-    public bool RightIsRepo => _rightGit is not null;
+    public bool RightIsRepo => RightState is not null;
 
-    public string LeftGitBranch => SyncGitText.FormatBranch(_leftGit);
+    public string LeftGitBranch => SyncGitText.FormatBranch(LeftState);
 
-    public string RightGitBranch => SyncGitText.FormatBranch(_rightGit);
+    public string RightGitBranch => SyncGitText.FormatBranch(RightState);
 
-    public string LeftGitHead => SyncGitText.FormatHead(_leftGit);
+    public string LeftGitHead => SyncGitText.FormatHead(LeftState);
 
-    public string RightGitHead => SyncGitText.FormatHead(_rightGit);
+    public string RightGitHead => SyncGitText.FormatHead(RightState);
 
-    public string LeftGitDirty => SyncGitText.FormatDirty(_leftGit);
+    public string LeftGitDirty => SyncGitText.FormatDirty(LeftState);
 
-    public string RightGitDirty => SyncGitText.FormatDirty(_rightGit);
+    public string RightGitDirty => SyncGitText.FormatDirty(RightState);
 
-    public bool LeftGitIsDirty => _leftGit?.IsDirty == true;
+    public bool LeftGitIsDirty => LeftState?.IsDirty == true;
 
-    public bool RightGitIsDirty => _rightGit?.IsDirty == true;
+    public bool RightGitIsDirty => RightState?.IsDirty == true;
 
-    public string LeftGitUpstream => SyncGitText.FormatUpstream(_leftGit);
+    public string LeftGitUpstream => SyncGitText.FormatUpstream(LeftState);
 
-    public string RightGitUpstream => SyncGitText.FormatUpstream(_rightGit);
+    public string RightGitUpstream => SyncGitText.FormatUpstream(RightState);
 
     public bool GitInSync =>
-        _leftGit is not null
-        && _rightGit is not null
-        && _leftGit.HasCommits
-        && _rightGit.HasCommits
-        && string.Equals(_leftGit.Oid, _rightGit.Oid, StringComparison.OrdinalIgnoreCase)
-        && !_leftGit.IsDirty
-        && !_rightGit.IsDirty;
+        LeftState is not null
+        && RightState is not null
+        && LeftState.HasCommits
+        && RightState.HasCommits
+        && string.Equals(LeftState.Oid, RightState.Oid, StringComparison.OrdinalIgnoreCase)
+        && !LeftState.IsDirty
+        && !RightState.IsDirty;
 
     public PackIconLucideKind GitVerdictIconKind
     {
@@ -94,24 +84,24 @@ public sealed partial class SyncGitViewModel : ObservableObject
     {
         get
         {
-            if (_leftGit is null || _rightGit is null)
+            if (LeftState is null || RightState is null)
             {
                 return "одна сторона не репозиторий";
             }
 
-            if (!_leftGit.HasCommits || !_rightGit.HasCommits)
+            if (!LeftState.HasCommits || !RightState.HasCommits)
             {
                 return SyncGitText.NoCommits;
             }
 
-            if (!string.Equals(_leftGit.Oid, _rightGit.Oid, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(LeftState.Oid, RightState.Oid, StringComparison.OrdinalIgnoreCase))
             {
-                var newer = DescribeNewer(_leftGit.CommittedAt, _rightGit.CommittedAt);
+                var newer = DescribeNewer(LeftState.CommittedAt, RightState.CommittedAt);
 
                 return newer.Length == 0 ? "разные коммиты" : $"разные коммиты, {newer}";
             }
 
-            return _leftGit.IsDirty || _rightGit.IsDirty ? "тот же коммит, есть изменения" : "синхронны";
+            return LeftState.IsDirty || RightState.IsDirty ? "тот же коммит, есть изменения" : "синхронны";
         }
     }
 
@@ -127,36 +117,36 @@ public sealed partial class SyncGitViewModel : ObservableObject
 
     public bool RightGitLogEmpty => _gitHistoryLoaded && RightGitLog.Count == 0;
 
-    public string LeftGitLogEmptyText => _leftGit is null ? "не репозиторий" : SyncGitText.NoCommits;
+    public string LeftGitLogEmptyText => LeftState is null ? "не репозиторий" : SyncGitText.NoCommits;
 
-    public string RightGitLogEmptyText => _rightGit is null ? "не репозиторий" : SyncGitText.NoCommits;
+    public string RightGitLogEmptyText => RightState is null ? "не репозиторий" : SyncGitText.NoCommits;
 
     public string? GitTooltip
     {
         get
         {
-            if (_leftGit is not { HasCommits: true } left
-                || _rightGit is not { HasCommits: true } right
+            if (LeftState is not { HasCommits: true } left
+                || RightState is not { HasCommits: true } right
                 || string.Equals(left.Oid, right.Oid, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
 
             return $"Коммит слева: {FormatStamp(left.CommittedAt?.LocalDateTime)}, справа: {FormatStamp(right.CommittedAt?.LocalDateTime)}.{Environment.NewLine}"
-                   + "«Новее» – по дате коммита, не по истории веток.";
+                + "«Новее» – по дате коммита, не по истории веток.";
         }
     }
 
-    internal GitRepoState? LeftState => _leftGit;
+    internal GitRepoState? LeftState { get; private set; }
 
-    internal GitRepoState? RightState => _rightGit;
+    internal GitRepoState? RightState { get; private set; }
 
     internal int GitNewerSign
     {
         get
         {
-            if (_leftGit is not { HasCommits: true } left
-                || _rightGit is not { HasCommits: true } right
+            if (LeftState is not { HasCommits: true } left
+                || RightState is not { HasCommits: true } right
                 || string.Equals(left.Oid, right.Oid, StringComparison.OrdinalIgnoreCase)
                 || left.CommittedAt is not { } l
                 || right.CommittedAt is not { } r
@@ -167,6 +157,14 @@ public sealed partial class SyncGitViewModel : ObservableObject
 
             return l > r ? -1 : 1;
         }
+    }
+
+    public SyncGitViewModel(ISettingsStore settings, IDialogService dialogs, ILogger logger)
+    {
+        _settings = settings;
+        _dialogs = dialogs;
+        _logger = logger;
+        _gitHistoryCount = settings.GetInt(SettingsKeys.SyncGitHistoryCount, AppDefaults.GitHistoryCountDefault);
     }
 
     // TODO: «новее» по дате коммита, не по предкам; ancestry-вердикт требует общего хранилища объектов (cross-repo merge-base)
@@ -201,7 +199,7 @@ public sealed partial class SyncGitViewModel : ObservableObject
             return "вчера";
         }
 
-        var word = (days % 100) is >= 11 and <= 14
+        var word = days % 100 is >= 11 and <= 14
             ? "дней"
             : (days % 10) switch
             {
@@ -248,11 +246,11 @@ public sealed partial class SyncGitViewModel : ObservableObject
                 return;
             }
 
-            (_leftGit, _rightGit) = (leftGit, rightGit);
+            (LeftState, RightState) = (leftGit, rightGit);
 
-            if (_leftGit is not null || _rightGit is not null)
+            if (LeftState is not null || RightState is not null)
             {
-                _logger.GitStateRead(SyncGitText.FormatBranch(_leftGit), SyncGitText.FormatBranch(_rightGit));
+                _logger.GitStateRead(SyncGitText.FormatBranch(LeftState), SyncGitText.FormatBranch(RightState));
             }
 
             ResetHistory();
@@ -277,8 +275,8 @@ public sealed partial class SyncGitViewModel : ObservableObject
         CancelRead();
         _leftPath = null;
         _rightPath = null;
-        _leftGit = null;
-        _rightGit = null;
+        LeftState = null;
+        RightState = null;
         GitHistoryExpanded = false;
         ResetHistory();
         NotifyChanged();

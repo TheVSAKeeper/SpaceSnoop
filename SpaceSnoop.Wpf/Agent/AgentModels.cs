@@ -24,10 +24,6 @@ public sealed record AgentEffortOption(string Id, string Title)
 
 public static class AgentModels
 {
-    public static readonly AgentModelOption CliDefault = new(string.Empty, "По умолчанию", "Модель, выбранная по умолчанию в самой программе агента");
-
-    public static readonly AgentEffortOption EffortDefault = new(string.Empty, "По умолчанию");
-
     private const string EffortNone = "none";
     private const string EffortMinimal = "minimal";
     private const string EffortLow = "low";
@@ -36,6 +32,9 @@ public static class AgentModels
     private const string EffortExtraHigh = "xhigh";
     private const string EffortMax = "max";
     private const string EffortUltra = "ultra";
+    public static readonly AgentModelOption CliDefault = new(string.Empty, "По умолчанию", "Модель, выбранная по умолчанию в самой программе агента");
+
+    public static readonly AgentEffortOption EffortDefault = new(string.Empty, "По умолчанию");
 
     private static readonly string[] StandardEfforts = [EffortLow, EffortMedium, EffortHigh, EffortExtraHigh, EffortMax];
 
@@ -228,9 +227,10 @@ public static class AgentModels
             var input = Amount(cost, "input");
             var output = Amount(cost, "output");
 
-            parts.Add(input == 0 && output == 0
-                ? "Бесплатная"
-                : $"${input:0.##} за миллион входных, ${output:0.##} за миллион выходных");
+            parts.Add(
+                input == 0 && output == 0
+                    ? "Бесплатная"
+                    : $"${input:0.##} за миллион входных, ${output:0.##} за миллион выходных");
         }
 
         if (model.TryGetProperty("limit", out var limit)

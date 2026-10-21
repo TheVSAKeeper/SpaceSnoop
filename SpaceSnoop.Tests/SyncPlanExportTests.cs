@@ -52,12 +52,7 @@ public class SyncPlanExportTests
 
         for (var i = 0; i < 5; i++)
         {
-            root.Files.Add(new($"f{i}.bin", $"f{i}.bin")
-            {
-                Status = ComparisonStatus.LeftOnly,
-                Action = SyncAction.CopyToRight,
-                LeftSize = (i + 1) * 10,
-            });
+            root.Files.Add(new($"f{i}.bin", $"f{i}.bin") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = (i + 1) * 10 });
         }
 
         var model = SyncPlanExport.Build(new("L", "R", root), Options, entryLimit: 2);

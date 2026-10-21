@@ -27,7 +27,7 @@ public class SyncRowsBenchmarks
     public void Setup()
     {
         _result = SyntheticTree.BuildComparison(Files);
-        _result.ApplyMode(SyncMode.Bidirectional, mirror: true, SyncWinner.Newest);
+        _result.ApplyMode(SyncMode.Bidirectional, true);
         _dirSizes = SyncRowsProjector.BuildDirSizeCache(_result.Root);
     }
 

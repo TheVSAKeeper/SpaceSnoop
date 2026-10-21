@@ -10,9 +10,9 @@ public static class AppStorage
 
     private const string LegacyAppDataMarkerFileName = "appdata.flag";
 
-    private static readonly string PortableMarkerPath = Path.Combine(AppContext.BaseDirectory, PortableMarkerFileName);
-
     private const string OwnSettingsKeyPrefix = "wpf.";
+
+    private static readonly string PortableMarkerPath = Path.Combine(AppContext.BaseDirectory, PortableMarkerFileName);
 
     private static readonly string LegacyAppDataMarkerPath = Path.Combine(AppContext.BaseDirectory, LegacyAppDataMarkerFileName);
 
@@ -38,63 +38,7 @@ public static class AppStorage
     public static bool HasSettings(string directory)
     {
         return File.Exists(Path.Combine(directory, TomlSettingsFile.PrimaryFileName))
-               || File.Exists(Path.Combine(directory, TomlSettingsFile.LegacyFileName));
-    }
-
-    internal static bool Resolve(bool portableMarker, bool legacyAppDataMarker, Func<bool> hasPortableSettings)
-    {
-        if (portableMarker)
-        {
-            return false;
-        }
-
-        if (legacyAppDataMarker)
-        {
-            return true;
-        }
-
-        return !hasPortableSettings();
-    }
-
-    internal static bool HasPortableSettings(string directory, string appDataDirectory)
-    {
-        var tomlPath = Path.Combine(directory, TomlSettingsFile.PrimaryFileName);
-
-        if (File.Exists(tomlPath))
-        {
-            return true;
-        }
-
-        return !HasSettings(appDataDirectory)
-               && IsOwnLegacySettings(Path.Combine(directory, TomlSettingsFile.LegacyFileName))
-               && TryMigrateLegacy(tomlPath);
-    }
-
-    private static bool IsOwnLegacySettings(string path)
-    {
-        try
-        {
-            return File.Exists(path)
-                   && File.ReadLines(path).Select(static line => line.Trim())
-                       .Any(static line => line.StartsWith(OwnSettingsKeyPrefix, StringComparison.Ordinal) && line.Contains(' '));
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        {
-            return false;
-        }
-    }
-
-    private static bool TryMigrateLegacy(string tomlPath)
-    {
-        try
-        {
-            TomlSettingsFile.LoadOrMigrate(tomlPath);
-            return File.Exists(tomlPath);
-        }
-        catch (Exception)
-        {
-            return false;
-        }
+            || File.Exists(Path.Combine(directory, TomlSettingsFile.LegacyFileName));
     }
 
     public static void SetUseAppData(bool useAppData)
@@ -160,6 +104,63 @@ public static class AppStorage
         }
 
         return copied.Count(static file => !TryDelete(file));
+    }
+
+    internal static bool Resolve(bool portableMarker, bool legacyAppDataMarker, Func<bool> hasPortableSettings)
+    {
+        if (portableMarker)
+        {
+            return false;
+        }
+
+        if (legacyAppDataMarker)
+        {
+            return true;
+        }
+
+        return !hasPortableSettings();
+    }
+
+    internal static bool HasPortableSettings(string directory, string appDataDirectory)
+    {
+        var tomlPath = Path.Combine(directory, TomlSettingsFile.PrimaryFileName);
+
+        if (File.Exists(tomlPath))
+        {
+            return true;
+        }
+
+        return !HasSettings(appDataDirectory)
+            && IsOwnLegacySettings(Path.Combine(directory, TomlSettingsFile.LegacyFileName))
+            && TryMigrateLegacy(tomlPath);
+    }
+
+    private static bool IsOwnLegacySettings(string path)
+    {
+        try
+        {
+            return File.Exists(path)
+                && File.ReadLines(path)
+                    .Select(static line => line.Trim())
+                    .Any(static line => line.StartsWith(OwnSettingsKeyPrefix, StringComparison.Ordinal) && line.Contains(' '));
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryMigrateLegacy(string tomlPath)
+    {
+        try
+        {
+            TomlSettingsFile.LoadOrMigrate(tomlPath);
+            return File.Exists(tomlPath);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
     }
 
     private static bool TryDelete(string path)

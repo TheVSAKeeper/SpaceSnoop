@@ -8,10 +8,7 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 {
     private static readonly Dictionary<string, string> LegacyTitleToKey = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Сканирование"] = SectionKey.Scan,
-        ["Синхронизация"] = SectionKey.Sync,
-        ["Логи"] = SectionKey.Logs,
-        ["О программе"] = SectionKey.About,
+        ["Сканирование"] = SectionKey.Scan, ["Синхронизация"] = SectionKey.Sync, ["Логи"] = SectionKey.Logs, ["О программе"] = SectionKey.About,
     };
 
     private readonly NavigationItem _settingsItem;
@@ -36,6 +33,26 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 
     [ObservableProperty]
     private bool _isTarkovBootPlaying;
+
+    public ToastHostViewModel Toasts { get; }
+
+    public PerformanceHudViewModel Hud { get; }
+
+    public ThemeViewModel Theme { get; }
+
+    public ShellPreferences Preferences { get; }
+
+    public AppUpdateViewModel AppUpdate { get; }
+
+    public bool IsElevated { get; } = AdminElevation.IsElevated;
+
+    public string ElevationCaption => IsElevated ? "Администратор" : "Обычный режим";
+
+    public override IPageHeader? EffectivePageHeader => Preferences.ShowPageHeader ? CurrentPageHeader : null;
+
+    public string? CurrentSectionKey => Selected?.Key is { Length: > 0 } key ? key : null;
+
+    public ICommand? PageRefreshCommand => CurrentPageRefresh?.RefreshCommand;
 
     public ShellViewModel(
         ThemeViewModel theme,
@@ -93,11 +110,7 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         Sections.Add(performanceItem);
         Sections.Add(aboutItem);
 
-        _sectionByKey = new NavigationItem[]
-            {
-                scanItem, syncItem, overviewItem, scheduleItem, cleanupItem,
-                _chatItem, logsItem, performanceItem, aboutItem, _settingsItem,
-            }
+        _sectionByKey = new[] { scanItem, syncItem, overviewItem, scheduleItem, cleanupItem, _chatItem, logsItem, performanceItem, aboutItem, _settingsItem }
             .ToDictionary(static item => item.Key, StringComparer.OrdinalIgnoreCase);
 
         _agent = agent;
@@ -115,26 +128,6 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         AppUpdate.Start();
     }
 
-    public ToastHostViewModel Toasts { get; }
-
-    public PerformanceHudViewModel Hud { get; }
-
-    public ThemeViewModel Theme { get; }
-
-    public ShellPreferences Preferences { get; }
-
-    public AppUpdateViewModel AppUpdate { get; }
-
-    public bool IsElevated { get; } = AdminElevation.IsElevated;
-
-    public string ElevationCaption => IsElevated ? "Администратор" : "Обычный режим";
-
-    public override IPageHeader? EffectivePageHeader => Preferences.ShowPageHeader ? CurrentPageHeader : null;
-
-    public string? CurrentSectionKey => Selected?.Key is { Length: > 0 } key ? key : null;
-
-    public ICommand? PageRefreshCommand => CurrentPageRefresh?.RefreshCommand;
-
     public bool TryNavigate(string sectionKey)
     {
         if (!_sectionByKey.TryGetValue(ResolveAlias(sectionKey), out var item))
@@ -144,6 +137,23 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 
         Selected = item;
         return true;
+    }
+
+    public void OpenSync(SyncProfile profile, ComparisonResult? comparison)
+    {
+        _sync.ApplyProfile(profile, comparison);
+        Selected = _syncItem;
+    }
+
+    public void AskAgent(string question)
+    {
+        if (!Sections.Contains(_chatItem))
+        {
+            return;
+        }
+
+        Selected = _chatItem;
+        _chat.PrepareQuestion(question);
     }
 
     protected override void OnSelectionChanged(NavigationItem? value)
@@ -162,17 +172,17 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         Preferences.NavCollapsed = value;
     }
 
+    protected override void NavigateToSettings()
+    {
+        Selected = _settingsItem;
+    }
+
     private void OnPreferencesChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ShellPreferences.NavCollapsed))
         {
             IsNavCollapsed = Preferences.NavCollapsed;
         }
-    }
-
-    protected override void NavigateToSettings()
-    {
-        Selected = _settingsItem;
     }
 
     private void ApplyChatSection()
@@ -196,23 +206,6 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         }
 
         Sections.Remove(_chatItem);
-    }
-
-    public void OpenSync(SyncProfile profile, ComparisonResult? comparison)
-    {
-        _sync.ApplyProfile(profile, comparison);
-        Selected = _syncItem;
-    }
-
-    public void AskAgent(string question)
-    {
-        if (!Sections.Contains(_chatItem))
-        {
-            return;
-        }
-
-        Selected = _chatItem;
-        _chat.PrepareQuestion(question);
     }
 
     private void OnAgentPreferencesChanged(object? sender, PropertyChangedEventArgs e)

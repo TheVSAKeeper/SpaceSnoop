@@ -59,7 +59,8 @@ public static class VolumeSpace
                 return SamePath(waiting.Path, fullPath) ? waiting.Free : Skipped;
             }
 
-            var queued = running.ContinueWith(_ => reader(fullPath),
+            var queued = running.ContinueWith(
+                _ => reader(fullPath),
                 CancellationToken.None,
                 TaskContinuationOptions.None,
                 TaskScheduler.Default);

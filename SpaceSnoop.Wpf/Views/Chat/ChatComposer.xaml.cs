@@ -19,7 +19,7 @@ public partial class ChatComposer : UserControl
         };
     }
 
-    private void OnDataContextChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
+    private void OnDataContextChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (e.OldValue is ChatViewModel previous)
         {

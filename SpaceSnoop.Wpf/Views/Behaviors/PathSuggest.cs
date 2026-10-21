@@ -10,7 +10,8 @@ public static class PathSuggest
 {
     private const int MaxCandidates = 64;
 
-    public static readonly DependencyProperty EnabledProperty = DependencyProperty.RegisterAttached("Enabled",
+    public static readonly DependencyProperty EnabledProperty = DependencyProperty.RegisterAttached(
+        "Enabled",
         typeof(bool),
         typeof(PathSuggest),
         new(false, OnEnabledChanged));

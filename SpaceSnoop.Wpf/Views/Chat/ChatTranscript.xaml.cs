@@ -23,7 +23,7 @@ public partial class ChatTranscript : UserControl
 
         if (Math.Abs(e.VerticalChange) > 0.01)
         {
-            _stickToBottom = Scroller.ScrollableHeight - Scroller.VerticalOffset < 4;
+            _stickToBottom = (Scroller.ScrollableHeight - Scroller.VerticalOffset) < 4;
         }
     }
 }

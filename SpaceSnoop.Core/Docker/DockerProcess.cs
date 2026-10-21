@@ -41,7 +41,7 @@ public sealed class SystemDockerProcessRunner : IDockerProcessRunner
     {
         using var process = new Process
         {
-            StartInfo = new ProcessStartInfo(fileName, arguments)
+            StartInfo = new(fileName, arguments)
             {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -53,8 +53,8 @@ public sealed class SystemDockerProcessRunner : IDockerProcessRunner
             },
         };
 
-        Task<string> outputTask = Task.FromResult(string.Empty);
-        Task<string> errorTask = Task.FromResult(string.Empty);
+        var outputTask = Task.FromResult(string.Empty);
+        var errorTask = Task.FromResult(string.Empty);
         var started = false;
 
         try
@@ -69,7 +69,7 @@ public sealed class SystemDockerProcessRunner : IDockerProcessRunner
             errorTask = process.StandardError.ReadToEndAsync(CancellationToken.None);
 
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancel);
-            if (options.Timeout != System.Threading.Timeout.InfiniteTimeSpan)
+            if (options.Timeout != Timeout.InfiniteTimeSpan)
             {
                 timeout.CancelAfter(options.Timeout > TimeSpan.Zero ? options.Timeout : TimeSpan.FromMilliseconds(1));
             }
@@ -115,7 +115,6 @@ public sealed class SystemDockerProcessRunner : IDockerProcessRunner
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception)
         {
-            return;
         }
     }
 
@@ -127,7 +126,6 @@ public sealed class SystemDockerProcessRunner : IDockerProcessRunner
         }
         catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or TimeoutException)
         {
-            return;
         }
     }
 

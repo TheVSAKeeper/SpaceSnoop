@@ -1,5 +1,4 @@
 ﻿using ModelContextProtocol;
-using SpaceSnoop.Core.Cleanup;
 
 namespace SpaceSnoop.Wpf.Mcp;
 
@@ -27,13 +26,15 @@ internal sealed class McpCleanupTools(
         var measured = await MeasureAllAsync(selected, cancellationToken).ConfigureAwait(false);
         var reclaimable = measured.Where(static item => item.Cleanable).ToList();
 
-        return McpFormat.Serialize(new McpCleanupReport(minAgeHours,
-            measured.Sum(static item => item.Bytes),
-            SizeFormatter.Format(measured.Sum(static item => item.Bytes)),
-            measured.Sum(static item => item.Files),
-            reclaimable.Sum(static item => item.Bytes),
-            SizeFormatter.Format(reclaimable.Sum(static item => item.Bytes)),
-            measured));
+        return McpFormat.Serialize(
+            new McpCleanupReport(
+                minAgeHours,
+                measured.Sum(static item => item.Bytes),
+                SizeFormatter.Format(measured.Sum(static item => item.Bytes)),
+                measured.Sum(static item => item.Files),
+                reclaimable.Sum(static item => item.Bytes),
+                SizeFormatter.Format(reclaimable.Sum(static item => item.Bytes)),
+                measured));
     }
 
     public async Task<string> RunAsync(string[]? targets, bool dryRun, CancellationToken cancellationToken)
@@ -65,21 +66,23 @@ internal sealed class McpCleanupTools(
 
         if (dryRun)
         {
-            return McpFormat.Serialize(new McpCleanupRun(true,
-                CleanupConsent.None,
-                ready.Count == 0
-                    ? "Очищать нечего: названные корзины пусты или недоступны."
-                    : "План очистки. Запуск требует dryRun=false и подтверждения человеком в окне приложения.",
-                minAgeHours,
-                plannedBytes,
-                SizeFormatter.Format(plannedBytes),
-                plannedFiles,
-                0,
-                SizeFormatter.Format(0),
-                0,
-                0,
-                false,
-                measured));
+            return McpFormat.Serialize(
+                new McpCleanupRun(
+                    true,
+                    CleanupConsent.None,
+                    ready.Count == 0
+                        ? "Очищать нечего: названные корзины пусты или недоступны."
+                        : "План очистки. Запуск требует dryRun=false и подтверждения человеком в окне приложения.",
+                    minAgeHours,
+                    plannedBytes,
+                    SizeFormatter.Format(plannedBytes),
+                    plannedFiles,
+                    0,
+                    SizeFormatter.Format(0),
+                    0,
+                    0,
+                    false,
+                    measured));
         }
 
         if (ready.Count == 0)
@@ -102,19 +105,21 @@ internal sealed class McpCleanupTools(
             throw new McpException(outcome.StatusText);
         }
 
-        return McpFormat.Serialize(new McpCleanupRun(false,
-            outcome.Consent,
-            outcome.StatusText,
-            minAgeHours,
-            plannedBytes,
-            SizeFormatter.Format(plannedBytes),
-            plannedFiles,
-            outcome.FreedBytes,
-            SizeFormatter.Format(outcome.FreedBytes),
-            outcome.Deleted,
-            outcome.Skipped,
-            outcome.Cancelled,
-            measured));
+        return McpFormat.Serialize(
+            new McpCleanupRun(
+                false,
+                outcome.Consent,
+                outcome.StatusText,
+                minAgeHours,
+                plannedBytes,
+                SizeFormatter.Format(plannedBytes),
+                plannedFiles,
+                outcome.FreedBytes,
+                SizeFormatter.Format(outcome.FreedBytes),
+                outcome.Deleted,
+                outcome.Skipped,
+                outcome.Cancelled,
+                measured));
     }
 
     private void EnsureIdle()
@@ -146,7 +151,8 @@ internal sealed class McpCleanupTools(
 
     private int MinAgeHours()
     {
-        return Math.Clamp(settings.GetInt(SettingsKeys.CleanupMinAgeHours, AppDefaults.CleanupMinAgeHoursDefault),
+        return Math.Clamp(
+            settings.GetInt(SettingsKeys.CleanupMinAgeHours, AppDefaults.CleanupMinAgeHoursDefault),
             AppDefaults.CleanupMinAgeHoursMin,
             AppDefaults.CleanupMinAgeHoursMax);
     }
@@ -242,7 +248,8 @@ internal sealed class McpCleanupTools(
         var unreadable = measurement.Unreadable ?? [];
         var reported = unreadable.Take(AppDefaults.McpEntryLimitDefault).ToList();
 
-        return new(target.Id,
+        return new(
+            target.Id,
             target.Name,
             target.Description,
             target.Kind,

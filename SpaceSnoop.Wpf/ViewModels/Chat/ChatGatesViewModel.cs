@@ -30,35 +30,6 @@ public sealed partial class ChatGatesViewModel : ObservableObject
     [ObservableProperty]
     private ChatPendingNavigation? _pendingNavigation;
 
-    internal ChatGatesViewModel(
-        AgentBackends backends,
-        AgentPreferences preferences,
-        AgentModelSelector agentModel,
-        McpPreferences mcp,
-        McpServerHost mcpServer,
-        IUiDispatcher uiDispatcher,
-        ILogger logger,
-        ChatHistoryViewModel history,
-        Func<bool> isBusy,
-        Action cancelActiveTurn)
-    {
-        _backends = backends;
-        _preferences = preferences;
-        _uiDispatcher = uiDispatcher;
-        _logger = logger;
-        _history = history;
-        _isBusy = isBusy;
-        _cancelActiveTurn = cancelActiveTurn;
-        AgentModel = agentModel;
-        Mcp = mcp;
-        McpServer = mcpServer;
-        BackendOptions = [.. backends.All.Select(item => new AgentBackendOption(item.Kind, item.DisplayName, DescribeBackend(item)))];
-
-        _preferences.PropertyChanged += OnGateSourceChanged;
-        Mcp.PropertyChanged += OnGateSourceChanged;
-        McpServer.PropertyChanged += OnGateSourceChanged;
-    }
-
     public event Action<string>? NavigationRequested;
 
     public AgentModelSelector AgentModel { get; }
@@ -141,6 +112,35 @@ public sealed partial class ChatGatesViewModel : ObservableObject
         : null;
 
     private bool McpReady => Mcp.Enabled && McpServer.IsRunning && !string.IsNullOrWhiteSpace(Mcp.Token);
+
+    internal ChatGatesViewModel(
+        AgentBackends backends,
+        AgentPreferences preferences,
+        AgentModelSelector agentModel,
+        McpPreferences mcp,
+        McpServerHost mcpServer,
+        IUiDispatcher uiDispatcher,
+        ILogger logger,
+        ChatHistoryViewModel history,
+        Func<bool> isBusy,
+        Action cancelActiveTurn)
+    {
+        _backends = backends;
+        _preferences = preferences;
+        _uiDispatcher = uiDispatcher;
+        _logger = logger;
+        _history = history;
+        _isBusy = isBusy;
+        _cancelActiveTurn = cancelActiveTurn;
+        AgentModel = agentModel;
+        Mcp = mcp;
+        McpServer = mcpServer;
+        BackendOptions = [.. backends.All.Select(item => new AgentBackendOption(item.Kind, item.DisplayName, DescribeBackend(item)))];
+
+        _preferences.PropertyChanged += OnGateSourceChanged;
+        Mcp.PropertyChanged += OnGateSourceChanged;
+        McpServer.PropertyChanged += OnGateSourceChanged;
+    }
 
     internal async Task EnsureDetectedAsync()
     {

@@ -17,7 +17,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTargetTiles.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanTargetTiles.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <CollectionViewSource x:Key="VolumeSource"
@@ -109,8 +110,9 @@
                                 <Setter Property="Margin"
                                         Value="24,24,24,0" />
                             </DataTrigger>
-                            <DataTrigger Binding="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=local:ScanTargetPicker}, Converter={StaticResource IsLessThan}, ConverterParameter=640}"
-                                         Value="True">
+                            <DataTrigger
+                                Binding="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=local:ScanTargetPicker}, Converter={StaticResource IsLessThan}, ConverterParameter=640}"
+                                Value="True">
                                 <Setter Property="Margin"
                                         Value="24,24,24,0" />
                             </DataTrigger>
@@ -147,7 +149,8 @@
                                 Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
                             <Button.ToolTip>
                                 <ToolTip>
-                                    <TextBlock Text="{Binding Summary.ResultPath, StringFormat='Вернуться к результатам сканирования {0}'}" />
+                                    <TextBlock
+                                        Text="{Binding Summary.ResultPath, StringFormat='Вернуться к результатам сканирования {0}'}" />
                                 </ToolTip>
                             </Button.ToolTip>
                             <StackPanel Orientation="Horizontal">

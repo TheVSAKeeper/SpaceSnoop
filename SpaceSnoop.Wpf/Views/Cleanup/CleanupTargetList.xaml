@@ -10,10 +10,22 @@
              d:DataContext="{d:DesignInstance vm:CleanupViewModel}">
     <UserControl.Resources>
         <conv:FractionToWidthConverter x:Key="FractionToWidth" />
-        <Style x:Key="Cleanup.Delete" TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+        <Style x:Key="Cleanup.Delete"
+               TargetType="Button"
+               BasedOn="{StaticResource Button.Icon}">
             <Style.Triggers>
-                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource State.ErrorText}" /></Trigger>
-                <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource Fg.Muted}" /><Setter Property="Opacity" Value="0.35" /></Trigger>
+                <Trigger Property="IsMouseOver"
+                         Value="True">
+                    <Setter Property="Foreground"
+                            Value="{DynamicResource State.ErrorText}" />
+                </Trigger>
+                <Trigger Property="IsEnabled"
+                         Value="False">
+                    <Setter Property="Foreground"
+                            Value="{DynamicResource Fg.Muted}" />
+                    <Setter Property="Opacity"
+                            Value="0.35" />
+                </Trigger>
             </Style.Triggers>
         </Style>
 
@@ -65,7 +77,9 @@
                     <DataTemplate DataType="{x:Type vm:CleanupTargetViewModel}">
                         <Border Style="{StaticResource Cleanup.Row}">
                             <Grid>
-                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
@@ -106,10 +120,19 @@
                                                Visibility="{Binding HasAvailabilityIssue, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock.Style>
                                             <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
+                                                <Setter Property="Foreground"
+                                                        Value="{DynamicResource Fg.Secondary}" />
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsAvailabilityWarning}" Value="True"><Setter Property="Foreground" Value="{DynamicResource State.WarningText}" /></DataTrigger>
-                                                    <DataTrigger Binding="{Binding IsAvailabilityError}" Value="True"><Setter Property="Foreground" Value="{DynamicResource State.ErrorText}" /></DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsAvailabilityWarning}"
+                                                                 Value="True">
+                                                        <Setter Property="Foreground"
+                                                                Value="{DynamicResource State.WarningText}" />
+                                                    </DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsAvailabilityError}"
+                                                                 Value="True">
+                                                        <Setter Property="Foreground"
+                                                                Value="{DynamicResource State.ErrorText}" />
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </TextBlock.Style>
@@ -122,7 +145,8 @@
                                 </StackPanel>
 
                                 <Border x:Name="ShareTrack"
-                                        Grid.Column="2" Grid.Row="1"
+                                        Grid.Column="2"
+                                        Grid.Row="1"
                                         Height="8"
                                         Margin="0,8,16,0"
                                         Background="{DynamicResource Bg.SurfaceMute}"
@@ -147,7 +171,8 @@
 
                                 <Grid Grid.Column="3"
                                       VerticalAlignment="Center">
-                                    <StackPanel Visibility="{Binding ShowNumbers, Converter={StaticResource BoolToVisibility}}">
+                                    <StackPanel
+                                        Visibility="{Binding ShowNumbers, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="{Binding SizeText}"
                                                    Style="{StaticResource TextBlock.Mono}"
                                                    TextAlignment="Right"
@@ -164,7 +189,8 @@
                                                Visibility="{Binding ShowPending, Converter={StaticResource BoolToVisibility}}" />
                                 </Grid>
 
-                                <StackPanel Grid.Column="3" Grid.Row="1"
+                                <StackPanel Grid.Column="3"
+                                            Grid.Row="1"
                                             Visibility="{Binding IsAutomatic, Converter={StaticResource BoolToVisibility}}"
                                             Orientation="Horizontal"
                                             VerticalAlignment="Center"
@@ -177,9 +203,10 @@
                                                 CommandParameter="{Binding}"
                                                 AutomationProperties.Name="Замерить заново"
                                                 ToolTip="Замерить заново">
-                                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RefreshCw}"
-                                                                      Width="15"
-                                                                      Height="15" />
+                                            <iconPacks:PackIconLucide
+                                                Kind="{x:Static iconPacks:PackIconLucideKind.RefreshCw}"
+                                                Width="15"
+                                                Height="15" />
                                         </Button>
                                         <Button Style="{StaticResource Button.Icon}"
                                                 Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -187,12 +214,13 @@
                                                 IsEnabled="{Binding HasPath}"
                                                 AutomationProperties.Name="Открыть папку"
                                                 ToolTip="Открыть папку">
-                                            <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderOpen}"
-                                                                      Width="15"
-                                                                      Height="15" />
+                                            <iconPacks:PackIconLucide
+                                                Kind="{x:Static iconPacks:PackIconLucideKind.FolderOpen}"
+                                                Width="15"
+                                                Height="15" />
                                         </Button>
                                     </StackPanel>
-                                <Button Style="{StaticResource Cleanup.Delete}"
+                                    <Button Style="{StaticResource Cleanup.Delete}"
                                             Command="{Binding DataContext.CleanOneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                             Visibility="{Binding IsAutomatic, Converter={StaticResource BoolToVisibility}}"
                                             Margin="14,0,0,0"
@@ -205,20 +233,27 @@
                                                                   Height="15" />
                                     </Button>
                                 </StackPanel>
-                                    <Button Grid.Column="2" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource Button.Secondary}"
-                                            Command="{Binding DataContext.OpenSystemToolCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            Visibility="{Binding ShowSystemTool, Converter={StaticResource BoolToVisibility}}"
-                                            IsEnabled="{Binding IsUnsupported}"
-                                            AutomationProperties.Name="Открыть «Очистку диска» Windows"
-                                            ToolTip="Открыть «Очистку диска» Windows – она умеет удалять предыдущую установку">
-                                        <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="Очистка диска Windows" Margin="0,0,6,0" />
-                                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ExternalLink}"
-                                                                  Width="15"
-                                                                  Height="15" />
-                                        </StackPanel>
-                                    </Button>
+                                <Button Grid.Column="2"
+                                        Grid.Row="1"
+                                        Grid.ColumnSpan="2"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,8,0,0"
+                                        Style="{StaticResource Button.Secondary}"
+                                        Command="{Binding DataContext.OpenSystemToolCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                        CommandParameter="{Binding}"
+                                        Visibility="{Binding ShowSystemTool, Converter={StaticResource BoolToVisibility}}"
+                                        IsEnabled="{Binding IsUnsupported}"
+                                        AutomationProperties.Name="Открыть «Очистку диска» Windows"
+                                        ToolTip="Открыть «Очистку диска» Windows – она умеет удалять предыдущую установку">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Очистка диска Windows"
+                                                   Margin="0,0,6,0" />
+                                        <iconPacks:PackIconLucide
+                                            Kind="{x:Static iconPacks:PackIconLucideKind.ExternalLink}"
+                                            Width="15"
+                                            Height="15" />
+                                    </StackPanel>
+                                </Button>
 
                             </Grid>
                         </Border>

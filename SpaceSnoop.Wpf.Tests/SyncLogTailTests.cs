@@ -1,8 +1,6 @@
 ﻿using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
-using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -28,15 +26,21 @@ public class SyncLogTailTests
     }
 
     [Test]
-    public void Хвост_по_ротированным_файлам_новейшие_первыми_с_лимитом()
+    public void Append_пишет_заголовок_первой_строкой_и_не_ломается_на_скобках_в_пути()
     {
-        File.WriteAllLines(Path.Combine(_dir, "sync-log.txt"), ["a", "b"]);
-        File.WriteAllLines(Path.Combine(_dir, "sync-log_001.txt"), ["c", "d"]);
-        File.WriteAllLines(Path.Combine(_dir, "sync-log_002.txt"), ["e", "f"]);
+        var path = Path.Combine(_dir, "sync-log.txt");
+        var report = new SyncReport();
+        report.Applied.Add(new(SyncAction.CopyToRight, "dir{0}/file}.txt", 4));
 
-        var tail = SyncLog.ReadTail(_dir, static _ => true, 3);
+        SyncLog.Append(path, "[2026-06-30 12:00:00] Автосинхронизация [test]: 1 успешно, 0 ошибок", report);
 
-        Assert.That(tail, Is.EqualTo(new[] { "f", "e", "d" }));
+        var lines = File.ReadAllLines(path);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(lines[0], Does.StartWith("[").And.Contains("Автосинхронизация"));
+            Assert.That(lines, Has.Some.Contains("dir{0}/file}.txt"));
+        });
     }
 
     [Test]
@@ -67,20 +71,14 @@ public class SyncLogTailTests
     }
 
     [Test]
-    public void Append_пишет_заголовок_первой_строкой_и_не_ломается_на_скобках_в_пути()
+    public void Хвост_по_ротированным_файлам_новейшие_первыми_с_лимитом()
     {
-        var path = Path.Combine(_dir, "sync-log.txt");
-        var report = new SyncReport();
-        report.Applied.Add(new(SyncAction.CopyToRight, "dir{0}/file}.txt", 4));
+        File.WriteAllLines(Path.Combine(_dir, "sync-log.txt"), ["a", "b"]);
+        File.WriteAllLines(Path.Combine(_dir, "sync-log_001.txt"), ["c", "d"]);
+        File.WriteAllLines(Path.Combine(_dir, "sync-log_002.txt"), ["e", "f"]);
 
-        SyncLog.Append(path, "[2026-06-30 12:00:00] Автосинхронизация [test]: 1 успешно, 0 ошибок", report);
+        var tail = SyncLog.ReadTail(_dir, static _ => true, 3);
 
-        var lines = File.ReadAllLines(path);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(lines[0], Does.StartWith("[").And.Contains("Автосинхронизация"));
-            Assert.That(lines, Has.Some.Contains("dir{0}/file}.txt"));
-        });
+        Assert.That(tail, Is.EqualTo(new[] { "f", "e", "d" }));
     }
 }

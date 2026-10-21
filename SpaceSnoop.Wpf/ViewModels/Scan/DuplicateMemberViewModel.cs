@@ -1,5 +1,4 @@
 ﻿using MahApps.Metro.IconPacks;
-using SpaceSnoop.Core.Duplicates;
 
 namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
@@ -9,17 +8,6 @@ public sealed partial class DuplicateMemberViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isMarked;
-
-    internal DuplicateMemberViewModel(DuplicateMember member, string? root, Func<IReadOnlyList<SpaceBase>, bool, int> mark)
-    {
-        _mark = mark;
-        Space = member.Space;
-        Path = member.Path;
-        Kind = member.Kind;
-        Name = DuplicateText.Name(member.Path);
-        Directory = DuplicateText.Directory(member.Path, root);
-        IsMarked = member.Space.IsDeleted;
-    }
 
     public FileSpace Space { get; }
 
@@ -48,6 +36,17 @@ public sealed partial class DuplicateMemberViewModel : ObservableObject
         DuplicateMemberKind.SymbolicLink => PackIconLucideKind.Link2,
         _ => PackIconLucideKind.Copy,
     };
+
+    internal DuplicateMemberViewModel(DuplicateMember member, string? root, Func<IReadOnlyList<SpaceBase>, bool, int> mark)
+    {
+        _mark = mark;
+        Space = member.Space;
+        Path = member.Path;
+        Kind = member.Kind;
+        Name = DuplicateText.Name(member.Path);
+        Directory = DuplicateText.Directory(member.Path, root);
+        IsMarked = member.Space.IsDeleted;
+    }
 
     [RelayCommand]
     private void ToggleMark()

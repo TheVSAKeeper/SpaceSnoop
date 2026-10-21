@@ -83,8 +83,24 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
     {
         RefreshWindowVisibility();
         return Volatile.Read(ref _hasVisibleWindow) && Application.Current is { } app && !app.Dispatcher.HasShutdownStarted
-            ? app.Dispatcher.InvokeAsync(static () => { }, DispatcherPriority.ContextIdle).Task
+            ? app.Dispatcher.InvokeAsync(
+                    static () =>
+                    {
+                    },
+                    DispatcherPriority.ContextIdle)
+                .Task
             : Task.CompletedTask;
+    }
+
+    public void ClearRun()
+    {
+        if (Volatile.Read(ref _last) is null)
+        {
+            return;
+        }
+
+        Volatile.Write(ref _last, null);
+        Notify();
     }
 
     private void RefreshWindowVisibility()
@@ -97,17 +113,6 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
         {
             Volatile.Write(ref _hasVisibleWindow, app.MainWindow?.IsVisible == true);
         }
-    }
-
-    public void ClearRun()
-    {
-        if (Volatile.Read(ref _last) is null)
-        {
-            return;
-        }
-
-        Volatile.Write(ref _last, null);
-        Notify();
     }
 
     private void Notify()

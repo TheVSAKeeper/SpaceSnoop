@@ -17,6 +17,7 @@ public partial class ScanStructurePanel : UserControl
         var chrome = Tree.IsVisible && FindDescendant<ScrollContentPresenter>(Tree) is { ActualHeight: > 0 } viewport
             ? Tree.ActualHeight - viewport.ActualHeight
             : 0;
+
         var height = TreeRow.ActualHeight - Tree.Margin.Top - chrome;
         var row = TreeRowHeight();
 
@@ -31,7 +32,7 @@ public partial class ScanStructurePanel : UserControl
             return row.ActualHeight;
         }
 
-        return Tree.FontSize * Tree.FontFamily.LineSpacing + RowPadding;
+        return (Tree.FontSize * Tree.FontFamily.LineSpacing) + RowPadding;
     }
 
     private void OnTreeSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)

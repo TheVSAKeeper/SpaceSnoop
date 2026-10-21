@@ -198,7 +198,7 @@ internal static class SyncFreshness
                 _ => null,
             };
 
-            if (when is not { } value || _newest is not null && value <= _newest)
+            if (when is not { } value || (_newest is not null && value <= _newest))
             {
                 return;
             }

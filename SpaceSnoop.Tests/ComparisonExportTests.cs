@@ -10,39 +10,21 @@ public class ComparisonExportTests
     private static readonly ComparisonExportOptions Options = new(SyncMode.LeftToRight, SyncWinner.Newest, false, "bin,obj");
 
     [Test]
-    public void Build_SkipsIdenticalFilesAndKeepsDifferences()
-    {
-        var root = new DirectoryComparison("root", string.Empty);
-        root.Files.Add(new("same.txt", "same.txt") { Status = ComparisonStatus.Identical, Action = SyncAction.Skip });
-        root.Files.Add(new("new.txt", "new.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = 10 });
-
-        var model = ComparisonExport.Build(new("L", "R", root), Options);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(model.Entries.Select(x => x.Path), Is.EqualTo(new[] { "new.txt" }));
-            Assert.That(model.Entries[0].Kind, Is.EqualTo(ComparisonEntryKind.File));
-            Assert.That(model.Totals.Files["Identical"], Is.EqualTo(1));
-            Assert.That(model.Totals.Planned.NewCopies, Is.EqualTo(1));
-            Assert.That(model.OmittedEntries, Is.Zero);
-        }
-    }
-
-    [Test]
     public void Build_DescribesModifiedFileBySizeAndTimeDelta()
     {
         var left = new DateTime(2026, 7, 21, 12, 0, 30, DateTimeKind.Local);
         var root = new DirectoryComparison("root", string.Empty);
 
-        root.Files.Add(new("a.txt", "a.txt")
-        {
-            Status = ComparisonStatus.Modified,
-            Action = SyncAction.CopyToRight,
-            LeftSize = 100,
-            RightSize = 100,
-            LeftModified = left,
-            RightModified = left.AddSeconds(-10),
-        });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+                LeftSize = 100,
+                RightSize = 100,
+                LeftModified = left,
+                RightModified = left.AddSeconds(-10),
+            });
 
         var entry = ComparisonExport.Build(new("L", "R", root), Options).Entries[0];
 
@@ -77,12 +59,7 @@ public class ComparisonExportTests
 
         for (var i = 0; i < 5; i++)
         {
-            root.Files.Add(new($"f{i}.bin", $"f{i}.bin")
-            {
-                Status = ComparisonStatus.LeftOnly,
-                Action = SyncAction.CopyToRight,
-                LeftSize = i,
-            });
+            root.Files.Add(new($"f{i}.bin", $"f{i}.bin") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = i });
         }
 
         var model = ComparisonExport.Build(new("L", "R", root), Options, entryLimit: 2);
@@ -91,6 +68,25 @@ public class ComparisonExportTests
         {
             Assert.That(model.Entries.Select(x => x.Path), Is.EqualTo(new[] { "f3.bin", "f4.bin" }));
             Assert.That(model.OmittedEntries, Is.EqualTo(3));
+        }
+    }
+
+    [Test]
+    public void Build_SkipsIdenticalFilesAndKeepsDifferences()
+    {
+        var root = new DirectoryComparison("root", string.Empty);
+        root.Files.Add(new("same.txt", "same.txt") { Status = ComparisonStatus.Identical, Action = SyncAction.Skip });
+        root.Files.Add(new("new.txt", "new.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = 10 });
+
+        var model = ComparisonExport.Build(new("L", "R", root), Options);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(model.Entries.Select(x => x.Path), Is.EqualTo(new[] { "new.txt" }));
+            Assert.That(model.Entries[0].Kind, Is.EqualTo(ComparisonEntryKind.File));
+            Assert.That(model.Totals.Files["Identical"], Is.EqualTo(1));
+            Assert.That(model.Totals.Planned.NewCopies, Is.EqualTo(1));
+            Assert.That(model.OmittedEntries, Is.Zero);
         }
     }
 

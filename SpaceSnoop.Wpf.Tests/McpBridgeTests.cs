@@ -38,19 +38,46 @@ public class McpBridgeTests
         }
     }
 
-    [TestCase(0, AppDefaults.McpEntryLimitMin)]
-    [TestCase(-100, AppDefaults.McpEntryLimitMin)]
-    [TestCase(500, 500)]
-    [TestCase(int.MaxValue, AppDefaults.McpEntryLimitMax)]
-    public void Лимит_записей_от_агента_зажимается_в_диапазон(int requested, int expected)
+    [Test]
+    public void Валидация_пропускает_разные_существующие_каталоги()
     {
-        Assert.That(McpGuards.ClampEntryLimit(requested), Is.EqualTo(expected));
+        Assert.DoesNotThrow(() => McpGuards.Validate(_left, _right, SyncMode.LeftToRight));
     }
 
     [Test]
-    public void Дефолтный_лимит_экспорта_проходит_кламп_без_изменений()
+    public void Вложенные_каталоги_отбиваются()
     {
-        Assert.That(McpGuards.ClampEntryLimit(ComparisonExport.DefaultEntryLimit), Is.EqualTo(ComparisonExport.DefaultEntryLimit));
+        var inner = Path.Combine(_left, "inner");
+        Directory.CreateDirectory(inner);
+
+        Assert.That(
+            Assert.Throws<McpException>(() => McpGuards.Validate(_left, inner, SyncMode.LeftToRight))?.Message,
+            Does.Contain("вложены"));
+    }
+
+    [Test]
+    public void Возраст_и_задержка_точки_округляются_до_десятых()
+    {
+        var history = McpFormat.DescribeHistory(History(), 60, 240);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(history.Timeline[0].AgeMs, Is.EqualTo(3000.6));
+            Assert.That(history.Timeline[0].UiDelayMs, Is.EqualTo(12.3));
+            Assert.That(history.SpanSeconds, Is.EqualTo(2.5));
+        });
+    }
+
+    [Test]
+    public void Возраст_снимка_виден_агенту_чтобы_отличить_протухший()
+    {
+        var fresh = PerformanceSnapshot.Empty with { CapturedAtUtc = DateTime.UtcNow.AddSeconds(-30) };
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(McpFormat.SnapshotAge(fresh).TotalSeconds, Is.EqualTo(30).Within(1));
+            Assert.That(McpFormat.SnapshotAge(PerformanceSnapshot.Empty), Is.EqualTo(TimeSpan.Zero));
+        });
     }
 
     [TestCase(0, ScanExport.MinDepth)]
@@ -68,13 +95,10 @@ public class McpBridgeTests
         Assert.That(McpGuards.ClampDepth(ScanExport.DefaultDepth), Is.EqualTo(ScanExport.DefaultDepth));
     }
 
-    [TestCase(0, 1)]
-    [TestCase(-5, 1)]
-    [TestCase(60, 60)]
-    [TestCase(int.MaxValue, AppDefaults.PerformanceHistoryPointsMax)]
-    public void Число_точек_истории_зажимается_в_диапазон(int requested, int expected)
+    [Test]
+    public void Дефолтный_лимит_экспорта_проходит_кламп_без_изменений()
     {
-        Assert.That(McpGuards.ClampHistoryPoints(requested), Is.EqualTo(expected));
+        Assert.That(McpGuards.ClampEntryLimit(ComparisonExport.DefaultEntryLimit), Is.EqualTo(ComparisonExport.DefaultEntryLimit));
     }
 
     [Test]
@@ -83,26 +107,12 @@ public class McpBridgeTests
         Assert.That(McpFormat.DescribeWindow(PerformanceSnapshot.Empty), Is.EqualTo("замеров ещё нет"));
     }
 
-    [Test]
-    public void Окно_наблюдения_называет_охваченное_время_и_число_замеров()
+    [TestCase(SyncMode.LeftToRight)]
+    [TestCase(SyncMode.RightToLeft)]
+    [TestCase(SyncMode.Bidirectional)]
+    public void Индекс_режима_обратим_маппингу_профиля(SyncMode mode)
     {
-        var snapshot = PerformanceSnapshot.Empty with { SampleCount = 20, ObservedSpanSeconds = 13.5 };
-
-        Assert.That(McpFormat.DescribeWindow(snapshot), Does.StartWith("последние 13").And.Contains("(20 замеров)"));
-    }
-
-    [Test]
-    public void Снимок_без_истории_не_несёт_поля_history()
-    {
-        var json = JsonDocument.Parse(McpFormat.Serialize(Performance(null))).RootElement;
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(json.TryGetProperty("history", out _), Is.False);
-            Assert.That(json.TryGetProperty("operation", out _), Is.False);
-            Assert.That(json.GetProperty("sampleCount").GetInt32(), Is.EqualTo(20));
-            Assert.That(json.GetProperty("startupSeconds").GetDouble(), Is.EqualTo(1.25));
-        });
+        Assert.That(HeadlessSync.MapMode(SyncProfile.IndexOfMode(mode)), Is.EqualTo(mode));
     }
 
     [Test]
@@ -126,6 +136,20 @@ public class McpBridgeTests
         });
     }
 
+    [TestCase(SyncVerifyState.None, "None", "выключена")]
+    [TestCase(SyncVerifyState.Interrupted, "Interrupted", "прервана")]
+    [TestCase(SyncVerifyState.Completed, "Completed", "до конца")]
+    public void Итог_синхронизации_различает_три_исхода_проверки(SyncVerifyState state, string expected, string hint)
+    {
+        var json = JsonDocument.Parse(McpFormat.Serialize(SyncResult(state, 0))).RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json.GetProperty("verify").GetString(), Is.EqualTo(expected));
+            Assert.That(json.GetProperty("verifyHint").GetString(), Does.Contain(hint));
+        });
+    }
+
     [Test]
     public void Кадры_окна_выходят_в_JSON_отдельными_полями()
     {
@@ -139,6 +163,15 @@ public class McpBridgeTests
             Assert.That(json.GetProperty("frameCount").GetInt32(), Is.EqualTo(31));
             Assert.That(json.GetProperty("slowFrameCount").GetInt32(), Is.EqualTo(2));
         });
+    }
+
+    [TestCase(0, AppDefaults.McpEntryLimitMin)]
+    [TestCase(-100, AppDefaults.McpEntryLimitMin)]
+    [TestCase(500, 500)]
+    [TestCase(int.MaxValue, AppDefaults.McpEntryLimitMax)]
+    public void Лимит_записей_от_агента_зажимается_в_диапазон(int requested, int expected)
+    {
+        Assert.That(McpGuards.ClampEntryLimit(requested), Is.EqualTo(expected));
     }
 
     [Test]
@@ -155,18 +188,41 @@ public class McpBridgeTests
         });
     }
 
-    [TestCase(SyncVerifyState.None, "None", "выключена")]
-    [TestCase(SyncVerifyState.Interrupted, "Interrupted", "прервана")]
-    [TestCase(SyncVerifyState.Completed, "Completed", "до конца")]
-    public void Итог_синхронизации_различает_три_исхода_проверки(SyncVerifyState state, string expected, string hint)
+    [Test]
+    public void Недоступный_источник_отбивается()
     {
-        var json = JsonDocument.Parse(McpFormat.Serialize(SyncResult(state, 0))).RootElement;
+        var missing = Path.Combine(_root, "нет-такого");
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(json.GetProperty("verify").GetString(), Is.EqualTo(expected));
-            Assert.That(json.GetProperty("verifyHint").GetString(), Does.Contain(hint));
-        });
+        Assert.That(
+            Assert.Throws<McpException>(() => McpGuards.Validate(missing, _right, SyncMode.LeftToRight))?.Message,
+            Does.Contain("источник недоступен"));
+    }
+
+    [Test]
+    public void Несуществующий_путь_скана_отбивается()
+    {
+        var missing = Path.Combine(_root, "нет-такого");
+
+        Assert.That(
+            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(missing, true))?.Message,
+            Does.Contain("не найден"));
+    }
+
+    [TestCase(0, 0)]
+    [TestCase(-5, 0)]
+    [TestCase(60, 60)]
+    [TestCase(int.MaxValue, AppDefaults.PerformanceHistorySecondsMax)]
+    public void Окно_истории_зажимается_в_диапазон(int requested, int expected)
+    {
+        Assert.That(McpGuards.ClampHistorySeconds(requested), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Окно_наблюдения_называет_охваченное_время_и_число_замеров()
+    {
+        var snapshot = PerformanceSnapshot.Empty with { SampleCount = 20, ObservedSpanSeconds = 13.5 };
+
+        Assert.That(McpFormat.DescribeWindow(snapshot), Does.StartWith("последние 13").And.Contains("(20 замеров)"));
     }
 
     [Test]
@@ -181,38 +237,34 @@ public class McpBridgeTests
         });
     }
 
-    [TestCase(0, 0)]
-    [TestCase(-5, 0)]
-    [TestCase(60, 60)]
-    [TestCase(int.MaxValue, AppDefaults.PerformanceHistorySecondsMax)]
-    public void Окно_истории_зажимается_в_диапазон(int requested, int expected)
+    [TestCase("", "C:\\")]
+    [TestCase("C:\\", "")]
+    public void Пустой_путь_отбивается(string left, string right)
     {
-        Assert.That(McpGuards.ClampHistorySeconds(requested), Is.EqualTo(expected));
+        Assert.That(
+            Assert.Throws<McpException>(() => McpGuards.Validate(left, right, SyncMode.LeftToRight))?.Message,
+            Does.Contain("должны быть заданы"));
     }
 
     [Test]
-    public void Возраст_снимка_виден_агенту_чтобы_отличить_протухший()
+    public void Пустой_путь_скана_отбивается()
     {
-        var fresh = PerformanceSnapshot.Empty with { CapturedAtUtc = DateTime.UtcNow.AddSeconds(-30) };
+        Assert.That(
+            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(string.Empty, true))?.Message,
+            Does.Contain("должен быть задан"));
+    }
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(McpFormat.SnapshotAge(fresh).TotalSeconds, Is.EqualTo(30).Within(1));
-            Assert.That(McpFormat.SnapshotAge(PerformanceSnapshot.Empty), Is.EqualTo(TimeSpan.Zero));
-        });
+    [TestCase("/")]
+    [TestCase("\\.\\")]
+    public void Путь_скана_приводится_к_каноничному(string tail)
+    {
+        Assert.That(McpGuards.ValidateScanPath(_left.Replace('\\', '/') + tail, true), Is.EqualTo(_left));
     }
 
     [Test]
-    public void Возраст_и_задержка_точки_округляются_до_десятых()
+    public void Путь_скана_пропускается_для_существующего_каталога()
     {
-        var history = McpFormat.DescribeHistory(History(), 60, 240);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(history.Timeline[0].AgeMs, Is.EqualTo(3000.6));
-            Assert.That(history.Timeline[0].UiDelayMs, Is.EqualTo(12.3));
-            Assert.That(history.SpanSeconds, Is.EqualTo(2.5));
-        });
+        Assert.DoesNotThrow(() => McpGuards.ValidateScanPath(_left, true));
     }
 
     [TestCase(true, false)]
@@ -225,83 +277,32 @@ public class McpBridgeTests
     }
 
     [Test]
-    public void Путь_скана_пропускается_для_существующего_каталога()
+    public void Снимок_без_истории_не_несёт_поля_history()
     {
-        Assert.DoesNotThrow(() => McpGuards.ValidateScanPath(_left, refuseLink: true));
+        var json = JsonDocument.Parse(McpFormat.Serialize(Performance(null))).RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(json.TryGetProperty("history", out _), Is.False);
+            Assert.That(json.TryGetProperty("operation", out _), Is.False);
+            Assert.That(json.GetProperty("sampleCount").GetInt32(), Is.EqualTo(20));
+            Assert.That(json.GetProperty("startupSeconds").GetDouble(), Is.EqualTo(1.25));
+        });
     }
 
-    [TestCase("/")]
-    [TestCase("\\.\\")]
-    public void Путь_скана_приводится_к_каноничному(string tail)
+    [TestCase(0, 1)]
+    [TestCase(-5, 1)]
+    [TestCase(60, 60)]
+    [TestCase(int.MaxValue, AppDefaults.PerformanceHistoryPointsMax)]
+    public void Число_точек_истории_зажимается_в_диапазон(int requested, int expected)
     {
-        Assert.That(McpGuards.ValidateScanPath(_left.Replace('\\', '/') + tail, refuseLink: true), Is.EqualTo(_left));
-    }
-
-    [Test]
-    public void Пустой_путь_скана_отбивается()
-    {
-        Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(string.Empty, refuseLink: true))?.Message,
-            Does.Contain("должен быть задан"));
-    }
-
-    [Test]
-    public void Несуществующий_путь_скана_отбивается()
-    {
-        var missing = Path.Combine(_root, "нет-такого");
-
-        Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.ValidateScanPath(missing, refuseLink: true))?.Message,
-            Does.Contain("не найден"));
-    }
-
-    [Test]
-    public void Валидация_пропускает_разные_существующие_каталоги()
-    {
-        Assert.DoesNotThrow(() => McpGuards.Validate(_left, _right, SyncMode.LeftToRight));
-    }
-
-    [TestCase("", "C:\\")]
-    [TestCase("C:\\", "")]
-    public void Пустой_путь_отбивается(string left, string right)
-    {
-        Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.Validate(left, right, SyncMode.LeftToRight))?.Message,
-            Does.Contain("должны быть заданы"));
-    }
-
-    [Test]
-    public void Вложенные_каталоги_отбиваются()
-    {
-        var inner = Path.Combine(_left, "inner");
-        Directory.CreateDirectory(inner);
-
-        Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.Validate(_left, inner, SyncMode.LeftToRight))?.Message,
-            Does.Contain("вложены"));
-    }
-
-    [Test]
-    public void Недоступный_источник_отбивается()
-    {
-        var missing = Path.Combine(_root, "нет-такого");
-
-        Assert.That(
-            Assert.Throws<McpException>(() => McpGuards.Validate(missing, _right, SyncMode.LeftToRight))?.Message,
-            Does.Contain("источник недоступен"));
-    }
-
-    [TestCase(SyncMode.LeftToRight)]
-    [TestCase(SyncMode.RightToLeft)]
-    [TestCase(SyncMode.Bidirectional)]
-    public void Индекс_режима_обратим_маппингу_профиля(SyncMode mode)
-    {
-        Assert.That(HeadlessSync.MapMode(SyncProfile.IndexOfMode(mode)), Is.EqualTo(mode));
+        Assert.That(McpGuards.ClampHistoryPoints(requested), Is.EqualTo(expected));
     }
 
     private static McpSyncResult SyncResult(SyncVerifyState state, int errorCount)
     {
-        return new(3,
+        return new(
+            3,
             1,
             4,
             1.5,
@@ -316,12 +317,25 @@ public class McpBridgeTests
             [],
             [],
             "Готово",
-            new("C:\\left", "C:\\right", SyncMode.LeftToRight, SyncWinner.Newest, false, string.Empty, false, true, SyncPlanFreshness.Fresh, new Dictionary<string, int>(), [], []));
+            new(
+                "C:\\left",
+                "C:\\right",
+                SyncMode.LeftToRight,
+                SyncWinner.Newest,
+                false,
+                string.Empty,
+                false,
+                true,
+                SyncPlanFreshness.Fresh,
+                new Dictionary<string, int>(),
+                [],
+                []));
     }
 
     private static McpPerformance Performance(McpPerformanceHistory? history)
     {
-        return new(true,
+        return new(
+            true,
             DateTime.UnixEpoch,
             0,
             "последние 10,0 с (20 замеров)",
@@ -351,15 +365,34 @@ public class McpBridgeTests
 
     private static PerformanceHistory History()
     {
-        return new(DateTime.UnixEpoch,
+        return new(
+            DateTime.UnixEpoch,
             2.5049,
             4,
             1,
             0,
             3,
             [
-                new(3000.56, 12.34, 100, 200, 180, 1, 0, 0, "Сканирование"),
-                new(500.44, 0, 150, 250, 230, 5, 1, 0, null),
+                new(
+                    3000.56,
+                    12.34,
+                    100,
+                    200,
+                    180,
+                    1,
+                    0,
+                    0,
+                    "Сканирование"),
+                new(
+                    500.44,
+                    0,
+                    150,
+                    250,
+                    230,
+                    5,
+                    1,
+                    0,
+                    null),
             ]);
     }
 }

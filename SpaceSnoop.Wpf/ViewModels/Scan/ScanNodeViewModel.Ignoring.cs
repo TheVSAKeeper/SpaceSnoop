@@ -7,10 +7,11 @@ public sealed partial class ScanNodeViewModel
 
     public bool CanIgnore => Space is not null && !IsRoot && !IsIgnored;
 
-    public string UnignoreCaption => Space is { } space && _factory?.Visibility.IgnoredAncestor(space) is { } ancestor
+    public string UnignoreCaption => Space is { } space
+        && _factory?.Visibility.IgnoredAncestor(space) is { } ancestor
         && !ReferenceEquals(ancestor, space)
-        ? $"Снять игнорирование папки «{ancestor.Name}»"
-        : "Снять игнорирование";
+            ? $"Снять игнорирование папки «{ancestor.Name}»"
+            : "Снять игнорирование";
 
     public string IgnoreHint => IsIgnored ? "Игнорируется: размер не участвует в долях, подсветке и карте" : string.Empty;
 

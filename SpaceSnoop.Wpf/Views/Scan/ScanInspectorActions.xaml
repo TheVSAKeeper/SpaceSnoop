@@ -13,7 +13,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanInspectorResources.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Scan/ScanInspectorResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </UserControl.Resources>
@@ -50,8 +51,12 @@
                 ToolTip="Не учитывать размер в долях, подсветке и карте">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}"
-                                          Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" />
-                <TextBlock Text="Игнорировать" VerticalAlignment="Center" />
+                                          Width="15"
+                                          Height="15"
+                                          Margin="0,0,8,0"
+                                          VerticalAlignment="Center" />
+                <TextBlock Text="Игнорировать"
+                           VerticalAlignment="Center" />
             </StackPanel>
         </Button>
         <Button Style="{StaticResource InspectorAction}"
@@ -59,8 +64,13 @@
                 Visibility="{Binding Node.IsIgnored, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Eye}"
-                                          Width="15" Height="15" Margin="0,0,8,0" VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Node.UnignoreCaption}" VerticalAlignment="Center" TextWrapping="Wrap" />
+                                          Width="15"
+                                          Height="15"
+                                          Margin="0,0,8,0"
+                                          VerticalAlignment="Center" />
+                <TextBlock Text="{Binding Node.UnignoreCaption}"
+                           VerticalAlignment="Center"
+                           TextWrapping="Wrap" />
             </StackPanel>
         </Button>
 

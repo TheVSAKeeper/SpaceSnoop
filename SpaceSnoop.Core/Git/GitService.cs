@@ -6,6 +6,8 @@ namespace SpaceSnoop.Core.Git;
 
 public sealed class GitService
 {
+    private static readonly string Executable = ResolveExecutable();
+
     public async Task<GitRepoState?> ReadAsync(string path, CancellationToken cancel = default)
     {
         if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
@@ -36,8 +38,6 @@ public sealed class GitService
 
         return log.Failed ? [] : GitCommit.ParseLog(log.StdOut);
     }
-
-    private static readonly string Executable = ResolveExecutable();
 
     private static string ResolveExecutable()
     {

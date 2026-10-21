@@ -16,8 +16,8 @@ public static class UpdateCheck
     public static bool IsNewer(string? latestTag, string? currentVersion)
     {
         return TryParse(latestTag, out var latest)
-               && TryParse(currentVersion, out var current)
-               && latest > current;
+            && TryParse(currentVersion, out var current)
+            && latest > current;
     }
 
     public static string? PickAsset(IEnumerable<string> assetNames, string productName, bool selfContained)

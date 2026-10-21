@@ -18,12 +18,7 @@ public static class RecycleBin
 
     public static void DeleteSilent(string path)
     {
-        var op = new ShFileOpStruct
-        {
-            wFunc = FO_DELETE,
-            pFrom = path + '\0' + '\0',
-            fFlags = (ushort)(FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI),
-        };
+        var op = new ShFileOpStruct { wFunc = FO_DELETE, pFrom = path + '\0' + '\0', fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI };
 
         var result = SHFileOperation(ref op);
 
@@ -56,12 +51,7 @@ public static class RecycleBin
 
         builder.Append('\0');
 
-        var op = new ShFileOpStruct
-        {
-            wFunc = FO_DELETE,
-            pFrom = builder.ToString(),
-            fFlags = (ushort)(FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI),
-        };
+        var op = new ShFileOpStruct { wFunc = FO_DELETE, pFrom = builder.ToString(), fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI };
 
         var result = SHFileOperation(ref op);
 

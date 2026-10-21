@@ -20,13 +20,8 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     private readonly SyncLedgerViewModel _ledger;
     private readonly Action<string> _reportSummary;
 
-    private ComparisonResult? _result;
     private string _comparedExclusions = string.Empty;
-    private SyncReport? _lastReport;
 
-    private Dictionary<object, SyncOutcome> _outcomes = [];
-    private Dictionary<DirectoryComparison, (long Left, long Right)>? _dirSizeCache;
-    private bool _hashesCompared;
     private SyncPlanFreshnessState _planState = new(SyncPlanFreshness.Fresh);
 
     [ObservableProperty]
@@ -34,6 +29,26 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ResolveAllToLeftCommand))]
     [NotifyCanExecuteChangedFor(nameof(ResolveAllSkipCommand))]
     private bool _hasPending;
+
+    internal event Action<SyncComparisonChange>? ComparisonChanged;
+
+    internal event Action<SyncProfileRun>? ProfileRunCompleted;
+
+    internal ComparisonResult? Result { get; private set; }
+
+    internal SyncReport? LastReport { get; private set; }
+
+    internal Dictionary<object, SyncOutcome> Outcomes { get; private set; } = [];
+
+    internal Dictionary<DirectoryComparison, (long Left, long Right)>? DirSizeCache { get; private set; }
+
+    internal bool HashesCompared { get; private set; }
+
+    internal SyncPlanFreshness PlanFreshness => _planState.Freshness;
+
+    internal TimeSpan LastSyncElapsed { get; private set; }
+
+    internal SyncVerifyState LastVerifyState { get; private set; }
 
     internal SyncOperationsViewModel(
         ISettingsStore settings,
@@ -61,26 +76,6 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         _reportSummary = reportSummary;
     }
 
-    internal event Action<SyncComparisonChange>? ComparisonChanged;
-
-    internal event Action<SyncProfileRun>? ProfileRunCompleted;
-
-    internal ComparisonResult? Result => _result;
-
-    internal SyncReport? LastReport => _lastReport;
-
-    internal Dictionary<object, SyncOutcome> Outcomes => _outcomes;
-
-    internal Dictionary<DirectoryComparison, (long Left, long Right)>? DirSizeCache => _dirSizeCache;
-
-    internal bool HashesCompared => _hashesCompared;
-
-    internal SyncPlanFreshness PlanFreshness => _planState.Freshness;
-
-    internal TimeSpan LastSyncElapsed { get; private set; }
-
-    internal SyncVerifyState LastVerifyState { get; private set; }
-
     public void NotifyBusyChanged()
     {
         CompareCommand.NotifyCanExecuteChanged();
@@ -96,24 +91,24 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
     public void ReapplyMode()
     {
-        if (_result is null)
+        if (Result is null)
         {
             return;
         }
 
-        _result.ApplyMode(_setup.CurrentMode, _setup.Mirror, _setup.CurrentWinner);
+        Result.ApplyMode(_setup.CurrentMode, _setup.Mirror, _setup.CurrentWinner);
         RaiseComparisonChanged(SyncComparisonChange.Rebuilt);
     }
 
     public void DiscardComparisonIfInputChanged()
     {
-        if (_result is null || _session.IsBusy)
+        if (Result is null || _session.IsBusy)
         {
             return;
         }
 
-        if (!string.Equals(_setup.LeftPath.Trim(), _result.LeftPath, StringComparison.Ordinal)
-            || !string.Equals(_setup.RightPath.Trim(), _result.RightPath, StringComparison.Ordinal)
+        if (!string.Equals(_setup.LeftPath.Trim(), Result.LeftPath, StringComparison.Ordinal)
+            || !string.Equals(_setup.RightPath.Trim(), Result.RightPath, StringComparison.Ordinal)
             || !string.Equals(_setup.Exclusions.Trim(), _comparedExclusions, StringComparison.Ordinal))
         {
             ClearComparison();
@@ -122,16 +117,16 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
     internal void RefreshPending()
     {
-        HasPending = _result?.HasPendingResolution() ?? false;
+        HasPending = Result?.HasPendingResolution() ?? false;
     }
 
     internal void ClearComparison()
     {
-        _result = null;
-        _lastReport = null;
-        _dirSizeCache = null;
-        _outcomes = [];
-        _hashesCompared = false;
+        Result = null;
+        LastReport = null;
+        DirSizeCache = null;
+        Outcomes = [];
+        HashesCompared = false;
         ApplyPlanState(_planState.AfterComparison());
         _git.Clear();
         RaiseComparisonChanged(SyncComparisonChange.Reloaded);
@@ -139,12 +134,12 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
     internal void AdoptComparison(ComparisonResult comparison)
     {
-        _result = comparison;
-        _lastReport = null;
+        Result = comparison;
+        LastReport = null;
         _comparedExclusions = _setup.Exclusions.Trim();
-        _dirSizeCache = SyncRowsProjector.BuildDirSizeCache(comparison.Root);
-        _outcomes = [];
-        _hashesCompared = false;
+        DirSizeCache = SyncRowsProjector.BuildDirSizeCache(comparison.Root);
+        Outcomes = [];
+        HashesCompared = false;
         ApplyPlanState(_planState.AfterComparison());
         comparison.ApplyMode(_setup.CurrentMode, _setup.Mirror, _setup.CurrentWinner);
         RaiseComparisonChanged(SyncComparisonChange.Reloaded);
@@ -164,13 +159,13 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
     internal async Task CompareContentAsync(FileComparison file)
     {
-        if (_result is null)
+        if (Result is null)
         {
             return;
         }
 
-        var leftPath = Path.Combine(_result.LeftPath, file.RelativePath);
-        var rightPath = Path.Combine(_result.RightPath, file.RelativePath);
+        var leftPath = Path.Combine(Result.LeftPath, file.RelativePath);
+        var rightPath = Path.Combine(Result.RightPath, file.RelativePath);
 
         FileDiffResult built;
 
@@ -216,25 +211,28 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         var stopwatch = Stopwatch.StartNew();
 
         var request = new CompareDirectoriesRequest(left, right, _setup.Exclusions, _setup.CurrentMode, _setup.CurrentWinner, _setup.Mirror);
-        var previous = _result;
+        var previous = Result;
 
-        var outcome = await _session.RunAsync<object>(CompareCaption, (token, progress) =>
-        {
-            if (!Directory.Exists(left) || !Directory.Exists(right))
+        var outcome = await _session.RunAsync<object>(
+            CompareCaption,
+            (token, progress) =>
             {
-                return new CompareRefused("Одного из каталогов нет на диске.");
-            }
+                if (!Directory.Exists(left) || !Directory.Exists(right))
+                {
+                    return new CompareRefused("Одного из каталогов нет на диске.");
+                }
 
-            if (SyncRoots.Refusal(left, right) is { } refusal)
-            {
-                return new CompareRefused(refusal);
-            }
+                if (SyncRoots.Refusal(left, right) is { } refusal)
+                {
+                    return new CompareRefused(refusal);
+                }
 
-            _logger.CompareStarted(left, right);
+                _logger.CompareStarted(left, right);
 
-            var compared = _compare.Execute(request, token, progress);
-            return new ComparePreparation(compared, SyncRowsProjector.BuildDirSizeCache(compared.Root));
-        }, external: external);
+                var compared = _compare.Execute(request, token, progress);
+                return new ComparePreparation(compared, SyncRowsProjector.BuildDirSizeCache(compared.Root));
+            },
+            external: external);
 
         stopwatch.Stop();
 
@@ -251,7 +249,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
             return;
         }
 
-        if (!ReferenceEquals(_result, previous))
+        if (!ReferenceEquals(Result, previous))
         {
             ReportSuperseded();
             return;
@@ -271,15 +269,15 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
             prepared.Result.ApplyMode(_setup.CurrentMode, _setup.Mirror, _setup.CurrentWinner);
         }
 
-        _result = prepared.Result;
+        Result = prepared.Result;
         _comparedExclusions = request.Exclusions.Trim();
-        _dirSizeCache = prepared.Sizes;
-        _outcomes = [];
-        _hashesCompared = false;
+        DirSizeCache = prepared.Sizes;
+        Outcomes = [];
+        HashesCompared = false;
         ApplyPlanState(_planState.AfterComparison());
         RaiseComparisonChanged(SyncComparisonChange.Reloaded);
-        var unreadable = _result.IncompleteDirectories();
-        var incomplete = SyncPlanNarrative.DescribeIncomplete(_result);
+        var unreadable = Result.IncompleteDirectories();
+        var incomplete = SyncPlanNarrative.DescribeIncomplete(Result);
         Report($"Сравнение завершено за {stopwatch.Elapsed.TotalSeconds:F2} с{(incomplete is null ? string.Empty : $". {incomplete}")}");
 
         if (incomplete is not null)
@@ -288,16 +286,16 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
             _notifier.Notify(incomplete, StatusSeverity.Warning);
         }
 
-        ReportSkippedLinks(_result);
+        ReportSkippedLinks(Result);
 
         _logger.CompareFinished(_ledger.Total, (long)stopwatch.Elapsed.TotalMilliseconds);
-        RaiseProfileRun(_result, null, (long)stopwatch.Elapsed.TotalMilliseconds);
+        RaiseProfileRun(Result, null, (long)stopwatch.Elapsed.TotalMilliseconds);
 
-        var compared = _result;
+        var compared = Result;
 
         await ReadGitStateAsync();
 
-        if (ReferenceEquals(_result, compared) && await _git.OfferToSkipAsync(compared, () => _setup.Exclusions) is { } exclusions)
+        if (ReferenceEquals(Result, compared) && await _git.OfferToSkipAsync(compared, () => _setup.Exclusions) is { } exclusions)
         {
             _setup.Exclusions = exclusions;
             await CompareAsync();
@@ -314,40 +312,44 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
         }
 
         _logger.CompareLinksSkipped(paths.Count, paths[0]);
-        _notifier.Notify(SyncPlanNarrative.DescribeSkippedLinks(paths), StatusSeverity.Info);
+        _notifier.Notify(SyncPlanNarrative.DescribeSkippedLinks(paths));
     }
 
     private Task ReadGitStateAsync()
     {
-        return _result is null
+        return Result is null
             ? Task.CompletedTask
-            : _git.ReadAsync(_result.LeftPath, _result.RightPath, CancellationToken.None);
+            : _git.ReadAsync(Result.LeftPath, Result.RightPath, CancellationToken.None);
     }
 
     private bool CanHash()
     {
-        return !_session.IsBusy && _result is not null;
+        return !_session.IsBusy && Result is not null;
     }
 
     [RelayCommand(CanExecute = nameof(CanHash))]
     private async Task HashAsync()
     {
-        if (_result is null)
+        if (Result is null)
         {
             return;
         }
 
-        var result = _result;
+        var result = Result;
         var stopwatch = Stopwatch.StartNew();
 
         _logger.HashStarted();
 
-        var sizes = await _session.RunAsync("Вычисление хешей:", (token, progress) =>
-        {
-            var done = 0;
-            SyncHasher.HashModified(result.Root, result.LeftPath, result.RightPath, progress, ref done, token, _logger);
-            return SyncRowsProjector.BuildDirSizeCache(result.Root);
-        }, _ledger.ModifiedCount, CancellationToken.None);
+        var sizes = await _session.RunAsync(
+            "Вычисление хешей:",
+            (token, progress) =>
+            {
+                var done = 0;
+                SyncHasher.HashModified(result.Root, result.LeftPath, result.RightPath, progress, ref done, token, _logger);
+                return SyncRowsProjector.BuildDirSizeCache(result.Root);
+            },
+            _ledger.ModifiedCount,
+            CancellationToken.None);
 
         stopwatch.Stop();
 
@@ -357,15 +359,15 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
             return;
         }
 
-        if (!ReferenceEquals(_result, result))
+        if (!ReferenceEquals(Result, result))
         {
             ReportSuperseded();
             return;
         }
 
-        _dirSizeCache = sizes;
-        _outcomes = [];
-        _hashesCompared = true;
+        DirSizeCache = sizes;
+        Outcomes = [];
+        HashesCompared = true;
         RaiseComparisonChanged(SyncComparisonChange.Recomputed);
         Report($"Хеши вычислены за {stopwatch.Elapsed.TotalSeconds:F2} с");
 
@@ -376,7 +378,7 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
     private bool CanSync()
     {
         return !_session.IsBusy
-            && _result is not null
+            && Result is not null
             && _planState.IsExecutable
             && !HasPending
             && _ledger.HasActionableChanges();
@@ -402,12 +404,12 @@ public sealed partial class SyncOperationsViewModel : ObservableObject
 
     private void ResolveAll(SyncAction action)
     {
-        if (_result is null)
+        if (Result is null)
         {
             return;
         }
 
-        var count = _result.ResolveAllConflicts(action);
+        var count = Result.ResolveAllConflicts(action);
         RaiseComparisonChanged(SyncComparisonChange.Rebuilt);
         _session.StatusCaption = $"Разрешено элементов: {count}.";
     }

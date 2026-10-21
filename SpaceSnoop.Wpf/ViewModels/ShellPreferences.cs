@@ -14,6 +14,12 @@ public sealed partial class ShellPreferences : ShellPreferencesBase
     [ObservableProperty]
     private bool _showPerformanceHud = AppDefaults.PerformanceHudDefault;
 
+    public string? LastPage
+    {
+        get => Settings.GetStringValue(SettingsKeys.LastPage);
+        set => Settings.SetValue(SettingsKeys.LastPage, value ?? string.Empty);
+    }
+
     public ShellPreferences(ISettingsStore settings)
         : base(settings, new(SettingsKeys.ShowPageHeader, SettingsKeys.EnableToastNotifications, SettingsKeys.FontScale))
     {
@@ -21,14 +27,8 @@ public sealed partial class ShellPreferences : ShellPreferencesBase
         StartupPage = Settings.GetEnum(SettingsKeys.StartupPage, AppDefaults.StartupPageDefault);
         NavCollapsed = Settings.GetBool(SettingsKeys.NavCollapsed);
         WarnIfNotAdministrator = Settings.GetBool(SettingsKeys.WarnIfNotAdmin, AppDefaults.WarnIfNotAdminDefault);
-        ShowPerformanceHud = Settings.GetBool(SettingsKeys.PerformanceHud, AppDefaults.PerformanceHudDefault);
+        ShowPerformanceHud = Settings.GetBool(SettingsKeys.PerformanceHud);
         SuppressPersist = false;
-    }
-
-    public string? LastPage
-    {
-        get => Settings.GetStringValue(SettingsKeys.LastPage);
-        set => Settings.SetValue(SettingsKeys.LastPage, value ?? string.Empty);
     }
 
     partial void OnStartupPageChanged(StartupPage value)

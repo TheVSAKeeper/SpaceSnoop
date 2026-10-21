@@ -7,7 +7,7 @@ public sealed class SettingRowPanel : Panel
 
     public static SettingRowPlan Plan(double available, double labelMin, double trailing)
     {
-        if (double.IsPositiveInfinity(available) || available - trailing >= labelMin)
+        if (double.IsPositiveInfinity(available) || (available - trailing) >= labelMin)
         {
             return new(false, Math.Max(0, available - trailing));
         }

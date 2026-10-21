@@ -26,66 +26,6 @@ public class DuplicateFinderTests
         }
     }
 
-    [TestCase(2)]
-    [TestCase(3)]
-    [TestCase(12)]
-    public void Одинаковые_копии_собираются_в_одну_группу(int copies)
-    {
-        var content = new string('a', 4096);
-
-        for (var index = 0; index < copies; index++)
-        {
-            Write($"copy{index}.bin", content);
-        }
-
-        var report = Find();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Groups, Has.Count.EqualTo(1));
-            Assert.That(report.Groups[0].Members, Has.Count.EqualTo(copies));
-            Assert.That(report.Groups[0].DistinctFiles, Is.EqualTo(copies));
-            Assert.That(report.ReclaimableBytes, Is.EqualTo((copies - 1) * 4096L));
-            Assert.That(report.Examined, Is.EqualTo(copies));
-        }
-    }
-
-    [TestCase(2)]
-    [TestCase(12)]
-    public void Одинаковый_размер_при_разном_содержимом_группы_не_даёт(int files)
-    {
-        for (var index = 0; index < files; index++)
-        {
-            Write($"file{index}.bin", new string((char)('a' + index), 4096));
-        }
-
-        var report = Find();
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Groups, Is.Empty);
-            Assert.That(report.ReclaimableBytes, Is.Zero);
-            Assert.That(report.Examined, Is.EqualTo(files));
-        }
-    }
-
-    [Test]
-    public void Пустые_файлы_и_мелочь_ниже_порога_не_рассматриваются()
-    {
-        Write("empty1.bin", string.Empty);
-        Write("empty2.bin", string.Empty);
-        Write("small1.bin", "abc");
-        Write("small2.bin", "abc");
-
-        var report = Find(DuplicateOptions.Default with { MinSize = 10 });
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Groups, Is.Empty);
-            Assert.That(report.Examined, Is.Zero);
-        }
-    }
-
     [Test]
     public void Жёсткая_ссылка_названа_и_места_не_возвращает()
     {
@@ -134,6 +74,96 @@ public class DuplicateFinderTests
     }
 
     [Test]
+    public void Каталог_с_ошибкой_обхода_доложен_отдельно()
+    {
+        var sub = Path.Combine(_tempDir, "sub");
+        Directory.CreateDirectory(sub);
+        File.WriteAllText(Path.Combine(sub, "x.bin"), "xxxx");
+
+        var tree = Tree();
+        tree.SubDirectories[0].Error();
+
+        var report = new DuplicateFinder().Find(tree, DuplicateOptions.Default, null, CancellationToken.None);
+
+        Assert.That(report.UnreadableDirectories, Is.EqualTo(1));
+    }
+
+    [TestCase(2)]
+    [TestCase(3)]
+    [TestCase(12)]
+    public void Одинаковые_копии_собираются_в_одну_группу(int copies)
+    {
+        var content = new string('a', 4096);
+
+        for (var index = 0; index < copies; index++)
+        {
+            Write($"copy{index}.bin", content);
+        }
+
+        var report = Find();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Groups, Has.Count.EqualTo(1));
+            Assert.That(report.Groups[0].Members, Has.Count.EqualTo(copies));
+            Assert.That(report.Groups[0].DistinctFiles, Is.EqualTo(copies));
+            Assert.That(report.ReclaimableBytes, Is.EqualTo((copies - 1) * 4096L));
+            Assert.That(report.Examined, Is.EqualTo(copies));
+        }
+    }
+
+    [TestCase(2)]
+    [TestCase(12)]
+    public void Одинаковый_размер_при_разном_содержимом_группы_не_даёт(int files)
+    {
+        for (var index = 0; index < files; index++)
+        {
+            Write($"file{index}.bin", new((char)('a' + index), 4096));
+        }
+
+        var report = Find();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Groups, Is.Empty);
+            Assert.That(report.ReclaimableBytes, Is.Zero);
+            Assert.That(report.Examined, Is.EqualTo(files));
+        }
+    }
+
+    [Test]
+    public void Отмена_прерывает_поиск()
+    {
+        var content = new string('c', 4096);
+        Write("copy1.bin", content);
+        Write("copy2.bin", content);
+
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        Assert.Throws<OperationCanceledException>(() => new DuplicateFinder().Find(Tree(), DuplicateOptions.Default, null, cancellation.Token));
+    }
+
+    [Test]
+    public void Потолок_групп_объявляется_числом_и_не_меняет_итог()
+    {
+        Write("big1.bin", new('b', 4096));
+        Write("big2.bin", new('b', 4096));
+        Write("small1.bin", new('s', 1024));
+        Write("small2.bin", new('s', 1024));
+
+        var report = Find(DuplicateOptions.Default with { GroupLimit = 1 });
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(report.Groups, Has.Count.EqualTo(1));
+            Assert.That(report.Groups[0].Size, Is.EqualTo(4096));
+            Assert.That(report.OmittedGroups, Is.EqualTo(1));
+            Assert.That(report.ReclaimableBytes, Is.EqualTo(4096 + 1024));
+        }
+    }
+
+    [Test]
     public void Потолок_членов_режет_список_но_не_возвращаемые_байты()
     {
         var content = new string('m', 1024);
@@ -151,53 +181,6 @@ public class DuplicateFinderTests
             Assert.That(report.Groups[0].OmittedMembers, Is.EqualTo(3));
             Assert.That(report.Groups[0].ReclaimableBytes, Is.EqualTo(4 * 1024));
         }
-    }
-
-    [Test]
-    public void Потолок_групп_объявляется_числом_и_не_меняет_итог()
-    {
-        Write("big1.bin", new string('b', 4096));
-        Write("big2.bin", new string('b', 4096));
-        Write("small1.bin", new string('s', 1024));
-        Write("small2.bin", new string('s', 1024));
-
-        var report = Find(DuplicateOptions.Default with { GroupLimit = 1 });
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(report.Groups, Has.Count.EqualTo(1));
-            Assert.That(report.Groups[0].Size, Is.EqualTo(4096));
-            Assert.That(report.OmittedGroups, Is.EqualTo(1));
-            Assert.That(report.ReclaimableBytes, Is.EqualTo(4096 + 1024));
-        }
-    }
-
-    [Test]
-    public void Каталог_с_ошибкой_обхода_доложен_отдельно()
-    {
-        var sub = Path.Combine(_tempDir, "sub");
-        Directory.CreateDirectory(sub);
-        File.WriteAllText(Path.Combine(sub, "x.bin"), "xxxx");
-
-        var tree = Tree();
-        tree.SubDirectories[0].Error();
-
-        var report = new DuplicateFinder().Find(tree, DuplicateOptions.Default, null, CancellationToken.None);
-
-        Assert.That(report.UnreadableDirectories, Is.EqualTo(1));
-    }
-
-    [Test]
-    public void Отмена_прерывает_поиск()
-    {
-        var content = new string('c', 4096);
-        Write("copy1.bin", content);
-        Write("copy2.bin", content);
-
-        using var cancellation = new CancellationTokenSource();
-        cancellation.Cancel();
-
-        Assert.Throws<OperationCanceledException>(() => new DuplicateFinder().Find(Tree(), DuplicateOptions.Default, null, cancellation.Token));
     }
 
     [Test]
@@ -219,18 +202,20 @@ public class DuplicateFinderTests
     }
 
     [Test]
-    public void Совпадающее_начало_при_разных_хвостах_группы_не_даёт()
+    public void Пустые_файлы_и_мелочь_ниже_порога_не_рассматриваются()
     {
-        var head = new string('h', 64 * 1024);
+        Write("empty1.bin", string.Empty);
+        Write("empty2.bin", string.Empty);
+        Write("small1.bin", "abc");
+        Write("small2.bin", "abc");
 
-        for (var index = 0; index < 12; index++)
+        var report = Find(DuplicateOptions.Default with { MinSize = 10 });
+
+        using (Assert.EnterMultipleScope())
         {
-            Write($"head{index}.bin", head + new string((char)('a' + index), 4096));
+            Assert.That(report.Groups, Is.Empty);
+            Assert.That(report.Examined, Is.Zero);
         }
-
-        var report = Find();
-
-        Assert.That(report.Groups, Is.Empty);
     }
 
     [Test]
@@ -250,6 +235,21 @@ public class DuplicateFinderTests
             Assert.That(report.Groups, Has.Count.EqualTo(1));
             Assert.That(report.Groups[0].Members, Has.Count.EqualTo(12));
         }
+    }
+
+    [Test]
+    public void Совпадающее_начало_при_разных_хвостах_группы_не_даёт()
+    {
+        var head = new string('h', 64 * 1024);
+
+        for (var index = 0; index < 12; index++)
+        {
+            Write($"head{index}.bin", head + new string((char)('a' + index), 4096));
+        }
+
+        var report = Find();
+
+        Assert.That(report.Groups, Is.Empty);
     }
 
     [DllImport("kernel32.dll", EntryPoint = "CreateHardLinkW", CharSet = CharSet.Unicode, SetLastError = true)]

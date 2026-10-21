@@ -39,7 +39,7 @@ public sealed record DockerCompactResult(
     public bool RequiresWslShutdownConfirmation => Status == DockerCompactStatus.RequiresWslShutdownConfirmation;
 
     public bool DockerStopped => Steps.Any(step => step.Succeeded
-        && (step.Name is "Остановка Docker Desktop" or "Остановка WSL"));
+        && step.Name is "Остановка Docker Desktop" or "Остановка WSL");
 
     public long? FreedAllocatedBytes => Before is { } before && After is { } after
         ? before.AllocatedBytes - after.AllocatedBytes
@@ -65,6 +65,7 @@ public sealed record DockerCompactResult(
             {
                 var failure = Steps.FirstOrDefault(step => !step.Succeeded)?.Detail
                     ?? "Сжатие диска Docker не выполнено.";
+
                 return DockerStopped ? $"{failure} Docker Desktop остановлен, запустите его заново." : failure;
             }
 

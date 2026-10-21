@@ -53,11 +53,11 @@ public abstract class SpaceBase(string name, SpaceBase? parent, DateTime creatio
     public virtual string GetTooltipText()
     {
         return $"""
-                Название: {Name}
-                Путь: {AbsolutePath}
-                Дата создания: {CreationDate}
-                Последний доступ: {LastAccessTime}
-                """;
+            Название: {Name}
+            Путь: {AbsolutePath}
+            Дата создания: {CreationDate}
+            Последний доступ: {LastAccessTime}
+            """;
     }
 
     public void Delete()

@@ -5,6 +5,8 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class PathSuggestTests
 {
+    private string _tempDir = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -23,8 +25,6 @@ public class PathSuggestTests
         }
     }
 
-    private string _tempDir = null!;
-
     [TestCase("Mu", "Music")]
     [TestCase("mus", "Music")]
     public void Единственное_совпадение_по_префиксу_без_учёта_регистра(string typed, string expected)
@@ -34,12 +34,28 @@ public class PathSuggestTests
         Assert.That(matches, Is.EqualTo([Path.Combine(_tempDir, expected)]));
     }
 
+    [TestCase(@"\\server\", ExpectedResult = "server")]
+    [TestCase("//server/", ExpectedResult = "server")]
+    [TestCase(@"\\server\share\", ExpectedResult = null)]
+    [TestCase(@"C:\", ExpectedResult = null)]
+    [TestCase(@"\\", ExpectedResult = null)]
+    public string? Корень_сервера_отличается_от_обычного_каталога(string directory)
+    {
+        return PathSuggest.ServerName(directory);
+    }
+
     [Test]
     public void Несколько_совпадений_возвращаются_по_порядку_для_перебора()
     {
         var matches = PathSuggest.Matches(Path.Combine(_tempDir, "P"));
 
         Assert.That(matches, Is.EqualTo([Path.Combine(_tempDir, "Pictures"), Path.Combine(_tempDir, "Projects")]));
+    }
+
+    [Test]
+    public void Первый_запрос_к_недоступному_серверу_не_блокирует_ввод()
+    {
+        Assert.That(PathSuggest.Matches($@"\\{Guid.NewGuid():N}\sh"), Is.Empty);
     }
 
     [TestCase("nosep")]
@@ -55,21 +71,5 @@ public class PathSuggestTests
         };
 
         Assert.That(PathSuggest.Matches(input), Is.Empty);
-    }
-
-    [TestCase(@"\\server\", ExpectedResult = "server")]
-    [TestCase("//server/", ExpectedResult = "server")]
-    [TestCase(@"\\server\share\", ExpectedResult = null)]
-    [TestCase(@"C:\", ExpectedResult = null)]
-    [TestCase(@"\\", ExpectedResult = null)]
-    public string? Корень_сервера_отличается_от_обычного_каталога(string directory)
-    {
-        return PathSuggest.ServerName(directory);
-    }
-
-    [Test]
-    public void Первый_запрос_к_недоступному_серверу_не_блокирует_ввод()
-    {
-        Assert.That(PathSuggest.Matches($@"\\{Guid.NewGuid():N}\sh"), Is.Empty);
     }
 }

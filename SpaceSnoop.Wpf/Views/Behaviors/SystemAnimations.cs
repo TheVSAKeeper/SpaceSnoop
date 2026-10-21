@@ -4,14 +4,14 @@ namespace SpaceSnoop.Wpf.Views.Behaviors;
 
 public sealed class SystemAnimations : ObservableObject
 {
+    public static SystemAnimations Current { get; } = new();
+
+    public bool Enabled => SystemParameters.ClientAreaAnimation;
+
     private SystemAnimations()
     {
         SystemParameters.StaticPropertyChanged += OnSystemParameterChanged;
     }
-
-    public static SystemAnimations Current { get; } = new();
-
-    public bool Enabled => SystemParameters.ClientAreaAnimation;
 
     private void OnSystemParameterChanged(object? sender, PropertyChangedEventArgs e)
     {

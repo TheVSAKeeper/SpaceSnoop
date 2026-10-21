@@ -67,19 +67,22 @@ internal sealed class McpCaptureTools(McpNavigator navigator, ILogger logger)
 
         if (width == 0 || height == 0)
         {
-            throw new McpException(named
-                ? $"Элемент «{element}» не отрисован – он скрыт или ещё не построен на текущей странице."
-                : "Окно не отрисовано – оно свёрнуто или ещё не показано.");
+            throw new McpException(
+                named
+                    ? $"Элемент «{element}» не отрисован – он скрыт или ещё не построен на текущей странице."
+                    : "Окно не отрисовано – оно свёрнуто или ещё не показано.");
         }
 
         logger.ViewCaptured(path, width, height);
 
-        return McpFormat.Serialize(new McpCapture(path,
-            page,
-            named ? element : null,
-            ThemeManager.Current?.Key ?? "-",
-            width,
-            height,
-            McpFormat.DescribeDeferredNavigation(deferred)));
+        return McpFormat.Serialize(
+            new McpCapture(
+                path,
+                page,
+                named ? element : null,
+                ThemeManager.Current?.Key ?? "-",
+                width,
+                height,
+                McpFormat.DescribeDeferredNavigation(deferred)));
     }
 }

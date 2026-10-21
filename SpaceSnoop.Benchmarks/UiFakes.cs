@@ -170,16 +170,6 @@ internal sealed class BenchSyncRowHost : ISyncRowHost
 
 internal sealed class BenchShell : IDisposable
 {
-    public BenchShell()
-    {
-        Dispatcher = new();
-        Settings = new();
-        Monitor = new(new DiagnosticsOptions(), Dispatcher, NullLogger<PerformanceMonitor>.Instance);
-        Operations = new(Monitor);
-        Preferences = new(Settings);
-        NodeFactory = new(new(Settings), new(Settings), new BenchShellLauncher());
-    }
-
     public ScanNodeFactory NodeFactory { get; }
 
     public ScanSortState Sort { get; } = new();
@@ -193,6 +183,16 @@ internal sealed class BenchShell : IDisposable
     public PerformanceOperations Operations { get; }
 
     public ShellPreferences Preferences { get; }
+
+    public BenchShell()
+    {
+        Dispatcher = new();
+        Settings = new();
+        Monitor = new(new(), Dispatcher, NullLogger<PerformanceMonitor>.Instance);
+        Operations = new(Monitor);
+        Preferences = new(Settings);
+        NodeFactory = new(new(Settings), new(Settings), new BenchShellLauncher());
+    }
 
     public ScanNodeViewModel CreateNode(DirectorySpace root)
     {

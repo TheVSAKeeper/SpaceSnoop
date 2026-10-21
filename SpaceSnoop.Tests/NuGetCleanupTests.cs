@@ -22,8 +22,10 @@ public class NuGetCleanupTests
 
         Assert.That(repository, Is.Not.Null);
         _root = Path.Combine(repository!.FullName, ".kc", "scratch", "developer-cleanup-tests", Guid.NewGuid().ToString("N"));
-        _paths = Enum.GetValues<NuGetCacheKind>().Where(x => x != NuGetCacheKind.None)
+        _paths = Enum.GetValues<NuGetCacheKind>()
+            .Where(x => x != NuGetCacheKind.None)
             .ToDictionary(x => x, x => Path.Combine(_root, x.ToString()));
+
         foreach (var path in _paths.Values)
         {
             Directory.CreateDirectory(path);
@@ -42,34 +44,20 @@ public class NuGetCleanupTests
         }
     }
 
-    private string Write(string name, string content = "cache", NuGetCacheKind kind = NuGetCacheKind.HttpCache)
-    {
-        var path = Path.Combine(_paths[kind], name);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, content);
-        return path;
-    }
-
-    private Task<CleanupReport> Clean(NuGetCleanupPlan plan, NuGetCacheKind kind = NuGetCacheKind.HttpCache,
-        IProgress<OperationProgress>? progress = null, CancellationToken token = default) =>
-        _service.CleanAsync(plan, [kind], progress, token);
-
     [Test]
-    public async Task Deletes_only_selected_previewed_files_and_leaves_new_files()
+    public async Task Cancellation_preserves_partial_counts()
     {
-        var selected = Write("old.dat");
-        var other = Write("other.dat", kind: NuGetCacheKind.Temp);
+        Write("first.dat");
+        Write("second.dat");
+        using var cancel = new CancellationTokenSource();
         var plan = await _service.ScanAsync(default);
-        var added = Write("new.dat");
-        var result = await Clean(plan);
+        var result = await Clean(plan, progress: new CancelAfterProgress(cancel), token: cancel.Token);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Errors, Is.Empty);
+            Assert.That(result.Cancelled, Is.True);
             Assert.That(result.Deleted, Is.EqualTo(1));
             Assert.That(result.FreedBytes, Is.EqualTo(5));
-            Assert.That(File.Exists(selected), Is.False);
-            Assert.That(File.Exists(other), Is.True);
-            Assert.That(File.Exists(added), Is.True);
+            Assert.That(Directory.GetFiles(_paths[NuGetCacheKind.HttpCache]).Length, Is.EqualTo(1));
         });
     }
 
@@ -87,18 +75,6 @@ public class NuGetCleanupTests
             Assert.That(result.FreedBytes, Is.Zero);
             Assert.That(File.Exists(file), Is.True);
         });
-    }
-
-    [Test]
-    public async Task Plan_is_single_use_even_when_new_files_appear()
-    {
-        Write("old.dat");
-        var plan = await _service.ScanAsync(default);
-        await Clean(plan);
-        var added = Write("new.dat");
-        var result = await Clean(plan);
-        Assert.That(result.Errors, Is.Not.Empty);
-        Assert.That(File.Exists(added), Is.True);
     }
 
     [TestCase(true)]
@@ -122,27 +98,45 @@ public class NuGetCleanupTests
     }
 
     [Test]
-    public async Task Replaced_root_is_rejected_by_identity()
+    public void Cli_parser_requires_all_four_distinct_absolute_paths()
     {
-        Write("cache.dat");
-        var plan = await _service.ScanAsync(default);
-        Directory.Move(_paths[NuGetCacheKind.HttpCache], _paths[NuGetCacheKind.HttpCache] + "-old");
-        var replacement = Write("cache.dat");
-        var result = await Clean(plan);
-        Assert.That(result.Deleted, Is.Zero);
-        Assert.That(result.Errors, Is.Not.Empty);
-        Assert.That(File.Exists(replacement), Is.True);
+        var output = string.Join('\n', NuGetCacheDiscovery.Names.Select(x => $"{x.Value}: {_paths[x.Key]}"));
+        Assert.That(NuGetCacheDiscovery.Parse(output, "user").Paths.Count, Is.EqualTo(4));
+        Assert.Throws<InvalidOperationException>(() => NuGetCacheDiscovery.Parse("http-cache: C:\\cache", "user"));
+        Assert.Throws<InvalidOperationException>(() => NuGetCacheDiscovery.Parse(output + "\n" + output, "user"));
+        Assert.Throws<IOException>(() => NuGetCleanupService.Normalize("C:\\cache:file"));
+        Assert.Throws<IOException>(() => NuGetCleanupService.Normalize("relative"));
+        Assert.Throws<IOException>(() => NuGetCleanupService.Normalize("C:\\Program Files. \\dotnet"));
     }
 
     [Test]
-    public async Task Locked_file_is_not_forced_or_counted()
+    public async Task Deletes_only_selected_previewed_files_and_leaves_new_files()
     {
-        var file = Write("cache.dat");
+        var selected = Write("old.dat");
+        var other = Write("other.dat", kind: NuGetCacheKind.Temp);
         var plan = await _service.ScanAsync(default);
-        using var reader = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var added = Write("new.dat");
         var result = await Clean(plan);
-        Assert.That(result.Deleted, Is.Zero);
-        Assert.That(result.Skipped, Is.EqualTo(1));
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Errors, Is.Empty);
+            Assert.That(result.Deleted, Is.EqualTo(1));
+            Assert.That(result.FreedBytes, Is.EqualTo(5));
+            Assert.That(File.Exists(selected), Is.False);
+            Assert.That(File.Exists(other), Is.True);
+            Assert.That(File.Exists(added), Is.True);
+        });
+    }
+
+    [Test]
+    public async Task Global_packages_require_complete_package_structure()
+    {
+        var file = Write("package/1.0.0/lib/a.dll", kind: NuGetCacheKind.GlobalPackages);
+        var plan = await _service.ScanAsync(default);
+        Assert.That(plan.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages).CanClean, Is.False);
+        var result = await Clean(plan, NuGetCacheKind.GlobalPackages);
+        Assert.That(result.Errors, Is.Not.Empty);
+        Assert.That(File.Exists(file), Is.True);
     }
 
     [Test]
@@ -161,31 +155,23 @@ public class NuGetCleanupTests
     }
 
     [Test]
-    public async Task Cancellation_preserves_partial_counts()
+    public async Task Locked_file_is_not_forced_or_counted()
     {
-        Write("first.dat");
-        Write("second.dat");
-        using var cancel = new CancellationTokenSource();
+        var file = Write("cache.dat");
         var plan = await _service.ScanAsync(default);
-        var result = await Clean(plan, progress: new CancelAfterProgress(cancel), token: cancel.Token);
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.Cancelled, Is.True);
-            Assert.That(result.Deleted, Is.EqualTo(1));
-            Assert.That(result.FreedBytes, Is.EqualTo(5));
-            Assert.That(Directory.GetFiles(_paths[NuGetCacheKind.HttpCache]).Length, Is.EqualTo(1));
-        });
+        using var reader = File.Open(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var result = await Clean(plan);
+        Assert.That(result.Deleted, Is.Zero);
+        Assert.That(result.Skipped, Is.EqualTo(1));
     }
 
     [Test]
-    public async Task Global_packages_require_complete_package_structure()
+    public async Task Overlapping_categories_are_not_cleanable()
     {
-        var file = Write("package/1.0.0/lib/a.dll", kind: NuGetCacheKind.GlobalPackages);
+        Write("cache.dat");
+        _paths[NuGetCacheKind.Temp] = Path.Combine(_paths[NuGetCacheKind.HttpCache], "nested");
         var plan = await _service.ScanAsync(default);
-        Assert.That(plan.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages).CanClean, Is.False);
-        var result = await Clean(plan, NuGetCacheKind.GlobalPackages);
-        Assert.That(result.Errors, Is.Not.Empty);
-        Assert.That(File.Exists(file), Is.True);
+        Assert.That(plan.Caches.Where(x => x.Kind is NuGetCacheKind.HttpCache or NuGetCacheKind.Temp).All(x => !x.CanClean), Is.True);
     }
 
     [Test]
@@ -208,6 +194,18 @@ public class NuGetCleanupTests
         });
     }
 
+    [Test]
+    public async Task Plan_is_single_use_even_when_new_files_appear()
+    {
+        Write("old.dat");
+        var plan = await _service.ScanAsync(default);
+        await Clean(plan);
+        var added = Write("new.dat");
+        var result = await Clean(plan);
+        Assert.That(result.Errors, Is.Not.Empty);
+        Assert.That(File.Exists(added), Is.True);
+    }
+
     [TestCase("project.csproj")]
     [TestCase("app.cs")]
     [TestCase("build.proj")]
@@ -217,15 +215,6 @@ public class NuGetCleanupTests
         Write("work/" + name);
         var plan = await _service.ScanAsync(default);
         Assert.That(plan.Caches.Single(x => x.Kind == NuGetCacheKind.HttpCache).CanClean, Is.False);
-    }
-
-    [Test]
-    public async Task Overlapping_categories_are_not_cleanable()
-    {
-        Write("cache.dat");
-        _paths[NuGetCacheKind.Temp] = Path.Combine(_paths[NuGetCacheKind.HttpCache], "nested");
-        var plan = await _service.ScanAsync(default);
-        Assert.That(plan.Caches.Where(x => x.Kind is NuGetCacheKind.HttpCache or NuGetCacheKind.Temp).All(x => !x.CanClean), Is.True);
     }
 
     [Test]
@@ -277,19 +266,40 @@ public class NuGetCleanupTests
     }
 
     [Test]
-    public void Cli_parser_requires_all_four_distinct_absolute_paths()
+    public async Task Replaced_root_is_rejected_by_identity()
     {
-        var output = string.Join('\n', NuGetCacheDiscovery.Names.Select(x => $"{x.Value}: {_paths[x.Key]}"));
-        Assert.That(NuGetCacheDiscovery.Parse(output, "user").Paths.Count, Is.EqualTo(4));
-        Assert.Throws<InvalidOperationException>(() => NuGetCacheDiscovery.Parse("http-cache: C:\\cache", "user"));
-        Assert.Throws<InvalidOperationException>(() => NuGetCacheDiscovery.Parse(output + "\n" + output, "user"));
-        Assert.Throws<IOException>(() => NuGetCleanupService.Normalize("C:\\cache:file"));
-        Assert.Throws<IOException>(() => NuGetCleanupService.Normalize("relative"));
-        Assert.Throws<IOException>(() => NuGetCleanupService.Normalize("C:\\Program Files. \\dotnet"));
+        Write("cache.dat");
+        var plan = await _service.ScanAsync(default);
+        Directory.Move(_paths[NuGetCacheKind.HttpCache], _paths[NuGetCacheKind.HttpCache] + "-old");
+        var replacement = Write("cache.dat");
+        var result = await Clean(plan);
+        Assert.That(result.Deleted, Is.Zero);
+        Assert.That(result.Errors, Is.Not.Empty);
+        Assert.That(File.Exists(replacement), Is.True);
+    }
+
+    private string Write(string name, string content = "cache", NuGetCacheKind kind = NuGetCacheKind.HttpCache)
+    {
+        var path = Path.Combine(_paths[kind], name);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, content);
+        return path;
+    }
+
+    private Task<CleanupReport> Clean(
+        NuGetCleanupPlan plan,
+        NuGetCacheKind kind = NuGetCacheKind.HttpCache,
+        IProgress<OperationProgress>? progress = null,
+        CancellationToken token = default)
+    {
+        return _service.CleanAsync(plan, [kind], progress, token);
     }
 
     private sealed class CancelAfterProgress(CancellationTokenSource cancel) : IProgress<OperationProgress>
     {
-        public void Report(OperationProgress value) => cancel.Cancel();
+        public void Report(OperationProgress value)
+        {
+            cancel.Cancel();
+        }
     }
 }

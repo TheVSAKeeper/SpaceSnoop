@@ -144,7 +144,7 @@ public sealed class ComparisonResult(string leftPath, string rightPath, Director
     private static bool HasPendingResolutionRecursive(DirectoryComparison dir)
     {
         return dir.Files.Any(x => x.Status != ComparisonStatus.Identical && x.Action == SyncAction.None)
-               || dir.SubDirectories.Any(HasPendingResolutionRecursive);
+            || dir.SubDirectories.Any(HasPendingResolutionRecursive);
     }
 
     private static int ResolveAllConflictsRecursive(DirectoryComparison dir, SyncAction action)
@@ -370,7 +370,7 @@ public sealed class ComparisonResult(string leftPath, string rightPath, Director
     private static bool HasUnresolvedConflictsRecursive(DirectoryComparison dir)
     {
         return dir.Files.Any(x => x.Status == ComparisonStatus.Conflict && x.Action == SyncAction.None)
-               || dir.SubDirectories.Any(HasUnresolvedConflictsRecursive);
+            || dir.SubDirectories.Any(HasUnresolvedConflictsRecursive);
     }
 
     private readonly record struct DeleteBlocks(bool Left, bool Right)

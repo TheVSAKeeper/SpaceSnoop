@@ -54,7 +54,7 @@ internal sealed class DeleteOperationDiagnostics
 
         if (succeeded)
         {
-            _operations.ReportRun(DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), includeTotals: false));
+            _operations.ReportRun(DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), false));
         }
 
         _operations.Release(_reported);
@@ -69,7 +69,7 @@ internal sealed class DeleteOperationDiagnostics
             return null;
         }
 
-        var operation = DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), includeTotals: true);
+        var operation = DescribeOperation(processed, freed, Stopwatch.GetElapsedTime(_started), true);
 
         if (_operations.TryReport(operation, _reported))
         {
@@ -141,7 +141,6 @@ internal sealed class DeleteOperationDiagnostics
 
         return string.Join(" · ", parts);
     }
-
 
     private static bool PathExists(string path)
     {

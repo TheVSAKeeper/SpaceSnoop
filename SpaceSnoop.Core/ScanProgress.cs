@@ -117,7 +117,8 @@ public sealed class ScanProgress
     {
         var current = _current;
 
-        return new(Interlocked.Read(ref _directoriesScanned),
+        return new(
+            Interlocked.Read(ref _directoriesScanned),
             Interlocked.Read(ref _directoriesFailed),
             Interlocked.Read(ref _filesScanned),
             Interlocked.Read(ref _bytesScanned),
@@ -140,7 +141,10 @@ public sealed class ScanProgress
 /// <param name="TopLevelTotal">Число подкаталогов верхнего уровня (0 – ещё не известно).</param>
 /// <param name="TopLevelCompleted">Сколько подкаталогов верхнего уровня уже завершено.</param>
 /// <param name="CurrentPath">Последний каталог, в который вошёл обход, или строка текущей фазы.</param>
-/// <param name="IsStage"><c>true</c>, если <paramref name="CurrentPath" /> – строка фазы из <see cref="ScanProgress.Announce" />, а не путь.</param>
+/// <param name="IsStage">
+/// <c>true</c>, если <paramref name="CurrentPath" /> – строка фазы из
+/// <see cref="ScanProgress.Announce" />, а не путь.
+/// </param>
 public readonly record struct ScanProgressSnapshot(
     long DirectoriesScanned,
     long DirectoriesFailed,

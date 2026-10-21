@@ -4,11 +4,14 @@ public sealed partial class ScanTipsViewModel : ObservableObject
 {
     private static readonly ScanTip[] Tips =
     [
-        new("Меню по правой кнопке",
+        new(
+            "Меню по правой кнопке",
             "Щёлкните правой кнопкой по строке дерева или по плитке карты. В меню можно открыть папку в проводнике, пометить её на удаление или упаковать в архив."),
-        new("Карта вместо списка",
+        new(
+            "Карта вместо списка",
             "Значок карты в заголовке «Структура каталога» показывает ту же папку плитками. Чем крупнее плитка, тем больше места она занимает."),
-        new("Долгий скан можно прервать",
+        new(
+            "Долгий скан можно прервать",
             "Нажмите Esc или кнопку «Остановить». Папку можно будет отсканировать заново в любой момент."),
     ];
 
@@ -22,12 +25,6 @@ public sealed partial class ScanTipsViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(Counter))]
     private ScanTip? _current;
 
-    public ScanTipsViewModel(ISettingsStore settings, Func<bool> welcomeVisible)
-    {
-        _settings = settings;
-        _welcomeVisible = welcomeVisible;
-    }
-
     public static IReadOnlyList<ScanTip> All => Tips;
 
     public bool IsVisible => Current is not null;
@@ -37,6 +34,12 @@ public sealed partial class ScanTipsViewModel : ObservableObject
     public string Text => Current?.Text ?? string.Empty;
 
     public string Counter => Current is null ? string.Empty : $"Совет {Array.IndexOf(Tips, Current) + 1} из {Tips.Length}";
+
+    public ScanTipsViewModel(ISettingsStore settings, Func<bool> welcomeVisible)
+    {
+        _settings = settings;
+        _welcomeVisible = welcomeVisible;
+    }
 
     internal void OnScanCompleted()
     {

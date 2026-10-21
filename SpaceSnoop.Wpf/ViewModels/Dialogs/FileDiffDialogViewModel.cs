@@ -24,25 +24,6 @@ public sealed partial class FileDiffDialogViewModel : ObservableObject, IDialogV
     [NotifyPropertyChangedFor(nameof(CollapseAllHint))]
     private bool _collapseUnchanged;
 
-    public FileDiffDialogViewModel(ISettingsStore settings, FileComparison file, string leftPath, string rightPath, IReadOnlyList<DiffLine> lines, int added, int removed, string? unavailable)
-    {
-        _settings = settings;
-        _file = file;
-        _unavailable = unavailable;
-        Name = file.Name;
-        LeftPath = leftPath;
-        RightPath = rightPath;
-        _lines = lines;
-        Added = added;
-        Removed = removed;
-        Summary = BuildSummary(file, unavailable, Added > 0 || Removed > 0);
-
-        _unified = settings.GetBool(SettingsKeys.SyncDiffUnified);
-        _collapseUnchanged = settings.GetBool(SettingsKeys.SyncDiffCollapse, AppDefaults.SyncDiffCollapseDefault);
-
-        RebuildItems();
-    }
-
     public event EventHandler<bool>? RequestClose;
 
     public string Title => "Сравнение содержимого";
@@ -84,6 +65,25 @@ public sealed partial class FileDiffDialogViewModel : ObservableObject, IDialogV
         : "Объединить в один столбец с пометками «+/−» (unified diff)";
 
     public PackIconLucideKind CollapseAllIconKind => CollapseUnchanged ? PackIconLucideKind.UnfoldVertical : PackIconLucideKind.FoldVertical;
+
+    public FileDiffDialogViewModel(ISettingsStore settings, FileComparison file, string leftPath, string rightPath, IReadOnlyList<DiffLine> lines, int added, int removed, string? unavailable)
+    {
+        _settings = settings;
+        _file = file;
+        _unavailable = unavailable;
+        Name = file.Name;
+        LeftPath = leftPath;
+        RightPath = rightPath;
+        _lines = lines;
+        Added = added;
+        Removed = removed;
+        Summary = BuildSummary(file, unavailable, Added > 0 || Removed > 0);
+
+        _unified = settings.GetBool(SettingsKeys.SyncDiffUnified);
+        _collapseUnchanged = settings.GetBool(SettingsKeys.SyncDiffCollapse, AppDefaults.SyncDiffCollapseDefault);
+
+        RebuildItems();
+    }
 
     public static string DescribeHiddenDifference(FileComparison file)
     {
@@ -194,7 +194,7 @@ public sealed partial class FileDiffDialogViewModel : ObservableObject, IDialogV
             }
             else if (Unified)
             {
-                for (var i = segment.Start; i < segment.Start + segment.Count; i++)
+                for (var i = segment.Start; i < (segment.Start + segment.Count); i++)
                 {
                     Items.Add(_lines[i]);
                 }

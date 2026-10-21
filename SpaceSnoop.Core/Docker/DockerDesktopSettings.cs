@@ -32,7 +32,7 @@ public sealed class DockerDesktopSettingsProvider : IDockerDesktopSettingsProvid
                 var root = document.RootElement;
                 return new(
                     GetString(root, "CustomWslDistroDir"),
-                    GetBoolean(root, "WslEngineEnabled", defaultValue: true),
+                    GetBoolean(root, "WslEngineEnabled", true),
                     GetString(root, "DataFolder"));
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)

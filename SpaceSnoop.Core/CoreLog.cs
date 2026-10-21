@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
 using SpaceSnoop.Core.Cleanup;
-using SpaceSnoop.Core.Mft;
 
 namespace SpaceSnoop.Core;
 
@@ -36,7 +35,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1516, Level = LogLevel.Warning, Message = "Синхронизация: {Action} «{RelativePath}» отклонено, обход стороны неполон")]
     public static partial void SyncDeleteBlocked(this ILogger logger, SyncAction action, string relativePath);
 
-    [LoggerMessage(EventId = 1517, Level = LogLevel.Warning,
+    [LoggerMessage(
+        EventId = 1517,
+        Level = LogLevel.Warning,
         Message = "Синхронизация: {Action} «{RelativePath}» отклонено, конфликт вида объектов ({Conflict})")]
     public static partial void SyncTypeConflictBlocked(this ILogger logger, SyncAction action, string relativePath, FileTypeConflict conflict);
 
@@ -61,7 +62,9 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1544, Level = LogLevel.Warning, Message = "Очистка: цель «{TargetId}» недоступна ({Availability})")]
     public static partial void CleanupTargetUnavailable(this ILogger logger, string targetId, CleanupAvailability availability);
 
-    [LoggerMessage(EventId = 1560, Level = LogLevel.Information,
+    [LoggerMessage(
+        EventId = 1560,
+        Level = LogLevel.Information,
         Message = "Обход по $MFT: «{Path}», записей {Records}, повторных имён {ExtraNames} на {ExtraNameBytes} Б ({Report})")]
     public static partial void MftScanCompleted(
         this ILogger logger,
@@ -76,5 +79,4 @@ internal static partial class CoreLog
 
     [LoggerMessage(EventId = 1571, Level = LogLevel.Warning, Message = "Сетевой диск {LocalName} «{RemotePath}» не переподключён: код Win32 {ErrorCode} ({Reason})")]
     public static partial void NetworkDriveRestoreFailed(this ILogger logger, string localName, string remotePath, int errorCode, string reason);
-
 }

@@ -16,7 +16,16 @@ internal sealed class GalleryHost : IGalleryHost
     private readonly GalleryFixture _fixture;
     private readonly GalleryOptions _options;
     private readonly ShellViewModel _shell;
-    private readonly Window _window;
+
+    public string AppName => AppInfo.Name;
+
+    public string AppVersion => AppInfo.Version;
+
+    public Window Window { get; }
+
+    public IReadOnlyList<GalleryCase> Cases { get; }
+
+    public IReadOnlyDictionary<string, string>? Tags { get; }
 
     private GalleryHost(IServiceProvider services, GalleryFixture fixture, GalleryOptions options, IReadOnlyList<GalleryCase> cases)
     {
@@ -24,21 +33,11 @@ internal sealed class GalleryHost : IGalleryHost
         _fixture = fixture;
         _options = options;
         _shell = services.GetRequiredService<ShellViewModel>();
-        _window = services.GetRequiredService<MainWindow>();
+        Window = services.GetRequiredService<MainWindow>();
 
         Cases = cases;
         Tags = new Dictionary<string, string>(StringComparer.Ordinal) { [StateTag] = options.State };
     }
-
-    public string AppName => AppInfo.Name;
-
-    public string AppVersion => AppInfo.Version;
-
-    public Window Window => _window;
-
-    public IReadOnlyList<GalleryCase> Cases { get; }
-
-    public IReadOnlyDictionary<string, string>? Tags { get; }
 
     public static GalleryHost Create(IServiceProvider services, GalleryFixture fixture, GalleryOptions options, ILogger logger)
     {
@@ -46,9 +45,12 @@ internal sealed class GalleryHost : IGalleryHost
         var dialogs = options.Dialogs.Where(dialog => GalleryStates.SupportsDialog(dialog, options.State)).ToList();
         var tips = GalleryStates.SupportsTip(options.State) ? options.Tips : [];
 
-        var dropped = options.Pages.Count - pages.Count
-            + options.Dialogs.Count - dialogs.Count
-            + options.Tips.Count - tips.Count;
+        var dropped = options.Pages.Count
+            - pages.Count
+            + options.Dialogs.Count
+            - dialogs.Count
+            + options.Tips.Count
+            - tips.Count;
 
         if (dropped > 0)
         {
@@ -70,18 +72,6 @@ internal sealed class GalleryHost : IGalleryHost
         return ArrangeAsync(_services, _fixture);
     }
 
-    internal static async Task ArrangeAsync(IServiceProvider services, GalleryFixture fixture)
-    {
-        var scan = services.GetRequiredService<ScanViewModel>();
-        await scan.ScanFromAutomationAsync(fixture.Left, CancellationToken.None).ConfigureAwait(true);
-        scan.SelectedNode = scan.Roots.FirstOrDefault();
-
-        var sync = services.GetRequiredService<SyncViewModel>();
-        sync.Setup.LeftPath = fixture.Left;
-        sync.Setup.RightPath = fixture.Right;
-        await sync.Operations.CompareFromAutomationAsync(CancellationToken.None).ConfigureAwait(true);
-    }
-
     public Task ThemeAppliedAsync(string themeKey)
     {
         _shell.IsTarkovBootPlaying = false;
@@ -101,6 +91,18 @@ internal sealed class GalleryHost : IGalleryHost
         };
 
         return shot with { Tags = Tags };
+    }
+
+    internal static async Task ArrangeAsync(IServiceProvider services, GalleryFixture fixture)
+    {
+        var scan = services.GetRequiredService<ScanViewModel>();
+        await scan.ScanFromAutomationAsync(fixture.Left, CancellationToken.None).ConfigureAwait(true);
+        scan.SelectedNode = scan.Roots.FirstOrDefault();
+
+        var sync = services.GetRequiredService<SyncViewModel>();
+        sync.Setup.LeftPath = fixture.Left;
+        sync.Setup.RightPath = fixture.Right;
+        await sync.Operations.CompareFromAutomationAsync(CancellationToken.None).ConfigureAwait(true);
     }
 
     private async Task<GalleryShot> CapturePageAsync(string page, GalleryContext context)
@@ -140,7 +142,7 @@ internal sealed class GalleryHost : IGalleryHost
             GalleryStates.ApplyDialog(modals.Current, _options.State);
             await context.SettleAsync().ConfigureAwait(true);
 
-            return context.Save(_window, Slug(DialogFilePrefix, dialog));
+            return context.Save(Window, Slug(DialogFilePrefix, dialog));
         }
         finally
         {
@@ -161,11 +163,11 @@ internal sealed class GalleryHost : IGalleryHost
         GalleryTips.Prepare(tip, _services);
         await context.SettleAsync().ConfigureAwait(true);
 
-        _window.Left = 0;
-        _window.Top = 0;
+        Window.Left = 0;
+        Window.Top = 0;
         await context.SettleAsync().ConfigureAwait(true);
 
-        var host = GalleryTips.Host(_window);
+        var host = GalleryTips.Host(Window);
 
         var tooltip = host.ShowTooltipForAutomation(GalleryTips.Point(tip, host))
             ?? throw new InvalidOperationException($"Подсказка «{tip}» не открылась – под точкой нет плитки.");
@@ -174,13 +176,13 @@ internal sealed class GalleryHost : IGalleryHost
         {
             await context.SettleAsync().ConfigureAwait(true);
 
-            return context.Save(_window, tooltip, context.OffsetTo(tooltip), Slug(TipFilePrefix, tip));
+            return context.Save(Window, tooltip, context.OffsetTo(tooltip), Slug(TipFilePrefix, tip));
         }
         finally
         {
             host.HideTooltipForAutomation();
-            _window.Left = OffScreenWindow.Position;
-            _window.Top = OffScreenWindow.Position;
+            Window.Left = OffScreenWindow.Position;
+            Window.Top = OffScreenWindow.Position;
             await context.SettleAsync().ConfigureAwait(true);
         }
     }

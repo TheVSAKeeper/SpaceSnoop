@@ -1,5 +1,4 @@
-﻿using KeepShell.Services;
-using MahApps.Metro.IconPacks;
+﻿using MahApps.Metro.IconPacks;
 using System.ComponentModel;
 using System.Windows.Input;
 
@@ -9,17 +8,6 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 {
     [ObservableProperty]
     private int _selectedSectionIndex;
-
-    public CleanupPageViewModel(CleanupViewModel windows, DockerViewModel docker, DeveloperCleanupViewModel development)
-    {
-        Windows = windows;
-        Docker = docker;
-        Development = development;
-
-        Windows.PropertyChanged += OnSectionChanged;
-        Docker.PropertyChanged += OnSectionChanged;
-        Development.PropertyChanged += OnSectionChanged;
-    }
 
     public CleanupViewModel Windows { get; }
 
@@ -52,12 +40,6 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     public bool CanSwitchSection => !Windows.IsBusy && !Docker.IsBusy && !Development.IsBusy;
 
-    private IPageHeader ActiveHeader => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
-
-    private IPageStatus ActiveStatus => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
-
-    private IPageRefresh ActiveRefresh => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
-
     public string PageTitle => "Очистка";
 
     public string PageDescription => ActiveHeader.PageDescription;
@@ -76,7 +58,24 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     public ICommand? CancelCommand => ActiveStatus.CancelCommand;
 
+    private IPageHeader ActiveHeader => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
+
+    private IPageStatus ActiveStatus => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
+
+    private IPageRefresh ActiveRefresh => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
+
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
+
+    public CleanupPageViewModel(CleanupViewModel windows, DockerViewModel docker, DeveloperCleanupViewModel development)
+    {
+        Windows = windows;
+        Docker = docker;
+        Development = development;
+
+        Windows.PropertyChanged += OnSectionChanged;
+        Docker.PropertyChanged += OnSectionChanged;
+        Development.PropertyChanged += OnSectionChanged;
+    }
 
     public async Task EnsureLoadedAsync()
     {
@@ -138,7 +137,10 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
         RefreshCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanRefresh() => !IsBusy;
+    private bool CanRefresh()
+    {
+        return !IsBusy;
+    }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]
     private Task RefreshAsync()

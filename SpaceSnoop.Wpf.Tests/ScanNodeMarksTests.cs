@@ -2,13 +2,15 @@
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Scan;
-using System.IO;
 
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
 public class ScanNodeMarksTests
 {
+    private string _tempDir = null!;
+    private ScanNodeFactory _factory = null!;
+
     [SetUp]
     public void SetUp()
     {
@@ -28,9 +30,6 @@ public class ScanNodeMarksTests
         }
     }
 
-    private string _tempDir = null!;
-    private ScanNodeFactory _factory = null!;
-
     [Test]
     public void Без_пометок_снятие_содержимого_недоступно()
     {
@@ -41,6 +40,25 @@ public class ScanNodeMarksTests
             Assert.That(root.CanMarkContentsDeleted, Is.True);
             Assert.That(root.CanUnmarkContents, Is.False);
         }
+    }
+
+    [Test]
+    public void Пересчёт_после_скана_находит_пометки_других_корней_без_обхода_свежего()
+    {
+        var older = Arrange();
+        older.MarkContentsDeletedCommand.Execute(null);
+
+        var freshSpace = new DirectorySpace(Path.Combine(_tempDir, "fresh"), null, DateTime.Now, DateTime.Now);
+        var freshBranch = new DirectorySpace("fresh-branch", freshSpace, DateTime.Now, DateTime.Now);
+        freshSpace.Add(freshBranch);
+        freshBranch.Delete();
+
+        var fresh = _factory.CreateRoot(freshSpace, new());
+        ScanNodeViewModel[] roots = [fresh, older];
+
+        var marked = ScanTreeEditor.CollectMarked(roots, fresh);
+
+        Assert.That(marked, Is.EqualTo(ScanTreeEditor.CollectMarked([older])).And.Not.Empty);
     }
 
     [Test]
@@ -80,25 +98,6 @@ public class ScanNodeMarksTests
             Assert.That(root.CanMarkContentsDeleted, Is.True);
             Assert.That(root.CanUnmarkContents, Is.False);
         }
-    }
-
-    [Test]
-    public void Пересчёт_после_скана_находит_пометки_других_корней_без_обхода_свежего()
-    {
-        var older = Arrange();
-        older.MarkContentsDeletedCommand.Execute(null);
-
-        var freshSpace = new DirectorySpace(Path.Combine(_tempDir, "fresh"), null, DateTime.Now, DateTime.Now);
-        var freshBranch = new DirectorySpace("fresh-branch", freshSpace, DateTime.Now, DateTime.Now);
-        freshSpace.Add(freshBranch);
-        freshBranch.Delete();
-
-        var fresh = _factory.CreateRoot(freshSpace, new());
-        ScanNodeViewModel[] roots = [fresh, older];
-
-        var marked = ScanTreeEditor.CollectMarked(roots, fresh);
-
-        Assert.That(marked, Is.EqualTo(ScanTreeEditor.CollectMarked([older])).And.Not.Empty);
     }
 
     private ScanNodeViewModel Arrange()

@@ -16,41 +16,6 @@ public sealed class SyncQuickProfileItem : ObservableObject
     private bool _isRenameConfirming;
     private string _editName = string.Empty;
 
-    public SyncQuickProfileItem(
-        SyncProfile model,
-        bool isDefault,
-        Action<SyncQuickProfileItem> requestDelete,
-        Action<SyncQuickProfileItem> confirmDelete,
-        Action<SyncQuickProfileItem> cancelDelete,
-        Action<SyncQuickProfileItem> requestUpdate,
-        Func<SyncQuickProfileItem, Task> confirmUpdate,
-        Action<SyncQuickProfileItem> cancelUpdate,
-        Action<SyncQuickProfileItem> requestRename,
-        Action<SyncQuickProfileItem> confirmRename,
-        Action<SyncQuickProfileItem> cancelRename)
-    {
-        Model = model;
-        IsDefault = isDefault;
-        _requestDelete = requestDelete;
-        _confirmDelete = confirmDelete;
-        _cancelDelete = cancelDelete;
-        _requestUpdate = requestUpdate;
-        _confirmUpdate = confirmUpdate;
-        _cancelUpdate = cancelUpdate;
-        _requestRename = requestRename;
-        _confirmRename = confirmRename;
-        _cancelRename = cancelRename;
-        RequestDeleteCommand = new RelayCommand(() => _requestDelete(this));
-        ConfirmDeleteCommand = new RelayCommand(() => _confirmDelete(this));
-        CancelDeleteCommand = new RelayCommand(() => _cancelDelete(this));
-        RequestUpdateCommand = new RelayCommand(() => _requestUpdate(this));
-        ConfirmUpdateCommand = new AsyncRelayCommand(() => _confirmUpdate(this));
-        CancelUpdateCommand = new RelayCommand(() => _cancelUpdate(this));
-        RequestRenameCommand = new RelayCommand(() => _requestRename(this));
-        ConfirmRenameCommand = new RelayCommand(() => _confirmRename(this));
-        CancelRenameCommand = new RelayCommand(() => _cancelRename(this));
-    }
-
     public IRelayCommand RequestDeleteCommand { get; }
 
     public IRelayCommand ConfirmDeleteCommand { get; }
@@ -128,5 +93,40 @@ public sealed class SyncQuickProfileItem : ObservableObject
                 OnPropertyChanged(nameof(CanConfirmRename));
             }
         }
+    }
+
+    public SyncQuickProfileItem(
+        SyncProfile model,
+        bool isDefault,
+        Action<SyncQuickProfileItem> requestDelete,
+        Action<SyncQuickProfileItem> confirmDelete,
+        Action<SyncQuickProfileItem> cancelDelete,
+        Action<SyncQuickProfileItem> requestUpdate,
+        Func<SyncQuickProfileItem, Task> confirmUpdate,
+        Action<SyncQuickProfileItem> cancelUpdate,
+        Action<SyncQuickProfileItem> requestRename,
+        Action<SyncQuickProfileItem> confirmRename,
+        Action<SyncQuickProfileItem> cancelRename)
+    {
+        Model = model;
+        IsDefault = isDefault;
+        _requestDelete = requestDelete;
+        _confirmDelete = confirmDelete;
+        _cancelDelete = cancelDelete;
+        _requestUpdate = requestUpdate;
+        _confirmUpdate = confirmUpdate;
+        _cancelUpdate = cancelUpdate;
+        _requestRename = requestRename;
+        _confirmRename = confirmRename;
+        _cancelRename = cancelRename;
+        RequestDeleteCommand = new RelayCommand(() => _requestDelete(this));
+        ConfirmDeleteCommand = new RelayCommand(() => _confirmDelete(this));
+        CancelDeleteCommand = new RelayCommand(() => _cancelDelete(this));
+        RequestUpdateCommand = new RelayCommand(() => _requestUpdate(this));
+        ConfirmUpdateCommand = new AsyncRelayCommand(() => _confirmUpdate(this));
+        CancelUpdateCommand = new RelayCommand(() => _cancelUpdate(this));
+        RequestRenameCommand = new RelayCommand(() => _requestRename(this));
+        ConfirmRenameCommand = new RelayCommand(() => _confirmRename(this));
+        CancelRenameCommand = new RelayCommand(() => _cancelRename(this));
     }
 }

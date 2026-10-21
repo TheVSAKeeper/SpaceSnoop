@@ -1,5 +1,7 @@
 ﻿using KeepShell.Services;
 using MahApps.Metro.IconPacks;
+using System.ComponentModel;
+using System.IO;
 
 namespace SpaceSnoop.Wpf.ViewModels.Docker;
 
@@ -13,6 +15,15 @@ public sealed partial class DockerCompactViewModel : ObservableObject
 
     private CancellationTokenSource? _cts;
     private bool _cancellationAllowed;
+
+    [ObservableProperty]
+    private string _diskUsageText = "Размер файла VHDX ещё не измерен.";
+
+    [ObservableProperty]
+    private string? _diskPath;
+
+    public bool CanCancel => _cts is not null && _cancellationAllowed;
+    public bool IsElevated { get; } = AdminElevation.IsElevated;
 
     internal DockerCompactViewModel(
         DockerViewModel owner,
@@ -28,15 +39,6 @@ public sealed partial class DockerCompactViewModel : ObservableObject
         _logger = logger;
     }
 
-    public bool CanCancel => _cts is not null && _cancellationAllowed;
-    public bool IsElevated { get; } = AdminElevation.IsElevated;
-
-    [ObservableProperty]
-    private string _diskUsageText = "Размер файла VHDX ещё не измерен.";
-
-    [ObservableProperty]
-    private string? _diskPath;
-
     internal async Task RefreshDiskUsageAsync()
     {
         try
@@ -50,7 +52,10 @@ public sealed partial class DockerCompactViewModel : ObservableObject
                     var allocated = SizeFormatter.Format(disk.Metrics.AllocatedBytes);
                     var logical = SizeFormatter.Format(disk.Metrics.LogicalBytes);
                     DiskUsageText = $"Размер файла VHDX на диске Windows: {allocated}";
-                    if (allocated != logical) DiskUsageText += $" · логический размер: {logical}";
+                    if (allocated != logical)
+                    {
+                        DiskUsageText += $" · логический размер: {logical}";
+                    }
                 }
                 else
                 {
@@ -58,7 +63,7 @@ public sealed partial class DockerCompactViewModel : ObservableObject
                 }
             });
         }
-        catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or Win32Exception)
         {
             _uiDispatcher.Invoke(() =>
             {
@@ -88,10 +93,7 @@ public sealed partial class DockerCompactViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Сжать диск", ConfirmChoiceKind.Primary),
-            ])
-        {
-            Warning = "Экспериментальная операция. После запуска diskpart сжатие нельзя безопасно прервать.",
-        };
+            ]) { Warning = "Экспериментальная операция. После запуска diskpart сжатие нельзя безопасно прервать." };
 
         if (!await _dialogs.ShowAsync(confirm))
         {
@@ -141,18 +143,20 @@ public sealed partial class DockerCompactViewModel : ObservableObject
         {
             _logger.DockerCompactCancelled();
 
-            run.Settle(run.DockerStopped
-                ? "Сжатие отменено. Docker остановлен – запустите его заново."
-                : "Сжатие отменено.");
+            run.Settle(
+                run.DockerStopped
+                    ? "Сжатие отменено. Docker остановлен – запустите его заново."
+                    : "Сжатие отменено.");
         }
         catch (Exception ex)
         {
             _logger.DockerCompactFailed(ex);
             _uiDispatcher.Invoke(() => _dialogs.Error("Сжатие диска Docker", ex.Message));
 
-            run.Settle(run.DockerStopped
-                ? "Сжатие не выполнено. Docker остановлен – запустите его заново."
-                : "Сжатие не выполнено.");
+            run.Settle(
+                run.DockerStopped
+                    ? "Сжатие не выполнено. Docker остановлен – запустите его заново."
+                    : "Сжатие не выполнено.");
         }
         finally
         {
@@ -168,22 +172,20 @@ public sealed partial class DockerCompactViewModel : ObservableObject
     {
         if (!await ConfirmWslShutdownFallbackAsync(result))
         {
-            run.Settle(result.DockerStopped
-                ? "Сжатие отменено. Docker остановлен – запустите его заново."
-                : "Сжатие отменено.");
+            run.Settle(
+                result.DockerStopped
+                    ? "Сжатие отменено. Docker остановлен – запустите его заново."
+                    : "Сжатие отменено.");
 
             return null;
         }
 
         var fallbackResult = await _docker.CompactAsync(
             _cts!.Token,
-            allowWslShutdownFallback: true,
+            true,
             stageChanged: run.StageChanged);
 
-        var attempts = new List<DockerCompactStep>(result.Steps)
-        {
-            new("Повтор после подтверждения остановки WSL", true, "Повторена операция с подтверждённым fallback."),
-        };
+        var attempts = new List<DockerCompactStep>(result.Steps) { new("Повтор после подтверждения остановки WSL", true, "Повторена операция с подтверждённым fallback.") };
 
         attempts.AddRange(fallbackResult.Steps);
 
@@ -196,9 +198,10 @@ public sealed partial class DockerCompactViewModel : ObservableObject
         {
             _logger.DockerCompactCancelled();
 
-            run.Settle(result.DockerStopped
-                ? "Сжатие отменено. Docker остановлен – запустите его заново."
-                : "Сжатие отменено.");
+            run.Settle(
+                result.DockerStopped
+                    ? "Сжатие отменено. Docker остановлен – запустите его заново."
+                    : "Сжатие отменено.");
 
             return;
         }
@@ -208,9 +211,10 @@ public sealed partial class DockerCompactViewModel : ObservableObject
             _logger.DockerCompactFailed(new InvalidOperationException(result.Summary));
             _uiDispatcher.Invoke(() => _dialogs.Error("Сжатие диска Docker", result.ToDisplayText()));
 
-            run.Settle(result.DockerStopped
-                ? "Сжатие не выполнено. Docker остановлен – запустите его заново."
-                : "Сжатие не выполнено.");
+            run.Settle(
+                result.DockerStopped
+                    ? "Сжатие не выполнено. Docker остановлен – запустите его заново."
+                    : "Сжатие не выполнено.");
 
             return;
         }
@@ -242,10 +246,7 @@ public sealed partial class DockerCompactViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Остановить WSL", ConfirmChoiceKind.Destructive),
-            ])
-        {
-            Warning = "Другие работающие WSL-дистрибутивы тоже будут остановлены.",
-        };
+            ]) { Warning = "Другие работающие WSL-дистрибутивы тоже будут остановлены." };
 
         return await _dialogs.ShowAsync(confirm);
     }

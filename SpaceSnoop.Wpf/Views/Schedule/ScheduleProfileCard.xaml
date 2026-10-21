@@ -12,7 +12,8 @@
     <UserControl.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Settings/SettingsResources.xaml" />
+                <ResourceDictionary
+                    Source="pack://application:,,,/SpaceSnoop.Wpf;component/Views/Settings/SettingsResources.xaml" />
             </ResourceDictionary.MergedDictionaries>
 
             <Style x:Key="Schedule.Message"
@@ -136,12 +137,11 @@
                                                   VerticalAlignment="Top"
                                                   Margin="0,1,9,0"
                                                   Foreground="{DynamicResource State.WarningText}" />
-                        <TextBlock
-                            Grid.Column="1"
-                            Text="Включено «Зеркало»: лишние файлы на приёмнике удаляются в корзину без подтверждения."
-                            TextWrapping="Wrap"
-                            FontSize="{DynamicResource Font.Size.S}"
-                            Foreground="{DynamicResource Fg.Secondary}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="Включено «Зеркало»: лишние файлы на приёмнике удаляются в корзину без подтверждения."
+                                   TextWrapping="Wrap"
+                                   FontSize="{DynamicResource Font.Size.S}"
+                                   Foreground="{DynamicResource Fg.Secondary}" />
                     </Grid>
                 </Border>
 
@@ -162,12 +162,11 @@
                                                   VerticalAlignment="Top"
                                                   Margin="0,1,9,0"
                                                   Foreground="{DynamicResource State.WarningText}" />
-                        <TextBlock
-                            Grid.Column="1"
-                            Text="Задача указывает на другой файл программы (вероятно, старую версию). Откройте профиль и сохраните, чтобы привязать к текущей."
-                            TextWrapping="Wrap"
-                            FontSize="{DynamicResource Font.Size.S}"
-                            Foreground="{DynamicResource Fg.Secondary}" />
+                        <TextBlock Grid.Column="1"
+                                   Text="Задача указывает на другой файл программы (вероятно, старую версию). Откройте профиль и сохраните, чтобы привязать к текущей."
+                                   TextWrapping="Wrap"
+                                   FontSize="{DynamicResource Font.Size.S}"
+                                   Foreground="{DynamicResource Fg.Secondary}" />
                     </Grid>
                 </Border>
 

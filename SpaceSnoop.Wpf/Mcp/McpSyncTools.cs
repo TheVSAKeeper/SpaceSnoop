@@ -28,7 +28,8 @@ internal sealed class McpSyncTools(
         var patterns = request.Exclusions.Trim();
         request = request with { LeftPath = left, RightPath = right, Exclusions = patterns };
 
-        var model = await Task.Run(() =>
+        var model = await Task.Run(
+                () =>
                 {
                     var result = compareUseCase.Execute(request, cancellationToken);
 
@@ -78,10 +79,12 @@ internal sealed class McpSyncTools(
             cancellationToken.ThrowIfCancellationRequested();
         }
 
-        return McpDispatch.Run(() => McpFormat.Serialize(new McpNavigationResult(navigator.CurrentSectionKey ?? SectionKey.Sync,
-            state.ReadSyncState(),
-            McpFormat.DescribeDeferredNavigation(comparison.Deferred),
-            comparison.Ignored.Count == 0 ? null : $"Параметры {string.Join(", ", comparison.Ignored)} не применены: изменяющие операции выключены в настройках приложения.")));
+        return McpDispatch.Run(() => McpFormat.Serialize(
+            new McpNavigationResult(
+                navigator.CurrentSectionKey ?? SectionKey.Sync,
+                state.ReadSyncState(),
+                McpFormat.DescribeDeferredNavigation(comparison.Deferred),
+                comparison.Ignored.Count == 0 ? null : $"Параметры {string.Join(", ", comparison.Ignored)} не применены: изменяющие операции выключены в настройках приложения.")));
     }
 
     public async Task<string> SyncCurrentAsync(bool dryRun, int entryLimit, CancellationToken cancellationToken)
@@ -156,22 +159,24 @@ internal sealed class McpSyncTools(
 
         var report = outcome.Report;
 
-        return McpDispatch.Run(() => McpFormat.Serialize(new McpSyncResult(report.CopiedCount,
-            report.DeletedCount,
-            report.SuccessCount,
-            Math.Round(outcome.Elapsed.TotalSeconds, 2),
-            report.CopiedBytes,
-            SizeFormatter.Format(report.CopiedBytes),
-            outcome.Verify,
-            McpFormat.DescribeVerifyState(outcome.Verify, report.Errors.Count),
-            report.Errors.Count,
-            report.Mismatches.Count,
-            Math.Max(0, report.Errors.Count - entryLimit),
-            Math.Max(0, report.Mismatches.Count - entryLimit),
-            [.. report.Errors.Take(entryLimit)],
-            [.. report.Mismatches.Take(entryLimit)],
-            sync.SummaryText,
-            state.ReadSyncState())));
+        return McpDispatch.Run(() => McpFormat.Serialize(
+            new McpSyncResult(
+                report.CopiedCount,
+                report.DeletedCount,
+                report.SuccessCount,
+                Math.Round(outcome.Elapsed.TotalSeconds, 2),
+                report.CopiedBytes,
+                SizeFormatter.Format(report.CopiedBytes),
+                outcome.Verify,
+                McpFormat.DescribeVerifyState(outcome.Verify, report.Errors.Count),
+                report.Errors.Count,
+                report.Mismatches.Count,
+                Math.Max(0, report.Errors.Count - entryLimit),
+                Math.Max(0, report.Mismatches.Count - entryLimit),
+                [.. report.Errors.Take(entryLimit)],
+                [.. report.Mismatches.Take(entryLimit)],
+                sync.SummaryText,
+                state.ReadSyncState())));
     }
 
     private static async Task<string> BuildJsonAsync(Func<ComparisonExportModel> build, CancellationToken cancellationToken)
@@ -214,12 +219,13 @@ internal sealed class McpSyncTools(
 
         var deferred = navigator.DeferOrNavigate(SectionKey.Sync);
 
-        notifier.Notify((compare, deferred) switch
-        {
-            (true, _) => $"Агент запустил сравнение: {targetLeft} → {targetRight}",
-            (false, true) => "Агент подготовил страницу «Синхронизация»",
-            _ => "Агент открыл страницу «Синхронизация»",
-        });
+        notifier.Notify(
+            (compare, deferred) switch
+            {
+                (true, _) => $"Агент запустил сравнение: {targetLeft} → {targetRight}",
+                (false, true) => "Агент подготовил страницу «Синхронизация»",
+                _ => "Агент открыл страницу «Синхронизация»",
+            });
 
         return (compare ? sync.CompareFromAutomationAsync(cancellationToken) : null, deferred, ignored);
     }

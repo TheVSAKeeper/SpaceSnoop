@@ -1,8 +1,6 @@
 ﻿using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Settings;
-using System.IO;
 using System.Net;
-using System.Net.Http;
 using System.Text.Json;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -10,230 +8,47 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 public class UpdateCheckTests
 {
-    [TestCase(HttpStatusCode.Forbidden, true)]
-    [TestCase(HttpStatusCode.TooManyRequests, true)]
-    [TestCase(HttpStatusCode.NotFound, false)]
-    public void Ограничение_GitHub_узнаётся_по_коду_ответа(HttpStatusCode status, bool expected)
-    {
-        var exception = new HttpRequestException("ответ ленты", null, status);
-
-        Assert.That(AppUpdateViewModel.IsRateLimited(exception), Is.EqualTo(expected));
-    }
-
     [Test]
-    public async Task Скачивание_докладывает_только_смену_целого_процента()
+    public void Заметки_нескольких_релизов_префиксятся_тегом()
     {
-        const int megabytes = 16;
-        var payload = new byte[megabytes * 1024 * 1024];
-        var reports = new List<int>();
+        const string json = """
+            [
+              { "tag_name": "v99.9.0", "body": "## Изменения\n\n- Новее" },
+              { "tag_name": "v99.8.0", "body": "## Изменения\n\n- Старее" }
+            ]
+            """;
 
-        await ReleaseFeed.CopyAsync(new MemoryStream(payload), Stream.Null, payload.Length, new PercentCollector(reports));
+        using var document = JsonDocument.Parse(json);
+        var notes = ReleaseChangelog.BuildReleaseNotes(document.RootElement);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(reports, Has.Count.LessThanOrEqualTo(101), $"Докладов {reports.Count} на 101 значение процента – отчёт снова идёт на каждый блок.");
-            Assert.That(reports, Is.Ordered.Ascending.And.Unique);
-            Assert.That(reports[^1], Is.EqualTo(100), "Последний процент до экрана не доехал.");
+            Assert.That(notes, Does.Contain("v99.9.0"));
+            Assert.That(notes, Does.Contain("v99.8.0"));
         }
     }
 
     [Test]
-    public async Task Скачивание_без_известного_размера_молчит()
+    public void Заметки_одного_релиза_без_дубля_версии_и_без_markdown()
     {
-        var reports = new List<int>();
+        const string json = """
+            [
+              {
+                "tag_name": "v99.9.0",
+                "body": "## Изменения\n\n- Первый пункт\n\n**Полный список:** https://github.com/x/y/compare/v99.8.0...v99.9.0"
+              }
+            ]
+            """;
 
-        await ReleaseFeed.CopyAsync(new MemoryStream(new byte[1024 * 1024]), Stream.Null, -1, new PercentCollector(reports));
-
-        Assert.That(reports, Is.Empty);
-    }
-
-    [TestCase("v2.9.0", "2.8.16", true)]
-    [TestCase("2.9.0", "2.8.16", true)]
-    [TestCase("v2.8.17", "2.8.16", true)]
-    [TestCase("v2.8.16", "2.8.16", false)]
-    [TestCase("v2.8.2", "2.8.16", false)]
-    [TestCase("v2.7.99", "2.8.0", false)]
-    [TestCase("v2.9.0-beta", "2.8.16", true)]
-    [TestCase(null, "2.8.16", false)]
-    [TestCase("", "2.8.16", false)]
-    [TestCase("мусор", "2.8.16", false)]
-    [TestCase("v2.9.0", "хлам", false)]
-    public void Релиз_новее_текущей_версии_только_при_большем_номере(string? latestTag, string current, bool expected)
-    {
-        Assert.That(UpdateCheck.IsNewer(latestTag, current), Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void Подбор_ассета_для_framework_dependent_берёт_exe_без_portable_и_classic()
-    {
-        string[] assets =
-        [
-            "SpaceSnoop-v2.9.0.exe",
-            "SpaceSnoop-v2.9.0.zip",
-            "SpaceSnoop-v2.9.0-portable.zip",
-            "SpaceSnoop-Classic-v2.9.0.exe",
-        ];
-
-        Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.EqualTo("SpaceSnoop-v2.9.0.exe"));
-    }
-
-    [Test]
-    public void Подбор_ассета_для_self_contained_берёт_portable_zip()
-    {
-        string[] assets =
-        [
-            "SpaceSnoop-v2.9.0.exe",
-            "SpaceSnoop-v2.9.0-portable.zip",
-            "SpaceSnoop-Classic-v2.9.0-portable.zip",
-        ];
-
-        Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.EqualTo("SpaceSnoop-v2.9.0-portable.zip"));
-    }
-
-    [Test]
-    public void Подбор_ассета_не_путает_classic_с_основной_редакцией()
-    {
-        string[] assets = ["SpaceSnoop-Classic-v2.9.0.exe", "SpaceSnoop-Classic-v2.9.0-portable.zip"];
+        using var document = JsonDocument.Parse(json);
+        var notes = ReleaseChangelog.BuildReleaseNotes(document.RootElement);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.Null);
-            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.Null);
+            Assert.That(notes, Does.Not.Contain("**"));
+            Assert.That(notes, Does.StartWith("- Первый пункт"));
+            Assert.That(notes, Does.Contain("Полный список:"));
         }
-    }
-
-    [Test]
-    public void История_изменений_берёт_только_секцию_изменений_из_тела_релиза()
-    {
-        var body = """
-                   ## Скачать
-
-                   EXE ZIP Portable
-
-                   ## Статистика
-
-                   12 скачиваний
-
-                   ## Изменения
-
-                   - Добавлена карта
-                     Карта теперь рисуется пиксельным буфером.
-                   - Исправлена синхронизация
-                   """;
-
-        Assert.That(ReleaseChangelog.ExtractChanges(body), Is.EqualTo("- Добавлена карта\r\n  Карта теперь рисуется пиксельным буфером.\r\n- Исправлена синхронизация"));
-        var items = ReleaseChangelog.ExtractChangeItems(body);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(items, Has.Count.EqualTo(2));
-            Assert.That(items[0].Summary, Is.EqualTo("Добавлена карта"));
-            Assert.That(items[0].Details, Is.EqualTo(["Карта теперь рисуется пиксельным буфером."]));
-            Assert.That(items[1].Summary, Is.EqualTo("Исправлена синхронизация"));
-            Assert.That(items[1].Details, Is.Empty);
-        }
-    }
-
-    [Test]
-    public void История_изменений_не_берёт_технические_изменения_релиза()
-    {
-        var body = """
-                   ## Скачать
-
-                   EXE ZIP Portable
-
-                   ## Изменения
-
-                   - Скан стал вдвое быстрее
-
-                   ## Технические изменения
-
-                   <details>
-                   <summary>Коммиты (2)</summary>
-
-                   - Каркас обновлён до 0.1.141
-                   - Привязанные коллекции заведены на поток диспетчера
-
-                   </details>
-
-                   **Полный список:** https://github.com/x/y/compare/v2.8.70...v2.8.71
-                   """;
-
-        var items = ReleaseChangelog.ExtractChangeItems(body);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(items, Has.Count.EqualTo(1));
-            Assert.That(items[0].Summary, Is.EqualTo("Скан стал вдвое быстрее"));
-            Assert.That(ReleaseChangelog.ExtractCompareUrl(body), Is.EqualTo("https://github.com/x/y/compare/v2.8.70...v2.8.71"));
-        }
-    }
-
-    [Test]
-    public void Тело_без_секции_изменений_берётся_целиком_а_первая_строка_становится_пунктом()
-    {
-        var body = """
-                   Просто текст без заголовков.
-                   Вторая строка.
-                   """;
-
-        var items = ReleaseChangelog.ExtractChangeItems(body);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(ReleaseChangelog.ExtractChanges(body), Is.EqualTo("Просто текст без заголовков.\r\nВторая строка."));
-            Assert.That(items, Has.Count.EqualTo(1));
-            Assert.That(items[0].Summary, Is.EqualTo("Просто текст без заголовков."));
-            Assert.That(items[0].Details, Is.EqualTo(["Вторая строка."]));
-        }
-    }
-
-    [Test]
-    public void Тело_без_секции_изменений_не_тащит_таблицу_скачивания_и_статистику_в_пункты()
-    {
-        var body = """
-                   ## Скачать
-
-                   | Редакция | EXE |
-                   |----------|-----|
-                   | WPF | [![EXE](badge)](url) |
-
-                   ## Статистика
-
-                   Скачиваний: [![всего](badge)](url)
-                   """;
-
-        Assert.That(ReleaseChangelog.ExtractChanges(body), Is.Empty);
-        Assert.That(ReleaseChangelog.ExtractChangeItems(body), Is.Empty);
-    }
-
-    [Test]
-    public void Строка_полного_списка_пропускается_в_пунктах_изменений()
-    {
-        var body = """
-                   ## Изменения
-
-                   - Первый пункт
-                   **Полный список:** https://github.com/x/y/compare/v1...v2
-                   - Второй пункт
-                   """;
-
-        var items = ReleaseChangelog.ExtractChangeItems(body);
-
-        using (Assert.EnterMultipleScope())
-        {
-            Assert.That(items, Has.Count.EqualTo(2));
-            Assert.That(items[0].Summary, Is.EqualTo("Первый пункт"));
-            Assert.That(items[1].Summary, Is.EqualTo("Второй пункт"));
-        }
-    }
-
-    [TestCase("До: https://github.com/x/y/compare/v1...v2.", "https://github.com/x/y/compare/v1...v2")]
-    [TestCase("Без ссылки сравнения", null)]
-    [TestCase(null, null)]
-    public void Ссылка_сравнения_извлекается_из_тела_релиза(string? body, string? expected)
-    {
-        Assert.That(ReleaseChangelog.ExtractCompareUrl(body), Is.EqualTo(expected));
     }
 
     [Test]
@@ -284,46 +99,229 @@ public class UpdateCheckTests
     }
 
     [Test]
-    public void Заметки_одного_релиза_без_дубля_версии_и_без_markdown()
+    public void История_изменений_берёт_только_секцию_изменений_из_тела_релиза()
     {
-        const string json = """
-            [
-              {
-                "tag_name": "v99.9.0",
-                "body": "## Изменения\n\n- Первый пункт\n\n**Полный список:** https://github.com/x/y/compare/v99.8.0...v99.9.0"
-              }
-            ]
+        var body = """
+            ## Скачать
+
+            EXE ZIP Portable
+
+            ## Статистика
+
+            12 скачиваний
+
+            ## Изменения
+
+            - Добавлена карта
+              Карта теперь рисуется пиксельным буфером.
+            - Исправлена синхронизация
             """;
 
-        using var document = JsonDocument.Parse(json);
-        var notes = ReleaseChangelog.BuildReleaseNotes(document.RootElement);
+        Assert.That(ReleaseChangelog.ExtractChanges(body), Is.EqualTo("- Добавлена карта\r\n  Карта теперь рисуется пиксельным буфером.\r\n- Исправлена синхронизация"));
+        var items = ReleaseChangelog.ExtractChangeItems(body);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(notes, Does.Not.Contain("**"));
-            Assert.That(notes, Does.StartWith("- Первый пункт"));
-            Assert.That(notes, Does.Contain("Полный список:"));
+            Assert.That(items, Has.Count.EqualTo(2));
+            Assert.That(items[0].Summary, Is.EqualTo("Добавлена карта"));
+            Assert.That(items[0].Details, Is.EqualTo(["Карта теперь рисуется пиксельным буфером."]));
+            Assert.That(items[1].Summary, Is.EqualTo("Исправлена синхронизация"));
+            Assert.That(items[1].Details, Is.Empty);
         }
     }
 
     [Test]
-    public void Заметки_нескольких_релизов_префиксятся_тегом()
+    public void История_изменений_не_берёт_технические_изменения_релиза()
     {
-        const string json = """
-            [
-              { "tag_name": "v99.9.0", "body": "## Изменения\n\n- Новее" },
-              { "tag_name": "v99.8.0", "body": "## Изменения\n\n- Старее" }
-            ]
+        var body = """
+            ## Скачать
+
+            EXE ZIP Portable
+
+            ## Изменения
+
+            - Скан стал вдвое быстрее
+
+            ## Технические изменения
+
+            <details>
+            <summary>Коммиты (2)</summary>
+
+            - Каркас обновлён до 0.1.141
+            - Привязанные коллекции заведены на поток диспетчера
+
+            </details>
+
+            **Полный список:** https://github.com/x/y/compare/v2.8.70...v2.8.71
             """;
 
-        using var document = JsonDocument.Parse(json);
-        var notes = ReleaseChangelog.BuildReleaseNotes(document.RootElement);
+        var items = ReleaseChangelog.ExtractChangeItems(body);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(notes, Does.Contain("v99.9.0"));
-            Assert.That(notes, Does.Contain("v99.8.0"));
+            Assert.That(items, Has.Count.EqualTo(1));
+            Assert.That(items[0].Summary, Is.EqualTo("Скан стал вдвое быстрее"));
+            Assert.That(ReleaseChangelog.ExtractCompareUrl(body), Is.EqualTo("https://github.com/x/y/compare/v2.8.70...v2.8.71"));
         }
+    }
+
+    [TestCase(HttpStatusCode.Forbidden, true)]
+    [TestCase(HttpStatusCode.TooManyRequests, true)]
+    [TestCase(HttpStatusCode.NotFound, false)]
+    public void Ограничение_GitHub_узнаётся_по_коду_ответа(HttpStatusCode status, bool expected)
+    {
+        var exception = new HttpRequestException("ответ ленты", null, status);
+
+        Assert.That(AppUpdateViewModel.IsRateLimited(exception), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Подбор_ассета_для_framework_dependent_берёт_exe_без_portable_и_classic()
+    {
+        string[] assets =
+        [
+            "SpaceSnoop-v2.9.0.exe",
+            "SpaceSnoop-v2.9.0.zip",
+            "SpaceSnoop-v2.9.0-portable.zip",
+            "SpaceSnoop-Classic-v2.9.0.exe",
+        ];
+
+        Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.EqualTo("SpaceSnoop-v2.9.0.exe"));
+    }
+
+    [Test]
+    public void Подбор_ассета_для_self_contained_берёт_portable_zip()
+    {
+        string[] assets =
+        [
+            "SpaceSnoop-v2.9.0.exe",
+            "SpaceSnoop-v2.9.0-portable.zip",
+            "SpaceSnoop-Classic-v2.9.0-portable.zip",
+        ];
+
+        Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.EqualTo("SpaceSnoop-v2.9.0-portable.zip"));
+    }
+
+    [Test]
+    public void Подбор_ассета_не_путает_classic_с_основной_редакцией()
+    {
+        string[] assets = ["SpaceSnoop-Classic-v2.9.0.exe", "SpaceSnoop-Classic-v2.9.0-portable.zip"];
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.Null);
+            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.Null);
+        }
+    }
+
+    [TestCase("v2.9.0", "2.8.16", true)]
+    [TestCase("2.9.0", "2.8.16", true)]
+    [TestCase("v2.8.17", "2.8.16", true)]
+    [TestCase("v2.8.16", "2.8.16", false)]
+    [TestCase("v2.8.2", "2.8.16", false)]
+    [TestCase("v2.7.99", "2.8.0", false)]
+    [TestCase("v2.9.0-beta", "2.8.16", true)]
+    [TestCase(null, "2.8.16", false)]
+    [TestCase("", "2.8.16", false)]
+    [TestCase("мусор", "2.8.16", false)]
+    [TestCase("v2.9.0", "хлам", false)]
+    public void Релиз_новее_текущей_версии_только_при_большем_номере(string? latestTag, string current, bool expected)
+    {
+        Assert.That(UpdateCheck.IsNewer(latestTag, current), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public async Task Скачивание_без_известного_размера_молчит()
+    {
+        var reports = new List<int>();
+
+        await ReleaseFeed.CopyAsync(new MemoryStream(new byte[1024 * 1024]), Stream.Null, -1, new PercentCollector(reports));
+
+        Assert.That(reports, Is.Empty);
+    }
+
+    [Test]
+    public async Task Скачивание_докладывает_только_смену_целого_процента()
+    {
+        const int megabytes = 16;
+        var payload = new byte[megabytes * 1024 * 1024];
+        var reports = new List<int>();
+
+        await ReleaseFeed.CopyAsync(new MemoryStream(payload), Stream.Null, payload.Length, new PercentCollector(reports));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(reports, Has.Count.LessThanOrEqualTo(101), $"Докладов {reports.Count} на 101 значение процента – отчёт снова идёт на каждый блок.");
+            Assert.That(reports, Is.Ordered.Ascending.And.Unique);
+            Assert.That(reports[^1], Is.EqualTo(100), "Последний процент до экрана не доехал.");
+        }
+    }
+
+    [TestCase("До: https://github.com/x/y/compare/v1...v2.", "https://github.com/x/y/compare/v1...v2")]
+    [TestCase("Без ссылки сравнения", null)]
+    [TestCase(null, null)]
+    public void Ссылка_сравнения_извлекается_из_тела_релиза(string? body, string? expected)
+    {
+        Assert.That(ReleaseChangelog.ExtractCompareUrl(body), Is.EqualTo(expected));
+    }
+
+    [Test]
+    public void Строка_полного_списка_пропускается_в_пунктах_изменений()
+    {
+        var body = """
+            ## Изменения
+
+            - Первый пункт
+            **Полный список:** https://github.com/x/y/compare/v1...v2
+            - Второй пункт
+            """;
+
+        var items = ReleaseChangelog.ExtractChangeItems(body);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(items, Has.Count.EqualTo(2));
+            Assert.That(items[0].Summary, Is.EqualTo("Первый пункт"));
+            Assert.That(items[1].Summary, Is.EqualTo("Второй пункт"));
+        }
+    }
+
+    [Test]
+    public void Тело_без_секции_изменений_берётся_целиком_а_первая_строка_становится_пунктом()
+    {
+        var body = """
+            Просто текст без заголовков.
+            Вторая строка.
+            """;
+
+        var items = ReleaseChangelog.ExtractChangeItems(body);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(ReleaseChangelog.ExtractChanges(body), Is.EqualTo("Просто текст без заголовков.\r\nВторая строка."));
+            Assert.That(items, Has.Count.EqualTo(1));
+            Assert.That(items[0].Summary, Is.EqualTo("Просто текст без заголовков."));
+            Assert.That(items[0].Details, Is.EqualTo(["Вторая строка."]));
+        }
+    }
+
+    [Test]
+    public void Тело_без_секции_изменений_не_тащит_таблицу_скачивания_и_статистику_в_пункты()
+    {
+        var body = """
+            ## Скачать
+
+            | Редакция | EXE |
+            |----------|-----|
+            | WPF | [![EXE](badge)](url) |
+
+            ## Статистика
+
+            Скачиваний: [![всего](badge)](url)
+            """;
+
+        Assert.That(ReleaseChangelog.ExtractChanges(body), Is.Empty);
+        Assert.That(ReleaseChangelog.ExtractChangeItems(body), Is.Empty);
     }
 
     private sealed class PercentCollector(List<int> sink) : IProgress<int>

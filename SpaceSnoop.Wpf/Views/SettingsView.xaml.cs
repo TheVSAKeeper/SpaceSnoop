@@ -75,7 +75,7 @@ public partial class SettingsView : UserControl, IView<SettingsViewModel>
             return;
         }
 
-        _sections.SelectedChild = Cards.VerticalOffset >= Cards.ScrollableHeight - AnchorSlack
+        _sections.SelectedChild = Cards.VerticalOffset >= (Cards.ScrollableHeight - AnchorSlack)
             ? LastAnchored(section)
             : Reached(section);
     }
@@ -86,7 +86,7 @@ public partial class SettingsView : UserControl, IView<SettingsViewModel>
 
         foreach (var child in section.Children)
         {
-            if (Offset(child) is { } offset && offset <= Cards.VerticalOffset + AnchorSlack)
+            if (Offset(child) is { } offset && offset <= (Cards.VerticalOffset + AnchorSlack))
             {
                 reached = child;
             }
@@ -134,7 +134,7 @@ public partial class SettingsView : UserControl, IView<SettingsViewModel>
         }
 
         return _anchors.FirstOrDefault(anchor => anchor.IsVisible
-                                                 && string.Equals(SettingsBlock.GetKey(anchor), key, StringComparison.Ordinal));
+            && string.Equals(SettingsBlock.GetKey(anchor), key, StringComparison.Ordinal));
     }
 
     private void Collect(DependencyObject root)

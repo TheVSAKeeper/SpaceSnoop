@@ -20,15 +20,17 @@ public sealed partial class McpPreferences : ObservableObject
     [NotifyPropertyChangedFor(nameof(TokenMissing))]
     private string _token = string.Empty;
 
+    public bool TokenMissing => Token.Length == 0;
+
     public McpPreferences(ISettingsStore settings)
     {
         _settings = settings;
 
         _suppressPersist = true;
-        Enabled = _settings.GetBool(SettingsKeys.McpEnabled, AppDefaults.McpEnabledDefault);
+        Enabled = _settings.GetBool(SettingsKeys.McpEnabled);
         var storedPort = _settings.GetInt(SettingsKeys.McpPort, AppDefaults.McpPortDefault);
         Port = Math.Clamp(storedPort, AppDefaults.McpPortMin, AppDefaults.McpPortMax);
-        AllowMutations = _settings.GetBool(SettingsKeys.McpAllowMutations, AppDefaults.McpAllowMutationsDefault);
+        AllowMutations = _settings.GetBool(SettingsKeys.McpAllowMutations);
         Token = _settings.GetStringValue(SettingsKeys.McpToken)?.Trim() ?? string.Empty;
         _suppressPersist = false;
 
@@ -42,8 +44,6 @@ public sealed partial class McpPreferences : ObservableObject
             RegenerateToken();
         }
     }
-
-    public bool TokenMissing => Token.Length == 0;
 
     [RelayCommand]
     public void RegenerateToken()

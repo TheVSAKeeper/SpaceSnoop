@@ -6,7 +6,7 @@ public sealed class UniformRowPanel : Panel
 
     public static bool Stacks(double available, int count, double widest)
     {
-        return !double.IsPositiveInfinity(available) && count > 1 && widest * count > available;
+        return !double.IsPositiveInfinity(available) && count > 1 && (widest * count) > available;
     }
 
     protected override Size MeasureOverride(Size availableSize)

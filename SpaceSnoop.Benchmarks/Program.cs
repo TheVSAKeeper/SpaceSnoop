@@ -1,4 +1,4 @@
-﻿using System.Reflection;
-using BenchmarkDotNet.Running;
+﻿using BenchmarkDotNet.Running;
+using System.Reflection;
 
 BenchmarkSwitcher.FromAssembly(Assembly.GetExecutingAssembly()).Run(args);

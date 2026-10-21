@@ -10,7 +10,8 @@ public class DialogViewPairsTests
     {
         var offenders = ViewPairRule.MissingViews(typeof(ConfirmDialogViewModel).Assembly, ViewPairRule.IsDialogViewModel);
 
-        Assert.That(offenders,
+        Assert.That(
+            offenders,
             Is.Empty,
             () => $"Без пары модальный хост покажет имя типа вместо диалога:{Environment.NewLine}{RuleViolation.Report(offenders)}");
     }

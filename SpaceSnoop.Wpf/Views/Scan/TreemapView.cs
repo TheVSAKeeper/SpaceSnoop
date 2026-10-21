@@ -25,22 +25,26 @@ public sealed class TreemapView : FrameworkElement
     private const double MarkerSize = 9;
 
     public static readonly DependencyProperty ItemsSourceProperty =
-        DependencyProperty.Register(nameof(ItemsSource),
+        DependencyProperty.Register(
+            nameof(ItemsSource),
             typeof(IEnumerable),
             typeof(TreemapView),
             new FrameworkPropertyMetadata(null, OnItemsSourceChanged));
 
     public static readonly DependencyProperty IntensityProperty =
-        DependencyProperty.Register(nameof(Intensity),
+        DependencyProperty.Register(
+            nameof(Intensity),
             typeof(double),
             typeof(TreemapView),
             new FrameworkPropertyMetadata(AppDefaults.IntensityDefault, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty SelectedItemProperty =
-        DependencyProperty.Register(nameof(SelectedItem),
+        DependencyProperty.Register(
+            nameof(SelectedItem),
             typeof(ScanNodeViewModel),
             typeof(TreemapView),
-            new FrameworkPropertyMetadata(null,
+            new FrameworkPropertyMetadata(
+                null,
                 FrameworkPropertyMetadataOptions.BindsTwoWayByDefault | FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty DrillCommandProperty =
@@ -53,7 +57,10 @@ public sealed class TreemapView : FrameworkElement
         DependencyProperty.Register(nameof(NodeTooltipTemplate), typeof(DataTemplate), typeof(TreemapView));
 
     public static readonly DependencyProperty TooltipStyleProperty =
-        DependencyProperty.Register(nameof(TooltipStyle), typeof(Style), typeof(TreemapView),
+        DependencyProperty.Register(
+            nameof(TooltipStyle),
+            typeof(Style),
+            typeof(TreemapView),
             new FrameworkPropertyMetadata(null, OnTooltipStyleChanged));
 
     private static readonly SolidColorBrush LabelBrush = Frozen(Color.FromRgb(0x1A, 0x1A, 0x1A));
@@ -77,15 +84,6 @@ public sealed class TreemapView : FrameworkElement
     private Point _cursor;
     private bool _nudge;
     private bool _isLoaded;
-
-    public TreemapView()
-    {
-        AddVisualChild(_menuHost);
-        _toolTip.PlacementTarget = this;
-        _toolTip.CustomPopupPlacementCallback = PlaceTooltip;
-        Loaded += OnLoaded;
-        Unloaded += OnUnloaded;
-    }
 
     public IEnumerable? ItemsSource
     {
@@ -131,6 +129,15 @@ public sealed class TreemapView : FrameworkElement
 
     protected override int VisualChildrenCount => 1;
 
+    public TreemapView()
+    {
+        AddVisualChild(_menuHost);
+        _toolTip.PlacementTarget = this;
+        _toolTip.CustomPopupPlacementCallback = PlaceTooltip;
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
+    }
+
     public ToolTip? ShowTooltipForAutomation(Point point)
     {
         var node = HitTest(point);
@@ -172,7 +179,8 @@ public sealed class TreemapView : FrameworkElement
         var layout = TreemapLayout.Squarify(weights, Math.Max(0, width - Gap), Math.Max(0, height - Gap));
         var tiles = new (Rect, ScanNodeViewModel)[nodes.Count];
 
-        var style = new TileStyle(ResourcePen("Fg.Primary", 1.5),
+        var style = new TileStyle(
+            ResourcePen("Fg.Primary", 1.5),
             ResourcePen("State.Error", 1.5),
             TryFindResource("Font.Sans") as FontFamily,
             Intensity,
@@ -188,54 +196,6 @@ public sealed class TreemapView : FrameworkElement
         }
 
         _tiles = tiles;
-    }
-
-    private void DrawTile(DrawingContext context, ScanNodeViewModel node, Rect tile, TileStyle style)
-    {
-        if (tile.Width <= 0 || tile.Height <= 0)
-        {
-            return;
-        }
-
-        var fill = new SolidColorBrush(HeatColor.From(node.Fraction, style.Intensity));
-
-        if (node.IsMarkedDeleted)
-        {
-            fill.Opacity = 0.5;
-        }
-
-        fill.Freeze();
-
-        var pen = (ReferenceEquals(node, SelectedItem), node.IsMarkedDeleted) switch
-        {
-            (true, _) => style.Selection,
-            (false, true) => style.Deleted,
-            _ => null,
-        };
-
-        var radius = node.IsDirectory ? CornerRadius : 0;
-
-        context.DrawRoundedRectangle(fill, null, tile, radius, radius);
-
-        if (node is { IsDirectory: true, IsMarkedDeleted: false })
-        {
-            context.DrawRoundedRectangle(CushionBrush, null, tile, radius, radius);
-        }
-
-        if (pen is not null)
-        {
-            context.DrawRoundedRectangle(null, pen, tile, radius, radius);
-        }
-
-        if (tile.Width >= LabelMinWidth && tile.Height >= LabelMinHeight * style.Scale)
-        {
-            DrawLabel(context, node, tile, style.Mono, style.Scale);
-        }
-
-        if (node.IsDirectory)
-        {
-            DrawFolderMarker(context, tile);
-        }
     }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
@@ -315,6 +275,54 @@ public sealed class TreemapView : FrameworkElement
     {
         _hover = null;
         _toolTip.IsOpen = false;
+    }
+
+    private void DrawTile(DrawingContext context, ScanNodeViewModel node, Rect tile, TileStyle style)
+    {
+        if (tile.Width <= 0 || tile.Height <= 0)
+        {
+            return;
+        }
+
+        var fill = new SolidColorBrush(HeatColor.From(node.Fraction, style.Intensity));
+
+        if (node.IsMarkedDeleted)
+        {
+            fill.Opacity = 0.5;
+        }
+
+        fill.Freeze();
+
+        var pen = (ReferenceEquals(node, SelectedItem), node.IsMarkedDeleted) switch
+        {
+            (true, _) => style.Selection,
+            (false, true) => style.Deleted,
+            _ => null,
+        };
+
+        var radius = node.IsDirectory ? CornerRadius : 0;
+
+        context.DrawRoundedRectangle(fill, null, tile, radius, radius);
+
+        if (node is { IsDirectory: true, IsMarkedDeleted: false })
+        {
+            context.DrawRoundedRectangle(CushionBrush, null, tile, radius, radius);
+        }
+
+        if (pen is not null)
+        {
+            context.DrawRoundedRectangle(null, pen, tile, radius, radius);
+        }
+
+        if (tile.Width >= LabelMinWidth && tile.Height >= (LabelMinHeight * style.Scale))
+        {
+            DrawLabel(context, node, tile, style.Mono, style.Scale);
+        }
+
+        if (node.IsDirectory)
+        {
+            DrawFolderMarker(context, tile);
+        }
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -404,8 +412,9 @@ public sealed class TreemapView : FrameworkElement
         var scale = Math.Min(target.Width / bounds.Width, target.Height / bounds.Height);
         var matrix = new Matrix();
         matrix.Scale(scale, scale);
-        matrix.Translate(target.X + (target.Width - bounds.Width * scale) / 2 - bounds.X * scale,
-            target.Y + (target.Height - bounds.Height * scale) / 2 - bounds.Y * scale);
+        matrix.Translate(
+            target.X + ((target.Width - (bounds.Width * scale)) / 2) - (bounds.X * scale),
+            target.Y + ((target.Height - (bounds.Height * scale)) / 2) - (bounds.Y * scale));
 
         context.PushTransform(new MatrixTransform(matrix));
         context.DrawGeometry(LabelBrush, null, geometry);
@@ -429,10 +438,11 @@ public sealed class TreemapView : FrameworkElement
 
     private static Rect Deflate(Rect rect, double margin)
     {
-        return new(rect.X + margin,
+        return new(
+            rect.X + margin,
             rect.Y + margin,
-            Math.Max(0, rect.Width - 2 * margin),
-            Math.Max(0, rect.Height - 2 * margin));
+            Math.Max(0, rect.Width - (2 * margin)),
+            Math.Max(0, rect.Height - (2 * margin)));
     }
 
     private static SolidColorBrush Frozen(Color color)
@@ -444,16 +454,7 @@ public sealed class TreemapView : FrameworkElement
 
     private static Brush FrozenCushion()
     {
-        var brush = new LinearGradientBrush
-        {
-            StartPoint = new(0, 0),
-            EndPoint = new(0, 1),
-            GradientStops =
-            {
-                new(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF), 0),
-                new(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.55),
-            },
-        };
+        var brush = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(0, 1), GradientStops = { new(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF), 0), new(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.55) } };
 
         brush.Freeze();
         return brush;
@@ -461,7 +462,7 @@ public sealed class TreemapView : FrameworkElement
 
     private static void DrawFolderMarker(DrawingContext context, Rect tile)
     {
-        if (tile.Width < MarkerSize * 1.8 || tile.Height < MarkerSize * 1.8)
+        if (tile.Width < (MarkerSize * 1.8) || tile.Height < (MarkerSize * 1.8))
         {
             return;
         }
@@ -686,13 +687,13 @@ public sealed class TreemapView : FrameworkElement
         var x = tile.X + Padding;
         var y = tile.Y + 4;
 
-        var name = Text(node.Name, 12 * scale, LabelBrush, FontWeights.SemiBold, tile.Width - 2 * Padding - IconSize - IconGap, node.IsMarkedDeleted, null);
+        var name = Text(node.Name, 12 * scale, LabelBrush, FontWeights.SemiBold, tile.Width - (2 * Padding) - IconSize - IconGap, node.IsMarkedDeleted, null);
         var icon = node.IsDirectory ? FolderIcon : FileIcon;
 
-        DrawIcon(context, icon, new(x, y + (name.Height - IconSize) / 2, IconSize, IconSize));
+        DrawIcon(context, icon, new(x, y + ((name.Height - IconSize) / 2), IconSize, IconSize));
         context.DrawText(name, new(x + IconSize + IconGap, y));
 
-        var size = Text(node.SizeText, 11 * scale, SubLabelBrush, FontWeights.Normal, tile.Width - 2 * Padding, false, monoFont);
+        var size = Text(node.SizeText, 11 * scale, SubLabelBrush, FontWeights.Normal, tile.Width - (2 * Padding), false, monoFont);
         context.DrawText(size, new(x, y + name.Height + 1));
     }
 
@@ -700,18 +701,14 @@ public sealed class TreemapView : FrameworkElement
     {
         var typeface = new Typeface(fontFamily ?? TextElement.GetFontFamily(this), FontStyles.Normal, weight, FontStretches.Normal);
 
-        var text = new FormattedText(value,
+        var text = new FormattedText(
+            value,
             CultureInfo.CurrentUICulture,
             FlowDirection.LeftToRight,
             typeface,
             size,
             brush,
-            VisualTreeHelper.GetDpi(this).PixelsPerDip)
-        {
-            MaxTextWidth = Math.Max(0, maxWidth),
-            MaxLineCount = 1,
-            Trimming = TextTrimming.CharacterEllipsis,
-        };
+            VisualTreeHelper.GetDpi(this).PixelsPerDip) { MaxTextWidth = Math.Max(0, maxWidth), MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis };
 
         if (strikethrough)
         {

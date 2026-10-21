@@ -21,7 +21,7 @@ public readonly record struct DriveCapacity(string Name, long TotalBytes, long U
                 return null;
             }
 
-            var name = drive.Name.TrimEnd(System.IO.Path.DirectorySeparatorChar, System.IO.Path.AltDirectorySeparatorChar);
+            var name = drive.Name.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
 
             return new(name, drive.TotalSize, drive.TotalSize - drive.TotalFreeSpace);
         }

@@ -82,6 +82,7 @@ public partial class ScanTargetPicker : UserControl
             {
                 case RadioButton target:
                     return target;
+
                 case ButtonBase:
                     return null;
             }

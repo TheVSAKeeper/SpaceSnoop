@@ -29,6 +29,42 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
     [NotifyCanExecuteChangedFor(nameof(SendCommand), nameof(CancelCommand), nameof(RetryCommand), nameof(RewindToCommand))]
     private bool _isBusy;
 
+    public event Action? FocusRequested;
+
+    public static IReadOnlyList<ChatExample> Examples { get; } =
+    [
+        new("Куда делось место на диске C?", PackIconLucideKind.HardDrive),
+        new("Что тут можно снести без последствий?", PackIconLucideKind.Trash2),
+        new("Сколько места занял Docker и сколько из него вернётся?", PackIconLucideKind.Container),
+        new("Почему эти папки опять расходятся после синхронизации?", PackIconLucideKind.FolderSync),
+    ];
+
+    public ChatGatesViewModel Gates { get; }
+
+    public ChatHistoryViewModel History { get; }
+
+    public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
+
+    public string PageTitle => "Чат";
+
+    public string? PageDescription => $"{AgentPersona.Name} – агент внутри программы: смотрит на неё теми же инструментами, что и внешние агенты.";
+
+    public string AgentName => AgentPersona.Name;
+
+    public string Greeting => AgentPersona.Greeting;
+
+    public string InputPlaceholder => AgentPersona.InputPlaceholder;
+
+    public bool HasMessages => Messages.Count > 0;
+
+    private IAgentBackend Backend => _backends.Current;
+
+    private bool CanSend => !IsBusy && Gates.CanChat && !string.IsNullOrWhiteSpace(InputText);
+
+    private bool CanCancel => IsBusy;
+
+    private bool CanManageConversation => !IsBusy;
+
     public ChatViewModel(
         AgentBackends backends,
         AgentPreferences preferences,
@@ -79,46 +115,11 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
             History,
             () => IsBusy,
             () => _cts?.Cancel());
+
         Gates.PropertyChanged += OnGatesPropertyChanged;
         Gates.NavigationRequested += OnNavigationRequested;
         bridge.NavigationDeferred += Gates.OnNavigationDeferred;
     }
-
-    public event Action? FocusRequested;
-
-    public static IReadOnlyList<ChatExample> Examples { get; } =
-    [
-        new("Куда делось место на диске C?", PackIconLucideKind.HardDrive),
-        new("Что тут можно снести без последствий?", PackIconLucideKind.Trash2),
-        new("Сколько места занял Docker и сколько из него вернётся?", PackIconLucideKind.Container),
-        new("Почему эти папки опять расходятся после синхронизации?", PackIconLucideKind.FolderSync),
-    ];
-
-    public ChatGatesViewModel Gates { get; }
-
-    public ChatHistoryViewModel History { get; }
-
-    public ObservableCollection<ChatMessageViewModel> Messages { get; } = [];
-
-    public string PageTitle => "Чат";
-
-    public string? PageDescription => $"{AgentPersona.Name} – агент внутри программы: смотрит на неё теми же инструментами, что и внешние агенты.";
-
-    public string AgentName => AgentPersona.Name;
-
-    public string Greeting => AgentPersona.Greeting;
-
-    public string InputPlaceholder => AgentPersona.InputPlaceholder;
-
-    public bool HasMessages => Messages.Count > 0;
-
-    private IAgentBackend Backend => _backends.Current;
-
-    private bool CanSend => !IsBusy && Gates.CanChat && !string.IsNullOrWhiteSpace(InputText);
-
-    private bool CanCancel => IsBusy;
-
-    private bool CanManageConversation => !IsBusy;
 
     public void PrepareQuestion(string question)
     {

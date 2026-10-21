@@ -86,19 +86,23 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
         var targets = BatchTargets();
         var allRows = _rows.Rows.Count;
 
-        await RunAsync(targets.Count, "Сравнение отменено.", _logger.OverviewCompareCancelled, async token =>
-        {
-            var stopwatch = Stopwatch.StartNew();
-            _logger.OverviewCompareStarted(targets.Count);
+        await RunAsync(
+            targets.Count,
+            "Сравнение отменено.",
+            _logger.OverviewCompareCancelled,
+            async token =>
+            {
+                var stopwatch = Stopwatch.StartNew();
+                _logger.OverviewCompareStarted(targets.Count);
 
-            await RunRowsAsync(targets, token, CompareRowAsync);
+                await RunRowsAsync(targets, token, CompareRowAsync);
 
-            stopwatch.Stop();
-            var tally = OverviewNarrative.TallyCompare(targets, allRows);
-            StatusCaption = OverviewNarrative.DescribeCompared(tally);
-            _logger.OverviewCompareFinished(tally.Compared, tally.Failed, tally.Skipped, (long)stopwatch.Elapsed.TotalMilliseconds);
-            NotifyResult(StatusCaption, tally.Compared, tally.Failed);
-        });
+                stopwatch.Stop();
+                var tally = OverviewNarrative.TallyCompare(targets, allRows);
+                StatusCaption = OverviewNarrative.DescribeCompared(tally);
+                _logger.OverviewCompareFinished(tally.Compared, tally.Failed, tally.Skipped, (long)stopwatch.Elapsed.TotalMilliseconds);
+                NotifyResult(StatusCaption, tally.Compared, tally.Failed);
+            });
     }
 
     [RelayCommand(CanExecute = nameof(CanSyncRow))]
@@ -117,20 +121,24 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
             return;
         }
 
-        await RunAsync(0, "Синхронизация отменена.", _logger.OverviewSyncCancelled, async token =>
-        {
-            StatusCaption = $"Синхронизация · {row.Name}";
-            var stopwatch = Stopwatch.StartNew();
-            _logger.OverviewSyncStarted(1);
+        await RunAsync(
+            0,
+            "Синхронизация отменена.",
+            _logger.OverviewSyncCancelled,
+            async token =>
+            {
+                StatusCaption = $"Синхронизация · {row.Name}";
+                var stopwatch = Stopwatch.StartNew();
+                _logger.OverviewSyncStarted(1);
 
-            await SyncRowCore(row, token);
+                await SyncRowCore(row, token);
 
-            stopwatch.Stop();
-            var (synced, failed, skipped) = OverviewNarrative.Tally(row);
-            StatusCaption = row.StatusText;
-            _logger.OverviewSyncFinished(synced, failed, skipped, (long)stopwatch.Elapsed.TotalMilliseconds);
-            NotifyResult(row.StatusText, synced, failed);
-        });
+                stopwatch.Stop();
+                var (synced, failed, skipped) = OverviewNarrative.Tally(row);
+                StatusCaption = row.StatusText;
+                _logger.OverviewSyncFinished(synced, failed, skipped, (long)stopwatch.Elapsed.TotalMilliseconds);
+                NotifyResult(row.StatusText, synced, failed);
+            });
     }
 
     [RelayCommand(CanExecute = nameof(CanSyncAll))]
@@ -146,19 +154,23 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
             return;
         }
 
-        await RunAsync(targets.Count, "Синхронизация отменена.", _logger.OverviewSyncCancelled, async token =>
-        {
-            var stopwatch = Stopwatch.StartNew();
-            _logger.OverviewSyncStarted(targets.Count);
+        await RunAsync(
+            targets.Count,
+            "Синхронизация отменена.",
+            _logger.OverviewSyncCancelled,
+            async token =>
+            {
+                var stopwatch = Stopwatch.StartNew();
+                _logger.OverviewSyncStarted(targets.Count);
 
-            await RunRowsAsync(targets, token, SyncRowCore);
+                await RunRowsAsync(targets, token, SyncRowCore);
 
-            stopwatch.Stop();
-            var tally = OverviewNarrative.TallySync(targets, excluded);
-            StatusCaption = OverviewNarrative.DescribeSynced(tally);
-            _logger.OverviewSyncFinished(tally.Synced, tally.Failed, tally.Skipped, (long)stopwatch.Elapsed.TotalMilliseconds);
-            NotifyResult(StatusCaption, tally.Synced, tally.Failed);
-        });
+                stopwatch.Stop();
+                var tally = OverviewNarrative.TallySync(targets, excluded);
+                StatusCaption = OverviewNarrative.DescribeSynced(tally);
+                _logger.OverviewSyncFinished(tally.Synced, tally.Failed, tally.Skipped, (long)stopwatch.Elapsed.TotalMilliseconds);
+                NotifyResult(StatusCaption, tally.Synced, tally.Failed);
+            });
     }
 
     private async Task RunAsync(int total, string cancelledCaption, Action logCancelled, Func<CancellationToken, Task> body)
@@ -257,25 +269,29 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
         row.Status = OverviewRunStatus.Comparing;
         var stopwatch = Stopwatch.StartNew();
 
-        await RunRowAsync(row, token, null, async rowToken =>
-        {
-            var request = BuildCompareRequest(row.Profile);
-            var result = await Task.Run(() => _compare.Execute(request, rowToken), rowToken);
-
-            stopwatch.Stop();
-
-            if (result.SkippedLinks() is { Count: > 0 } links)
+        await RunRowAsync(
+            row,
+            token,
+            null,
+            async rowToken =>
             {
-                _logger.CompareLinksSkipped(links.Count, links[0]);
-            }
+                var request = BuildCompareRequest(row.Profile);
+                var result = await Task.Run(() => _compare.Execute(request, rowToken), rowToken);
 
-            row.ApplyStatistics(result.GetStatistics(), result.GetDirectoryStatistics());
-            row.ApplyFreshness(SyncFreshness.Compute(result.Root));
-            row.ElapsedMs = (long)stopwatch.Elapsed.TotalMilliseconds;
-            row.Error = null;
-            row.Comparison = result;
-            row.Status = OverviewRunStatus.Compared;
-        });
+                stopwatch.Stop();
+
+                if (result.SkippedLinks() is { Count: > 0 } links)
+                {
+                    _logger.CompareLinksSkipped(links.Count, links[0]);
+                }
+
+                row.ApplyStatistics(result.GetStatistics(), result.GetDirectoryStatistics());
+                row.ApplyFreshness(SyncFreshness.Compute(result.Root));
+                row.ElapsedMs = (long)stopwatch.Elapsed.TotalMilliseconds;
+                row.Error = null;
+                row.Comparison = result;
+                row.Status = OverviewRunStatus.Compared;
+            });
     }
 
     [RelayCommand]
@@ -309,7 +325,8 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
         var mirror = profile.Mirror;
         var winner = profile.Winner;
 
-        if (mirror && SyncProfile.MirrorSource(mode, winner, left, right) is { } mirrorSource
+        if (mirror
+            && SyncProfile.MirrorSource(mode, winner, left, right) is { } mirrorSource
             && (!Directory.Exists(mirrorSource) || !Directory.EnumerateFileSystemEntries(mirrorSource).Any()))
         {
             row.Error = "Зеркало отменено: источник пуст.";
@@ -321,39 +338,44 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
         row.Status = OverviewRunStatus.Syncing;
         var stopwatch = Stopwatch.StartNew();
 
-        await RunRowAsync(row, token, "Пропущено: часть файлов могла быть перенесена", async rowToken =>
-        {
-            var request = BuildCompareRequest(profile);
-            var recycleOverwritten = _settings.GetBool(SettingsKeys.SyncRecycleOverwritten, AppDefaults.SyncRecycleOverwrittenDefault);
-            var verify = _settings.GetBool(SettingsKeys.SyncVerify, AppDefaults.SyncVerifyDefault);
+        await RunRowAsync(
+            row,
+            token,
+            "Пропущено: часть файлов могла быть перенесена",
+            async rowToken =>
+            {
+                var request = BuildCompareRequest(profile);
+                var recycleOverwritten = _settings.GetBool(SettingsKeys.SyncRecycleOverwritten, AppDefaults.SyncRecycleOverwrittenDefault);
+                var verify = _settings.GetBool(SettingsKeys.SyncVerify, AppDefaults.SyncVerifyDefault);
 
-            var run = await Task.Run(() =>
+                var run = await Task.Run(
+                    () =>
+                    {
+                        var result = _compare.Execute(request, rowToken);
+                        var applied = _sync.Execute(new(result, SyncConflictPolicy.SkipUnresolved, SyncDeleteUi.Silent, verify, recycleOverwritten), rowToken);
+                        return (Report: applied, Unreadable: result.IncompleteDirectories(), Links: result.SkippedLinks());
+                    },
+                    rowToken);
+
+                var report = run.Report;
+                var verifyState = SyncPlanNarrative.ResolveVerify(verify, report);
+
+                if (run.Unreadable.Count > 0)
                 {
-                    var result = _compare.Execute(request, rowToken);
-                    var applied = _sync.Execute(new(result, SyncConflictPolicy.SkipUnresolved, SyncDeleteUi.Silent, verify, recycleOverwritten), rowToken);
-                    return (Report: applied, Unreadable: result.IncompleteDirectories(), Links: result.SkippedLinks());
-                },
-                rowToken);
+                    _logger.CompareIncomplete(run.Unreadable.Count, run.Unreadable[0]);
+                }
 
-            var report = run.Report;
-            var verifyState = SyncPlanNarrative.ResolveVerify(verify, report);
+                if (run.Links.Count > 0)
+                {
+                    _logger.CompareLinksSkipped(run.Links.Count, run.Links[0]);
+                }
 
-            if (run.Unreadable.Count > 0)
-            {
-                _logger.CompareIncomplete(run.Unreadable.Count, run.Unreadable[0]);
-            }
-
-            if (run.Links.Count > 0)
-            {
-                _logger.CompareLinksSkipped(run.Links.Count, run.Links[0]);
-            }
-
-            stopwatch.Stop();
-            row.ApplySyncReport(report, verifyState);
-            row.ElapsedMs = (long)stopwatch.Elapsed.TotalMilliseconds;
-            row.Error = null;
-            SyncLog.AppendSafe(SyncLogOrigin.Overview, profile.Name, report, verifyState, _logger);
-        });
+                stopwatch.Stop();
+                row.ApplySyncReport(report, verifyState);
+                row.ElapsedMs = (long)stopwatch.Elapsed.TotalMilliseconds;
+                row.Error = null;
+                SyncLog.AppendSafe(SyncLogOrigin.Overview, profile.Name, report, verifyState, _logger);
+            });
     }
 
     private static CompareDirectoriesRequest BuildCompareRequest(SyncProfile profile)
@@ -371,7 +393,7 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
 
     private async Task<bool> ConfirmSyncAsync(string title, IReadOnlyList<ConfirmLine> lines, PlannedActions? planned, string? warning = null)
     {
-        var destructive = planned is null || planned.Deletes + planned.DirDeletes > 0;
+        var destructive = planned is null || (planned.Deletes + planned.DirDeletes) > 0;
 
         var confirm = new ConfirmDialogViewModel(
             title,
@@ -380,11 +402,7 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Синхронизировать", destructive ? ConfirmChoiceKind.Destructive : ConfirmChoiceKind.Primary),
-            ])
-        {
-            Summary = planned is null ? null : SyncPlanNarrative.DescribePlanVolume(planned),
-            Warning = warning,
-        };
+            ]) { Summary = planned is null ? null : SyncPlanNarrative.DescribePlanVolume(planned), Warning = warning };
 
         return await _dialogs.ShowAsync(confirm);
     }

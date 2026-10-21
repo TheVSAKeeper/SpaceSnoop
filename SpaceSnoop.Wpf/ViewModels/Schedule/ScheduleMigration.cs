@@ -1,6 +1,4 @@
-﻿using KeepShell.Services;
-
-namespace SpaceSnoop.Wpf.ViewModels.Schedule;
+﻿namespace SpaceSnoop.Wpf.ViewModels.Schedule;
 
 internal static class ScheduleMigration
 {

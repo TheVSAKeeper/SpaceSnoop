@@ -63,7 +63,8 @@ public static class StorageMedia
     {
         try
         {
-            using var device = CreateFileW($@"\\.\{letter}",
+            using var device = CreateFileW(
+                $@"\\.\{letter}",
                 0,
                 FILE_SHARE_READ | FILE_SHARE_WRITE,
                 IntPtr.Zero,
@@ -76,15 +77,12 @@ public static class StorageMedia
                 return StorageKind.None;
             }
 
-            var query = new StoragePropertyQuery
-            {
-                PropertyId = StorageDeviceSeekPenaltyProperty,
-                QueryType = PropertyStandardQuery,
-            };
+            var query = new StoragePropertyQuery { PropertyId = StorageDeviceSeekPenaltyProperty, QueryType = PropertyStandardQuery };
 
             var descriptor = default(DeviceSeekPenaltyDescriptor);
 
-            var ok = DeviceIoControl(device,
+            var ok = DeviceIoControl(
+                device,
                 IOCTL_STORAGE_QUERY_PROPERTY,
                 ref query,
                 Marshal.SizeOf<StoragePropertyQuery>(),

@@ -39,8 +39,8 @@ public sealed partial class AgentPreferences : ObservableObject
         {
             MigrateSharedKeys();
             Enabled = _settings.GetBool(SettingsKeys.AgentEnabled, AppDefaults.AgentEnabledDefault);
-            HistoryVisible = _settings.GetBool(SettingsKeys.AgentHistoryVisible, AppDefaults.AgentHistoryVisibleDefault);
-            Transcript = _settings.GetBool(SettingsKeys.AgentTranscript, AppDefaults.AgentTranscriptDefault);
+            HistoryVisible = _settings.GetBool(SettingsKeys.AgentHistoryVisible);
+            Transcript = _settings.GetBool(SettingsKeys.AgentTranscript);
             Backend = _settings.GetEnum(SettingsKeys.AgentBackend, AppDefaults.AgentBackendDefault);
             Consent = ConsentFor(Backend);
             Model = ModelFor(Backend);
@@ -55,7 +55,7 @@ public sealed partial class AgentPreferences : ObservableObject
 
     public bool ConsentFor(AgentBackendKind kind)
     {
-        return _settings.GetBool(SettingsKeys.AgentConsent(kind), AppDefaults.AgentConsentDefault);
+        return _settings.GetBool(SettingsKeys.AgentConsent(kind));
     }
 
     public string ModelFor(AgentBackendKind kind)

@@ -61,17 +61,6 @@ public sealed partial class AppUpdateViewModel : ObservableObject
     [ObservableProperty]
     private bool _isChangelogLoading;
 
-    public AppUpdateViewModel(UpdatePreferences preferences, ISettingsStore settings, IDialogService dialogs, IShellLauncher shell, ILogger<AppUpdateViewModel> logger)
-    {
-        _preferences = preferences;
-        _settings = settings;
-        _dialogs = dialogs;
-        _shell = shell;
-        _logger = logger;
-
-        _preferences.PropertyChanged += OnPreferencesChanged;
-    }
-
     public string PillText => (IsDownloading, _downloadedPath) switch
     {
         (true, _) => $"Загрузка {DownloadPercent}%",
@@ -87,6 +76,17 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
     private string Repository => string.IsNullOrWhiteSpace(_preferences.Repository) ? AppInfo.RepoSlug : _preferences.Repository.Trim();
 
+    public AppUpdateViewModel(UpdatePreferences preferences, ISettingsStore settings, IDialogService dialogs, IShellLauncher shell, ILogger<AppUpdateViewModel> logger)
+    {
+        _preferences = preferences;
+        _settings = settings;
+        _dialogs = dialogs;
+        _shell = shell;
+        _logger = logger;
+
+        _preferences.PropertyChanged += OnPreferencesChanged;
+    }
+
     public void Start()
     {
         if (_started)
@@ -96,15 +96,10 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
         _started = true;
 
-        if (ChecksOnStartup(_preferences.CheckOnStartup, _settings.GetBool(SettingsKeys.WelcomePending, AppDefaults.WelcomePendingDefault)))
+        if (ChecksOnStartup(_preferences.CheckOnStartup, _settings.GetBool(SettingsKeys.WelcomePending)))
         {
             _ = CheckAsync();
         }
-    }
-
-    internal static bool ChecksOnStartup(bool checkOnStartup, bool welcomePending)
-    {
-        return checkOnStartup && !welcomePending;
     }
 
     [RelayCommand]
@@ -131,12 +126,23 @@ public sealed partial class AppUpdateViewModel : ObservableObject
             ChangelogStatus = IsRateLimited(ex)
                 ? "GitHub временно ограничил запросы – историю изменений можно будет загрузить через час"
                 : "Не удалось загрузить историю изменений";
+
             _logger.UpdateCheckFailed(ex);
         }
         finally
         {
             IsChangelogLoading = false;
         }
+    }
+
+    internal static bool ChecksOnStartup(bool checkOnStartup, bool welcomePending)
+    {
+        return checkOnStartup && !welcomePending;
+    }
+
+    internal static bool IsRateLimited(Exception exception)
+    {
+        return exception is HttpRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests };
     }
 
     private void OnPreferencesChanged(object? sender, PropertyChangedEventArgs e)
@@ -228,17 +234,13 @@ public sealed partial class AppUpdateViewModel : ObservableObject
             CheckStatus = IsRateLimited(ex)
                 ? "GitHub временно ограничил проверки – повторите через час"
                 : "Не удалось проверить обновления";
+
             _logger.UpdateCheckFailed(ex);
         }
         finally
         {
             _checking = false;
         }
-    }
-
-    internal static bool IsRateLimited(Exception exception)
-    {
-        return exception is HttpRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests };
     }
 
     private void ResetState()
@@ -375,9 +377,11 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
             if (announce)
             {
-                _dialogs.Error("Обновление", IsRateLimited(ex)
-                    ? "GitHub временно ограничил загрузки – повторите через час."
-                    : "Не удалось скачать обновление. Проверьте подключение к интернету и повторите попытку.");
+                _dialogs.Error(
+                    "Обновление",
+                    IsRateLimited(ex)
+                        ? "GitHub временно ограничил загрузки – повторите через час."
+                        : "Не удалось скачать обновление. Проверьте подключение к интернету и повторите попытку.");
             }
         }
         finally

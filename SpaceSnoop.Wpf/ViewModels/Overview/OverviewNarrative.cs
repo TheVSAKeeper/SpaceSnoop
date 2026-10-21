@@ -21,22 +21,24 @@ internal static class OverviewNarrative
             return null;
         }
 
-        return plans.Aggregate(PlannedActions.Empty, static (total, plan) => new PlannedActions(
-            total.NewCopies + plan.NewCopies,
-            total.ModifiedCopies + plan.ModifiedCopies,
-            total.Deletes + plan.Deletes,
-            total.DirCopies + plan.DirCopies,
-            total.DirDeletes + plan.DirDeletes)
-        {
-            NewCopyBytes = total.NewCopyBytes + plan.NewCopyBytes,
-            ModifiedCopyBytes = total.ModifiedCopyBytes + plan.ModifiedCopyBytes,
-            CopyToLeftBytes = total.CopyToLeftBytes + plan.CopyToLeftBytes,
-            CopyToRightBytes = total.CopyToRightBytes + plan.CopyToRightBytes,
-            OverwriteLeftBytes = total.OverwriteLeftBytes + plan.OverwriteLeftBytes,
-            OverwriteRightBytes = total.OverwriteRightBytes + plan.OverwriteRightBytes,
-            DeleteFileBytes = total.DeleteFileBytes + plan.DeleteFileBytes,
-            DeleteDirBytes = total.DeleteDirBytes + plan.DeleteDirBytes,
-        });
+        return plans.Aggregate(
+            PlannedActions.Empty,
+            static (total, plan) => new(
+                total.NewCopies + plan.NewCopies,
+                total.ModifiedCopies + plan.ModifiedCopies,
+                total.Deletes + plan.Deletes,
+                total.DirCopies + plan.DirCopies,
+                total.DirDeletes + plan.DirDeletes)
+            {
+                NewCopyBytes = total.NewCopyBytes + plan.NewCopyBytes,
+                ModifiedCopyBytes = total.ModifiedCopyBytes + plan.ModifiedCopyBytes,
+                CopyToLeftBytes = total.CopyToLeftBytes + plan.CopyToLeftBytes,
+                CopyToRightBytes = total.CopyToRightBytes + plan.CopyToRightBytes,
+                OverwriteLeftBytes = total.OverwriteLeftBytes + plan.OverwriteLeftBytes,
+                OverwriteRightBytes = total.OverwriteRightBytes + plan.OverwriteRightBytes,
+                DeleteFileBytes = total.DeleteFileBytes + plan.DeleteFileBytes,
+                DeleteDirBytes = total.DeleteDirBytes + plan.DeleteDirBytes,
+            });
     }
 
     internal static (int Compared, int Failed, int Skipped) TallyCompare(IReadOnlyList<OverviewRowViewModel> targets, int allRows)
@@ -125,7 +127,7 @@ internal static class OverviewNarrative
     {
         var severity = (failed, ok) switch
         {
-            ( > 0, _) => StatusSeverity.Error,
+            (> 0, _) => StatusSeverity.Error,
             (_, 0) => StatusSeverity.Warning,
             _ => StatusSeverity.Success,
         };

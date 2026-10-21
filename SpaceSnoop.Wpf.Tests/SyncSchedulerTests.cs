@@ -1,7 +1,6 @@
 ﻿using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Schedule;
-using SpaceSnoop.Wpf.ViewModels.Schedule;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -10,6 +9,43 @@ public class SyncSchedulerTests
 {
     private const string Exe = @"C:\Program Files\SpaceSnoop\SpaceSnoop.Wpf.exe";
     private const string Id = "ab12cd34";
+
+    [TestCase("<Task><Settings /></Task>")]
+    [TestCase("")]
+    public void Без_явного_состояния_задача_считается_включённой(string xml)
+    {
+        Assert.That(ScheduleStatus.ParseEnabled(xml), Is.True);
+    }
+
+    [Test]
+    public void Включённый_триггер_не_путается_с_состоянием_задачи()
+    {
+        const string xml = "<Task><Triggers><CalendarTrigger><Enabled>false</Enabled></CalendarTrigger></Triggers><Settings><Enabled>true</Enabled></Settings></Task>";
+
+        Assert.That(ScheduleStatus.ParseEnabled(xml), Is.True);
+    }
+
+    [TestCase(0, SyncMode.LeftToRight)]
+    [TestCase(1, SyncMode.RightToLeft)]
+    [TestCase(2, SyncMode.Bidirectional)]
+    [TestCase(99, SyncMode.LeftToRight)]
+    public void Индекс_режима_отображается_в_направление(int index, SyncMode expected)
+    {
+        Assert.That(HeadlessSync.MapMode(index), Is.EqualTo(expected));
+    }
+
+    [TestCase(0, "Успех")]
+    [TestCase(1, "Завершилась с ошибками")]
+    [TestCase(3, "Каталог недоступен")]
+    [TestCase(5, "Каталоги пересекаются")]
+    [TestCase(6, "Проверка нашла расхождения")]
+    [TestCase(ScheduleStatus.NeverRun, "Ещё не запускалась")]
+    [TestCase(ScheduleStatus.Running, "Выполняется")]
+    [TestCase(12345, "Код 12345")]
+    public void Код_результата_расшифровывается(int code, string expected)
+    {
+        Assert.That(ScheduleStatus.DecodeResult(code), Is.EqualTo(expected));
+    }
 
     [Test]
     public void Команда_создания_содержит_имя_задачи_путь_и_аргумент_профиля()
@@ -25,11 +61,11 @@ public class SyncSchedulerTests
     }
 
     [Test]
-    public void Пустой_аргумент_оставляет_только_путь_в_команде()
+    public void Отключённая_задача_читается_из_xml()
     {
-        var args = SyncScheduler.BuildCreateArgs(SyncScheduler.TaskNameFor(Id), ScheduleInterval.Daily, new(3, 0, 0), Exe, string.Empty);
+        const string xml = "<Task><Settings><Enabled>false</Enabled></Settings><Triggers /></Task>";
 
-        Assert.That(Value(args, "/tr"), Is.EqualTo($"\"{Exe}\""));
+        Assert.That(ScheduleStatus.ParseEnabled(xml), Is.False);
     }
 
     [TestCase(ScheduleInterval.Daily, "DAILY", true)]
@@ -51,13 +87,18 @@ public class SyncSchedulerTests
         }
     }
 
-    [TestCase(0, SyncMode.LeftToRight)]
-    [TestCase(1, SyncMode.RightToLeft)]
-    [TestCase(2, SyncMode.Bidirectional)]
-    [TestCase(99, SyncMode.LeftToRight)]
-    public void Индекс_режима_отображается_в_направление(int index, SyncMode expected)
+    [Test]
+    public void Пустой_аргумент_оставляет_только_путь_в_команде()
     {
-        Assert.That(HeadlessSync.MapMode(index), Is.EqualTo(expected));
+        var args = SyncScheduler.BuildCreateArgs(SyncScheduler.TaskNameFor(Id), ScheduleInterval.Daily, new(3, 0, 0), Exe, string.Empty);
+
+        Assert.That(Value(args, "/tr"), Is.EqualTo($"\"{Exe}\""));
+    }
+
+    [Test]
+    public void Пустой_вывод_даёт_отсутствующий_статус()
+    {
+        Assert.That(ScheduleStatus.Parse(string.Empty).Exists, Is.False);
     }
 
     [Test]
@@ -87,48 +128,6 @@ public class SyncSchedulerTests
     public void Устаревший_путь_задачи_определяется_по_подстроке(string action, string exe, bool stale)
     {
         Assert.That(SyncScheduler.IsStale(action, exe), Is.EqualTo(stale));
-    }
-
-    [Test]
-    public void Пустой_вывод_даёт_отсутствующий_статус()
-    {
-        Assert.That(ScheduleStatus.Parse(string.Empty).Exists, Is.False);
-    }
-
-    [TestCase(0, "Успех")]
-    [TestCase(1, "Завершилась с ошибками")]
-    [TestCase(3, "Каталог недоступен")]
-    [TestCase(5, "Каталоги пересекаются")]
-    [TestCase(6, "Проверка нашла расхождения")]
-    [TestCase(ScheduleStatus.NeverRun, "Ещё не запускалась")]
-    [TestCase(ScheduleStatus.Running, "Выполняется")]
-    [TestCase(12345, "Код 12345")]
-    public void Код_результата_расшифровывается(int code, string expected)
-    {
-        Assert.That(ScheduleStatus.DecodeResult(code), Is.EqualTo(expected));
-    }
-
-    [Test]
-    public void Отключённая_задача_читается_из_xml()
-    {
-        const string xml = "<Task><Settings><Enabled>false</Enabled></Settings><Triggers /></Task>";
-
-        Assert.That(ScheduleStatus.ParseEnabled(xml), Is.False);
-    }
-
-    [Test]
-    public void Включённый_триггер_не_путается_с_состоянием_задачи()
-    {
-        const string xml = "<Task><Triggers><CalendarTrigger><Enabled>false</Enabled></CalendarTrigger></Triggers><Settings><Enabled>true</Enabled></Settings></Task>";
-
-        Assert.That(ScheduleStatus.ParseEnabled(xml), Is.True);
-    }
-
-    [TestCase("<Task><Settings /></Task>")]
-    [TestCase("")]
-    public void Без_явного_состояния_задача_считается_включённой(string xml)
-    {
-        Assert.That(ScheduleStatus.ParseEnabled(xml), Is.True);
     }
 
     private static string Value(List<string> args, string flag)

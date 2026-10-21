@@ -12,22 +12,22 @@ namespace SpaceSnoop.Wpf.Tests;
 public class ChatGatesTests
 {
     [Test]
-    public void Отзыв_согласия_останавливает_идущий_ход()
+    public void Выключение_чата_останавливает_идущий_ход()
     {
-        var preferences = Preferences(enabled: true, consent: false);
+        var preferences = Preferences(false, true);
 
         Assert.That(
-            ChatGatesViewModel.CancelsActiveTurn(nameof(AgentPreferences.Consent), preferences),
+            ChatGatesViewModel.CancelsActiveTurn(nameof(AgentPreferences.Enabled), preferences),
             Is.True);
     }
 
     [Test]
-    public void Выключение_чата_останавливает_идущий_ход()
+    public void Отзыв_согласия_останавливает_идущий_ход()
     {
-        var preferences = Preferences(enabled: false, consent: true);
+        var preferences = Preferences(true, false);
 
         Assert.That(
-            ChatGatesViewModel.CancelsActiveTurn(nameof(AgentPreferences.Enabled), preferences),
+            ChatGatesViewModel.CancelsActiveTurn(nameof(AgentPreferences.Consent), preferences),
             Is.True);
     }
 
@@ -37,18 +37,14 @@ public class ChatGatesTests
     [TestCase(null)]
     public void Ход_переживает_правку_которая_доступа_не_понижает(string? propertyName)
     {
-        var preferences = Preferences(enabled: true, consent: true);
+        var preferences = Preferences(true, true);
 
         Assert.That(ChatGatesViewModel.CancelsActiveTurn(propertyName, preferences), Is.False);
     }
 
     private static AgentPreferences Preferences(bool enabled, bool consent)
     {
-        var preferences = new AgentPreferences(new MemorySettings())
-        {
-            Enabled = enabled,
-            Consent = consent,
-        };
+        var preferences = new AgentPreferences(new MemorySettings()) { Enabled = enabled, Consent = consent };
 
         return preferences;
     }

@@ -21,19 +21,17 @@ public static class CleanupConfirm
         lines.Add(new ConfirmTextLine($"Будет очищено корзин: {rows.Count:N0}."));
         lines.Add(new ConfirmMetricLine("Файлов", $"{files:N0}", SizeFormatter.Format(bytes)));
 
-        lines.AddRange(rows.Select(static row =>
-            new ConfirmMetricLine(row.Name, row.FilesText, row.SizeText, ConfirmMetricTone.Sub)));
+        lines.AddRange(
+            rows.Select(static row =>
+                new ConfirmMetricLine(row.Name, row.FilesText, row.SizeText, ConfirmMetricTone.Sub)));
 
-        return new ConfirmDialogViewModel(
+        return new(
             "Очистка диска",
             PackIconLucideKind.Trash2,
             lines,
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Очистить", ConfirmChoiceKind.Destructive),
-            ])
-        {
-            Warning = "Файлы удаляются безвозвратно, мимо корзины – восстановить их нельзя.",
-        };
+            ]) { Warning = "Файлы удаляются безвозвратно, мимо корзины – восстановить их нельзя." };
     }
 }

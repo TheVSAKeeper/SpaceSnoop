@@ -30,12 +30,14 @@ internal sealed class McpScanTools(
 
         logger.McpToolInvoked("scan_directory", $"«{path}», глубина {depth}, записей до {entryLimit}, показать в окне {show}");
 
-        path = McpGuards.ValidateScanPath(path, refuseLink: true);
+        path = McpGuards.ValidateScanPath(path, true);
 
         var parallelism = await scanPreferences.ResolveParallelismAsync(path).WaitAsync(cancellationToken).ConfigureAwait(false);
         var directory = new DirectoryInfo(path);
-        using var probe = new BackgroundScanProbe(operations,
-            ScanProgressViewModel.EstimateTotalBytes(directory), parallelism);
+        using var probe = new BackgroundScanProbe(
+            operations,
+            ScanProgressViewModel.EstimateTotalBytes(directory),
+            parallelism);
 
         try
         {
@@ -58,7 +60,8 @@ internal sealed class McpScanTools(
 
             var phases = new ScanPhases();
 
-            var (tree, model, run, notes) = await Task.Run(() =>
+            var (tree, model, run, notes) = await Task.Run(
+                    () =>
                     {
                         probe.ReportPhase(BackgroundScanProbe.OperationName);
                         var outcome = runner.Run(directory, parallelism, probe.Progress, cancellationToken);
@@ -69,14 +72,16 @@ internal sealed class McpScanTools(
                         var stopwatch = Stopwatch.StartNew();
                         probe.ReportPhase("Экспорт сканирования");
 
-                        var options = new ScanExportOptions(depth,
+                        var options = new ScanExportOptions(
+                            depth,
                             outcome.Notes.Parallelism > 1,
                             outcome.Notes.Parallelism,
                             outcome.Notes.Engine);
 
                         var built = ScanExport.Build(outcome.Root, directory.FullName, options, AppInfo.Version, entryLimit) with
                         {
-                            Notes = ScanExportNotes.From(outcome.Notes.ExtraNameBytes,
+                            Notes = ScanExportNotes.From(
+                                outcome.Notes.ExtraNameBytes,
                                 outcome.Notes.DroppedObjects,
                                 outcome.Notes.DroppedBytes,
                                 outcome.Notes.UnknownSizeFiles,
@@ -132,17 +137,6 @@ internal sealed class McpScanTools(
         }
     }
 
-    private sealed class ScanPhases
-    {
-        public long WalkMs { get; set; }
-
-        public long ExportMs { get; set; }
-
-        public long JsonMs { get; set; }
-
-        public long ApplyMs { get; set; }
-    }
-
     public Task<string> GetCurrentScanAsync(int depth, int entryLimit, CancellationToken cancellationToken)
     {
         depth = McpGuards.ClampDepth(depth);
@@ -168,42 +162,18 @@ internal sealed class McpScanTools(
         logger.McpToolInvoked("find_duplicates", $"порог {minSize} Б, записей до {entryLimit}");
 
         var root = McpDispatch.Run(scan.CaptureScanRoot)
-                   ?? throw new McpException("На странице «Сканирование» результата ещё нет. Запустите scan_directory с show=true или open_scan с scan=true.");
+            ?? throw new McpException("На странице «Сканирование» результата ещё нет. Запустите scan_directory с show=true или open_scan с scan=true.");
 
         var parallelism = await scanPreferences.ResolveParallelismAsync(root.AbsolutePath).WaitAsync(cancellationToken).ConfigureAwait(false);
 
         var options = DuplicateOptions.Default with
         {
-            MinSize = minSize,
-            MaxParallelism = parallelism,
-            GroupLimit = entryLimit,
-            MemberLimit = entryLimit,
+            MinSize = minSize, MaxParallelism = parallelism, GroupLimit = entryLimit, MemberLimit = entryLimit,
         };
 
         var report = await duplicates.FindAsync(root, options, null, cancellationToken).ConfigureAwait(false);
 
         return McpFormat.Serialize(DescribeDuplicates(root.AbsolutePath, minSize, report));
-    }
-
-    internal static McpDuplicates DescribeDuplicates(string root, long minSize, DuplicateReport report)
-    {
-        return new(root,
-            minSize,
-            report.Examined,
-            report.Groups.Count,
-            report.OmittedGroups,
-            report.ReclaimableBytes,
-            SizeFormatter.Format(report.ReclaimableBytes),
-            report.UnreadableDirectories,
-            report.Errors.Count,
-            [.. report.Groups.Select(static x => new McpDuplicateGroup(x.Size,
-                SizeFormatter.Format(x.Size),
-                x.Members.Count,
-                x.DistinctFiles,
-                x.ReclaimableBytes,
-                SizeFormatter.Format(x.ReclaimableBytes),
-                x.OmittedMembers,
-                [.. x.Members.Select(static member => new McpDuplicateMember(member.Path, member.Kind, member.ReclaimsSpace))]))]);
     }
 
     public async Task<string> OpenScanAsync(string? path, bool start, CancellationToken cancellationToken)
@@ -218,9 +188,11 @@ internal sealed class McpScanTools(
             cancellationToken.ThrowIfCancellationRequested();
         }
 
-        return McpDispatch.Run(() => McpFormat.Serialize(new McpScanNavigation(navigator.CurrentSectionKey ?? SectionKey.Scan,
-            state.ReadScanState(),
-            McpFormat.DescribeDeferredNavigation(run.Deferred))));
+        return McpDispatch.Run(() => McpFormat.Serialize(
+            new McpScanNavigation(
+                navigator.CurrentSectionKey ?? SectionKey.Scan,
+                state.ReadScanState(),
+                McpFormat.DescribeDeferredNavigation(run.Deferred))));
     }
 
     public string MarkForDeletion(IReadOnlyList<string> paths, bool mark)
@@ -268,13 +240,40 @@ internal sealed class McpScanTools(
                 throw new McpException($"Архив не создан: {outcome.StatusText}");
             }
 
-            return McpFormat.Serialize(new McpArchiveResult(prepared.SourcePath,
-                outcome.ArchivePath,
-                prepared.EstimatedFiles,
-                outcome.OriginalDeleted,
-                outcome.StatusText,
-                state.ReadScanState()));
+            return McpFormat.Serialize(
+                new McpArchiveResult(
+                    prepared.SourcePath,
+                    outcome.ArchivePath,
+                    prepared.EstimatedFiles,
+                    outcome.OriginalDeleted,
+                    outcome.StatusText,
+                    state.ReadScanState()));
         });
+    }
+
+    internal static McpDuplicates DescribeDuplicates(string root, long minSize, DuplicateReport report)
+    {
+        return new(
+            root,
+            minSize,
+            report.Examined,
+            report.Groups.Count,
+            report.OmittedGroups,
+            report.ReclaimableBytes,
+            SizeFormatter.Format(report.ReclaimableBytes),
+            report.UnreadableDirectories,
+            report.Errors.Count,
+            [
+                .. report.Groups.Select(static x => new McpDuplicateGroup(
+                    x.Size,
+                    SizeFormatter.Format(x.Size),
+                    x.Members.Count,
+                    x.DistinctFiles,
+                    x.ReclaimableBytes,
+                    SizeFormatter.Format(x.ReclaimableBytes),
+                    x.OmittedMembers,
+                    [.. x.Members.Select(static member => new McpDuplicateMember(member.Path, member.Kind, member.ReclaimsSpace))])),
+            ]);
     }
 
     private static async Task<string> BuildScanJsonAsync(Func<ScanExportModel> build, CancellationToken cancellationToken)
@@ -297,7 +296,7 @@ internal sealed class McpScanTools(
 
         if (start || explicitPath)
         {
-            target = McpGuards.ValidateScanPath(target, refuseLink: start);
+            target = McpGuards.ValidateScanPath(target, start);
         }
 
         if (target.Length > 0)
@@ -307,12 +306,13 @@ internal sealed class McpScanTools(
 
         var deferred = navigator.DeferOrNavigate(SectionKey.Scan);
 
-        notifier.Notify((start, deferred) switch
-        {
-            (true, _) => $"Агент запустил сканирование: {target}",
-            (false, true) => "Агент подготовил страницу «Сканирование»",
-            _ => "Агент открыл страницу «Сканирование»",
-        });
+        notifier.Notify(
+            (start, deferred) switch
+            {
+                (true, _) => $"Агент запустил сканирование: {target}",
+                (false, true) => "Агент подготовил страницу «Сканирование»",
+                _ => "Агент открыл страницу «Сканирование»",
+            });
 
         return (start ? scan.ScanFromAutomationAsync(target, cancellationToken) : null, deferred);
     }
@@ -337,19 +337,22 @@ internal sealed class McpScanTools(
         {
             logger.McpMutationRequested(MarkTool, $"{(mark ? "помечено" : "снято")} {changed}, всего помечено {scan.MarkedCount}");
 
-            notifier.Notify(mark
+            notifier.Notify(
+                mark
                     ? $"Агент пометил на удаление: {changed} · всего {SizeFormatter.Format(scan.MarkedBytes())}"
                     : $"Агент снял пометку удаления: {changed}",
                 StatusSeverity.Warning);
         }
 
-        return McpFormat.Serialize(new McpMarkResult(changed,
-            missing,
-            rejected,
-            rejected.Count == 0 ? null : "Корень открытого сканирования пометить целиком нельзя – выберите подкаталоги.",
-            scan.MarkedCount,
-            SizeFormatter.Format(scan.MarkedBytes()),
-            state.ReadScanState()));
+        return McpFormat.Serialize(
+            new McpMarkResult(
+                changed,
+                missing,
+                rejected,
+                rejected.Count == 0 ? null : "Корень открытого сканирования пометить целиком нельзя – выберите подкаталоги.",
+                scan.MarkedCount,
+                SizeFormatter.Format(scan.MarkedBytes()),
+                state.ReadScanState()));
     }
 
     private (List<SpaceBase> Targets, List<string> Missing, List<string> Rejected) CollectMarkTargets(IReadOnlyList<string> paths, bool mark)
@@ -381,12 +384,14 @@ internal sealed class McpScanTools(
     {
         var (_, request) = PrepareArchive(path, deleteOriginal);
 
-        return McpFormat.Serialize(new McpArchivePlan(request.SourcePath,
-            request.TargetPath,
-            request.EstimatedFiles,
-            request.TotalBytes,
-            SizeFormatter.Format(request.TotalBytes),
-            request.DeleteOriginal));
+        return McpFormat.Serialize(
+            new McpArchivePlan(
+                request.SourcePath,
+                request.TargetPath,
+                request.EstimatedFiles,
+                request.TotalBytes,
+                SizeFormatter.Format(request.TotalBytes),
+                request.DeleteOriginal));
     }
 
     private (ArchiveRequest Request, Task<ArchiveOutcome> Run) PrepareArchiveRun(string path, bool deleteOriginal, CancellationToken cancellationToken)
@@ -427,5 +432,16 @@ internal sealed class McpScanTools(
         }
 
         return (dir, scan.CreateArchiveRequest(dir, deleteOriginal));
+    }
+
+    private sealed class ScanPhases
+    {
+        public long WalkMs { get; set; }
+
+        public long ExportMs { get; set; }
+
+        public long JsonMs { get; set; }
+
+        public long ApplyMs { get; set; }
     }
 }

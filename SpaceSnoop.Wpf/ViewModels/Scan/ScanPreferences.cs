@@ -36,6 +36,23 @@ public sealed partial class ScanPreferences : ObservableObject
     [ObservableProperty]
     private bool _returnMemoryAfterScan = AppDefaults.ScanReturnMemoryAfterScanDefault;
 
+    public int ProcessorCount { get; } = Environment.ProcessorCount;
+
+    public int ParallelismCeiling => ProcessorCount * AppDefaults.ScanParallelismPerCore;
+
+    public int DefaultParallelism => Math.Min(ParallelismCeiling, AppDefaults.ScanParallelismDefaultCeiling);
+
+    public bool DuplicatesEnabled { get; }
+
+    public bool MftNeedsElevation => MftEnabled && !AdminElevation.IsElevated;
+
+    public string ParallelismHint => "Сколько папок читать одновременно: лишние потоки могут увеличить нагрузку без ускорения обхода.";
+
+    public string ParallelismDetails =>
+        $"По умолчанию – {DefaultParallelism} потоков, максимум – {ParallelismCeiling} при {ProcessorCount} логических процессорах. "
+        + "На большом числе потоков скорость может выйти на плато, а нагрузка на процессор продолжит расти. "
+        + "Сохранённое вручную число потоков не меняется; для медленного носителя доступен отдельный режим ограничения.";
+
     public ScanPreferences(ISettingsStore settings)
     {
         _settings = settings;
@@ -48,12 +65,12 @@ public sealed partial class ScanPreferences : ObservableObject
 
         MediaAware = _settings.GetBool(SettingsKeys.ScanMediaAware, AppDefaults.ScanMediaAwareDefault);
         Intensity = _settings.GetDouble(SettingsKeys.ScanIntensity, AppDefaults.IntensityDefault);
-        RevealFiles = _settings.GetBool(SettingsKeys.ScanRevealFiles, AppDefaults.ScanRevealFilesDefault);
-        MftEnabled = _settings.GetBool(SettingsKeys.ScanMftEnabled, AppDefaults.ScanMftEnabledDefault);
+        RevealFiles = _settings.GetBool(SettingsKeys.ScanRevealFiles);
+        MftEnabled = _settings.GetBool(SettingsKeys.ScanMftEnabled);
         MftRootOnly = _settings.GetBool(SettingsKeys.ScanMftRootOnly, AppDefaults.ScanMftRootOnlyDefault);
         ReleaseBeforeRescan = _settings.GetBool(SettingsKeys.ScanReleaseBeforeRescan, AppDefaults.ScanReleaseBeforeRescanDefault);
         ConfirmRescan = _settings.GetBool(SettingsKeys.ScanConfirmRescan, AppDefaults.ScanConfirmRescanDefault);
-        ReturnMemoryAfterScan = _settings.GetBool(SettingsKeys.ScanReturnMemoryAfterScan, AppDefaults.ScanReturnMemoryAfterScanDefault);
+        ReturnMemoryAfterScan = _settings.GetBool(SettingsKeys.ScanReturnMemoryAfterScan);
         _suppressPersist = false;
 
         if (storedParallelism != MaxParallelism)
@@ -61,18 +78,8 @@ public sealed partial class ScanPreferences : ObservableObject
             _settings.SetInt(SettingsKeys.ScanParallelism, MaxParallelism);
         }
 
-        DuplicatesEnabled = settings.GetBool(SettingsKeys.ScanDuplicatesEnabled, AppDefaults.ScanDuplicatesEnabledDefault);
+        DuplicatesEnabled = settings.GetBool(SettingsKeys.ScanDuplicatesEnabled);
     }
-
-    public int ProcessorCount { get; } = Environment.ProcessorCount;
-
-    public int ParallelismCeiling => ProcessorCount * AppDefaults.ScanParallelismPerCore;
-
-    public int DefaultParallelism => Math.Min(ParallelismCeiling, AppDefaults.ScanParallelismDefaultCeiling);
-
-    public bool DuplicatesEnabled { get; }
-
-    public bool MftNeedsElevation => MftEnabled && !AdminElevation.IsElevated;
 
     public async Task<int> ResolveParallelismAsync(string path)
     {
@@ -99,13 +106,6 @@ public sealed partial class ScanPreferences : ObservableObject
             return requested;
         }
     }
-
-    public string ParallelismHint => "Сколько папок читать одновременно: лишние потоки могут увеличить нагрузку без ускорения обхода.";
-
-    public string ParallelismDetails =>
-        $"По умолчанию – {DefaultParallelism} потоков, максимум – {ParallelismCeiling} при {ProcessorCount} логических процессорах. "
-        + "На большом числе потоков скорость может выйти на плато, а нагрузка на процессор продолжит расти. "
-        + "Сохранённое вручную число потоков не меняется; для медленного носителя доступен отдельный режим ограничения.";
 
     partial void OnUseMultithreadingChanged(bool value)
     {

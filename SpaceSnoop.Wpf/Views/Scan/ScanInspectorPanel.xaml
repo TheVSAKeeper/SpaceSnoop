@@ -64,8 +64,9 @@
                         <Style x:Key="Inspector.EmptyExtra"
                                TargetType="FrameworkElement">
                             <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                             Value="True">
+                                <DataTrigger
+                                    Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                    Value="True">
                                     <Setter Property="Visibility"
                                             Value="Collapsed" />
                                 </DataTrigger>
@@ -95,8 +96,9 @@
                             <Style TargetType="TextBlock"
                                    BasedOn="{StaticResource TextBlock.Subtle}">
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
-                                                 Value="True">
+                                    <DataTrigger
+                                        Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                        Value="True">
                                         <Setter Property="Visibility"
                                                 Value="Collapsed" />
                                     </DataTrigger>

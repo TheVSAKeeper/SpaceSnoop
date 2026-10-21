@@ -254,19 +254,6 @@ internal static class ScanTreeEditor
         return (transferred, lost);
     }
 
-    private static bool HasMarkedAncestor(SpaceBase space)
-    {
-        for (var parent = space.Parent; parent is not null; parent = parent.Parent)
-        {
-            if (parent.IsDeleted)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     internal static bool SamePath(string left, string right)
     {
         if (string.Equals(left, right, StringComparison.Ordinal))
@@ -300,6 +287,58 @@ internal static class ScanTreeEditor
         }
 
         return true;
+    }
+
+    internal static List<ScanNodeViewModel> ReleaseUnmarkedRoot(
+        ObservableCollection<ScanNodeViewModel> roots,
+        string path,
+        bool marksPresent,
+        out bool keptMarked)
+    {
+        var normalized = NormalizePath(path);
+        var released = new List<ScanNodeViewModel>();
+        keptMarked = false;
+
+        for (var i = roots.Count - 1; i >= 0; i--)
+        {
+            var root = roots[i];
+
+            if (!IsRootOf(root, normalized))
+            {
+                continue;
+            }
+
+            if (KeepsMarks(root, marksPresent))
+            {
+                keptMarked = true;
+                continue;
+            }
+
+            roots.RemoveAt(i);
+            released.Add(root);
+        }
+
+        return released;
+    }
+
+    internal static bool HasReleasableRoot(IEnumerable<ScanNodeViewModel> roots, string path, bool marksPresent)
+    {
+        var normalized = NormalizePath(path);
+
+        return roots.Any(root => IsRootOf(root, normalized) && !KeepsMarks(root, marksPresent));
+    }
+
+    private static bool HasMarkedAncestor(SpaceBase space)
+    {
+        for (var parent = space.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (parent.IsDeleted)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static SpaceBase? FindCounterpart(
@@ -341,7 +380,7 @@ internal static class ScanTreeEditor
             lookups[dir] = children;
         }
 
-        var candidates = children[step.Name].Where(child => (child is DirectorySpace) == (step is DirectorySpace)).ToList();
+        var candidates = children[step.Name].Where(child => child is DirectorySpace == step is DirectorySpace).ToList();
         var exact = candidates.Find(child => string.Equals(child.Name, step.Name, StringComparison.Ordinal));
 
         if (exact is not null || candidates.Count == 0 || PathCase.IsCaseSensitive(dir.AbsolutePath))
@@ -350,45 +389,6 @@ internal static class ScanTreeEditor
         }
 
         return candidates[0];
-    }
-
-    internal static List<ScanNodeViewModel> ReleaseUnmarkedRoot(
-        ObservableCollection<ScanNodeViewModel> roots,
-        string path,
-        bool marksPresent,
-        out bool keptMarked)
-    {
-        var normalized = NormalizePath(path);
-        var released = new List<ScanNodeViewModel>();
-        keptMarked = false;
-
-        for (var i = roots.Count - 1; i >= 0; i--)
-        {
-            var root = roots[i];
-
-            if (!IsRootOf(root, normalized))
-            {
-                continue;
-            }
-
-            if (KeepsMarks(root, marksPresent))
-            {
-                keptMarked = true;
-                continue;
-            }
-
-            roots.RemoveAt(i);
-            released.Add(root);
-        }
-
-        return released;
-    }
-
-    internal static bool HasReleasableRoot(IEnumerable<ScanNodeViewModel> roots, string path, bool marksPresent)
-    {
-        var normalized = NormalizePath(path);
-
-        return roots.Any(root => IsRootOf(root, normalized) && !KeepsMarks(root, marksPresent));
     }
 
     private static bool KeepsMarks(ScanNodeViewModel root, bool marksPresent)

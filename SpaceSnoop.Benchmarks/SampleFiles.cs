@@ -6,13 +6,13 @@ internal sealed class SampleFiles : IDisposable
 
     private readonly string _root;
 
+    public FileInfo[] Files { get; }
+
     private SampleFiles(string root, FileInfo[] files)
     {
         _root = root;
         Files = files;
     }
-
-    public FileInfo[] Files { get; }
 
     public static SampleFiles Create(int count)
     {

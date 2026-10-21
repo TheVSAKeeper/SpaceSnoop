@@ -12,13 +12,13 @@ internal sealed class BlockingVolumeReader : IDisposable
     private readonly long _free;
     private int _calls;
 
+    public int Calls => Volatile.Read(ref _calls);
+
     public BlockingVolumeReader(long free)
     {
         _free = free;
         VolumeSpace.Reader = Read;
     }
-
-    public int Calls => Volatile.Read(ref _calls);
 
     public void WaitEntered()
     {

@@ -32,24 +32,6 @@ public sealed partial class BatchCreateProfilesDialogViewModel : ObservableObjec
     [ObservableProperty]
     private int _selectedSort;
 
-    public BatchCreateProfilesDialogViewModel(ISettingsStore settings, IFilePicker filePicker)
-    {
-        _settings = settings;
-        _filePicker = filePicker;
-        _existing = SyncProfileStore.Load(settings);
-        PathSuggest = settings.GetBool(SettingsKeys.SyncPathSuggest, AppDefaults.SyncPathSuggestDefault);
-
-        _sourceParent = settings.GetStringValue(SettingsKeys.BatchSource) ?? string.Empty;
-        _destParent = settings.GetStringValue(SettingsKeys.BatchDest) ?? string.Empty;
-        _selectedModeIndex = Math.Clamp(settings.GetInt(SettingsKeys.BatchMode, settings.GetInt(SettingsKeys.SyncMode)), 0, Modes.Count - 1);
-        _selectedWinnerIndex = Math.Clamp(settings.GetInt(SettingsKeys.BatchWinner, settings.GetInt(SettingsKeys.SyncWinner)), 0, Winners.Count - 1);
-        _mirror = settings.GetBool(SettingsKeys.BatchMirror, settings.GetBool(SettingsKeys.SyncMirror));
-        _selectedSort = Math.Clamp(settings.GetInt(SettingsKeys.BatchSort), 0, SortOptions.Count - 1);
-        _exclusions = settings.GetStringValue(SettingsKeys.BatchExclusions) ?? FallbackExclusions(settings);
-
-        Rebuild();
-    }
-
     public event EventHandler<bool>? RequestClose;
 
     public string Title => "Создать пачку профилей";
@@ -120,6 +102,24 @@ public sealed partial class BatchCreateProfilesDialogViewModel : ObservableObjec
     public bool WinnerApplicable => SelectedModeIndex == 2;
 
     public bool MirrorApplicable => SelectedModeIndex != 2 || SelectedWinnerIndex is 1 or 2;
+
+    public BatchCreateProfilesDialogViewModel(ISettingsStore settings, IFilePicker filePicker)
+    {
+        _settings = settings;
+        _filePicker = filePicker;
+        _existing = SyncProfileStore.Load(settings);
+        PathSuggest = settings.GetBool(SettingsKeys.SyncPathSuggest, AppDefaults.SyncPathSuggestDefault);
+
+        _sourceParent = settings.GetStringValue(SettingsKeys.BatchSource) ?? string.Empty;
+        _destParent = settings.GetStringValue(SettingsKeys.BatchDest) ?? string.Empty;
+        _selectedModeIndex = Math.Clamp(settings.GetInt(SettingsKeys.BatchMode, settings.GetInt(SettingsKeys.SyncMode)), 0, Modes.Count - 1);
+        _selectedWinnerIndex = Math.Clamp(settings.GetInt(SettingsKeys.BatchWinner, settings.GetInt(SettingsKeys.SyncWinner)), 0, Winners.Count - 1);
+        _mirror = settings.GetBool(SettingsKeys.BatchMirror, settings.GetBool(SettingsKeys.SyncMirror));
+        _selectedSort = Math.Clamp(settings.GetInt(SettingsKeys.BatchSort), 0, SortOptions.Count - 1);
+        _exclusions = settings.GetStringValue(SettingsKeys.BatchExclusions) ?? FallbackExclusions(settings);
+
+        Rebuild();
+    }
 
     private void OnRowChanged(object? sender, PropertyChangedEventArgs e)
     {

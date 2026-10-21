@@ -13,28 +13,6 @@ public sealed partial class FirstRunViewModel : ObservableObject
     [ObservableProperty]
     private bool _isVisible;
 
-    public FirstRunViewModel(
-        ISettingsStore settings,
-        ScanPreferences scan,
-        ThemeViewModel theme,
-        UpdatePreferences updates,
-        bool isElevated,
-        Func<Task<bool>> restart)
-    {
-        _settings = settings;
-        _scan = scan;
-        _theme = theme;
-        _updates = updates;
-        _restart = restart;
-
-        IsElevated = isElevated;
-        IsVisible = settings.GetBool(SettingsKeys.WelcomePending, AppDefaults.WelcomePendingDefault);
-
-        scan.PropertyChanged += OnScanChanged;
-        theme.PropertyChanged += OnThemeChanged;
-        updates.PropertyChanged += OnUpdatesChanged;
-    }
-
     public bool IsElevated { get; private set; }
 
     public bool NeedsElevation => !IsElevated;
@@ -73,6 +51,28 @@ public sealed partial class FirstRunViewModel : ObservableObject
     {
         get => _updates.CheckOnStartup;
         set => _updates.CheckOnStartup = value;
+    }
+
+    public FirstRunViewModel(
+        ISettingsStore settings,
+        ScanPreferences scan,
+        ThemeViewModel theme,
+        UpdatePreferences updates,
+        bool isElevated,
+        Func<Task<bool>> restart)
+    {
+        _settings = settings;
+        _scan = scan;
+        _theme = theme;
+        _updates = updates;
+        _restart = restart;
+
+        IsElevated = isElevated;
+        IsVisible = settings.GetBool(SettingsKeys.WelcomePending);
+
+        scan.PropertyChanged += OnScanChanged;
+        theme.PropertyChanged += OnThemeChanged;
+        updates.PropertyChanged += OnUpdatesChanged;
     }
 
     internal void ShowForAutomation(bool isElevated)

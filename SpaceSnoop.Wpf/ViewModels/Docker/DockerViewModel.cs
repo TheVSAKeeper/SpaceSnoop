@@ -35,16 +35,6 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     [ObservableProperty]
     private bool _pruneAllVolumes;
 
-    public DockerViewModel(DockerService docker, IDialogService dialogs, IUiDispatcher uiDispatcher, ILogger<DockerViewModel> logger)
-    {
-        _docker = docker;
-        _dialogs = dialogs;
-        _uiDispatcher = uiDispatcher;
-        _logger = logger;
-
-        Compact = new(this, docker, dialogs, uiDispatcher, logger);
-    }
-
     public DockerCompactViewModel Compact { get; }
 
     public ObservableCollection<DockerBucketViewModel> Buckets { get; } = [];
@@ -55,17 +45,12 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
 
     public bool IsIdle => !IsBusy;
 
-    public string TotalsText => Buckets.Count == 0 ? string.Empty
+    public string TotalsText => Buckets.Count == 0
+        ? string.Empty
         : $"Итого по категориям: {SizeFormatter.Format(Buckets.Sum(bucket => bucket.SizeBytes))} · можно вернуть по оценке Docker: {SizeFormatter.Format(Buckets.Sum(bucket => bucket.ReclaimBytes))}";
 
     public string BuildCacheCaption => ReclaimCaption("Кэш сборки", "Build Cache");
     public string ContainersCaption => ReclaimCaption("Остановленные контейнеры", "Containers");
-
-    private string ReclaimCaption(string title, string type)
-    {
-        var bucket = Buckets.FirstOrDefault(bucket => bucket.Type == type);
-        return bucket is null ? title : $"{title} · ≈{SizeFormatter.Format(bucket.ReclaimBytes)}";
-    }
 
     public string PageTitle => "Docker";
 
@@ -84,6 +69,16 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     public ICommand? CancelCommand => Compact.CanCancel ? Compact.CancelCommand : null;
 
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
+
+    public DockerViewModel(DockerService docker, IDialogService dialogs, IUiDispatcher uiDispatcher, ILogger<DockerViewModel> logger)
+    {
+        _docker = docker;
+        _dialogs = dialogs;
+        _uiDispatcher = uiDispatcher;
+        _logger = logger;
+
+        Compact = new(this, docker, dialogs, uiDispatcher, logger);
+    }
 
     public async Task EnsureLoadedAsync()
     {
@@ -108,6 +103,12 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         _loadedOnce = false;
     }
 
+    private string ReclaimCaption(string title, string type)
+    {
+        var bucket = Buckets.FirstOrDefault(bucket => bucket.Type == type);
+        return bucket is null ? title : $"{title} · ≈{SizeFormatter.Format(bucket.ReclaimBytes)}";
+    }
+
     private static string Summarize(string output)
     {
         var lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -129,7 +130,7 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
             await Compact.RefreshDiskUsageAsync();
             var snapshot = await _docker.GetSnapshotAsync(CancellationToken.None);
 
-            IReadOnlyList<DockerObject> inventory = snapshot.Available
+            var inventory = snapshot.Available
                 ? await _docker.GetInventoryAsync(CancellationToken.None)
                 : [];
 
@@ -281,6 +282,7 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         {
             Buckets.Add(bucket);
         }
+
         OnPropertyChanged(nameof(TotalsText));
         OnPropertyChanged(nameof(BuildCacheCaption));
         OnPropertyChanged(nameof(ContainersCaption));
@@ -366,10 +368,7 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new(action, ConfirmChoiceKind.Destructive),
-            ])
-        {
-            Warning = "Docker удаляет мимо корзины – вернуть удалённое нельзя.",
-        };
+            ]) { Warning = "Docker удаляет мимо корзины – вернуть удалённое нельзя." };
 
         if (!await _dialogs.ShowAsync(confirm))
         {

@@ -29,7 +29,8 @@ public sealed partial class SyncQuickProfilesViewModel(
 
         var profiles = SyncProfileStore.Load(settings)
             .OrderBy(profile => profile.Name, StringComparer.CurrentCultureIgnoreCase)
-            .Select(profile => new SyncQuickProfileItem(profile,
+            .Select(profile => new SyncQuickProfileItem(
+                profile,
                 false,
                 RequestDeleteProfile,
                 ConfirmDeleteProfile,
@@ -42,8 +43,10 @@ public sealed partial class SyncQuickProfilesViewModel(
                 CancelRenameProfile))
             .ToList();
 
-        profiles.Insert(0,
-            new(capture(CurrentProfileId, "Текущие пути", null),
+        profiles.Insert(
+            0,
+            new(
+                capture(CurrentProfileId, "Текущие пути", null),
                 true,
                 RequestDeleteProfile,
                 ConfirmDeleteProfile,
@@ -58,7 +61,7 @@ public sealed partial class SyncQuickProfilesViewModel(
         _loading = true;
         Items.ReplaceAll(profiles);
         SelectedProfile = Items.FirstOrDefault(profile => string.Equals(profile.Id, selectedId, StringComparison.Ordinal))
-                          ?? Items.FirstOrDefault();
+            ?? Items.FirstOrDefault();
 
         _loading = false;
     }

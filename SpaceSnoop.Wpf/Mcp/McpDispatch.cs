@@ -25,7 +25,8 @@ internal static class McpDispatch
 
         try
         {
-            return dispatcher.Invoke(action,
+            return dispatcher.Invoke(
+                action,
                 priority,
                 CancellationToken.None,
                 TimeSpan.FromSeconds(AppDefaults.McpDispatchTimeoutSeconds));
