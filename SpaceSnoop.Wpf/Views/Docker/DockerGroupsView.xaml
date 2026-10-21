@@ -75,7 +75,7 @@
                                 IsEnabled="{Binding DataContext.CanRun, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                 Visibility="{Binding ConfirmingDelete, Converter={StaticResource InverseBoolToVisibility}}"
                                 AutomationProperties.Name="Удалить объект"
-                                ToolTip="Удалить безвозвратно">
+                                ToolTip="{Binding DeleteTooltip}" ToolTipService.ShowOnDisabled="True">
                             <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
                                                       Width="15"
                                                       Height="15"
@@ -121,23 +121,11 @@
             <TextBlock Text="Крупнейшие объекты"
                        Style="{StaticResource Docker.SectionTitle}" />
             <TextBlock
-                Text="Образы, контейнеры и тома по типам. В каждой группе видны 3 крупнейших, остальное разворачивается. Удаление безвозвратно."
+                Text="В каждой группе видны 3 крупнейших объекта. Полный список раскрывается с отдельной прокруткой."
                 Style="{StaticResource TextBlock.Subtle}"
                 Foreground="{DynamicResource Fg.Muted}"
                 TextWrapping="Wrap"
                 Margin="0,4,0,0" />
-
-            <StackPanel Margin="0,18,0,10"
-                        HorizontalAlignment="Center"
-                        Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
-                <ProgressBar IsIndeterminate="True"
-                             Width="180"
-                             Height="3" />
-                <TextBlock Text="Опрашиваю Docker…"
-                           Style="{StaticResource TextBlock.Subtle}"
-                           HorizontalAlignment="Center"
-                           Margin="0,8,0,0" />
-            </StackPanel>
 
             <ItemsControl ItemsSource="{Binding Groups}"
                           Margin="0,8,0,0">
@@ -166,17 +154,23 @@
                                 </TextBlock>
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding TotalSize}"
+                                           ToolTip="{Binding SizeExplanation}"
                                            Style="{StaticResource TextBlock.Mono}"
                                            Foreground="{DynamicResource Fg.Primary}"
                                            VerticalAlignment="Center" />
                             </Grid>
 
+                            <TextBlock Text="{Binding SizeExplanation}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,2,0,6"
+                                       Visibility="{Binding SizeExplanation, Converter={StaticResource NullToVisibility}}" />
                             <ItemsControl ItemsSource="{Binding Preview}"
                                           ItemTemplate="{StaticResource Docker.ObjectRow}" />
 
+                            <ScrollViewer MaxHeight="360" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}">
                             <ItemsControl ItemsSource="{Binding Rest}"
                                           ItemTemplate="{StaticResource Docker.ObjectRow}"
                                           Visibility="{Binding IsExpanded, Converter={StaticResource BoolToVisibility}}" />
+                            </ScrollViewer>
 
                             <Button Style="{StaticResource Button.Ghost}"
                                     HorizontalAlignment="Left"

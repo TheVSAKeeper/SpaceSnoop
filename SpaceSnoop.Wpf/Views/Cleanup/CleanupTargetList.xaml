@@ -10,6 +10,12 @@
              d:DataContext="{d:DesignInstance vm:CleanupViewModel}">
     <UserControl.Resources>
         <conv:FractionToWidthConverter x:Key="FractionToWidth" />
+        <Style x:Key="Cleanup.Delete" TargetType="Button" BasedOn="{StaticResource Button.Icon}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True"><Setter Property="Foreground" Value="{DynamicResource State.ErrorText}" /></Trigger>
+                <Trigger Property="IsEnabled" Value="False"><Setter Property="Foreground" Value="{DynamicResource Fg.Muted}" /><Setter Property="Opacity" Value="0.35" /></Trigger>
+            </Style.Triggers>
+        </Style>
 
         <Style x:Key="Cleanup.Row"
                TargetType="Border">
@@ -59,17 +65,17 @@
                     <DataTemplate DataType="{x:Type vm:CleanupTargetViewModel}">
                         <Border Style="{StaticResource Cleanup.Row}">
                             <Grid>
+                                <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="Auto" />
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="140" />
                                     <ColumnDefinition Width="Auto"
                                                       SharedSizeGroup="CleanupNumbers" />
-                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
 
                                 <CheckBox Grid.Column="0"
+                                          Visibility="{Binding IsAutomatic, Converter={StaticResource BoolToVisibility}}"
                                           IsChecked="{Binding IsSelected}"
                                           IsEnabled="{Binding IsAvailable}"
                                           VerticalAlignment="Center"
@@ -92,13 +98,22 @@
                                                TextTrimming="CharacterEllipsis" />
                                     <TextBlock Text="{Binding Description}"
                                                Style="{StaticResource TextBlock.Subtle}"
-                                               TextTrimming="CharacterEllipsis"
+                                               TextWrapping="Wrap"
                                                ToolTip="{Binding Path}" />
                                     <TextBlock Text="{Binding AvailabilityText}"
                                                Margin="0,2,0,0"
                                                FontSize="{DynamicResource Font.Size.S}"
-                                               Foreground="{DynamicResource State.WarningText}"
-                                               Visibility="{Binding HasAvailabilityIssue, Converter={StaticResource BoolToVisibility}}" />
+                                               Visibility="{Binding HasAvailabilityIssue, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsAvailabilityWarning}" Value="True"><Setter Property="Foreground" Value="{DynamicResource State.WarningText}" /></DataTrigger>
+                                                    <DataTrigger Binding="{Binding IsAvailabilityError}" Value="True"><Setter Property="Foreground" Value="{DynamicResource State.ErrorText}" /></DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
                                     <TextBlock Text="{Binding UnreadableText}"
                                                Margin="0,2,0,0"
                                                TextTrimming="CharacterEllipsis"
@@ -107,13 +122,13 @@
                                 </StackPanel>
 
                                 <Border x:Name="ShareTrack"
-                                        Grid.Column="3"
+                                        Grid.Column="2" Grid.Row="1"
                                         Height="8"
-                                        Margin="16,0"
+                                        Margin="0,8,16,0"
                                         Background="{DynamicResource Bg.SurfaceMute}"
                                         CornerRadius="{DynamicResource Radius.S}"
                                         VerticalAlignment="Center"
-                                        Visibility="{Binding ShowNumbers, Converter={StaticResource BoolToVisibility}}"
+                                        Visibility="{Binding ShowShare, Converter={StaticResource BoolToVisibility}}"
                                         ToolTip="Доля от того, что можно очистить">
                                     <Rectangle HorizontalAlignment="Left"
                                                Height="8"
@@ -130,7 +145,7 @@
                                     </Rectangle>
                                 </Border>
 
-                                <Grid Grid.Column="4"
+                                <Grid Grid.Column="3"
                                       VerticalAlignment="Center">
                                     <StackPanel Visibility="{Binding ShowNumbers, Converter={StaticResource BoolToVisibility}}">
                                         <TextBlock Text="{Binding SizeText}"
@@ -149,11 +164,13 @@
                                                Visibility="{Binding ShowPending, Converter={StaticResource BoolToVisibility}}" />
                                 </Grid>
 
-                                <StackPanel Grid.Column="5"
+                                <StackPanel Grid.Column="3" Grid.Row="1"
+                                            Visibility="{Binding IsAutomatic, Converter={StaticResource BoolToVisibility}}"
                                             Orientation="Horizontal"
                                             VerticalAlignment="Center"
-                                            Margin="12,0,0,0">
+                                            Margin="12,8,0,0">
                                     <StackPanel Orientation="Horizontal"
+                                                Visibility="{Binding IsAutomatic, Converter={StaticResource BoolToVisibility}}"
                                                 Style="{StaticResource Cleanup.SecondaryActions}">
                                         <Button Style="{StaticResource Button.Icon}"
                                                 Command="{Binding DataContext.MeasureOneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
@@ -175,18 +192,10 @@
                                                                       Height="15" />
                                         </Button>
                                     </StackPanel>
-                                    <Button Style="{StaticResource Button.Icon}"
-                                            Command="{Binding DataContext.OpenSystemToolCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
-                                            CommandParameter="{Binding}"
-                                            Visibility="{Binding IsUnsupported, Converter={StaticResource BoolToVisibility}}"
-                                            AutomationProperties.Name="Открыть «Очистку диска» Windows"
-                                            ToolTip="Открыть «Очистку диска» Windows – она умеет удалять предыдущую установку">
-                                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ExternalLink}"
-                                                                  Width="15"
-                                                                  Height="15" />
-                                    </Button>
-                                    <Button Style="{StaticResource Button.Icon}"
+                                <Button Style="{StaticResource Cleanup.Delete}"
                                             Command="{Binding DataContext.CleanOneCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            Visibility="{Binding IsAutomatic, Converter={StaticResource BoolToVisibility}}"
+                                            Margin="14,0,0,0"
                                             CommandParameter="{Binding}"
                                             IsEnabled="{Binding CanClean}"
                                             AutomationProperties.Name="Очистить"
@@ -196,6 +205,21 @@
                                                                   Height="15" />
                                     </Button>
                                 </StackPanel>
+                                    <Button Grid.Column="2" Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="0,8,0,0" Style="{StaticResource Button.Secondary}"
+                                            Command="{Binding DataContext.OpenSystemToolCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                            CommandParameter="{Binding}"
+                                            Visibility="{Binding ShowSystemTool, Converter={StaticResource BoolToVisibility}}"
+                                            IsEnabled="{Binding IsUnsupported}"
+                                            AutomationProperties.Name="Открыть «Очистку диска» Windows"
+                                            ToolTip="Открыть «Очистку диска» Windows – она умеет удалять предыдущую установку">
+                                        <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Очистка диска Windows" Margin="0,0,6,0" />
+                                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ExternalLink}"
+                                                                  Width="15"
+                                                                  Height="15" />
+                                        </StackPanel>
+                                    </Button>
+
                             </Grid>
                         </Border>
                     </DataTemplate>

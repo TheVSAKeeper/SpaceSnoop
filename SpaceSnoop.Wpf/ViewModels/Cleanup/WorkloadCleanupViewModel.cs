@@ -74,7 +74,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
                 DisplayPlan = new(plan.Executable, plan.WorkingDirectory, plan.SdkVersion,
                     plan.InstalledWorkloads, plan.Command);
                 LogPath = plan.WorkloadListLogPath;
-                StatusText = "Проверка завершена. Очистка workload store не имеет точного предварительного просмотра.";
+                StatusText = "Проверка завершена.";
             });
         }
         catch (OperationCanceledException)

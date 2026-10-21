@@ -29,15 +29,18 @@
 
     <Border Style="{StaticResource Card.Inset}"
             Margin="0,0,0,2">
-        <StackPanel>
+        <StackPanel IsEnabled="{Binding CanRun}">
+            <StackPanel.Style>
+                <Style TargetType="StackPanel"><Style.Triggers><Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger></Style.Triggers></Style>
+            </StackPanel.Style>
             <TextBlock Text="Очистка"
                        Style="{StaticResource SectionTitle}" />
-            <TextBlock Text="Операции Docker безвозвратны – мимо корзины. Каждая спросит подтверждение."
+            <TextBlock Text="Каждая операция попросит подтверждение."
                        Style="{StaticResource TextBlock.Subtle}"
                        TextWrapping="Wrap"
                        Margin="0,4,0,0" />
 
-            <TextBlock Text="Безопасно"
+            <TextBlock Text="Не затрагивают работающие контейнеры"
                        Style="{StaticResource Caption}"
                        Margin="0,14,0,6" />
             <WrapPanel>
@@ -49,7 +52,7 @@
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Hammer}"
                                                   Style="{StaticResource Docker.ActionButtonContent}" />
-                        <TextBlock Text="Кэш сборки"
+                        <TextBlock Text="{Binding BuildCacheCaption}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
@@ -73,7 +76,7 @@
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Box}"
                                                   Style="{StaticResource Docker.ActionButtonContent}" />
-                        <TextBlock Text="Остановленные контейнеры"
+                        <TextBlock Text="{Binding ContainersCaption}"
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
@@ -99,6 +102,7 @@
             <WrapPanel>
                 <Button Style="{StaticResource Button.Base}"
                         Command="{Binding PruneUnusedImagesCommand}"
+                        VerticalAlignment="Top"
                         IsEnabled="{Binding CanRun}"
                         Margin="0,0,8,8"
                         ToolTip="docker image prune -a">
@@ -109,8 +113,10 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
+                <StackPanel VerticalAlignment="Top">
                 <Button Style="{StaticResource Button.Base}"
                         Command="{Binding PruneVolumesCommand}"
+                        HorizontalAlignment="Left"
                         IsEnabled="{Binding CanRun}"
                         Margin="0,0,8,8"
                         ToolTip="docker volume prune – в томах лежат данные!">
@@ -121,13 +127,14 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
-            </WrapPanel>
             <CheckBox Content="Удалять и именованные тома, не только анонимные"
                       IsChecked="{Binding PruneAllVolumes}"
                       IsEnabled="{Binding CanRun}"
                       HorizontalAlignment="Left"
                       Margin="0,0,0,2"
                       ToolTip="docker volume prune -a" />
+                </StackPanel>
+            </WrapPanel>
 
             <Separator Margin="0,12"
                        Background="{DynamicResource Border.Subtle}" />
@@ -138,6 +145,12 @@
             <TextBlock TextWrapping="Wrap"
                        Style="{StaticResource TextBlock.Subtle}"
                        Text="Очистка освобождает место внутри образа данных Docker, но сам файл VHDX не уменьшается. Кнопка остановит Docker Desktop и вернёт освободившееся системе." />
+            <TextBlock Text="{Binding Compact.DiskUsageText}" ToolTip="{Binding Compact.DiskPath}" TextWrapping="Wrap" Margin="0,6,0,0" />
+            <TextBlock Text="Для сжатия перезапустите SpaceSnoop от администратора."
+                       TextWrapping="Wrap" Style="{StaticResource TextBlock.Subtle}" Margin="0,6,0,0"
+                       Visibility="{Binding Compact.IsElevated, Converter={StaticResource InverseBoolToVisibility}}" />
+            <TextBlock Text="Все контейнеры будут остановлены. После запуска diskpart безопасная отмена недоступна; Docker потребуется запустить заново."
+                       Foreground="{DynamicResource State.WarningText}" TextWrapping="Wrap" Margin="0,6,0,0" />
             <Expander Style="{StaticResource Expander.Section}"
                       Margin="0,4,0,0">
                 <Expander.Header>
@@ -152,6 +165,7 @@
             </Expander>
             <Button Style="{StaticResource Button.Secondary}"
                     Command="{Binding Compact.RunCommand}"
+                    ToolTip="Для сжатия диска Docker требуются права администратора" ToolTipService.ShowOnDisabled="True"
                     IsEnabled="{Binding CanRun}"
                     HorizontalAlignment="Left"
                     Margin="0,10,0,0">

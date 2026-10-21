@@ -7,6 +7,8 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
 {
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(SizeText))]
+    [NotifyPropertyChangedFor(nameof(CanClean))]
+    [NotifyPropertyChangedFor(nameof(ShowShare))]
     private long _sizeBytes;
 
     [ObservableProperty]
@@ -25,17 +27,23 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(AvailabilityText))]
     [NotifyPropertyChangedFor(nameof(HasAvailabilityIssue))]
     [NotifyPropertyChangedFor(nameof(IsUnsupported))]
+    [NotifyPropertyChangedFor(nameof(ShowSystemTool))]
+    [NotifyPropertyChangedFor(nameof(ShowShare))]
+    [NotifyPropertyChangedFor(nameof(IsAvailabilityError))]
+    [NotifyPropertyChangedFor(nameof(IsAvailabilityWarning))]
     [NotifyPropertyChangedFor(nameof(CanClean))]
     private CleanupAvailability _availability;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowNumbers))]
+    [NotifyPropertyChangedFor(nameof(ShowShare))]
     [NotifyPropertyChangedFor(nameof(ShowPending))]
     [NotifyPropertyChangedFor(nameof(PendingText))]
     private bool _isMeasuring;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowNumbers))]
+    [NotifyPropertyChangedFor(nameof(ShowShare))]
     [NotifyPropertyChangedFor(nameof(ShowPending))]
     private bool _isMeasured;
 
@@ -57,7 +65,14 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
 
     public string Name => Model.Name;
 
-    public string Description => Model.Description;
+    public string Description => Model.Kind == CleanupTargetKind.RecycleBin
+        ? "Удалённые файлы всех томов · Очищается целиком, фильтр возраста не применяется"
+        : Model.Description;
+
+    public bool UsesSystemTool => !Model.Supported;
+    public bool ShowSystemTool => UsesSystemTool && Availability != CleanupAvailability.Missing;
+
+    public bool IsAutomatic => Model.Supported;
 
     public string Path => Model.Path;
 
@@ -67,9 +82,10 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
 
     public bool HasContent => Files > 0;
 
-    public bool CanClean => IsAvailable && HasContent;
+    public bool CanClean => IsAvailable && HasContent && SizeBytes > 0;
 
     public bool ShowNumbers => IsMeasured && !IsMeasuring;
+    public bool ShowShare => ShowNumbers && IsAutomatic && IsAvailable && SizeBytes > 0;
 
     public bool ShowPending => !ShowNumbers;
 
@@ -82,12 +98,14 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     public bool IsUnsupported => Availability == CleanupAvailability.Unsupported;
 
     public bool HasAvailabilityIssue => Availability is not (CleanupAvailability.None or CleanupAvailability.Available);
+    public bool IsAvailabilityError => Availability == CleanupAvailability.Failed;
+    public bool IsAvailabilityWarning => Availability is CleanupAvailability.NeedsAdmin or CleanupAvailability.Unsafe;
 
     public string SizeText => SizeFormatter.Format(SizeBytes);
 
     public string FilesText => Model.Kind == CleanupTargetKind.RecycleBin
-        ? $"{Files:N0} объектов"
-        : $"{Files:N0} файлов";
+        ? $"{Files:N0} {Plural.Word(Files, "объект", "объекта", "объектов")}"
+        : $"{Files:N0} {Plural.Word(Files, "файл", "файла", "файлов")}";
 
     public string AvailabilityText => HasAvailabilityIssue ? CleanupText.Availability(Availability) : string.Empty;
 

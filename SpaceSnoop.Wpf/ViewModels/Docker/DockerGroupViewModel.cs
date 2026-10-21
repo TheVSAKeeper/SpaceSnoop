@@ -21,6 +21,9 @@ public sealed partial class DockerGroupViewModel : ObservableObject
             DockerObjectKind.Volume => "Тома",
             _ => "Объекты",
         };
+        SizeExplanation = kind == DockerObjectKind.Image
+            ? "Сумма размеров образов: общие слои учитываются в каждом образе. В таблице выше они учтены один раз."
+            : null;
 
         IconKind = DockerObjectViewModel.IconFor(kind);
 
@@ -37,6 +40,7 @@ public sealed partial class DockerGroupViewModel : ObservableObject
     }
 
     public string Title { get; }
+    public string? SizeExplanation { get; }
 
     public PackIconLucideKind IconKind { get; }
 

@@ -32,15 +32,13 @@
                             <TextBlock Text="{Binding DisplayPlan.Executable}" TextWrapping="Wrap" Style="{StaticResource TextBlock.Mono}" Margin="0,6,0,0" />
                             <TextBlock Text="{Binding DisplayPlan.WorkingDirectory, StringFormat=Рабочий каталог: {0}}" TextWrapping="Wrap" Margin="0,4,0,0" />
                             <TextBlock Text="{Binding DisplayPlan.SdkVersion, StringFormat=Активный SDK: {0}}" Margin="0,4,0,0" />
-                            <TextBlock Text="Установленные workloads:" Margin="0,8,0,0" />
+                            <Expander Header="Вывод CLI об установленных workloads" Margin="0,8,0,0">
                             <TextBox Text="{Binding DisplayPlan.InstalledWorkloads, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"
                                      AcceptsReturn="True" MinHeight="70" MaxHeight="180" VerticalScrollBarVisibility="Auto" />
+                            </Expander>
                             <TextBlock Text="{Binding DisplayPlan.Command, StringFormat=Команда: {0}}" Style="{StaticResource TextBlock.Mono}" Margin="0,8,0,0" />
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="Журнал" Style="{StaticResource Caption}" Margin="0,8,0,2" />
-                    <TextBox Text="{Binding LogPath, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap" BorderThickness="0"
-                             Padding="0" Background="Transparent" MinHeight="0" />
                     <Border Style="{StaticResource Card}" Padding="12" Margin="0,8,0,0"
                             Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
                         <TextBox Text="{Binding ResultText, Mode=OneWay}" IsReadOnly="True" TextWrapping="Wrap"

@@ -101,7 +101,7 @@ public sealed class DotNetCleanViewModelTests
         vm.ProjectPath = Path.Combine(_root, "Other.csproj");
         Assert.Multiple(() =>
         {
-            Assert.That(confirmation!.Lines.Select(x => x.PlainText).Any(x => x.Contains("за пределами проекта")), Is.True);
+            Assert.That(confirmation!.Warning, Does.Contain("вне каталога проекта"));
             Assert.That(cancelWasEnabled, Is.False);
             Assert.That(_calls.Any(x => x.Contains("clean")), Is.False);
             Assert.That(vm.IsTrusted, Is.False);

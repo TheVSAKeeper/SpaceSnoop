@@ -133,6 +133,12 @@ public static class GalleryStates
                     (await SettleCleanupAsync(services).ConfigureAwait(true)).ResetForAutomation();
                     break;
 
+                case SectionKey.Docker:
+                    var docker = services.GetRequiredService<DockerViewModel>();
+                    await docker.EnsureLoadedAsync().ConfigureAwait(true);
+                    await QuiesceAsync(() => docker.IsBusy, "опрос Docker").ConfigureAwait(true);
+                    break;
+
                 case SectionKey.Chat:
                     await SettleChatAsync(services).ConfigureAwait(true);
                     break;

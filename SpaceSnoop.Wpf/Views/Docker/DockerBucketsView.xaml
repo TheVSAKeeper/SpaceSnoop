@@ -172,7 +172,7 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TextBlock Text="{Binding StatusText}"
+            <TextBlock Text="{Binding TotalsText}"
                        Style="{StaticResource TextBlock.Subtle}"
                        Foreground="{DynamicResource Fg.Muted}"
                        Margin="0,12,0,0"

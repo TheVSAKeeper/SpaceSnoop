@@ -56,5 +56,5 @@ public sealed partial class ProjectArtifactViewModel : ObservableObject
     };
     public string Hint => Kind is ProjectArtifactKind.TestResults or ProjectArtifactKind.Benchmarks or ProjectArtifactKind.Coverage
         ? "Отчёты могут быть нужны для сравнения и диагностики. Выбирайте отдельно."
-        : "Каталог может содержать ваши файлы. Проверьте содержимое перед выбором.";
+        : string.Empty;
 }

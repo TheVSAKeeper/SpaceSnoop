@@ -34,6 +34,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ClearCustomOutputsCommand))]
     [NotifyCanExecuteChangedFor(nameof(CleanCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectBuildArtifactsCommand))]
     private bool _isBusy;
 
     [ObservableProperty]
@@ -49,6 +50,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(ClearCustomOutputsCommand))]
     [NotifyCanExecuteChangedFor(nameof(CleanCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearSelectionCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SelectBuildArtifactsCommand))]
     private bool _isHostBusy;
 
     [ObservableProperty]
@@ -255,7 +257,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             }
             RowsView.Refresh();
             StatusText = plan.Artifacts.Count == 0 ? "В выбранных путях проектные артефакты не найдены."
-                : "Поиск завершён. Проверьте пути и выберите каталоги. Все категории требуют ручного выбора.";
+                : "Поиск завершён. Проверьте содержимое и выберите каталоги. Отчёты и нестандартные результаты выбираются отдельно.";
             if (plan.Errors.Count > 0)
             {
                 StatusText += Environment.NewLine + "Часть каталогов не прочитана:" + Environment.NewLine + string.Join(Environment.NewLine, plan.Errors);
@@ -338,6 +340,17 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
 
     [RelayCommand]
     private void Cancel() => _cancellation?.Cancel();
+
+    [RelayCommand(CanExecute = nameof(IsIdle))]
+    private void SelectBuildArtifacts()
+    {
+        if (!IsIdle) { return; }
+        foreach (var row in Artifacts.Where(row => row.CanSelect && FilterArtifact(row)
+            && row.Kind is ProjectArtifactKind.Bin or ProjectArtifactKind.Obj))
+        {
+            row.IsSelected = true;
+        }
+    }
 
     [RelayCommand(CanExecute = nameof(IsIdle))]
     private void ClearSelection()

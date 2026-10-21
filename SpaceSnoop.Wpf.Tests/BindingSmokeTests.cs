@@ -191,7 +191,7 @@ public class BindingSmokeTests
             page.SelectedSectionIndex = 2;
             Settle();
             var view = Descendant<DeveloperCleanupView>(_window)!;
-            var details = Descendants<Expander>(view).ToArray();
+            var details = Descendants<Expander>(view).Where(x => x.IsVisible).ToArray();
             Assert.That(details, Has.Length.EqualTo(4));
             foreach (var detail in details)
             {
@@ -1275,6 +1275,9 @@ public class BindingSmokeTests
             page.SelectedSectionIndex = 2;
             Settle();
             var view = Descendant<WorkloadCleanupView>(_window)!;
+            var workloads = Descendants<Expander>(view).Single(x => Equals(x.Header, "Вывод CLI об установленных workloads"));
+            workloads.IsExpanded = true;
+            Settle();
             var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
             Assert.Multiple(() =>
             {

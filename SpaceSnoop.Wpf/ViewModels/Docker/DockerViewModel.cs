@@ -55,6 +55,18 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
 
     public bool IsIdle => !IsBusy;
 
+    public string TotalsText => Buckets.Count == 0 ? string.Empty
+        : $"Итого по категориям: {SizeFormatter.Format(Buckets.Sum(bucket => bucket.SizeBytes))} · можно вернуть по оценке Docker: {SizeFormatter.Format(Buckets.Sum(bucket => bucket.ReclaimBytes))}";
+
+    public string BuildCacheCaption => ReclaimCaption("Кэш сборки", "Build Cache");
+    public string ContainersCaption => ReclaimCaption("Остановленные контейнеры", "Containers");
+
+    private string ReclaimCaption(string title, string type)
+    {
+        var bucket = Buckets.FirstOrDefault(bucket => bucket.Type == type);
+        return bucket is null ? title : $"{title} · ≈{SizeFormatter.Format(bucket.ReclaimBytes)}";
+    }
+
     public string PageTitle => "Docker";
 
     public string PageDescription => "Сколько места занял Docker и как его вернуть. Очистка безвозвратна – мимо корзины.";
@@ -114,6 +126,7 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         StatusText = PollingStatus;
         try
         {
+            await Compact.RefreshDiskUsageAsync();
             var snapshot = await _docker.GetSnapshotAsync(CancellationToken.None);
 
             IReadOnlyList<DockerObject> inventory = snapshot.Available
@@ -129,7 +142,7 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         }
         finally
         {
-            IsBusy = false;
+            _uiDispatcher.Invoke(() => IsBusy = false);
         }
     }
 
@@ -184,7 +197,7 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     [RelayCommand]
     private async Task RemoveObject(DockerObjectViewModel? row)
     {
-        if (row is null || !CanRun)
+        if (row is null || !CanRun || !row.CanRemove)
         {
             return;
         }
@@ -268,6 +281,9 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         {
             Buckets.Add(bucket);
         }
+        OnPropertyChanged(nameof(TotalsText));
+        OnPropertyChanged(nameof(BuildCacheCaption));
+        OnPropertyChanged(nameof(ContainersCaption));
     }
 
     [RelayCommand]

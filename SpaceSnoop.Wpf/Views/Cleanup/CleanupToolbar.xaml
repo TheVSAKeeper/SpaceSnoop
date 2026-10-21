@@ -10,21 +10,14 @@
 
     <Border Style="{StaticResource Card}"
             Margin="0,0,0,10">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-
+        <WrapPanel>
             <Button Grid.Column="0"
                     Style="{StaticResource Button.Secondary}"
                     Command="{Binding RefreshCommand}"
                     IsEnabled="{Binding IsIdle}"
                     MinHeight="{DynamicResource Control.Height.Default}"
                     Padding="12,6"
-                    Margin="0,0,8,0"
+                    Margin="0,0,12,8"
                     ToolTip="{Binding RefreshTooltip}">
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RefreshCw}"
@@ -36,7 +29,7 @@
                 </StackPanel>
             </Button>
 
-            <StackPanel Grid.Column="1"
+            <StackPanel Margin="0,0,12,8" Grid.Column="1"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
                 <Button Style="{StaticResource Button.Ghost}"
@@ -45,12 +38,12 @@
                         Padding="10,6" />
                 <Button Style="{StaticResource Button.Ghost}"
                         Command="{Binding ClearSelectionCommand}"
-                        Content="Снять"
+                        Content="Снять выбор"
                         Padding="10,6"
                         Margin="4,0,0,0" />
             </StackPanel>
 
-            <StackPanel Grid.Column="3"
+            <StackPanel Margin="0,0,0,8" Grid.Column="3"
                         Orientation="Horizontal"
                         VerticalAlignment="Center">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ShieldAlert}"
@@ -75,6 +68,6 @@
                            Margin="6,0,0,0"
                            Style="{StaticResource Caption}" />
             </StackPanel>
-        </Grid>
+        </WrapPanel>
     </Border>
 </UserControl>

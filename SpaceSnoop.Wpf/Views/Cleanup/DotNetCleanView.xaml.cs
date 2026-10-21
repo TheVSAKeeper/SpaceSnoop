@@ -6,4 +6,10 @@ public partial class DotNetCleanView : UserControl, IView<DotNetCleanViewModel>
     {
         InitializeComponent();
     }
+
+    private void ScrollOutputToEnd(object sender, TextChangedEventArgs e)
+    {
+        if (sender is TextBox output)
+            output.Dispatcher.BeginInvoke(new Action(output.ScrollToEnd));
+    }
 }

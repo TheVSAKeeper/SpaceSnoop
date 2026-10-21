@@ -33,6 +33,15 @@ public sealed class NuGetCleanupService
                 try
                 {
                     ValidateRoot(path, locations.Paths.Values);
+                    try
+                    {
+                        File.GetAttributes(path);
+                    }
+                    catch (Exception missing) when (missing is DirectoryNotFoundException or FileNotFoundException)
+                    {
+                        scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly(), exists: false));
+                        continue;
+                    }
                     using var lease = CacheFileAccess.LockDirectory(path);
                     root = lease.Stamp;
                     Walk(path, kind, files, errors, token);

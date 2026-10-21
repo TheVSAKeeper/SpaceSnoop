@@ -56,6 +56,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasResult))]
+    [NotifyPropertyChangedFor(nameof(ErrorDetails))]
     private string? _resultText;
 
     [ObservableProperty]
@@ -65,6 +66,24 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
     [ObservableProperty]
     private string? _statusText;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ErrorDetails))]
+    private bool _hasError;
+
+    public string ErrorDetails
+    {
+        get
+        {
+            if (!HasError) return string.Empty;
+            var lines = (ResultText ?? string.Empty).Split('\n')
+                .Where(line => line.Contains(": error ", StringComparison.OrdinalIgnoreCase)
+                    || line.TrimStart().StartsWith("error ", StringComparison.OrdinalIgnoreCase)
+                    || line.Contains(": ошибка ", StringComparison.OrdinalIgnoreCase)).Take(8).ToArray();
+            return lines.Length > 0 ? string.Join(Environment.NewLine, lines)
+                : "Причина сбоя не найдена в показанном конце вывода. Откройте полный журнал.";
+        }
+    }
+
     partial void OnDisplayPlanChanged(DotNetCleanDisplay? value) => OnPropertyChanged(nameof(CanClean));
 
     private void InputChanged()
@@ -73,6 +92,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         _plan = null;
         DisplayPlan = null;
         ResultText = null;
+        HasError = false;
         LogPath = null;
         StatusText = "Параметры изменились. Повторите проверку.";
         OnPropertyChanged(nameof(CanClean));
@@ -105,6 +125,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         ResultText = null;
         LogPath = null;
         StatusText = "Проверяю SDK в каталоге проекта…";
+        HasError = false;
         try
         {
             var plan = await _service.InspectAsync(project, options, IsTrusted, _cancellation.Token);
@@ -115,7 +136,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
                 DisplayPlan = new(plan.ProjectPath, plan.Executable, plan.WorkingDirectory, plan.SdkVersion,
                     plan.Options.Configuration, plan.Options.Framework ?? "", plan.Options.Runtime ?? "", plan.Command);
                 LogPath = plan.InspectionLogPath;
-                StatusText = "Проверка завершена. Очистка может выполнять импортированные задачи MSBuild.";
+                StatusText = "Проверка завершена.";
                 OnPropertyChanged(nameof(CanClean));
             });
         }
@@ -125,6 +146,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         }
         catch (DotNetCleanInspectionException exception)
         {
+            HasError = exception.Outcome != DotNetCliOutcome.Cancelled;
             LogPath = exception.LogPath;
             ResultText = FormatOutput(exception.OutputTail, exception.OutputTruncated, exception.Message);
             StatusText = exception.Outcome == DotNetCliOutcome.Cancelled ? "Проверка отменена." : exception.Message;
@@ -132,6 +154,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         }
         catch (Exception exception)
         {
+            HasError = true;
             _logger.DotNetCleanFailed(exception);
             StatusText = exception.Message;
             ResultText = exception.Message;
@@ -163,7 +186,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
             new ConfirmTextLine("Рабочий каталог: " + plan.WorkingDirectory),
             new ConfirmTextLine("Активный SDK: " + plan.SdkVersion),
             new ConfirmTextLine($"Параметры: configuration={plan.Options.Configuration}, framework={plan.Options.Framework ?? "(нет)"}, runtime={plan.Options.Runtime ?? "(нет)"}"),
-            new ConfirmTextLine("Импортированные цели MSBuild могут выполнять произвольный код и затрагивать файлы за пределами проекта. Очистка необратима, может завершиться частично и не имеет отката или пробного запуска.", ConfirmTextTone.Strong),
+            new ConfirmTextLine("Очистка необратима, может завершиться частично и не имеет отката или пробного запуска.", ConfirmTextTone.Strong),
             new ConfirmTextLine("Отмена останавливает только процесс dotnet и его дочерние процессы. Уже удалённые файлы не восстанавливаются."),
         ], [new("Отмена", ConfirmChoiceKind.Dismissive), new("Выполнить dotnet clean", ConfirmChoiceKind.Destructive)])
         { Warning = "Проверьте проект, SDK и точную команду. Импортированные задачи могут менять данные вне каталога проекта." };
@@ -185,12 +208,14 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
             OnPropertyChanged(nameof(CanCancel));
             OnPropertyChanged(nameof(CancelCommand));
             StatusText = "Выполняю dotnet clean…";
+            HasError = false;
             var report = await _service.CleanAsync(plan, IsTrusted, _cancellation.Token);
             _dispatcher.Invoke(() => ApplyReport(report));
             _logger.DotNetCleanFinished(report.Outcome.ToString(), report.ExitCode, report.LogPath);
         }
         catch (Exception exception)
         {
+            HasError = true;
             _logger.DotNetCleanFailed(exception);
             StatusText = exception.Message;
             ResultText = exception.Message;
@@ -207,6 +232,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
 
     private void ApplyReport(DotNetCleanReport report)
     {
+        HasError = !report.Succeeded && !report.Cancelled;
         var outcome = report.Cancelled ? "Отменено" : report.TimedOut ? "Истекло время ожидания"
             : report.Succeeded ? "Завершено" : "Завершено с ошибкой";
         StatusText = outcome + ".";
@@ -251,6 +277,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         ResultText = null;
         LogPath = null;
         StatusText = "Демонстрация dotnet clean отключена.";
+        HasError = false;
     }
 
     internal void ShowForAutomation()

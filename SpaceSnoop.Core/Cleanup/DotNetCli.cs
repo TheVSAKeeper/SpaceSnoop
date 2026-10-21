@@ -180,6 +180,11 @@ internal sealed class DotNetCli
         }
 
         var captured = tail.ToString();
+        if (outputTruncated)
+        {
+            var firstLineEnd = captured.IndexOf('\n');
+            captured = firstLineEnd >= 0 ? captured[(firstLineEnd + 1)..] : string.Empty;
+        }
         return new(outcome, exitCode, captured, logPath, outputTruncated, error);
     }
 

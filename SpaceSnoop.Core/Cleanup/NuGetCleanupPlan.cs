@@ -19,17 +19,19 @@ public sealed class NuGetCleanupPlan
 public sealed class NuGetCacheScan
 {
     internal NuGetCacheScan(NuGetCacheKind kind, string path, CacheFileStamp root,
-        IReadOnlyList<CacheFileStamp> files, IReadOnlyList<string> errors)
+        IReadOnlyList<CacheFileStamp> files, IReadOnlyList<string> errors, bool exists = true)
     {
         Kind = kind;
         Path = path;
         Root = root;
         Entries = files;
         Errors = errors;
+        Exists = exists;
     }
 
     public NuGetCacheKind Kind { get; }
     public string Path { get; }
+    public bool Exists { get; }
     public long Bytes => Entries.Sum(file => file.Length);
     public int Files => Entries.Count;
     public IReadOnlyList<string> Errors { get; }

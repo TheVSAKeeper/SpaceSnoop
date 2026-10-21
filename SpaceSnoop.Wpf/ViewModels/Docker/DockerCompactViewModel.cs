@@ -29,11 +29,49 @@ public sealed partial class DockerCompactViewModel : ObservableObject
     }
 
     public bool CanCancel => _cts is not null && _cancellationAllowed;
+    public bool IsElevated { get; } = AdminElevation.IsElevated;
 
-    [RelayCommand]
+    [ObservableProperty]
+    private string _diskUsageText = "Размер файла VHDX ещё не измерен.";
+
+    [ObservableProperty]
+    private string? _diskPath;
+
+    internal async Task RefreshDiskUsageAsync()
+    {
+        try
+        {
+            var usage = await Task.Run(_docker.GetDataDiskUsage, CancellationToken.None);
+            _uiDispatcher.Invoke(() =>
+            {
+                DiskPath = usage?.Path;
+                if (usage is { } disk)
+                {
+                    var allocated = SizeFormatter.Format(disk.Metrics.AllocatedBytes);
+                    var logical = SizeFormatter.Format(disk.Metrics.LogicalBytes);
+                    DiskUsageText = $"Размер файла VHDX на диске Windows: {allocated}";
+                    if (allocated != logical) DiskUsageText += $" · логический размер: {logical}";
+                }
+                else
+                {
+                    DiskUsageText = "Файл данных VHDX не найден или Docker использует другой режим хранения.";
+                }
+            });
+        }
+        catch (Exception exception) when (exception is System.IO.IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            _uiDispatcher.Invoke(() =>
+            {
+                DiskPath = null;
+                DiskUsageText = "Не удалось измерить VHDX: " + exception.Message;
+            });
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(IsElevated))]
     private async Task Run()
     {
-        if (!_owner.CanRun)
+        if (!_owner.CanRun || !IsElevated)
         {
             return;
         }

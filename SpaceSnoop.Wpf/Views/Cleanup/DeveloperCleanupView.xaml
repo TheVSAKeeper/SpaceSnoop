@@ -14,9 +14,28 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <ListBox Style="{StaticResource ListBox.Segmented}" ItemsSource="{Binding Areas}"
+        <ListBox Style="{StaticResource ListBox.Segmented}" ItemsSource="{Binding Areas}" Background="Transparent" BorderThickness="0"
                  SelectedIndex="{Binding SelectedAreaIndex}" IsEnabled="{Binding IsIdle}"
                  HorizontalAlignment="Left" Margin="0,0,0,12" AutomationProperties.Name="Область разработки">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem" BasedOn="{StaticResource SegmentedItem}">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="Underline" Padding="10,7" Background="Transparent" BorderThickness="0,0,0,2" BorderBrush="Transparent">
+                                    <ContentPresenter />
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsSelected" Value="True"><Setter TargetName="Underline" Property="BorderBrush" Value="{DynamicResource Accent.Primary}" /><Setter Property="Foreground" Value="{DynamicResource Fg.Primary}" /></Trigger>
+                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Underline" Property="Background" Value="{DynamicResource Bg.Surface}" /></Trigger>
+                                    <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Underline" Property="Background" Value="{DynamicResource Accent.Soft}" /></Trigger>
+                                    <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4" /></Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
                     <views:UniformRowPanel />
@@ -46,13 +65,15 @@
             </Border>
             <Border Style="{StaticResource Card}" Margin="0,0,0,10"
                     Visibility="{Binding HasCaches, Converter={StaticResource BoolToVisibility}}">
-                <WrapPanel VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto" /><RowDefinition Height="Auto" /></Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,28,6">
                         <TextBlock Text="Найдено" Style="{StaticResource Caption}" />
                         <TextBlock Text="{Binding TotalText}" Style="{StaticResource StatValue}"
                                    FontSize="{DynamicResource Font.Size.L}" />
                     </StackPanel>
-                    <StackPanel Margin="0,0,28,6">
+                    <StackPanel Grid.Column="1" Margin="0,0,28,6">
                         <TextBlock Text="Выбрано" Style="{StaticResource Caption}" />
                         <TextBlock Text="{Binding SelectedText}" FontSize="{DynamicResource Font.Size.L}">
                             <TextBlock.Style>
@@ -67,7 +88,7 @@
                         </TextBlock>
                         <TextBlock Text="{Binding SelectionText}" Style="{StaticResource Caption}" />
                     </StackPanel>
-                    <StackPanel VerticalAlignment="Center">
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="2" HorizontalAlignment="Right" Margin="0,8,0,0">
                         <Button Style="{StaticResource Button.Base}" Command="{Binding CleanCommand}"
                                 HorizontalAlignment="Left" Padding="16,6" MinHeight="{DynamicResource Control.Height.Default}"
                                 ToolTip="Файлы удаляются безвозвратно, мимо корзины">
@@ -78,9 +99,8 @@
                                 <TextBlock Text="Очистить выбранное" />
                             </StackPanel>
                         </Button>
-                        <TextBlock Text="Безвозвратно · с подтверждением" Style="{StaticResource Caption}" Margin="0,4,0,0" />
                     </StackPanel>
-                </WrapPanel>
+                </Grid>
             </Border>
             <Border Style="{StaticResource Card.Inset}" Margin="0,0,0,10"
                     Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
@@ -132,7 +152,7 @@
                                             <TextBlock Text="{Binding Summary}" Margin="0,4,0,0" TextWrapping="Wrap">
                                                 <TextBlock.Style>
                                                     <Style TargetType="TextBlock" BasedOn="{StaticResource TextBlock.Subtle}">
-                                                        <Setter Property="Foreground" Value="{DynamicResource State.WarningText}" />
+                                                        <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
                                                         <Style.Triggers>
                                                             <DataTrigger Binding="{Binding IsRecommended}" Value="True">
                                                                 <Setter Property="Foreground" Value="{DynamicResource Fg.Secondary}" />
@@ -155,7 +175,7 @@
                                                 </StackPanel>
                                             </Expander>
                                             <TextBlock Text="{Binding ErrorText}" TextWrapping="Wrap" Margin="0,6,0,0"
-                                                       Foreground="{DynamicResource State.WarningText}"
+                                                       Foreground="{DynamicResource State.ErrorText}"
                                                        Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="2" VerticalAlignment="Top" Margin="0,2,0,0">

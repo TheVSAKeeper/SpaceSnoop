@@ -4,6 +4,7 @@ public sealed class DockerBucketViewModel
 {
     public DockerBucketViewModel(DockerUsage usage)
     {
+        Type = usage.Type;
         SizeBytes = DockerSize.ToBytes(usage.Size);
         ReclaimBytes = DockerSize.ToBytes(SizePart(usage.Reclaimable));
 
@@ -14,6 +15,7 @@ public sealed class DockerBucketViewModel
     }
 
     public string Title { get; }
+    public string Type { get; }
 
     public int Count { get; }
 

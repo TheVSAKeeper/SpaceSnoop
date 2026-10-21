@@ -10,6 +10,7 @@ public sealed partial class NuGetCacheViewModel : ObservableObject
     public NuGetCacheViewModel(NuGetCacheScan scan)
         : this(scan.Kind, scan.Path, scan.Bytes, scan.Files, scan.CanClean, string.Join(Environment.NewLine, scan.Errors))
     {
+        Exists = scan.Exists;
     }
 
     internal NuGetCacheViewModel(NuGetCacheKind kind, string path, long bytes, int files, bool canSelect, string errorText)
@@ -24,6 +25,7 @@ public sealed partial class NuGetCacheViewModel : ObservableObject
     }
 
     public NuGetCacheKind Kind { get; }
+    public bool Exists { get; } = true;
     public string Path { get; }
     public long Bytes { get; }
     public int Files { get; }
@@ -38,7 +40,7 @@ public sealed partial class NuGetCacheViewModel : ObservableObject
         NuGetCacheKind.PluginsCache => PackIconLucideKind.Plug,
         _ => PackIconLucideKind.Package,
     };
-    public string Summary => Kind switch
+    public string Summary => !Exists ? "Каталог ещё не создан · 0 байт" : Kind switch
     {
         NuGetCacheKind.HttpCache => "Повторно загрузится из источников пакетов",
         NuGetCacheKind.Temp => "Только при остановленных restore и сборках",

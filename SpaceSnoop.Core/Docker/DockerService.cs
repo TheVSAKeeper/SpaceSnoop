@@ -48,6 +48,8 @@ public sealed class DockerService
 
     public async Task<string> RemoveAsync(DockerObject target, CancellationToken cancel = default)
     {
+        if (target.InUse)
+            throw new InvalidOperationException("Объект используется. Остановите контейнер или отключите использующий его контейнер перед удалением.");
         var args = target.Kind switch
         {
             DockerObjectKind.Image => $"image rm {target.Id}",
@@ -58,6 +60,14 @@ public sealed class DockerService
 
         var run = await RunAsync(DockerExecutable, args, cancel: cancel);
         return run.Failed ? throw new InvalidOperationException(DescribeFailure(run, $"docker {args}")) : run.StdOut.Trim();
+    }
+
+    public (string Path, DockerFileMetrics Metrics)? GetDataDiskUsage()
+    {
+        var settings = _settingsProvider.Read();
+        if (settings is null || !settings.WslEngineEnabled) return null;
+        var path = LocateDataVhdx(settings);
+        return path is null ? null : (path, _fileSystem.GetMetrics(path));
     }
 
     public async Task<string> PruneAsync(DockerCleanupTarget target, bool allUnused = false, CancellationToken cancel = default)
