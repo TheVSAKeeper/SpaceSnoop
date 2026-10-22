@@ -4,9 +4,13 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanViewModel : IScanAutomation
 {
+    bool IScanAutomation.IsScanning => IsBusy;
+
     internal TimeSpan LastScanElapsed { get; private set; }
 
     internal int LastScanParallelism { get; private set; } = 1;
+
+    internal ScanNotes LastScanNotes { get; private set; }
 
     string IScanAutomation.ResultPath => Summary.ResultPath;
 
@@ -65,6 +69,7 @@ public sealed partial class ScanViewModel : IScanAutomation
 
         LastScanElapsed = elapsed;
         LastScanParallelism = Math.Max(1, notes.Parallelism);
+        LastScanNotes = notes;
         _performance.ReportRun(Summary.Apply(result, elapsed, traversal, node.Drive, notes));
         HasResult = true;
         Duplicates.Clear();

@@ -118,6 +118,15 @@ internal static partial class AppLog
         Message = "Уплотнение после скана пропущено: нагрузка памяти {LoadBytes} Б ниже порога GC {ThresholdBytes} Б")]
     public static partial void ScanMemoryReturnSkipped(this ILogger logger, long loadBytes, long thresholdBytes);
 
+    [LoggerMessage(EventId = 1019, Level = LogLevel.Information, Message = "Полный экспорт скана сохранён: {Path}, файлов {Files}, каталогов {Directories}")]
+    public static partial void ScanExportCompleted(this ILogger logger, string path, int files, int directories);
+
+    [LoggerMessage(EventId = 1020, Level = LogLevel.Error, Message = "Не удалось сохранить полный экспорт скана: {Path}")]
+    public static partial void ScanExportFailed(this ILogger logger, Exception exception, string path);
+
+    [LoggerMessage(EventId = 1021, Level = LogLevel.Warning, Message = "Не удалось удалить временный файл полного экспорта: {Path}")]
+    public static partial void ScanExportTemporaryFileCleanupFailed(this ILogger logger, Exception exception, string path);
+
     [LoggerMessage(
         EventId = 1017,
         Level = LogLevel.Warning,

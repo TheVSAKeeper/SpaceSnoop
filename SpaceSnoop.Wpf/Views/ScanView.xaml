@@ -12,6 +12,17 @@
              d:DesignWidth="980">
 
     <Grid>
+      <Grid>
+        <Grid.Style>
+            <Style TargetType="Grid">
+                <Setter Property="IsEnabled" Value="True" />
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding IsExporting}" Value="True">
+                        <Setter Property="IsEnabled" Value="False" />
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
+        </Grid.Style>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -151,5 +162,37 @@
             <controls:ScanInspectorPanel Grid.Column="2"
                                          DataContext="{Binding Inspector}" />
         </Grid>
+      </Grid>
+
+      <Border Panel.ZIndex="10"
+              Background="{DynamicResource Bg.Surface}"
+              Opacity="0.94"
+              Visibility="{Binding IsExporting, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+          <Border HorizontalAlignment="Center"
+                  VerticalAlignment="Center"
+                  MaxWidth="440"
+                  Padding="20"
+                  Style="{StaticResource Card.Inset}">
+              <StackPanel>
+                  <TextBlock Text="Сохранение полного скана"
+                             FontSize="16"
+                             FontWeight="SemiBold" />
+                  <TextBlock Text="{Binding ExportProgressText}"
+                             Style="{StaticResource TextBlock.Subtle}"
+                             Margin="0,8,0,0" />
+                  <ProgressBar Minimum="0"
+                               Maximum="100"
+                               Value="{Binding ExportProgressPercent}"
+                               Height="6"
+                               Margin="0,14,0,16"
+                               AutomationProperties.Name="Ход сохранения скана" />
+                  <Button Style="{StaticResource Button.Secondary}"
+                          Command="{Binding CancelFullScanExportCommand}"
+                          HorizontalAlignment="Right"
+                          Content="Отменить экспорт"
+                          AutomationProperties.Name="Отменить экспорт скана" />
+              </StackPanel>
+          </Border>
+      </Border>
     </Grid>
 </UserControl>

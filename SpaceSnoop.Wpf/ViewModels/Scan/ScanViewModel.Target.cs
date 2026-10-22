@@ -4,7 +4,7 @@ public sealed partial class ScanViewModel
 {
     private bool CanOpenPicker()
     {
-        return HasResult && !IsScanning && !IsPickerOpen;
+        return HasResult && !IsBusy && !IsPickerOpen;
     }
 
     [RelayCommand(CanExecute = nameof(CanOpenPicker))]

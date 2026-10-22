@@ -123,6 +123,23 @@
                         </StackPanel>
                     </Grid>
                 </Button>
+
+                <Button Style="{StaticResource Button.Secondary}"
+                        Command="{Binding ExportFullScanCommand}"
+                        Margin="8,2,0,2"
+                        Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
+                        ToolTip="Сохранить полный результат сканирования в JSON"
+                        AutomationProperties.Name="Сохранить полный результат сканирования">
+                    <StackPanel Orientation="Horizontal">
+                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FileBraces}"
+                                                  Width="14"
+                                                  Height="14"
+                                                  VerticalAlignment="Center"
+                                                  Margin="0,0,6,0" />
+                        <TextBlock Text="Сохранить скан"
+                                   VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
             </WrapPanel>
 
             <StackPanel Grid.Column="1"

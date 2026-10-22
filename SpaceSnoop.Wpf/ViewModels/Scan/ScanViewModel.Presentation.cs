@@ -47,7 +47,7 @@ public sealed partial class ScanViewModel
 
     private bool CanRescanCancelled()
     {
-        return !IsScanning && ScanWasCancelled && !string.IsNullOrWhiteSpace(CancelledPath);
+        return !IsBusy && ScanWasCancelled && !string.IsNullOrWhiteSpace(CancelledPath);
     }
 
     [RelayCommand(CanExecute = nameof(CanRescanCancelled))]

@@ -116,7 +116,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         set => Preferences.Intensity = value;
     }
 
-    public bool IsBusy => IsScanning;
+    public bool IsBusy => IsScanning || IsExporting;
 
     public int MarkedCount => Marks.MarkedCount;
 
@@ -201,7 +201,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             () => SelectedNode,
             value => SelectedNode = value,
             () => HasResult = false,
-            () => IsScanning,
+            () => IsBusy,
             () => Drives.ReloadLabels(SelectedDrive));
 
         _archive = new(
@@ -223,7 +223,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             notifier,
             () => CurrentRoot,
             MarkForAutomation,
-            () => IsScanning);
+            () => IsBusy);
 
         Marks.ItemsDeleted += Duplicates.RemoveDeleted;
         Marks.ItemsDeleted += deleted =>
@@ -301,12 +301,14 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         Summary.IsScanning = value;
         Marks.DeleteMarkedCommand.NotifyCanExecuteChanged();
         Duplicates.NotifyScanStateChanged();
+        ExportFullScanCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnHasResultChanged(bool value)
     {
         Summary.HasResult = value;
         Duplicates.NotifyScanStateChanged();
+        ExportFullScanCommand.NotifyCanExecuteChanged();
     }
 
     partial void OnSelectedDriveChanged(string value)
@@ -386,7 +388,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     private bool CanStart()
     {
-        return !IsScanning;
+        return !IsBusy;
     }
 
     private bool CanStartTarget()
