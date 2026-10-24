@@ -59,6 +59,7 @@ public sealed class DotNetCleanService
         var project = Validate(projectPath, options);
         using var source = await Task.Run(() => new SourceLease(project), token).ConfigureAwait(false);
         var executable = _resolveExecutable();
+        using var executableLease = await Task.Run(() => new ExecutableLease(executable), token).ConfigureAwait(false);
         var version = await VersionAsync(executable, Path.GetDirectoryName(project)!, token).ConfigureAwait(false);
         using var current = await Task.Run(() => new SourceLease(project), token).ConfigureAwait(false);
         if (!SameInput(current.Input, source.Input))
@@ -86,6 +87,7 @@ public sealed class DotNetCleanService
             options,
             arguments.AsReadOnly(),
             source.Input,
+            executableLease.Input,
             _utcNow(),
             version.LogPath);
     }
@@ -100,7 +102,7 @@ public sealed class DotNetCleanService
 
         if (plan.Owner != _owner
             || Interlocked.Exchange(ref plan.Used, 1) != 0
-            || (_utcNow() - plan.CreatedUtc) > TimeSpan.FromMinutes(15))
+            || (_utcNow() - plan.CreatedUtc) > CleanupDefaults.PlanLifetime)
         {
             return Failed("План устарел, использован или принадлежит другому сеансу. Повторите проверку.");
         }
@@ -110,7 +112,10 @@ public sealed class DotNetCleanService
             token.ThrowIfCancellationRequested();
             var project = Validate(plan.ProjectPath, plan.Options);
             using var source = await Task.Run(() => new SourceLease(project), token).ConfigureAwait(false);
-            if (!SameInput(source.Input, plan.Input) || !string.Equals(_resolveExecutable(), plan.Executable, StringComparison.OrdinalIgnoreCase))
+            using var executableLease = await Task.Run(() => new ExecutableLease(plan.Executable), token).ConfigureAwait(false);
+            if (!SameInput(source.Input, plan.Input)
+                || executableLease.Input != plan.ExecutableInput
+                || !string.Equals(_resolveExecutable(), plan.Executable, StringComparison.OrdinalIgnoreCase))
             {
                 return Failed("Проект, global.json или dotnet изменился после проверки. Повторите проверку.");
             }
@@ -258,6 +263,37 @@ public sealed class DotNetCleanService
         }
 
         return project;
+    }
+
+    private sealed class ExecutableLease : IDisposable
+    {
+        private readonly CacheFileAccess.DirectoryLease _directory;
+        private readonly FileStream _stream;
+
+        internal DotNetCleanExecutable Input { get; }
+
+        internal ExecutableLease(string path)
+        {
+            _directory = CacheFileAccess.LockDirectory(Path.GetDirectoryName(path)!);
+            try
+            {
+                _stream = new(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                var stamp = CacheFileAccess.Read(_stream.SafeFileHandle, path);
+                Input = new(stamp, Convert.ToHexString(SHA256.HashData(_stream)));
+            }
+            catch
+            {
+                _stream?.Dispose();
+                _directory.Dispose();
+                throw;
+            }
+        }
+
+        public void Dispose()
+        {
+            _stream.Dispose();
+            _directory.Dispose();
+        }
     }
 
     private sealed class SourceLease : IDisposable

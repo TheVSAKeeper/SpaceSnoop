@@ -6,7 +6,6 @@ namespace SpaceSnoop.Core.Cleanup;
 
 public sealed class WorkloadCleanupService
 {
-    private static readonly TimeSpan PlanLifetime = TimeSpan.FromMinutes(15);
     private static readonly TimeSpan InspectTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan CleanTimeout = TimeSpan.FromMinutes(30);
     private readonly Guid _owner = Guid.NewGuid();
@@ -80,7 +79,7 @@ public sealed class WorkloadCleanupService
             return new(DotNetCliOutcome.Failed, null, string.Empty, string.Empty, false, "План уже использован или принадлежит другому сеансу. Повторите проверку.");
         }
 
-        if ((_utcNow() - plan.CreatedUtc) > PlanLifetime)
+        if ((_utcNow() - plan.CreatedUtc) > CleanupDefaults.PlanLifetime)
         {
             return new(DotNetCliOutcome.Failed, null, string.Empty, string.Empty, false, "План устарел. Повторите проверку.");
         }

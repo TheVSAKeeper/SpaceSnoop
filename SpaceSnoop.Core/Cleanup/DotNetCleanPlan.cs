@@ -7,7 +7,7 @@ public sealed record DotNetCleanOptions(string Configuration = "Debug", string? 
 public sealed class DotNetCleanPlan
 {
     internal int Used;
-    public DateTime ExpiresUtc => CreatedUtc.AddMinutes(15);
+    public DateTime ExpiresUtc => CreatedUtc.Add(CleanupDefaults.PlanLifetime);
     public string Executable { get; }
     public string ProjectPath { get; }
     public string WorkingDirectory => Path.GetDirectoryName(ProjectPath)!;
@@ -19,6 +19,7 @@ public sealed class DotNetCleanPlan
 
     internal Guid Owner { get; }
     internal DotNetCleanInput Input { get; }
+    internal DotNetCleanExecutable ExecutableInput { get; }
     internal DateTime CreatedUtc { get; }
 
     internal DotNetCleanPlan(
@@ -29,6 +30,7 @@ public sealed class DotNetCleanPlan
         DotNetCleanOptions options,
         IReadOnlyList<string> arguments,
         DotNetCleanInput input,
+        DotNetCleanExecutable executableInput,
         DateTime createdUtc,
         string logPath)
     {
@@ -39,6 +41,7 @@ public sealed class DotNetCleanPlan
         Options = options;
         Arguments = arguments;
         Input = input;
+        ExecutableInput = executableInput;
         CreatedUtc = createdUtc;
         InspectionLogPath = logPath;
     }
@@ -79,6 +82,8 @@ internal sealed record DotNetCleanInput(
     string? GlobalPath,
     CacheFileStamp? Global,
     string? GlobalHash);
+
+internal sealed record DotNetCleanExecutable(CacheFileStamp File, string Hash);
 
 public sealed record DotNetCleanReport(
     DotNetCliOutcome Outcome,

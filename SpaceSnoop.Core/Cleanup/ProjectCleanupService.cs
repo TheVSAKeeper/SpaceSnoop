@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Runtime.InteropServices;
 using System.Security;
 using System.Text.Json;
 
@@ -9,14 +11,16 @@ public sealed class ProjectCleanupService
     private static readonly EnumerationOptions Entries = new() { AttributesToSkip = 0, IgnoreInaccessible = false };
     private readonly Guid _owner = Guid.NewGuid();
     private readonly Action<string> _recycle;
+    private readonly ILogger<ProjectCleanupService> _logger;
 
-    public ProjectCleanupService() : this(ProjectRecycleBin.Delete)
+    public ProjectCleanupService(ILogger<ProjectCleanupService>? logger = null) : this(ProjectRecycleBin.Delete, logger)
     {
     }
 
-    internal ProjectCleanupService(Action<string> recycle)
+    internal ProjectCleanupService(Action<string> recycle, ILogger<ProjectCleanupService>? logger = null)
     {
         _recycle = recycle;
+        _logger = logger ?? NullLogger<ProjectCleanupService>.Instance;
     }
 
     public Task<ProjectCleanupPlan> ScanAsync(string root, CancellationToken token)
@@ -46,7 +50,7 @@ public sealed class ProjectCleanupService
         ArgumentNullException.ThrowIfNull(selected);
         if (plan.Owner != _owner
             || Interlocked.Exchange(ref plan.Used, 1) != 0
-            || (DateTime.UtcNow - plan.CreatedUtc) > TimeSpan.FromMinutes(15))
+            || (DateTime.UtcNow - plan.CreatedUtc) > CleanupDefaults.PlanLifetime)
         {
             return Task.FromResult(new CleanupReport(0, 0, 0, ["План устарел, уже использован или принадлежит другому сеансу. Повторите поиск."]));
         }
@@ -246,10 +250,7 @@ public sealed class ProjectCleanupService
         IProgress<OperationProgress>? progress,
         CancellationToken token)
     {
-        long bytes = 0;
-        var deleted = 0;
-        var skipped = 0;
-        var errors = new List<string>();
+        var totals = new CleanupTotals();
         var leases = new List<CacheFileAccess.DirectoryLease>();
         try
         {
@@ -267,157 +268,21 @@ public sealed class ProjectCleanupService
             foreach (var target in targets)
             {
                 token.ThrowIfCancellationRequested();
-                var staged = new List<StagedFile>();
-                var createdDirectories = new HashSet<string>(StringComparer.Ordinal);
-                CacheFileStamp? manifest = null;
-                string? staging = null;
-                try
-                {
-                    if (!plan.RootStamps.Any(root => Inside(target.Path, root.Path))
-                        || Protected(target.Path)
-                        || target.Entries.Any(file => Protected(file.Path))
-                        || ContainsApplicationFiles(target, Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)))
-                    {
-                        throw new IOException("Каталог находится за границами выбранной области или защищён.");
-                    }
-
-                    using var targetLease = CacheFileAccess.LockDirectory(target.Path);
-                    if (!SameDirectory(targetLease.Stamp, target.Root))
-                    {
-                        throw new IOException($"«{target.Path}»: каталог заменён после поиска.");
-                    }
-
-                    var stagingParent = plan.RootStamps.Any(root => string.Equals(root.Path, target.Path, StringComparison.OrdinalIgnoreCase))
-                        ? target.Path
-                        : Path.GetDirectoryName(target.Path)!;
-
-                    staging = Path.Combine(stagingParent, $".SpaceSnoop-{Path.GetFileName(target.Path)}-{Guid.NewGuid():N}");
-                    Directory.CreateDirectory(staging);
-                    createdDirectories.Add(staging);
-                    using (var stagingLease = CacheFileAccess.LockDirectory(staging))
-                    {
-                        File.WriteAllText(Path.Combine(staging, "SpaceSnoop-restore.json"), JsonSerializer.Serialize(new { OriginalDirectory = target.Path, PreviewedFiles = target.Entries.Select(x => Path.GetRelativePath(target.Path, x.Path)).ToArray() }));
-
-                        using (var handle = CacheFileAccess.OpenFile(Path.Combine(staging, "SpaceSnoop-restore.json"), false))
-                        {
-                            manifest = CacheFileAccess.Read(handle, Path.Combine(staging, "SpaceSnoop-restore.json"));
-                        }
-
-                        foreach (var file in target.Entries)
-                        {
-                            token.ThrowIfCancellationRequested();
-                            progress?.Report(new(deleted + staged.Count, file.Path, bytes));
-                            try
-                            {
-                                using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Path)!);
-                                using var handle = CacheFileAccess.OpenFile(file.Path, true);
-                                if (CacheFileAccess.Read(handle, file.Path) != file)
-                                {
-                                    skipped++;
-                                    continue;
-                                }
-
-                                var destination = Path.Combine(staging, "files", Path.GetRelativePath(target.Path, file.Path));
-                                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                                for (var directory = Path.GetDirectoryName(destination)!;
-                                    !string.Equals(directory, staging, StringComparison.Ordinal);
-                                    directory = Path.GetDirectoryName(directory)!)
-                                {
-                                    createdDirectories.Add(directory);
-                                }
-
-                                using var destinationLease = CacheFileAccess.LockDirectory(Path.GetDirectoryName(destination)!);
-                                CacheFileAccess.Move(handle, destination);
-                                staged.Add(new(file, destination));
-                            }
-                            catch (Exception exception) when (FileError(exception))
-                            {
-                                skipped++;
-                                AddError(errors, exception.Message);
-                            }
-                        }
-                    }
-
-                    token.ThrowIfCancellationRequested();
-                    if (staged.Count > 0)
-                    {
-                        _recycle(staging);
-                        deleted += staged.Count;
-                        bytes += staged.Sum(x => x.Stamp.Length);
-                        staged.Clear();
-                        staging = null;
-                    }
-                }
-                catch (Exception exception) when (FileError(exception) || exception is COMException)
-                {
-                    AddError(errors, exception.Message);
-                }
-                finally
-                {
-                    foreach (var file in staged)
-                    {
-                        try
-                        {
-                            using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Stamp.Path)!);
-                            using var stagedParent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Destination)!);
-                            using var handle = CacheFileAccess.OpenFile(file.Destination, true);
-                            if (CacheFileAccess.Read(handle, file.Destination) != file.Stamp with { Path = file.Destination })
-                            {
-                                throw new IOException("Файл в каталоге восстановления изменился.");
-                            }
-
-                            CacheFileAccess.Move(handle, file.Stamp.Path);
-                        }
-                        catch (Exception exception) when (FileError(exception))
-                        {
-                            AddError(errors, $"Восстановите «{file.Stamp.Path}» из «{file.Destination}»: {exception.Message}");
-                        }
-                    }
-
-                    if (staging is not null)
-                    {
-                        try
-                        {
-                            var remaining = staged.Any(x => File.Exists(x.Destination));
-                            if (remaining)
-                            {
-                                errors.Add($"Файлы сохранены для восстановления: «{staging}».");
-                            }
-                            else
-                            {
-                                if (manifest is { } stamp)
-                                {
-                                    using var parent = CacheFileAccess.LockDirectory(staging);
-                                    using var handle = CacheFileAccess.OpenFile(stamp.Path, true);
-                                    if (CacheFileAccess.Read(handle, stamp.Path) == stamp)
-                                    {
-                                        CacheFileAccess.Delete(handle, stamp.Path);
-                                    }
-                                }
-
-                                foreach (var directory in createdDirectories.OrderByDescending(x => x.Length))
-                                {
-                                    using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(directory)!);
-                                    using var handle = CacheFileAccess.OpenDirectoryForDelete(directory);
-                                    CacheFileAccess.Delete(handle, directory);
-                                }
-                            }
-                        }
-                        catch (Exception exception) when (FileError(exception))
-                        {
-                            errors.Add($"Проверьте каталог восстановления «{staging}»: {exception.Message}");
-                        }
-                    }
-                }
+                _logger.CleanupStarted(target.Path);
+                var deletedBefore = totals.Deleted;
+                var bytesBefore = totals.Bytes;
+                CleanTarget(plan, target, totals, progress, token);
+                _logger.CleanupFinished(target.Path, totals.Deleted - deletedBefore, totals.Bytes - bytesBefore);
             }
         }
         catch (OperationCanceledException)
         {
-            return new(bytes, deleted, skipped, errors.AsReadOnly(), true);
+            return totals.Report(true);
         }
         catch (Exception exception) when (FileError(exception))
         {
-            AddError(errors, exception.Message);
+            _logger.CleanupFileFailed(exception, string.Join(", ", plan.Roots));
+            AddError(totals.Errors, exception.Message);
         }
         finally
         {
@@ -427,7 +292,179 @@ public sealed class ProjectCleanupService
             }
         }
 
-        return new(bytes, deleted, skipped, errors.AsReadOnly());
+        return totals.Report(token.IsCancellationRequested);
+    }
+
+    private void CleanTarget(
+        ProjectCleanupPlan plan,
+        ProjectArtifactScan target,
+        CleanupTotals totals,
+        IProgress<OperationProgress>? progress,
+        CancellationToken token)
+    {
+        var batch = new StagingBatch();
+        try
+        {
+            if (!plan.RootStamps.Any(x => Inside(target.Path, x.Path))
+                || Protected(target.Path)
+                || target.Entries.Any(x => Protected(x.Path))
+                || ContainsApplicationFiles(target, Path.TrimEndingDirectorySeparator(AppContext.BaseDirectory)))
+            {
+                throw new IOException("Каталог находится за границами выбранной области или защищён.");
+            }
+
+            using var targetLease = CacheFileAccess.LockDirectory(target.Path);
+            if (!SameDirectory(targetLease.Stamp, target.Root))
+            {
+                throw new IOException($"«{target.Path}»: каталог заменён после поиска.");
+            }
+
+            var stagingParent = plan.RootStamps.Any(x => string.Equals(x.Path, target.Path, StringComparison.OrdinalIgnoreCase))
+                ? target.Path
+                : Path.GetDirectoryName(target.Path)!;
+
+            batch.Path = Path.Combine(stagingParent, $".SpaceSnoop-{Path.GetFileName(target.Path)}-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(batch.Path);
+            batch.CreatedDirectories.Add(batch.Path);
+            using (var stagingLease = CacheFileAccess.LockDirectory(batch.Path))
+            {
+                WriteManifest(target, batch);
+                StageFiles(target, batch, totals, progress, token);
+            }
+
+            token.ThrowIfCancellationRequested();
+            if (batch.Files.Count > 0)
+            {
+                _recycle(batch.Path);
+                totals.Deleted += batch.Files.Count;
+                totals.Bytes += batch.Files.Sum(x => x.Stamp.Length);
+                batch.Files.Clear();
+                batch.Path = null;
+            }
+        }
+        catch (Exception exception) when (FileError(exception) || exception is COMException)
+        {
+            _logger.CleanupFileFailed(exception, target.Path);
+            AddError(totals.Errors, exception.Message);
+        }
+        finally
+        {
+            RestoreFiles(batch, totals.Errors);
+            RemoveStaging(batch, totals.Errors);
+        }
+    }
+
+    private static void WriteManifest(ProjectArtifactScan target, StagingBatch batch)
+    {
+        var path = Path.Combine(batch.Path!, "SpaceSnoop-restore.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(new { OriginalDirectory = target.Path, PreviewedFiles = target.Entries.Select(x => Path.GetRelativePath(target.Path, x.Path)).ToArray() }));
+        using var handle = CacheFileAccess.OpenFile(path, false);
+        batch.Manifest = CacheFileAccess.Read(handle, path);
+    }
+
+    private void StageFiles(
+        ProjectArtifactScan target,
+        StagingBatch batch,
+        CleanupTotals totals,
+        IProgress<OperationProgress>? progress,
+        CancellationToken token)
+    {
+        foreach (var file in target.Entries)
+        {
+            token.ThrowIfCancellationRequested();
+            progress?.Report(new(totals.Deleted + batch.Files.Count, file.Path, totals.Bytes));
+            try
+            {
+                using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Path)!);
+                using var handle = CacheFileAccess.OpenFile(file.Path, true);
+                if (CacheFileAccess.Read(handle, file.Path) != file)
+                {
+                    throw new IOException($"«{file.Path}»: файл изменился после поиска и оставлен на месте.");
+                }
+
+                var destination = Path.Combine(batch.Path!, "files", Path.GetRelativePath(target.Path, file.Path));
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                for (var directory = Path.GetDirectoryName(destination)!;
+                    !string.Equals(directory, batch.Path, StringComparison.Ordinal);
+                    directory = Path.GetDirectoryName(directory)!)
+                {
+                    batch.CreatedDirectories.Add(directory);
+                }
+
+                using var destinationLease = CacheFileAccess.LockDirectory(Path.GetDirectoryName(destination)!);
+                CacheFileAccess.Move(handle, destination);
+                batch.Files.Add(new(file, destination));
+            }
+            catch (Exception exception) when (FileError(exception))
+            {
+                totals.Skipped++;
+                _logger.CleanupFileFailed(exception, file.Path);
+                AddError(totals.Errors, exception.Message);
+            }
+        }
+    }
+
+    private void RestoreFiles(StagingBatch batch, List<string> errors)
+    {
+        foreach (var file in batch.Files)
+        {
+            try
+            {
+                using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Stamp.Path)!);
+                using var stagedParent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Destination)!);
+                using var handle = CacheFileAccess.OpenFile(file.Destination, true);
+                if (CacheFileAccess.Read(handle, file.Destination) != file.Stamp with { Path = file.Destination })
+                {
+                    throw new IOException("Файл в каталоге восстановления изменился.");
+                }
+
+                CacheFileAccess.Move(handle, file.Stamp.Path);
+            }
+            catch (Exception exception) when (FileError(exception))
+            {
+                _logger.CleanupFileFailed(exception, file.Stamp.Path);
+                AddError(errors, $"Восстановите «{file.Stamp.Path}» из «{file.Destination}»: {exception.Message}");
+            }
+        }
+    }
+
+    private void RemoveStaging(StagingBatch batch, List<string> errors)
+    {
+        if (batch.Path is null)
+        {
+            return;
+        }
+
+        try
+        {
+            if (batch.Files.Any(x => File.Exists(x.Destination)))
+            {
+                errors.Add($"Файлы сохранены для восстановления: «{batch.Path}».");
+                return;
+            }
+
+            if (batch.Manifest is { } stamp)
+            {
+                using var parent = CacheFileAccess.LockDirectory(batch.Path);
+                using var handle = CacheFileAccess.OpenFile(stamp.Path, true);
+                if (CacheFileAccess.Read(handle, stamp.Path) == stamp)
+                {
+                    CacheFileAccess.Delete(handle, stamp.Path);
+                }
+            }
+
+            foreach (var directory in batch.CreatedDirectories.OrderByDescending(x => x.Length))
+            {
+                using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(directory)!);
+                using var handle = CacheFileAccess.OpenDirectoryForDelete(directory);
+                CacheFileAccess.Delete(handle, directory);
+            }
+        }
+        catch (Exception exception) when (FileError(exception))
+        {
+            _logger.CleanupDirectorySkipped(exception, batch.Path);
+            errors.Add($"Проверьте каталог восстановления «{batch.Path}»: {exception.Message}");
+        }
     }
 
     private static void Measure(
@@ -587,7 +624,8 @@ public sealed class ProjectCleanupService
     private static bool Protected(string path)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        return new[] { Environment.GetFolderPath(Environment.SpecialFolder.Windows), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Path.Combine(home, ".dotnet"), Path.Combine(home, ".nuget"), Environment.GetEnvironmentVariable("DOTNET_ROOT") ?? string.Empty, Environment.GetEnvironmentVariable("DOTNET_ROOT(x86)") ?? string.Empty, Path.Combine(Environment.GetEnvironmentVariable("DOTNET_CLI_HOME") ?? home, ".dotnet"), AppContext.BaseDirectory }.Where(x => !string.IsNullOrWhiteSpace(x))
+        return CleanupPaths.ProtectedRoots()
+            .Append(Path.Combine(home, ".nuget"))
             .Any(x => Inside(path, Path.TrimEndingDirectorySeparator(x)));
     }
 
@@ -636,11 +674,32 @@ public sealed class ProjectCleanupService
 
     private static void AddError(List<string> errors, string error)
     {
-        if (errors.Count < 50)
+        if (errors.Count < CleanupDefaults.MaxReportedErrors)
         {
             errors.Add(error);
         }
     }
 
     private sealed record StagedFile(CacheFileStamp Stamp, string Destination);
+
+    private sealed class StagingBatch
+    {
+        public string? Path { get; set; }
+        public CacheFileStamp? Manifest { get; set; }
+        public List<StagedFile> Files { get; } = [];
+        public HashSet<string> CreatedDirectories { get; } = new(StringComparer.Ordinal);
+    }
+
+    private sealed class CleanupTotals
+    {
+        public long Bytes { get; set; }
+        public int Deleted { get; set; }
+        public int Skipped { get; set; }
+        public List<string> Errors { get; } = [];
+
+        public CleanupReport Report(bool cancelled)
+        {
+            return new(Bytes, Deleted, Skipped, Errors.AsReadOnly(), cancelled);
+        }
+    }
 }

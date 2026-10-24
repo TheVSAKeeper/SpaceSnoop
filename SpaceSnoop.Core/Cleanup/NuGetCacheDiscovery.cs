@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel;
-using System.Diagnostics;
 using System.Security.Principal;
 
 namespace SpaceSnoop.Core.Cleanup;
@@ -11,69 +10,59 @@ internal static class NuGetCacheDiscovery
         [NuGetCacheKind.HttpCache] = "http-cache", [NuGetCacheKind.Temp] = "temp", [NuGetCacheKind.PluginsCache] = "plugins-cache", [NuGetCacheKind.GlobalPackages] = "global-packages",
     };
 
-    internal static async Task<NuGetCacheLocations> DiscoverAsync(CancellationToken token)
+    internal static async Task<NuGetCacheLocations> DiscoverAsync(string logsDirectory, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         using var identity = WindowsIdentity.GetCurrent();
-        using var process = new Process
-        {
-            StartInfo = new("dotnet")
-            {
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                WorkingDirectory = home,
-            },
-        };
+        var logPath = Path.Combine(logsDirectory, "development", "nuget-locals-" + Guid.NewGuid().ToString("N") + ".log");
+        return await DiscoverAsync(new(), home, $"{identity.User?.Value}|{home}", logPath, token).ConfigureAwait(false);
+    }
 
-        foreach (var argument in new[] { "nuget", "locals", "all", "--list", "--force-english-output" })
-        {
-            process.StartInfo.ArgumentList.Add(argument);
-        }
-
-        process.StartInfo.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
-        process.StartInfo.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+    internal static async Task<NuGetCacheLocations> DiscoverAsync(
+        DotNetCli cli,
+        string home,
+        string context,
+        string logPath,
+        CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        string executable;
         try
         {
-            process.Start();
+            executable = cli.ResolveExecutable();
         }
         catch (Win32Exception exception)
         {
-            throw new InvalidOperationException("Не удалось запустить dotnet. Для определения кэшей нужен .NET SDK.", exception);
+            throw new InvalidOperationException("Не удалось найти dotnet. Для определения кэшей нужен .NET SDK.", exception);
         }
 
-        var output = process.StandardOutput.ReadToEndAsync(CancellationToken.None);
-        var error = process.StandardError.ReadToEndAsync(CancellationToken.None);
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
-        timeout.CancelAfter(TimeSpan.FromSeconds(30));
-        try
+        var result = await cli.RunAsync(
+                executable,
+                ["nuget", "locals", "all", "--list", "--force-english-output"],
+                home,
+                logPath,
+                TimeSpan.FromSeconds(30),
+                token,
+                new Dictionary<string, string> { ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1" })
+            .ConfigureAwait(false);
+
+        if (result.Outcome == DotNetCliOutcome.Cancelled)
         {
-            await process.WaitForExitAsync(timeout.Token);
+            throw new OperationCanceledException(token);
         }
-        catch (OperationCanceledException)
+
+        if (result.Outcome == DotNetCliOutcome.TimedOut)
         {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch (Exception exception) when (exception is InvalidOperationException or Win32Exception)
-            {
-                Debug.WriteLine(exception);
-            }
-
-            token.ThrowIfCancellationRequested();
-            throw new TimeoutException("dotnet не ответил за 30 секунд.");
+            throw new TimeoutException($"dotnet не ответил за 30 секунд. Журнал: {result.LogPath}");
         }
 
-        var stdout = await output;
-        var stderr = await error;
-        if (process.ExitCode != 0)
+        if (!result.Succeeded || result.OutputTruncated)
         {
-            throw new InvalidOperationException($"Не удалось определить кэши NuGet: {stderr.Trim()} {stdout.Trim()}");
+            throw new InvalidOperationException($"Не удалось определить кэши NuGet. {result.Error} {result.OutputTail} Журнал: {result.LogPath}");
         }
 
-        return Parse(stdout, $"{identity.User?.Value}|{home}");
+        return Parse(result.OutputTail, context);
     }
 
     internal static NuGetCacheLocations Parse(string output, string context)

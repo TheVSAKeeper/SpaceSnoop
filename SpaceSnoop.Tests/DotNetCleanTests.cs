@@ -19,7 +19,7 @@ public sealed class DotNetCleanTests
     public void SetUp()
     {
         var repository = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".git")))
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "SpaceSnoop.sln")))
         {
             repository = repository.Parent;
         }
@@ -31,7 +31,8 @@ public sealed class DotNetCleanTests
         File.WriteAllText(_project, "<Project />");
         _now = DateTime.UtcNow;
         _sdk = "10.0.302";
-        _executable = @"C:\Program Files\dotnet\dotnet.exe";
+        _executable = Path.Combine(_root, "dotnet.exe");
+        File.WriteAllText(_executable, "test dotnet");
         _versionOutcome = DotNetCliOutcome.Succeeded;
         _cleanOutcome = DotNetCliOutcome.Succeeded;
         _calls.Clear();
@@ -61,6 +62,8 @@ public sealed class DotNetCleanTests
     [TestCase("global-remove")]
     [TestCase("sdk")]
     [TestCase("executable")]
+    [TestCase("executable-replace")]
+    [TestCase("executable-rewrite")]
     [TestCase("expire")]
     [TestCase("trust")]
     [TestCase("foreign")]
@@ -99,6 +102,17 @@ public sealed class DotNetCleanTests
 
             case "executable":
                 _executable = @"C:\other\dotnet.exe";
+                break;
+
+            case "executable-replace":
+                File.Move(_executable, _executable + ".old");
+                await File.WriteAllTextAsync(_executable, "test dotnet");
+                break;
+
+            case "executable-rewrite":
+                var written = File.GetLastWriteTimeUtc(_executable);
+                await File.WriteAllTextAsync(_executable, "fake dotnet");
+                File.SetLastWriteTimeUtc(_executable, written);
                 break;
 
             case "expire":
@@ -144,7 +158,7 @@ public sealed class DotNetCleanTests
         {
             Assert.That(_calls.Count, Is.EqualTo(1));
             Assert.That(plan.Arguments, Is.EqualTo(expected));
-            Assert.That(plan.Command, Does.StartWith("\"C:\\Program Files\\dotnet\\dotnet.exe\" \"clean\""));
+            Assert.That(plan.Command, Does.StartWith("\"" + _executable + "\" \"clean\""));
             Assert.That(plan.Command, Does.Contain("\"" + _project + "\""));
             Assert.That(plan.WorkingDirectory, Is.EqualTo(_root));
             Assert.That(plan.ExpiresUtc, Is.EqualTo(_now.AddMinutes(15)));
@@ -161,6 +175,29 @@ public sealed class DotNetCleanTests
 
         Assert.That((await _service.CleanAsync(plan, true, default)).Succeeded, Is.False);
         Assert.That(_calls.Count, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task Executable_cannot_be_replaced_during_revalidation_or_clean()
+    {
+        var attempts = 0;
+        var service = new DotNetCleanService(
+            () => _executable,
+            (executable, arguments, directory, log, timeout, token, environment) =>
+            {
+                Assert.Throws<IOException>(() => File.WriteAllText(_executable, "replacement"));
+                Assert.Throws<IOException>(() => File.Move(_executable, _executable + ".old"));
+                attempts++;
+                return Run(executable, arguments, directory, log, timeout, token, environment);
+            },
+            LogPath,
+            () => _now);
+
+        var plan = await service.InspectAsync(_project, new(), true, default);
+        var report = await service.CleanAsync(plan, true, default);
+        Assert.That(report.Succeeded, Is.True);
+        Assert.That(attempts, Is.EqualTo(3));
+        Assert.That(await File.ReadAllTextAsync(_executable), Is.EqualTo("test dotnet"));
     }
 
     [TestCase(DotNetCliOutcome.Cancelled)]

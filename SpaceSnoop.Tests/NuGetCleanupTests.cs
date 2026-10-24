@@ -1,5 +1,6 @@
 ﻿using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
+using System.ComponentModel;
 
 namespace SpaceSnoop.Tests;
 
@@ -15,7 +16,7 @@ public class NuGetCleanupTests
     public void SetUp()
     {
         var repository = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".git")))
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "SpaceSnoop.sln")))
         {
             repository = repository.Parent;
         }
@@ -59,6 +60,20 @@ public class NuGetCleanupTests
             Assert.That(result.FreedBytes, Is.EqualTo(5));
             Assert.That(Directory.GetFiles(_paths[NuGetCacheKind.HttpCache]).Length, Is.EqualTo(1));
         });
+    }
+
+    [Test]
+    public void Cancelled_discovery_does_not_resolve_or_start_dotnet()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var cli = new DotNetCli(
+            () => throw new AssertionException("PATH must not be read after cancellation"),
+            _ => throw new AssertionException("dotnet must not be searched after cancellation"),
+            _ => throw new AssertionException("dotnet must not start after cancellation"));
+
+        Assert.ThrowsAsync<OperationCanceledException>(() =>
+            NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, Path.Combine(_root, "discovery.log"), cancellation.Token));
     }
 
     [Test]
@@ -128,6 +143,50 @@ public class NuGetCleanupTests
         });
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Discovery_uses_shared_runner_and_rejects_truncated_output(bool truncated)
+    {
+        var script = Path.Combine(_root, "discovery.ps1");
+        var lines = NuGetCacheDiscovery.Names.Select(x => $"'{x.Value}: {_paths[x.Key]}'");
+        await File.WriteAllLinesAsync(script, (truncated ? new[] { "'x' * 30000" } : []).Concat(lines));
+        var starts = 0;
+        var cli = new DotNetCli(
+            () => _root,
+            _ => true,
+            x =>
+            {
+                Assert.That(x.ArgumentList, Is.EqualTo(new[] { "nuget", "locals", "all", "--list", "--force-english-output" }));
+                Assert.That(x.WorkingDirectory, Is.EqualTo(_root));
+                Assert.That(x.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"], Is.EqualTo("1"));
+                starts++;
+                x.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
+                x.ArgumentList.Clear();
+                foreach (var argument in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script })
+                {
+                    x.ArgumentList.Add(argument);
+                }
+
+                return new() { StartInfo = x };
+            });
+
+        var log = Path.Combine(_root, "discovery.log");
+        if (truncated)
+        {
+            Assert.ThrowsAsync<InvalidOperationException>(() => NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, log, default));
+        }
+        else
+        {
+            var locations = await NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, log, default);
+            Assert.That(locations.Paths, Is.EquivalentTo(_paths));
+        }
+
+        var recorded = await File.ReadAllTextAsync(log);
+        Assert.That(starts, Is.EqualTo(1));
+        Assert.That(recorded, Does.Contain("Outcome: Succeeded"));
+        Assert.That(recorded, Does.Contain("http-cache:"));
+    }
+
     [Test]
     public async Task Global_packages_require_complete_package_structure()
     {
@@ -163,6 +222,16 @@ public class NuGetCleanupTests
         var result = await Clean(plan);
         Assert.That(result.Deleted, Is.Zero);
         Assert.That(result.Skipped, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void Missing_dotnet_is_reported_as_discovery_failure_without_starting_process()
+    {
+        var cli = new DotNetCli(() => string.Empty, _ => false, _ => throw new AssertionException("dotnet must not start"));
+        var error = Assert.ThrowsAsync<InvalidOperationException>(() =>
+            NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, Path.Combine(_root, "discovery.log"), default));
+
+        Assert.That(error!.InnerException, Is.TypeOf<Win32Exception>());
     }
 
     [Test]

@@ -12,7 +12,7 @@ public sealed class WorkloadCleanupTests
     [SetUp]
     public void SetUp()
     {
-        _scratch = Path.Combine(RepositoryRoot(), ".kc", "scratch", "developer-cleanup-stages-5-7", Guid.NewGuid().ToString("N"));
+        _scratch = Path.Combine(RepositoryRoot(), ".kc", "scratch", "workload-cleanup-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_scratch);
     }
 
@@ -461,7 +461,7 @@ public sealed class WorkloadCleanupTests
     private static string RepositoryRoot()
     {
         var current = new DirectoryInfo(AppContext.BaseDirectory);
-        while (current is not null && !Directory.Exists(Path.Combine(current.FullName, ".kc")))
+        while (current is not null && !File.Exists(Path.Combine(current.FullName, "SpaceSnoop.sln")))
         {
             current = current.Parent;
         }

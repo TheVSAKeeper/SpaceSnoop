@@ -62,6 +62,15 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1544, Level = LogLevel.Warning, Message = "Очистка: цель «{TargetId}» недоступна ({Availability})")]
     public static partial void CleanupTargetUnavailable(this ILogger logger, string targetId, CleanupAvailability availability);
 
+    [LoggerMessage(EventId = 1545, Level = LogLevel.Information, Message = "Очистка NuGet: начато категорий {Caches}")]
+    public static partial void NuGetCleanupStarted(this ILogger logger, int caches);
+
+    [LoggerMessage(EventId = 1546, Level = LogLevel.Information, Message = "Очистка NuGet: удалено {DeletedFiles}, {FreedBytes} Б, пропущено {Skipped}, ошибок {Errors}, отменено {Cancelled}")]
+    public static partial void NuGetCleanupCompleted(this ILogger logger, int deletedFiles, long freedBytes, int skipped, int errors, bool cancelled);
+
+    [LoggerMessage(EventId = 1547, Level = LogLevel.Warning, Message = "Очистка NuGet завершилась с ошибкой")]
+    public static partial void NuGetCleanupFailed(this ILogger logger, Exception exception);
+
     [LoggerMessage(
         EventId = 1560,
         Level = LogLevel.Information,

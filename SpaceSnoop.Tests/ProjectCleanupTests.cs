@@ -14,7 +14,7 @@ public sealed class ProjectCleanupTests
     public void SetUp()
     {
         var repository = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".git")))
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "SpaceSnoop.sln")))
         {
             repository = repository.Parent;
         }
@@ -35,6 +35,60 @@ public sealed class ProjectCleanupTests
     public void TearDown()
     {
         Directory.Delete(_root, true);
+    }
+
+    [Test]
+    public async Task Cancel_during_failed_last_recycle_restores_files_and_retains_error()
+    {
+        Write("app/app.csproj");
+        var file = Write("app/bin/app.dll");
+        using var cancellation = new CancellationTokenSource();
+        _service = new(_ =>
+        {
+            cancellation.Cancel();
+            throw new IOException("Recycle failed");
+        });
+
+        var plan = await _service.ScanAsync(_root, default);
+        var result = await _service.CleanAsync(plan, [plan.Artifacts.Single().Id], null, cancellation.Token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Cancelled, Is.True);
+            Assert.That(result.Deleted, Is.Zero);
+            Assert.That(result.FreedBytes, Is.Zero);
+            Assert.That(result.Errors.Single(), Is.EqualTo("Recycle failed"));
+            Assert.That(File.ReadAllText(file), Is.EqualTo("data"));
+            Assert.That(Directory.EnumerateDirectories(_root, ".SpaceSnoop-*", SearchOption.AllDirectories), Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Cancel_during_last_recycle_preserves_completed_counts_and_reports_cancellation()
+    {
+        Write("app/app.csproj");
+        var file = Write("app/bin/app.dll");
+        using var cancellation = new CancellationTokenSource();
+        _service = new(path =>
+        {
+            var destination = path + "-recycled";
+            Directory.Move(path, destination);
+            _recycled.Add(destination);
+            cancellation.Cancel();
+        });
+
+        var plan = await _service.ScanAsync(_root, default);
+        var result = await _service.CleanAsync(plan, [plan.Artifacts.Single().Id], null, cancellation.Token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Cancelled, Is.True);
+            Assert.That(result.Deleted, Is.EqualTo(1));
+            Assert.That(result.FreedBytes, Is.EqualTo(4));
+            Assert.That(result.Errors, Is.Empty);
+            Assert.That(File.Exists(file), Is.False);
+            Assert.That(File.ReadAllText(Path.Combine(_recycled.Single(), "files", "app.dll")), Is.EqualTo("data"));
+        });
     }
 
     [Test]
@@ -418,7 +472,7 @@ public sealed class ProjectCleanupTests
         var result = await Clean(plan, ProjectArtifactKind.Bin);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Errors, Is.Empty);
+            Assert.That(result.Errors.Single(), Does.Contain(Path.GetFullPath(changed)).And.Contain("файл изменился после поиска"));
             Assert.That(result.Deleted, Is.EqualTo(1));
             Assert.That(result.FreedBytes, Is.EqualTo(4));
             Assert.That(result.Skipped, Is.EqualTo(1));

@@ -20,8 +20,6 @@ public readonly record struct CleanupReport(
 
 public sealed class CleanupService(ILogger<CleanupService>? logger = null)
 {
-    private const int MaxReportedErrors = 50;
-
     private readonly ILogger<CleanupService> _logger = logger ?? NullLogger<CleanupService>.Instance;
 
     public Task<CleanupMeasurement> MeasureAsync(CleanupTarget target, CancellationToken token)
@@ -201,7 +199,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
             {
-                if (unreadable.Count < MaxReportedErrors)
+                if (unreadable.Count < CleanupDefaults.MaxReportedErrors)
                 {
                     _logger.CleanupDirectorySkipped(exception, directory.FullName);
                 }
@@ -374,7 +372,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
 
     private static void Report(List<string> errors, string message)
     {
-        if (errors.Count < MaxReportedErrors)
+        if (errors.Count < CleanupDefaults.MaxReportedErrors)
         {
             errors.Add(message);
         }
@@ -427,7 +425,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
             {
                 skipped++;
 
-                if (reported++ < MaxReportedErrors)
+                if (reported++ < CleanupDefaults.MaxReportedErrors)
                 {
                     _logger.CleanupDirectorySkipped(exception, directory);
                 }

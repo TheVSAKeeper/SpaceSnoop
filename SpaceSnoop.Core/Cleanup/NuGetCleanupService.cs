@@ -1,4 +1,6 @@
-﻿using Microsoft.Win32.SafeHandles;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Win32.SafeHandles;
 using System.Security;
 
 namespace SpaceSnoop.Core.Cleanup;
@@ -7,14 +9,21 @@ public sealed class NuGetCleanupService
 {
     private readonly Guid _owner = Guid.NewGuid();
     private readonly Func<CancellationToken, Task<NuGetCacheLocations>> _discover;
+    private readonly ILogger<NuGetCleanupService> _logger;
 
-    public NuGetCleanupService() : this(NuGetCacheDiscovery.DiscoverAsync)
+    public NuGetCleanupService() : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SpaceSnoop", "logs"))
     {
     }
 
-    internal NuGetCleanupService(Func<CancellationToken, Task<NuGetCacheLocations>> discover)
+    public NuGetCleanupService(string logsDirectory, ILogger<NuGetCleanupService>? logger = null)
+        : this(x => NuGetCacheDiscovery.DiscoverAsync(logsDirectory, x), logger)
+    {
+    }
+
+    internal NuGetCleanupService(Func<CancellationToken, Task<NuGetCacheLocations>> discover, ILogger<NuGetCleanupService>? logger = null)
     {
         _discover = discover;
+        _logger = logger ?? NullLogger<NuGetCleanupService>.Instance;
     }
 
     public async Task<NuGetCleanupPlan> ScanAsync(CancellationToken token)
@@ -77,7 +86,7 @@ public sealed class NuGetCleanupService
             return new(0, 0, 0, ["План очистки уже использован или принадлежит другому сеансу. Повторите сканирование."]);
         }
 
-        if ((DateTime.UtcNow - plan.CreatedUtc) > TimeSpan.FromMinutes(15))
+        if ((DateTime.UtcNow - plan.CreatedUtc) > CleanupDefaults.PlanLifetime)
         {
             return new(0, 0, 0, ["Замер устарел. Повторите сканирование."]);
         }
@@ -96,7 +105,10 @@ public sealed class NuGetCleanupService
                 return new(0, 0, 0, ["Для очистки выбраны недоступные или пустые категории."]);
             }
 
-            return await Task.Run(() => Clean(caches, locations, progress, token), CancellationToken.None).ConfigureAwait(false);
+            _logger.NuGetCleanupStarted(caches.Length);
+            var report = await Task.Run(() => Clean(caches, locations, progress, token), CancellationToken.None).ConfigureAwait(false);
+            _logger.NuGetCleanupCompleted(report.Deleted, report.FreedBytes, report.Skipped, report.Errors.Count, report.Cancelled);
+            return report;
         }
         catch (OperationCanceledException)
         {
@@ -104,6 +116,7 @@ public sealed class NuGetCleanupService
         }
         catch (Exception exception) when (IsFileError(exception) || exception is InvalidOperationException or TimeoutException)
         {
+            _logger.NuGetCleanupFailed(exception);
             return new(0, 0, 0, [exception.Message]);
         }
     }
@@ -332,7 +345,7 @@ public sealed class NuGetCleanupService
         }
 
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var protectedPaths = new[] { Environment.GetFolderPath(Environment.SpecialFolder.Windows), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Path.Combine(home, ".dotnet"), Environment.GetEnvironmentVariable("DOTNET_ROOT") ?? string.Empty, Environment.GetEnvironmentVariable("DOTNET_ROOT(x86)") ?? string.Empty, Path.Combine(Environment.GetEnvironmentVariable("DOTNET_CLI_HOME") ?? home, ".dotnet"), AppContext.BaseDirectory };
+        var protectedPaths = CleanupPaths.ProtectedRoots();
 
         if (string.Equals(path, home, StringComparison.OrdinalIgnoreCase)
             || protectedPaths.Where(item => !string.IsNullOrEmpty(item)).Any(item => Overlap(path, Normalize(item)))
@@ -410,7 +423,7 @@ public sealed class NuGetCleanupService
 
     private static void AddError(List<string> errors, string error)
     {
-        if (errors.Count < 50)
+        if (errors.Count < CleanupDefaults.MaxReportedErrors)
         {
             errors.Add(error);
         }

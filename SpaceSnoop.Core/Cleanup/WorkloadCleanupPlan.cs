@@ -3,7 +3,7 @@
 public sealed class WorkloadCleanupPlan
 {
     internal int Used;
-    public DateTime ExpiresUtc => CreatedUtc.AddMinutes(15);
+    public DateTime ExpiresUtc => CreatedUtc.Add(CleanupDefaults.PlanLifetime);
     public string Executable { get; }
     public string WorkingDirectory { get; }
     public string SdkVersion { get; }
