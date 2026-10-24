@@ -12,8 +12,8 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
     private readonly IShellLauncher _shell;
     private readonly IUiDispatcher _dispatcher;
     private readonly ILogger<DotNetCleanViewModel> _logger;
+    private readonly CleanupOperation _operation = new();
     private DotNetCleanPlan? _plan;
-    private CancellationTokenSource? _cancellation;
     private long _inputVersion;
     private bool _isHostBusy;
     private bool _isBusy;
@@ -134,7 +134,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
     public bool HasPlan => DisplayPlan is not null;
     public bool HasResult => !string.IsNullOrEmpty(ResultText);
     public bool CanClean => IsIdle && IsTrusted && _plan is not null;
-    public bool CanCancel => _cancellation is not null;
+    public bool CanCancel => _operation.CanCancel;
     public ICommand? CancelCommand => CanCancel ? CancelOperationCommand : null;
 
     public string ErrorDetails
@@ -173,35 +173,6 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         _shell = shell;
         _dispatcher = dispatcher;
         _logger = logger;
-    }
-
-    internal void ResetForAutomation()
-    {
-        _plan = null;
-        _inputVersion++;
-        IsTrusted = false;
-        DisplayPlan = null;
-        ResultText = null;
-        LogPath = null;
-        StatusText = "Демонстрация dotnet clean отключена.";
-        HasError = false;
-    }
-
-    internal void ShowForAutomation()
-    {
-        ResetForAutomation();
-        ProjectPath = @"C:\workspace\sample\Sample.csproj";
-        DisplayPlan = new(
-            @"C:\workspace\sample\Sample.csproj",
-            @"C:\Program Files\dotnet\dotnet.exe",
-            @"C:\workspace\sample",
-            "10.0.303",
-            "Debug",
-            "",
-            "",
-            "\"C:\\Program Files\\dotnet\\dotnet.exe\" \"clean\" \"C:\\workspace\\sample\\Sample.csproj\" \"--configuration\" \"Debug\" \"--disable-build-servers\"");
-
-        StatusText = "Демонстрационный контекст. Запуск команды отключён.";
     }
 
     partial void OnDisplayPlanChanged(DotNetCleanDisplay? value)
@@ -253,8 +224,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         var version = _inputVersion;
         var project = ProjectPath;
         var options = GetOptions();
-        IsBusy = true;
-        _cancellation = new();
+        var operation = _operation.Begin(value => IsBusy = value);
         OnPropertyChanged(nameof(CanCancel));
         OnPropertyChanged(nameof(CancelCommand));
         _plan = null;
@@ -265,7 +235,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         HasError = false;
         try
         {
-            var plan = await _service.InspectAsync(project, options, IsTrusted, _cancellation.Token);
+            var plan = await _service.InspectAsync(project, options, IsTrusted, _operation.Token);
             _dispatcher.Invoke(() =>
             {
                 if (version != _inputVersion || !IsTrusted || project != ProjectPath || options != GetOptions())
@@ -313,11 +283,9 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         }
         finally
         {
-            _cancellation.Dispose();
-            _cancellation = null;
+            operation.Dispose();
             OnPropertyChanged(nameof(CanCancel));
             OnPropertyChanged(nameof(CancelCommand));
-            IsBusy = false;
         }
     }
 
@@ -329,12 +297,12 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanClean))]
     private async Task CleanAsync()
     {
-        var plan = _plan;
-        if (!CanClean || plan is null)
+        if (!CanClean || _plan is null)
         {
             return;
         }
 
+        var plan = _plan;
         var version = _inputVersion;
         var project = ProjectPath;
         var confirmation = new ConfirmDialogViewModel(
@@ -352,10 +320,10 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
             ],
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("Выполнить dotnet clean", ConfirmChoiceKind.Destructive)]) { Warning = "Проверьте проект, SDK и точную команду. Импортированные задачи могут менять данные вне каталога проекта." };
 
-        IsBusy = true;
+        var operation = _operation.Begin(value => IsBusy = value);
         try
         {
-            if (!await _dialogs.ShowAsync(confirmation))
+            if (!await operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -375,12 +343,11 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
 
             _plan = null;
             OnPropertyChanged(nameof(CanClean));
-            _cancellation = new();
             OnPropertyChanged(nameof(CanCancel));
             OnPropertyChanged(nameof(CancelCommand));
             StatusText = "Выполняю dotnet clean…";
             HasError = false;
-            var report = await _service.CleanAsync(plan, IsTrusted, _cancellation.Token);
+            var report = await _service.CleanAsync(plan, IsTrusted, _operation.Token);
             _dispatcher.Invoke(() => ApplyReport(report));
             _logger.DotNetCleanFinished(report.Outcome.ToString(), report.ExitCode, report.LogPath);
         }
@@ -393,20 +360,16 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         }
         finally
         {
-            _cancellation?.Dispose();
-            _cancellation = null;
+            operation.Dispose();
             OnPropertyChanged(nameof(CanCancel));
             OnPropertyChanged(nameof(CancelCommand));
-            IsBusy = false;
         }
     }
 
     private void ApplyReport(DotNetCleanReport report)
     {
         HasError = !report.Succeeded && !report.Cancelled;
-        var outcome = report.Cancelled ? "Отменено"
-            : report.TimedOut ? "Истекло время ожидания"
-            : report.Succeeded ? "Завершено" : "Завершено с ошибкой";
+        var outcome = CleanupOperation.Outcome(report.Outcome);
 
         StatusText = outcome + ".";
         ResultText = outcome
@@ -456,7 +419,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
     [RelayCommand]
     private void CancelOperation()
     {
-        _cancellation?.Cancel();
+        _operation.Cancel();
     }
 
     private void NotifyCommands()

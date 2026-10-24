@@ -12,8 +12,8 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     private readonly IDialogService _dialogs;
     private readonly IUiDispatcher _uiDispatcher;
     private readonly ILogger<DeveloperCleanupViewModel> _logger;
+    private readonly CleanupOperation _operation = new();
     private NuGetCleanupPlan? _plan;
-    private CancellationTokenSource? _cancellation;
     private bool _loaded;
 
     [ObservableProperty]
@@ -166,30 +166,6 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         return RefreshAsync();
     }
 
-    internal void ShowForAutomation()
-    {
-        SelectedAreaIndex = 0;
-        Projects.ResetForAutomation();
-        Workloads.ResetForAutomation();
-        DotNetClean.ResetForAutomation();
-        _uiDispatcher.Invoke(() =>
-        {
-            _loaded = true;
-            _plan = null;
-            ClearRows();
-            var rows = new[] { new NuGetCacheViewModel(NuGetCacheKind.HttpCache, @"C:\Users\Developer\AppData\Local\NuGet\v3-cache", 320_000_000, 1_240, true, string.Empty), new NuGetCacheViewModel(NuGetCacheKind.Temp, @"C:\Users\Developer\AppData\Local\Temp\NuGetScratch", 48_000_000, 36, true, string.Empty), new NuGetCacheViewModel(NuGetCacheKind.PluginsCache, @"C:\Users\Developer\AppData\Local\NuGet\plugins-cache", 12_000_000, 90, true, string.Empty), new NuGetCacheViewModel(NuGetCacheKind.GlobalPackages, @"C:\Users\Developer\.nuget\packages", 4_020_000_000, 18_540, true, string.Empty) };
-
-            foreach (var row in rows)
-            {
-                row.PropertyChanged += OnSelectionChanged;
-                Caches.Add(row);
-            }
-
-            StatusText = "Пример результатов замера. Очистка в демонстрации недоступна.";
-            NotifySelection();
-        });
-    }
-
     partial void OnIsNuGetBusyChanged(bool value)
     {
         Projects.IsHostBusy = value || Workloads.IsBusy || DotNetClean.IsBusy;
@@ -230,12 +206,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             return;
         }
 
-        IsNuGetBusy = true;
-        _cancellation = new();
+        var operation = _operation.Begin(value => IsNuGetBusy = value);
         ResultText = null;
         try
         {
-            await ScanAsync(_cancellation.Token);
+            await ScanAsync(_operation.Token);
         }
         catch (OperationCanceledException)
         {
@@ -248,9 +223,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         }
         finally
         {
-            _cancellation.Dispose();
-            _cancellation = null;
-            IsNuGetBusy = false;
+            operation.Dispose();
         }
     }
 
@@ -288,6 +261,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
 
         var plan = _plan;
         var selected = Caches.Where(x => x.IsSelected && x.CanSelect).ToArray();
+        var selectedKinds = selected.Select(x => x.Kind).ToArray();
         var lines = new List<ConfirmLine> { new ConfirmTextLine("Перед очисткой остановите restore, сборки и операции NuGet в IDE."), new ConfirmTextLine("Будут удалены только файлы из показанного замера. Новые файлы останутся.") };
 
         foreach (var row in selected)
@@ -306,27 +280,32 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             lines,
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("Удалить безвозвратно", ConfirmChoiceKind.Destructive)]) { Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника." };
 
-        IsNuGetBusy = true;
+        var operation = _operation.Begin(value => IsNuGetBusy = value);
         try
         {
-            if (!await _dialogs.ShowAsync(confirmation))
+            if (!await operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
 
-            _cancellation = new();
+            if (!ReferenceEquals(_plan, plan)
+                || !selectedKinds.SequenceEqual(Caches.Where(x => x.IsSelected && x.CanSelect).Select(x => x.Kind)))
+            {
+                StatusText = "Выбор или план изменились. Повторите замер.";
+                return;
+            }
+
             _plan = null;
             StatusText = "Удаляю выбранные файлы NuGet…";
-            var result = await _service.CleanAsync(plan, selected.Select(x => x.Kind).ToArray(), null, _cancellation.Token);
-            ResultText = $"{(result.Cancelled ? "Отменено" : "Завершено")}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
+            var result = await _service.CleanAsync(plan, selected.Select(x => x.Kind).ToArray(), null, _operation.Token);
+            ResultText = $"{CleanupOperation.Outcome(result)}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
                 + (result.Errors.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, result.Errors));
 
             _logger.DeveloperCleanupFinished(result.Deleted, result.FreedBytes, result.Skipped, result.Cancelled);
-            _cancellation.Dispose();
-            _cancellation = new();
+            _operation.RestartCancellation();
             try
             {
-                await ScanAsync(_cancellation.Token);
+                await ScanAsync(_operation.Token);
             }
             catch (OperationCanceledException)
             {
@@ -346,16 +325,14 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         }
         finally
         {
-            _cancellation?.Dispose();
-            _cancellation = null;
-            IsNuGetBusy = false;
+            operation.Dispose();
         }
     }
 
     [RelayCommand]
     private void CancelOperation()
     {
-        _cancellation?.Cancel();
+        _operation.Cancel();
     }
 
     [RelayCommand(CanExecute = nameof(IsIdle))]

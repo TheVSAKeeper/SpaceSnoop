@@ -21,16 +21,17 @@ public sealed class DotNetCleanViewModelTests
     public void SetUp()
     {
         var repository = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".kc")))
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "SpaceSnoop.sln")))
         {
             repository = repository.Parent;
         }
 
         Assert.That(repository, Is.Not.Null);
-        _root = Path.Combine(repository!.FullName, ".kc", "scratch", "developer-cleanup-stages-5-7", Guid.NewGuid().ToString("N"));
+        _root = Path.Combine(repository!.FullName, ".kc", "scratch", "dotnet-clean-viewmodel-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
         _project = Path.Combine(_root, "Sample.csproj");
         File.WriteAllText(_project, "<Project />");
+        File.WriteAllText(Path.Combine(_root, "dotnet.exe"), "test executable");
         _calls = [];
         _runOverride = null;
     }
@@ -280,7 +281,7 @@ public sealed class DotNetCleanViewModelTests
     private DotNetCleanService CreateService()
     {
         return new(
-            () => @"C:\Program Files\dotnet\dotnet.exe",
+            () => Path.Combine(_root, "dotnet.exe"),
             (executable, args, workingDirectory, logPath, timeout, token, environment) =>
             {
                 _calls.Add(args.ToArray());

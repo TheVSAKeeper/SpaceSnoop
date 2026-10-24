@@ -719,10 +719,16 @@ public class BindingSmokeTests
             Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
             page.Development.ShowForAutomation();
             page.Development.DotNetClean.ShowForAutomation();
+            page.Development.DotNetClean.HasError = true;
+            page.Development.DotNetClean.StatusText = string.Join(" ", Enumerable.Repeat("Не удалось прочитать проект. Проверьте путь и доступ к файлу.", 8));
             page.Development.SelectedAreaIndex = 3;
             page.SelectedSectionIndex = 2;
             Settle();
             var view = Descendant<DotNetCleanView>(_window)!;
+            var status = Descendants<TextBlock>(view).Single(x => x.Text == page.Development.DotNetClean.StatusText);
+            var statusBounds = status.TransformToAncestor(view).TransformBounds(new(status.RenderSize));
+            Assert.That(statusBounds.Right, Is.LessThanOrEqualTo(view.ActualWidth + 1));
+            Assert.That(status.ActualHeight, Is.GreaterThan(status.FontSize * 2));
             var fields = Descendants<TextBox>(view).Where(x => x.IsReadOnly && x.IsVisible).ToArray();
             Assert.Multiple(() =>
             {
@@ -1082,6 +1088,45 @@ public class BindingSmokeTests
         {
             store.SetEnum(SettingsKeys.SyncGitFolders, AppDefaults.SyncGitFoldersDefault);
             (_window.DataContext as ShellViewModel)?.ToString();
+        }
+    }
+
+    [Test]
+    public void Проектные_артефакты_виртуализуют_группы_и_прокручиваются_до_последней_строки()
+    {
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        try
+        {
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.Development.ShowForAutomation();
+            var projects = page.Development.Projects;
+            projects.ShowForAutomation();
+            page.Development.SelectedAreaIndex = 1;
+            page.SelectedSectionIndex = 2;
+            projects.Artifacts.Clear();
+            for (var index = 0; index < 1000; index++)
+            {
+                var project = $@"C:\Sources\Project{index / 10:D3}";
+                projects.Artifacts.Add(new(ProjectArtifactKind.Bin, $@"{project}\bin{index:D4}", 10, 1, true, string.Empty, project, []));
+            }
+
+            projects.RowsView.Refresh();
+            Settle();
+            var view = Descendant<ProjectCleanupView>(_window)!;
+            var list = Descendants<ListBox>(view).Single(x => x.Name == "ProjectArtifacts");
+            Assert.That(Descendants<ListBoxItem>(list).Count(), Is.LessThan(100));
+            var last = projects.RowsView.Cast<ProjectArtifactViewModel>().Last();
+            list.ScrollIntoView(last);
+            Settle();
+            Assert.That(Descendants<ListBoxItem>(list).Any(x => ReferenceEquals(x.DataContext, last)), Is.True);
+            Assert.That(Descendants<ListBoxItem>(list).Count(), Is.LessThan(100));
+        }
+        finally
+        {
+            page.Development.Projects.ResetForAutomation();
+            page.Development.SelectedAreaIndex = 0;
+            page.SelectedSectionIndex = 0;
+            Settle();
         }
     }
 

@@ -22,13 +22,13 @@ public sealed class WorkloadCleanupViewModelTests
     public void SetUp()
     {
         var repository = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
-        while (repository is not null && !Directory.Exists(Path.Combine(repository.FullName, ".kc")))
+        while (repository is not null && !File.Exists(Path.Combine(repository.FullName, "SpaceSnoop.sln")))
         {
             repository = repository.Parent;
         }
 
         Assert.That(repository, Is.Not.Null);
-        _root = Path.Combine(repository!.FullName, ".kc", "scratch", "developer-cleanup-stages-5-7", Guid.NewGuid().ToString("N"));
+        _root = Path.Combine(repository!.FullName, ".kc", "scratch", "workload-cleanup-viewmodel-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
         _calls = [];
         _installed = "sdk-manifest-1";

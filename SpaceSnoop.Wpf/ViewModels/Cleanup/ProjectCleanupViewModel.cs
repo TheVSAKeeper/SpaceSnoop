@@ -2,7 +2,6 @@
 using MahApps.Metro.IconPacks;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Text.Json;
 using System.Windows.Data;
 
 namespace SpaceSnoop.Wpf.ViewModels.Cleanup;
@@ -16,8 +15,8 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
     private readonly IUiDispatcher _dispatcher;
     private readonly ISettingsStore _settings;
     private readonly ILogger<ProjectCleanupViewModel> _logger;
+    private readonly CleanupOperation _operation = new();
     private ProjectCleanupPlan? _plan;
-    private CancellationTokenSource? _cancellation;
     private long _inputVersion;
     private bool _restoring;
 
@@ -118,79 +117,6 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         RestoreInputs();
     }
 
-    internal void ShowForAutomation()
-    {
-        ResetForAutomation();
-        _restoring = true;
-        try
-        {
-            RootPath = @"C:\Sources\Projects";
-            AdditionalRoots.Add(@"C:\Sources\Samples");
-            CustomOutputs.Add(@"C:\Sources\Projects\Legacy\artifacts");
-        }
-        finally
-        {
-            _restoring = false;
-        }
-
-        _dispatcher.Invoke(() =>
-        {
-            foreach (var row in new[]
-                {
-                    new ProjectArtifactViewModel(
-                        ProjectArtifactKind.Bin,
-                        @"C:\Sources\Projects\App\bin",
-                        840_000_000,
-                        320,
-                        true,
-                        string.Empty,
-                        @"C:\Sources\Projects\App",
-                        [new(@"C:\Sources\Projects\App\bin\Debug\app.dll", 840_000_000)],
-                        projectBytes: 960_000_000),
-                    new ProjectArtifactViewModel(
-                        ProjectArtifactKind.Obj,
-                        @"C:\Sources\Projects\App\obj",
-                        120_000_000,
-                        640,
-                        true,
-                        string.Empty,
-                        @"C:\Sources\Projects\App",
-                        [new(@"C:\Sources\Projects\App\obj\Debug\data.bin", 120_000_000)],
-                        projectBytes: 960_000_000),
-                    new ProjectArtifactViewModel(ProjectArtifactKind.Coverage, @"C:\Sources\Projects\App.Tests\TestResults\coverage.cobertura.xml", 64_000_000, 1, true, string.Empty, @"C:\Sources\Projects\App.Tests", [new(@"C:\Sources\Projects\App.Tests\TestResults\coverage.cobertura.xml", 64_000_000)]), new ProjectArtifactViewModel(ProjectArtifactKind.CustomOutput, @"C:\Sources\Projects\Legacy\artifacts", 8_000_000, 12, true, string.Empty, @"C:\Sources\Projects\Legacy", [new(@"C:\Sources\Projects\Legacy\artifacts\report.json", 8_000_000)]),
-                })
-            {
-                row.PropertyChanged += OnSelectionChanged;
-                Artifacts.Add(row);
-            }
-
-            RowsView.Refresh();
-            StatusText = "Пример результатов поиска. Очистка в демонстрации недоступна.";
-            NotifySelection();
-        });
-    }
-
-    internal void ResetForAutomation()
-    {
-        _plan = null;
-        _inputVersion++;
-        _restoring = true;
-        try
-        {
-            RootPath = string.Empty;
-            AdditionalRoots.Clear();
-            CustomOutputs.Clear();
-        }
-        finally
-        {
-            _restoring = false;
-        }
-
-        ResultText = null;
-        StatusText = null;
-        ClearRows();
-    }
-
     partial void OnRootPathChanged(string value)
     {
         if (!_restoring)
@@ -228,23 +154,6 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             || row.Name.Contains(query, StringComparison.OrdinalIgnoreCase)
             || row.ProjectDirectory.Contains(query, StringComparison.OrdinalIgnoreCase)
             || row.Contents.Any(file => file.Path.Contains(query, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private void InputChanged()
-    {
-        if (_restoring)
-        {
-            return;
-        }
-
-        _inputVersion++;
-        _plan = null;
-        ResultText = null;
-        ClearRows();
-        PersistInputs();
-        StatusText = "Пути изменились. Повторите поиск.";
-        FindCommand.NotifyCanExecuteChanged();
-        OnPropertyChanged(nameof(CanClean));
     }
 
     private bool CanFind()
@@ -347,12 +256,11 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             return;
         }
 
-        IsBusy = true;
+        var operation = _operation.Begin(value => IsBusy = value);
         ResultText = null;
-        _cancellation = new();
         try
         {
-            await ScanAsync(_cancellation.Token);
+            await ScanAsync(_operation.Token);
         }
         catch (OperationCanceledException)
         {
@@ -365,9 +273,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         }
         finally
         {
-            _cancellation.Dispose();
-            _cancellation = null;
-            IsBusy = false;
+            operation.Dispose();
         }
     }
 
@@ -427,7 +333,15 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         var outputs = CustomOutputs.ToArray();
         var selected = Artifacts.Where(x => x.IsSelected && x.CanSelect).ToArray();
         var selectedIds = selected.Select(x => x.Id).ToArray();
-        var lines = new List<ConfirmLine> { new ConfirmTextLine("Остановите сборки, тесты и бенчмарки. В найденных каталогах могут лежать ваши файлы; автоматическое восстановление не гарантируется.", ConfirmTextTone.Strong), new ConfirmTextLine("В корзину попадут только просмотренные неизменившиеся файлы. Новые файлы и пустые каталоги останутся."), new ConfirmTextLine("Файлы группируются по каталогу в папку SpaceSnoop. Для восстановления верните её из корзины; исходный путь указан в SpaceSnoop-restore.json.") };
+        var lines = new List<ConfirmLine>
+        {
+            new ConfirmTextLine("Остановите сборки, тесты и бенчмарки.", ConfirmTextTone.Strong),
+            new ConfirmTextLine("В найденных каталогах могут лежать ваши файлы. Проверьте выбранные пути и содержимое."),
+            new ConfirmTextLine("В корзину попадут только просмотренные неизменившиеся файлы. Новые файлы и пустые каталоги останутся."),
+            new ConfirmTextLine("Файлы попадут в корзину в папках SpaceSnoop. Для восстановления верните такую папку из корзины. Исходные пути записаны в файле SpaceSnoop-restore.json внутри неё; автоматическое восстановление не гарантируется."),
+            new ConfirmTextLine("Результаты тестов и бенчмарков могут понадобиться для проверки работы."),
+            new ConfirmTextLine("Повторная сборка может потребовать загрузки пакетов. Убедитесь, что их источники доступны."),
+        };
 
         foreach (var row in selected)
         {
@@ -439,12 +353,12 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             "Очистка проектов",
             PackIconLucideKind.Trash2,
             lines,
-            [new("Отмена", ConfirmChoiceKind.Dismissive), new("В корзину", ConfirmChoiceKind.Destructive)]) { Warning = "Результаты тестов и бенчмарков могут быть нужными свидетельствами. Восстановление файлов сборки может потребовать restore и доступа к источникам пакетов. Корзина продолжает занимать место на диске." };
+            [new("Отмена", ConfirmChoiceKind.Dismissive), new("В корзину", ConfirmChoiceKind.Destructive)]) { Warning = "Корзина продолжает занимать место на диске. Перед очисткой проверьте выбранные файлы." };
 
-        IsBusy = true;
+        var operation = _operation.Begin(value => IsBusy = value);
         try
         {
-            if (!await _dialogs.ShowAsync(confirmation))
+            if (!await operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -460,22 +374,18 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             }
 
             _plan = null;
-            _cancellation = new();
             StatusText = "Отправляю выбранные файлы в корзину…";
-            var report = await _service.CleanAsync(plan, selected.Select(x => x.Id).ToArray(), null, _cancellation.Token);
-            var outcome = report.Cancelled ? "Отменено"
-                : report.Errors.Count > 0 ? "Завершено с ошибками"
-                : report.Skipped > 0 ? "Завершено с пропусками" : "Завершено";
+            var report = await _service.CleanAsync(plan, selected.Select(x => x.Id).ToArray(), null, _operation.Token);
+            var outcome = CleanupOperation.Outcome(report);
 
             ResultText = $"{outcome}. В корзине файлов: {report.Deleted:N0}, данных: {SizeFormatter.Format(report.FreedBytes)}. Пропущено: {report.Skipped:N0}."
                 + (report.Errors.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, report.Errors));
 
             _logger.ProjectCleanupFinished(report.Deleted, report.FreedBytes, report.Skipped, report.Cancelled);
-            _cancellation.Dispose();
-            _cancellation = new();
+            _operation.RestartCancellation();
             try
             {
-                await ScanAsync(_cancellation.Token);
+                await ScanAsync(_operation.Token);
             }
             catch (OperationCanceledException)
             {
@@ -495,9 +405,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         }
         finally
         {
-            _cancellation?.Dispose();
-            _cancellation = null;
-            IsBusy = false;
+            operation.Dispose();
             OnPropertyChanged(nameof(CanClean));
             CleanCommand.NotifyCanExecuteChanged();
         }
@@ -506,7 +414,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
     [RelayCommand]
     private void Cancel()
     {
-        _cancellation?.Cancel();
+        _operation.Cancel();
     }
 
     [RelayCommand(CanExecute = nameof(IsIdle))]
@@ -545,64 +453,6 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         if (row is not null)
         {
             _shell.Open(row.Path);
-        }
-    }
-
-    private string[] ScopeRoots()
-    {
-        return new[] { RootPath }.Concat(AdditionalRoots)
-            .Where(path => !string.IsNullOrWhiteSpace(path))
-            .ToArray();
-    }
-
-    private bool SameInputs(IReadOnlyCollection<string> roots, IReadOnlyCollection<string> outputs)
-    {
-        return roots.SequenceEqual(ScopeRoots(), StringComparer.Ordinal)
-            && outputs.SequenceEqual(CustomOutputs, StringComparer.Ordinal);
-    }
-
-    private void RestoreInputs()
-    {
-        _restoring = true;
-        try
-        {
-            var roots = ReadPaths(_settings.GetStringValue(SettingsKeys.DeveloperProjectRoots));
-            RootPath = roots.FirstOrDefault() ?? string.Empty;
-            foreach (var path in roots.Skip(1))
-            {
-                AdditionalRoots.Add(path);
-            }
-
-            foreach (var path in ReadPaths(_settings.GetStringValue(SettingsKeys.DeveloperCustomOutputs)))
-            {
-                CustomOutputs.Add(path);
-            }
-        }
-        finally
-        {
-            _restoring = false;
-        }
-    }
-
-    private void PersistInputs()
-    {
-        _settings.SetValue(SettingsKeys.DeveloperProjectRoots, JsonSerializer.Serialize(ScopeRoots()));
-        _settings.SetValue(SettingsKeys.DeveloperCustomOutputs, JsonSerializer.Serialize(CustomOutputs));
-    }
-
-    private static string[] ReadPaths(string? json)
-    {
-        try
-        {
-            return (JsonSerializer.Deserialize<string[]>(json ?? "[]") ?? [])
-                .Where(path => !string.IsNullOrWhiteSpace(path))
-                .Select(path => path.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-        }
-        catch (JsonException)
-        {
-            return [];
         }
     }
 

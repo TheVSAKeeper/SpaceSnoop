@@ -11,7 +11,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
     private readonly IShellLauncher _shell;
     private readonly IUiDispatcher _dispatcher;
     private readonly ILogger<WorkloadCleanupViewModel> _logger;
-    private CancellationTokenSource? _cancellation;
+    private readonly CleanupOperation _operation = new();
     private WorkloadCleanupPlan? _plan;
 
     [ObservableProperty]
@@ -46,6 +46,8 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
     public bool HasResult => !string.IsNullOrEmpty(ResultText);
     public ICommand? CancelCommand => IsBusy ? CancelOperationCommand : null;
 
+    private bool CanClean => IsIdle && _plan is not null;
+
     public WorkloadCleanupViewModel(
         WorkloadCleanupService service,
         IDialogService dialogs,
@@ -60,38 +62,9 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
         _logger = logger;
     }
 
-    internal void ResetForAutomation()
-    {
-        _plan = null;
-        DisplayPlan = null;
-        ResultText = null;
-        StatusText = "Демонстрация CLI workloads отключена.";
-        LogPath = null;
-    }
-
-    internal void ShowForAutomation()
-    {
-        ResetForAutomation();
-        DisplayPlan = new(
-            @"C:\Program Files\dotnet\dotnet.exe",
-            @"C:\Users\Developer",
-            "10.0.303",
-            "Installed Workload Id      Manifest Version      Installation Source"
-            + Environment.NewLine
-            + "maui-windows               10.0.0/10.0.100      SDK 10.0.300",
-            "dotnet workload clean");
-
-        StatusText = "Демонстрационный контекст. Запуск команды отключён.";
-    }
-
     private bool CanInspect()
     {
         return IsIdle;
-    }
-
-    private bool CanClean()
-    {
-        return IsIdle && _plan is not null;
     }
 
     [RelayCommand(CanExecute = nameof(CanInspect))]
@@ -102,8 +75,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
             return;
         }
 
-        IsBusy = true;
-        _cancellation = new();
+        var operation = _operation.Begin(value => IsBusy = value);
         _plan = null;
         DisplayPlan = null;
         LogPath = null;
@@ -111,7 +83,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
         StatusText = "Определяю SDK и установленные workloads…";
         try
         {
-            var plan = await _service.InspectAsync(_cancellation.Token);
+            var plan = await _service.InspectAsync(_operation.Token);
             _dispatcher.Invoke(() =>
             {
                 _plan = plan;
@@ -149,16 +121,14 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
         }
         finally
         {
-            _cancellation.Dispose();
-            _cancellation = null;
-            IsBusy = false;
+            operation.Dispose();
         }
     }
 
     [RelayCommand(CanExecute = nameof(CanClean))]
     private async Task CleanAsync()
     {
-        if (!CanClean() || _plan is null)
+        if (!CanClean || _plan is null)
         {
             return;
         }
@@ -178,10 +148,10 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
             ],
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("Очистить", ConfirmChoiceKind.Destructive)]) { Warning = "Проверьте SDK и список workloads. Не запускайте параллельно установку или обновление SDK и workloads." };
 
-        IsBusy = true;
+        var operation = _operation.Begin(value => IsBusy = value);
         try
         {
-            if (!await _dialogs.ShowAsync(confirmation))
+            if (!await operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -195,13 +165,9 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
             }
 
             _plan = null;
-            _cancellation = new();
             StatusText = "Выполняю dotnet workload clean…";
-            var report = await _service.CleanAsync(plan, _cancellation.Token);
-            var outcome = report.Cancelled ? "Отменено"
-                : report.TimedOut ? "Истекло время ожидания"
-                : report.Succeeded ? "Завершено"
-                : report.Outcome == DotNetCliOutcome.Failed ? "Завершено с ошибкой" : "Не удалось выполнить";
+            var report = await _service.CleanAsync(plan, _operation.Token);
+            var outcome = CleanupOperation.Outcome(report.Outcome);
 
             ResultText = outcome
                 + (report.ExitCode is { } code ? $". Код завершения: {code}." : ".")
@@ -226,9 +192,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
         }
         finally
         {
-            _cancellation?.Dispose();
-            _cancellation = null;
-            IsBusy = false;
+            operation.Dispose();
         }
     }
 
@@ -249,7 +213,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
     [RelayCommand]
     private void CancelOperation()
     {
-        _cancellation?.Cancel();
+        _operation.Cancel();
     }
 }
 

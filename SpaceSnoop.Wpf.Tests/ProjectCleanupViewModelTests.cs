@@ -144,6 +144,26 @@ public sealed class ProjectCleanupViewModelTests
     }
 
     [Test]
+    public async Task Отмена_во_время_подтверждения_не_начинает_очистку()
+    {
+        var dialogs = new PausedDialogs();
+        var vm = Create(dialogs);
+        vm.RootPath = _root;
+        await vm.FindCommand.ExecuteAsync(null);
+        vm.Artifacts.Single(x => x.Kind == ProjectArtifactKind.Bin).IsSelected = true;
+        var cleanup = vm.CleanCommand.ExecuteAsync(null);
+        vm.CancelCommand.Execute(null);
+        dialogs.Confirmation.SetResult(true);
+        await cleanup;
+        Assert.Multiple(() =>
+        {
+            Assert.That(_recycled, Is.Empty);
+            Assert.That(vm.IsBusy, Is.False);
+            Assert.That(vm.CanClean, Is.True);
+        });
+    }
+
+    [Test]
     public async Task Очистка_выбранного_bin_сохраняет_результаты_тестов_и_бенчмарков()
     {
         var vm = Create(new NoopDialogs(showResult: true));

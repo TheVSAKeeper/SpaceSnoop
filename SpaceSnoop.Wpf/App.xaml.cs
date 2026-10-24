@@ -31,7 +31,10 @@ public partial class App : Application
         services.AddSingleton<DockerService>();
         services.AddSingleton<ArchiveService>();
         services.AddSingleton<CleanupService>();
-        services.AddSingleton<NuGetCleanupService>();
+        services.AddSingleton(provider => new NuGetCleanupService(
+            Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName),
+            provider.GetRequiredService<ILogger<NuGetCleanupService>>()));
+
         services.AddSingleton<ProjectCleanupService>();
         services.AddSingleton(new WorkloadCleanupService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
         services.AddSingleton<DotNetCleanService>(new DotNetCleanService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
