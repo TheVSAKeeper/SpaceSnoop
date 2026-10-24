@@ -134,6 +134,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     internal DirectorySpace? CurrentRoot => Roots.Count > 0 ? Roots[0].Space as DirectorySpace : null;
 
+    internal bool IsUpdatingSelection { get; private set; }
+
     public ScanViewModel(
         ScanRunner runner,
         IDialogService dialogs,
@@ -319,17 +321,26 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     partial void OnSelectedNodeChanged(ScanNodeViewModel? value)
     {
-        _highlighted?.IsSelected = false;
-        _highlighted = value;
+        IsUpdatingSelection = true;
 
-        if (value is null)
+        try
         {
-            Inspector.Clear();
+            _highlighted?.IsSelected = false;
+            _highlighted = value;
+
+            if (value is null)
+            {
+                Inspector.Clear();
+            }
+            else
+            {
+                value.IsSelected = true;
+                Inspector.Show(value);
+            }
         }
-        else
+        finally
         {
-            value.IsSelected = true;
-            Inspector.Show(value);
+            IsUpdatingSelection = false;
         }
     }
 

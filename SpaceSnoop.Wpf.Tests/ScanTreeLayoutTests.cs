@@ -6,6 +6,7 @@ using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.Views.Scan;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -148,6 +149,86 @@ public class ScanTreeLayoutTests
 
         Assert.That(branch.Children, Does.Contain(last));
         TestContext.Out.WriteLine($"Детей {count}, контейнеров при открытии {opened.Count}, за прокрутку {containers.Count}, бюджет {budget}.");
+    }
+
+    [Test]
+    public void Программный_переход_между_выделенными_узлами_не_возвращает_промежуточный_выбор_в_модель()
+    {
+        var root = Build(2);
+        var node = _factory.Create(root, root.TotalSize, root.TotalSize, root, new());
+        node.EnsureLoaded();
+        var branch = node.Children.Single();
+        branch.EnsureLoaded();
+        var leaf = branch.Children[0];
+        var notifications = 0;
+        PropertyChangedEventHandler countNotifications = (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScanNodeViewModel.IsSelected) && ++notifications > 12)
+            {
+                throw new InvalidOperationException("Выделение узлов рекурсивно изменяет само себя.");
+            }
+        };
+
+        foreach (var candidate in new[] { node, leaf })
+        {
+            candidate.PropertyChanged += countNotifications;
+        }
+
+        var selections = new List<ScanNodeViewModel?>();
+        PropertyChangedEventHandler recordSelection = (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScanViewModel.SelectedNode))
+            {
+                selections.Add(_scan.SelectedNode);
+            }
+        };
+
+        try
+        {
+            _scan.HasResult = true;
+            _scan.Roots.Add(node);
+            node.IsExpanded = true;
+            branch.IsExpanded = true;
+            _host.Settle();
+            Assert.That(Descendants<TreeViewItem>(_tree).Any(item => ReferenceEquals(item.DataContext, leaf)), Is.True);
+            _scan.SelectedNode = node;
+            _host.Settle();
+            notifications = 0;
+            _scan.PropertyChanged += recordSelection;
+
+            _scan.SelectedNode = leaf;
+            _host.Settle();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(_scan.SelectedNode, Is.SameAs(leaf));
+                Assert.That(_tree.SelectedItem, Is.SameAs(leaf));
+                Assert.That(node.IsSelected, Is.False);
+                Assert.That(leaf.IsSelected, Is.True);
+                Assert.That(selections, Is.EqualTo(new[] { leaf }));
+                Assert.That(notifications, Is.EqualTo(2));
+            }
+
+            Descendants<TreeViewItem>(_tree)
+                .Single(item => ReferenceEquals(item.DataContext, node))
+                .SetCurrentValue(TreeViewItem.IsSelectedProperty, true);
+
+            _host.Settle();
+            Assert.That(_scan.SelectedNode, Is.SameAs(node));
+            Assert.That(leaf.IsSelected, Is.False);
+
+            _scan.SelectedNode = null;
+            _host.Settle();
+            Assert.That(_tree.SelectedItem, Is.Null);
+            Assert.That(node.IsSelected, Is.False);
+        }
+        finally
+        {
+            _scan.PropertyChanged -= recordSelection;
+            node.PropertyChanged -= countNotifications;
+            leaf.PropertyChanged -= countNotifications;
+            _scan.SelectedNode = null;
+        }
     }
 
     private DirectorySpace Build(int count)
