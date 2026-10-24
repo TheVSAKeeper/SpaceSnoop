@@ -11,6 +11,7 @@ using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Windows;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -62,13 +63,51 @@ public class ScanReleaseTests
     }
 
     [Test]
-    public async Task Завершение_кадра_можно_запросить_с_фонового_потока()
+    public void Завершение_кадра_можно_запросить_с_фонового_потока()
     {
         var operations = _services.GetRequiredService<PerformanceOperations>();
+        var app = Application.Current;
+        var previousWindow = app.MainWindow;
+        using var host = VisualTestHost.Show(new(), 800, 600);
+        app.MainWindow = host.Window;
 
-        await Task.Run(operations.FlushFramesAsync).WaitAsync(TimeSpan.FromSeconds(5));
+        try
+        {
+            Assert.That(host.Window.IsVisible, Is.True);
+            operations.ReportRun(new("Ожидание кадра", 0, 0, TimeSpan.Zero));
+            var queued = new TaskCompletionSource<Task>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var background = Task.Run(() =>
+            {
+                try
+                {
+                    var completion = operations.FlushFramesAsync();
+                    queued.SetResult(completion);
+                    return completion;
+                }
+                catch (Exception exception)
+                {
+                    queued.SetException(exception);
+                    throw;
+                }
+            });
 
-        Assert.That(operations.Current, Is.Null);
+            try
+            {
+                Assert.That(queued.Task.Wait(TimeSpan.FromSeconds(5)), Is.True);
+                Assert.That(queued.Task.Result.IsCompleted, Is.False);
+            }
+            finally
+            {
+                host.Settle();
+                Assert.That(background.Wait(TimeSpan.FromSeconds(5)), Is.True);
+            }
+
+            Assert.That(operations.Current, Is.Null);
+        }
+        finally
+        {
+            app.MainWindow = previousWindow;
+        }
     }
 
     [Test]
