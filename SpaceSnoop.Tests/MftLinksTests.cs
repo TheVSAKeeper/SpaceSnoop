@@ -11,6 +11,28 @@ public class MftLinksTests
     private const int File = 30;
 
     [Test]
+    public void Альтернативное_имя_корня_под_корнем_скана_не_создаёт_цикл()
+    {
+        var table = Table();
+        table.Entries[File] = Leaf("внутри.bin", Target, 7, 100);
+        table.Alternates[Root] = [new(Target, 7, "повреждённый-корень")];
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.Rehome(table, Target, CancellationToken.None);
+        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        links.DropUnreachable(table, cancel.Token);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[Root].Parent, Is.EqualTo(Root));
+            Assert.That(links.FirstChild[Target], Is.EqualTo(File));
+            Assert.That(table.Entries[File].Exists, Is.True);
+            Assert.That(table.Statistics.Rehomed, Is.Zero);
+            Assert.That(table.Statistics.Detached, Is.Zero);
+        }
+    }
+
+    [Test]
     public void Достижимая_из_корня_скана_запись_остаётся_на_своём_месте()
     {
         var table = Table();
@@ -145,6 +167,49 @@ public class MftLinksTests
             Assert.That(links.NextSibling[Target], Is.EqualTo(Outside));
             Assert.That(links.NextSibling[Outside], Is.EqualTo(-1));
             Assert.That(links.FirstChild[Target], Is.EqualTo(40));
+        }
+    }
+
+    [Test]
+    public void Каталог_предок_корня_скана_не_переподвешивается_под_потомка()
+    {
+        var table = Table();
+        table.Entries[Target].Parent = Outside;
+        table.Entries[Target].ParentSequence = 9;
+        table.Entries[File] = Leaf("внутри.bin", Target, 7, 100);
+        table.Alternates[Outside] = [new(Target, 7, "повреждённый-предок")];
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.Rehome(table, Target, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[Outside].Parent, Is.EqualTo(Root));
+            Assert.That(table.Entries[File].Exists, Is.True);
+            Assert.That(table.Statistics.Rehomed, Is.Zero);
+            Assert.That(table.Statistics.Detached, Is.Zero);
+        }
+    }
+
+    [Test]
+    public void Каталог_с_недоступным_родителем_спасается_допустимым_альтернативным_именем()
+    {
+        var table = Table();
+        table.Entries[Outside].Parent = 63;
+        table.Entries[File] = Leaf("внутри.bin", Outside, 9, 100);
+        table.Alternates[Outside] = [new(Target, 7, "спасённый-каталог")];
+        var links = MftLinks.Build(table, CancellationToken.None);
+
+        links.Rehome(table, Target, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[Outside].Parent, Is.EqualTo(Target));
+            Assert.That(table.Entries[Outside].Name, Is.EqualTo("спасённый-каталог"));
+            Assert.That(table.Entries[File].Exists, Is.True);
+            Assert.That(table.Statistics.Rehomed, Is.EqualTo(1));
+            Assert.That(table.Statistics.Detached, Is.Zero);
         }
     }
 
@@ -335,6 +400,29 @@ public class MftLinksTests
         var start = MftScanner.Locate(table, links, new(@"C:\"), 'C');
 
         Assert.That(start, Is.EqualTo(Root));
+    }
+
+    [Test]
+    public void Циклические_родители_системного_каталога_не_зацикливают_проверку_достижимости()
+    {
+        var table = Table();
+        table.Entries[11] = Folder("$Extend", 24, 2, 11);
+        table.Entries[24] = Folder("повреждённый", 11, 11, 2);
+        table.Entries[File] = Leaf("внутри.bin", 24, 2, 700);
+        table.Entries[40] = Leaf("оторванный.bin", 63, 1, 100);
+        var links = MftLinks.Build(table, CancellationToken.None);
+        using var cancel = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        links.DropUnreachable(table, cancel.Token);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Entries[File].Exists, Is.True);
+            Assert.That(table.Entries[40].Exists, Is.False);
+            Assert.That(table.Statistics.Detached, Is.EqualTo(1));
+            Assert.That(table.Statistics.OrphanFiles, Is.EqualTo(1));
+            Assert.That(table.Statistics.OrphanBytes, Is.EqualTo(100));
+        }
     }
 
     private static MftTable Table()

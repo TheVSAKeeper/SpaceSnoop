@@ -83,7 +83,8 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
             foreach (var candidate in names)
             {
                 if (!IsValidParent(entries, candidate.Parent, candidate.ParentSequence, null)
-                    || !IsUnder(entries, candidate.Parent, start))
+                    || !IsUnder(entries, candidate.Parent, start)
+                    || (entries[index].IsDirectory && !CanAttachDirectory(entries, index, candidate.Parent)))
                 {
                     continue;
                 }
@@ -130,6 +131,11 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
 
             for (var child = FirstChild[stack.Pop()]; child >= 0; child = NextSibling[child])
             {
+                if (reachable[child])
+                {
+                    continue;
+                }
+
                 reachable[child] = true;
                 stack.Push(child);
             }
@@ -159,6 +165,30 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
 
             entry.Name = null;
         }
+    }
+
+    private static bool CanAttachDirectory(MftEntry[] entries, int index, int parent)
+    {
+        var visited = new HashSet<int>();
+
+        while (parent >= 0 && parent < entries.Length)
+        {
+            if (parent == index || !visited.Add(parent))
+            {
+                return false;
+            }
+
+            var next = entries[parent].Parent;
+
+            if (next == parent)
+            {
+                return true;
+            }
+
+            parent = next;
+        }
+
+        return false;
     }
 
     private static void Restore(MftStatistics statistics, in MftEntry entry)
