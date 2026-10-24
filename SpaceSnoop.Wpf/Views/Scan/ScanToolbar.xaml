@@ -37,13 +37,26 @@
 
             <WrapPanel Grid.Column="0"
                        VerticalAlignment="Center">
-                <Button Style="{StaticResource Button.Secondary}"
-                        Command="{Binding OpenPickerCommand}"
+                <Button Command="{Binding OpenPickerCommand}"
                         Margin="0,2,14,2"
-                        MaxWidth="360"
                         Visibility="{Binding ShowScanResult, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}"
                         ToolTip="Выбрать другой диск или каталог"
                         AutomationProperties.Name="{Binding SelectedDrive, StringFormat='Цель сканирования: {0}. Выбрать другую'}">
+                    <Button.Style>
+                        <Style TargetType="Button"
+                               BasedOn="{StaticResource Button.Secondary}">
+                            <Setter Property="MaxWidth"
+                                    Value="360" />
+                            <Style.Triggers>
+                                <DataTrigger
+                                    Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                    Value="True">
+                                    <Setter Property="MaxWidth"
+                                            Value="320" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
                     <StackPanel Orientation="Horizontal">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.HardDrive}"
                                                   Width="15"
@@ -137,7 +150,20 @@
                                                   VerticalAlignment="Center"
                                                   Margin="0,0,6,0" />
                         <TextBlock Text="Сохранить скан"
-                                   VerticalAlignment="Center" />
+                                   VerticalAlignment="Center">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Style.Triggers>
+                                        <DataTrigger
+                                            Binding="{Binding IsCompact, RelativeSource={RelativeSource AncestorType=views:ScanView}}"
+                                            Value="True">
+                                            <Setter Property="Visibility"
+                                                    Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
                     </StackPanel>
                 </Button>
             </WrapPanel>
