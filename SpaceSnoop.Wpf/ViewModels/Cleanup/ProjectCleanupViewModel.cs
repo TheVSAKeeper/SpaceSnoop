@@ -117,14 +117,6 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         RestoreInputs();
     }
 
-    partial void OnRootPathChanged(string value)
-    {
-        if (!_restoring)
-        {
-            InputChanged();
-        }
-    }
-
     partial void OnSearchTextChanged(string value)
     {
         RowsView.Refresh();
@@ -161,93 +153,6 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         return IsIdle && (ScopeRoots().Length + CustomOutputs.Count) > 0;
     }
 
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private async Task BrowseAsync()
-    {
-        if (!IsIdle)
-        {
-            return;
-        }
-
-        var path = _picker.PickFolder("Каталог проектов для поиска артефактов", RootPath);
-        if (path is null)
-        {
-            return;
-        }
-
-        RootPath = path;
-        await FindAsync();
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void AddRoot()
-    {
-        if (!IsIdle)
-        {
-            return;
-        }
-
-        var path = _picker.PickFolder("Дополнительный корень проектов", RootPath);
-        if (path is not null)
-        {
-            AdditionalRoots.Add(path);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void AddCustomOutput()
-    {
-        if (!IsIdle)
-        {
-            return;
-        }
-
-        var path = _picker.PickFolder("Каталог нестандартных результатов сборки", RootPath);
-        if (path is not null)
-        {
-            CustomOutputs.Add(path);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void RemoveRoot(string? path)
-    {
-        if (IsIdle && path is not null)
-        {
-            AdditionalRoots.Remove(path);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void RemoveCustomOutput(string? path)
-    {
-        if (IsIdle && path is not null)
-        {
-            CustomOutputs.Remove(path);
-        }
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void ClearRoots()
-    {
-        if (!IsIdle)
-        {
-            return;
-        }
-
-        RootPath = string.Empty;
-        AdditionalRoots.Clear();
-    }
-
-    [RelayCommand(CanExecute = nameof(IsIdle))]
-    private void ClearCustomOutputs()
-    {
-        if (IsIdle)
-        {
-            CustomOutputs.Clear();
-        }
-    }
-
     [RelayCommand(CanExecute = nameof(CanFind))]
     private async Task FindAsync()
     {
@@ -256,7 +161,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             return;
         }
 
-        var operation = _operation.Begin(value => IsBusy = value);
+        _operation.Begin(value => IsBusy = value);
         ResultText = null;
         try
         {
@@ -273,7 +178,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
         }
     }
 
@@ -355,10 +260,10 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             lines,
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("В корзину", ConfirmChoiceKind.Destructive)]) { Warning = "Корзина продолжает занимать место на диске. Перед очисткой проверьте выбранные файлы." };
 
-        var operation = _operation.Begin(value => IsBusy = value);
+        _operation.Begin(value => IsBusy = value);
         try
         {
-            if (!await operation.ConfirmAsync(_dialogs, confirmation))
+            if (!await _operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -375,8 +280,8 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
 
             _plan = null;
             StatusText = "Отправляю выбранные файлы в корзину…";
-            var report = await _service.CleanAsync(plan, selected.Select(x => x.Id).ToArray(), null, _operation.Token);
-            var outcome = CleanupOperation.Outcome(report);
+            var report = await _service.CleanAsync(plan, selectedIds, null, _operation.Token);
+            var outcome = CleanupOutcomeText.For(report);
 
             ResultText = $"{outcome}. В корзине файлов: {report.Deleted:N0}, данных: {SizeFormatter.Format(report.FreedBytes)}. Пропущено: {report.Skipped:N0}."
                 + (report.Errors.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, report.Errors));
@@ -405,7 +310,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
             OnPropertyChanged(nameof(CanClean));
             CleanCommand.NotifyCanExecuteChanged();
         }

@@ -204,7 +204,7 @@ public sealed class ProjectCleanupViewModelTests
         var dialogs = new PausedDialogs();
         var vm = Create(dialogs);
         var parent = new DeveloperCleanupViewModel(
-            new(),
+            new(Path.Combine(_root, "logs")),
             new NoopDialogs(),
             new FakeUiDispatcher(),
             NullLogger<DeveloperCleanupViewModel>.Instance,

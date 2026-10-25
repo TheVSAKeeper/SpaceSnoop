@@ -75,7 +75,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
             return;
         }
 
-        var operation = _operation.Begin(value => IsBusy = value);
+        _operation.Begin(value => IsBusy = value);
         _plan = null;
         DisplayPlan = null;
         LogPath = null;
@@ -121,7 +121,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
         }
     }
 
@@ -148,10 +148,10 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
             ],
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("Очистить", ConfirmChoiceKind.Destructive)]) { Warning = "Проверьте SDK и список workloads. Не запускайте параллельно установку или обновление SDK и workloads." };
 
-        var operation = _operation.Begin(value => IsBusy = value);
+        _operation.Begin(value => IsBusy = value);
         try
         {
-            if (!await operation.ConfirmAsync(_dialogs, confirmation))
+            if (!await _operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -167,7 +167,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
             _plan = null;
             StatusText = "Выполняю dotnet workload clean…";
             var report = await _service.CleanAsync(plan, _operation.Token);
-            var outcome = CleanupOperation.Outcome(report.Outcome);
+            var outcome = CleanupOutcomeText.For(report.Outcome);
 
             ResultText = outcome
                 + (report.ExitCode is { } code ? $". Код завершения: {code}." : ".")
@@ -192,7 +192,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
         }
     }
 

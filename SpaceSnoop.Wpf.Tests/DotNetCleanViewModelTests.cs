@@ -195,7 +195,7 @@ public sealed class DotNetCleanViewModelTests
 
         var vm = Create();
         var parent = new DeveloperCleanupViewModel(
-            new(),
+            new(Path.Combine(_root, "logs")),
             new NoopDialogs(),
             new FakeUiDispatcher(),
             NullLogger<DeveloperCleanupViewModel>.Instance,

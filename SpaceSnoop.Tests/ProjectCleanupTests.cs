@@ -486,6 +486,30 @@ public sealed class ProjectCleanupTests
     }
 
     [Test]
+    public async Task Changed_files_beyond_report_ceiling_are_counted_but_not_logged()
+    {
+        const int count = 60;
+        var logger = new CapturingLogger<ProjectCleanupService>();
+        var service = new ProjectCleanupService(_ => Assert.Fail("nothing to recycle"), logger);
+        Write("app/app.csproj");
+        var files = Enumerable.Range(0, count).Select(x => Write($"app/bin/{x}.dll")).ToArray();
+        var plan = await service.ScanAsync(_root, default);
+        foreach (var file in files)
+        {
+            File.WriteAllText(file, "changed after preview");
+        }
+
+        var result = await service.CleanAsync(plan, plan.Artifacts.Where(x => x.Kind == ProjectArtifactKind.Bin).Select(x => x.Id).ToArray(), null, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Skipped, Is.EqualTo(count));
+            Assert.That(result.Errors, Has.Count.EqualTo(CleanupDefaults.MaxReportedErrors));
+            Assert.That(logger.Entries.Count(x => x.EventId == 1534), Is.EqualTo(CleanupDefaults.MaxReportedErrors));
+            Assert.That(logger.Entries.Select(x => x.EventId), Has.None.InRange(1540, 1543));
+        });
+    }
+
+    [Test]
     public async Task Replaced_output_directory_is_not_recycled()
     {
         Write("app/app.csproj");

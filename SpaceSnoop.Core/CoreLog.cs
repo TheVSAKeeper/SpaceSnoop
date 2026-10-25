@@ -41,6 +41,27 @@ internal static partial class CoreLog
         Message = "Синхронизация: {Action} «{RelativePath}» отклонено, конфликт вида объектов ({Conflict})")]
     public static partial void SyncTypeConflictBlocked(this ILogger logger, SyncAction action, string relativePath, FileTypeConflict conflict);
 
+    [LoggerMessage(EventId = 1530, Level = LogLevel.Information, Message = "Очистка проектов: начат каталог «{Path}»")]
+    public static partial void ProjectCleanupTargetStarted(this ILogger logger, string path);
+
+    [LoggerMessage(EventId = 1531, Level = LogLevel.Information, Message = "Очистка проектов: каталог «{Path}» – в корзину файлов {Deleted}, {Bytes} Б")]
+    public static partial void ProjectCleanupTargetFinished(this ILogger logger, string path, int deleted, long bytes);
+
+    [LoggerMessage(EventId = 1532, Level = LogLevel.Warning, Message = "Очистка проектов: корни не прошли проверку «{Roots}»")]
+    public static partial void ProjectCleanupRootsRejected(this ILogger logger, Exception exception, string roots);
+
+    [LoggerMessage(EventId = 1533, Level = LogLevel.Warning, Message = "Очистка проектов: каталог не очищен «{Path}»")]
+    public static partial void ProjectCleanupTargetFailed(this ILogger logger, Exception exception, string path);
+
+    [LoggerMessage(EventId = 1534, Level = LogLevel.Warning, Message = "Очистка проектов: файл оставлен на месте «{Path}»")]
+    public static partial void ProjectCleanupFileSkipped(this ILogger logger, Exception exception, string path);
+
+    [LoggerMessage(EventId = 1535, Level = LogLevel.Warning, Message = "Очистка проектов: файл не возвращён «{Path}» из «{Staged}»")]
+    public static partial void ProjectCleanupRestoreFailed(this ILogger logger, Exception exception, string path, string staged);
+
+    [LoggerMessage(EventId = 1536, Level = LogLevel.Warning, Message = "Очистка проектов: каталог восстановления оставлен «{Path}»")]
+    public static partial void ProjectCleanupStagingKept(this ILogger logger, Exception exception, string path);
+
     [LoggerMessage(EventId = 1550, Level = LogLevel.Information, Message = "Дубликаты: групп {Groups}, вернёт {ReclaimableBytes} Б, проверено файлов {Examined}")]
     public static partial void DuplicatesFinished(this ILogger logger, int groups, long reclaimableBytes, int examined);
 

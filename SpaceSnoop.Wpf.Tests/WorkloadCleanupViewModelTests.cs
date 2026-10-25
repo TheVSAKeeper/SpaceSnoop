@@ -186,7 +186,7 @@ public sealed class WorkloadCleanupViewModelTests
             NullLogger<ProjectCleanupViewModel>.Instance);
 
         var parent = new DeveloperCleanupViewModel(
-            new(),
+            new(Path.Combine(_root, "logs")),
             new NoopDialogs(),
             new FakeUiDispatcher(),
             NullLogger<DeveloperCleanupViewModel>.Instance,

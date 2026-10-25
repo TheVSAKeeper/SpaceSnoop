@@ -224,7 +224,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         var version = _inputVersion;
         var project = ProjectPath;
         var options = GetOptions();
-        var operation = _operation.Begin(value => IsBusy = value);
+        _operation.Begin(value => IsBusy = value);
         OnPropertyChanged(nameof(CanCancel));
         OnPropertyChanged(nameof(CancelCommand));
         _plan = null;
@@ -283,7 +283,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
             OnPropertyChanged(nameof(CanCancel));
             OnPropertyChanged(nameof(CancelCommand));
         }
@@ -320,10 +320,10 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
             ],
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("Выполнить dotnet clean", ConfirmChoiceKind.Destructive)]) { Warning = "Проверьте проект, SDK и точную команду. Импортированные задачи могут менять данные вне каталога проекта." };
 
-        var operation = _operation.Begin(value => IsBusy = value);
+        _operation.Begin(value => IsBusy = value);
         try
         {
-            if (!await operation.ConfirmAsync(_dialogs, confirmation))
+            if (!await _operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -360,7 +360,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
             OnPropertyChanged(nameof(CanCancel));
             OnPropertyChanged(nameof(CancelCommand));
         }
@@ -369,7 +369,7 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
     private void ApplyReport(DotNetCleanReport report)
     {
         HasError = !report.Succeeded && !report.Cancelled;
-        var outcome = CleanupOperation.Outcome(report.Outcome);
+        var outcome = CleanupOutcomeText.For(report.Outcome);
 
         StatusText = outcome + ".";
         ResultText = outcome

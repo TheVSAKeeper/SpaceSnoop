@@ -11,10 +11,6 @@ public sealed class NuGetCleanupService
     private readonly Func<CancellationToken, Task<NuGetCacheLocations>> _discover;
     private readonly ILogger<NuGetCleanupService> _logger;
 
-    public NuGetCleanupService() : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SpaceSnoop", "logs"))
-    {
-    }
-
     public NuGetCleanupService(string logsDirectory, ILogger<NuGetCleanupService>? logger = null)
         : this(x => NuGetCacheDiscovery.DiscoverAsync(logsDirectory, x), logger)
     {

@@ -206,7 +206,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             return;
         }
 
-        var operation = _operation.Begin(value => IsNuGetBusy = value);
+        _operation.Begin(value => IsNuGetBusy = value);
         ResultText = null;
         try
         {
@@ -223,7 +223,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
         }
     }
 
@@ -280,10 +280,10 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             lines,
             [new("Отмена", ConfirmChoiceKind.Dismissive), new("Удалить безвозвратно", ConfirmChoiceKind.Destructive)]) { Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника." };
 
-        var operation = _operation.Begin(value => IsNuGetBusy = value);
+        _operation.Begin(value => IsNuGetBusy = value);
         try
         {
-            if (!await operation.ConfirmAsync(_dialogs, confirmation))
+            if (!await _operation.ConfirmAsync(_dialogs, confirmation))
             {
                 return;
             }
@@ -298,7 +298,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             _plan = null;
             StatusText = "Удаляю выбранные файлы NuGet…";
             var result = await _service.CleanAsync(plan, selected.Select(x => x.Kind).ToArray(), null, _operation.Token);
-            ResultText = $"{CleanupOperation.Outcome(result)}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
+            ResultText = $"{CleanupOutcomeText.For(result)}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
                 + (result.Errors.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, result.Errors));
 
             _logger.DeveloperCleanupFinished(result.Deleted, result.FreedBytes, result.Skipped, result.Cancelled);
@@ -325,7 +325,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         }
         finally
         {
-            operation.Dispose();
+            _operation.End();
         }
     }
 

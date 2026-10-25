@@ -268,11 +268,11 @@ public sealed class ProjectCleanupService
             foreach (var target in targets)
             {
                 token.ThrowIfCancellationRequested();
-                _logger.CleanupStarted(target.Path);
+                _logger.ProjectCleanupTargetStarted(target.Path);
                 var deletedBefore = totals.Deleted;
                 var bytesBefore = totals.Bytes;
                 CleanTarget(plan, target, totals, progress, token);
-                _logger.CleanupFinished(target.Path, totals.Deleted - deletedBefore, totals.Bytes - bytesBefore);
+                _logger.ProjectCleanupTargetFinished(target.Path, totals.Deleted - deletedBefore, totals.Bytes - bytesBefore);
             }
         }
         catch (OperationCanceledException)
@@ -281,7 +281,7 @@ public sealed class ProjectCleanupService
         }
         catch (Exception exception) when (FileError(exception))
         {
-            _logger.CleanupFileFailed(exception, string.Join(", ", plan.Roots));
+            _logger.ProjectCleanupRootsRejected(exception, string.Join(", ", plan.Roots));
             AddError(totals.Errors, exception.Message);
         }
         finally
@@ -344,7 +344,7 @@ public sealed class ProjectCleanupService
         }
         catch (Exception exception) when (FileError(exception) || exception is COMException)
         {
-            _logger.CleanupFileFailed(exception, target.Path);
+            _logger.ProjectCleanupTargetFailed(exception, target.Path);
             AddError(totals.Errors, exception.Message);
         }
         finally
@@ -398,7 +398,11 @@ public sealed class ProjectCleanupService
             catch (Exception exception) when (FileError(exception))
             {
                 totals.Skipped++;
-                _logger.CleanupFileFailed(exception, file.Path);
+                if (totals.Errors.Count < CleanupDefaults.MaxReportedErrors)
+                {
+                    _logger.ProjectCleanupFileSkipped(exception, file.Path);
+                }
+
                 AddError(totals.Errors, exception.Message);
             }
         }
@@ -422,7 +426,11 @@ public sealed class ProjectCleanupService
             }
             catch (Exception exception) when (FileError(exception))
             {
-                _logger.CleanupFileFailed(exception, file.Stamp.Path);
+                if (errors.Count < CleanupDefaults.MaxReportedErrors)
+                {
+                    _logger.ProjectCleanupRestoreFailed(exception, file.Stamp.Path, file.Destination);
+                }
+
                 AddError(errors, $"Восстановите «{file.Stamp.Path}» из «{file.Destination}»: {exception.Message}");
             }
         }
@@ -462,7 +470,7 @@ public sealed class ProjectCleanupService
         }
         catch (Exception exception) when (FileError(exception))
         {
-            _logger.CleanupDirectorySkipped(exception, batch.Path);
+            _logger.ProjectCleanupStagingKept(exception, batch.Path);
             errors.Add($"Проверьте каталог восстановления «{batch.Path}»: {exception.Message}");
         }
     }
