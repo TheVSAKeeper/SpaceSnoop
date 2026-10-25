@@ -1,4 +1,6 @@
-﻿namespace SpaceSnoop.Wpf.ViewModels.Settings;
+﻿using System.ComponentModel;
+
+namespace SpaceSnoop.Wpf.ViewModels.Settings;
 
 public sealed partial class SettingsViewModel
 {
@@ -32,6 +34,21 @@ public sealed partial class SettingsViewModel
 
         _logger.SettingsFieldReset(field.Label, field.DefaultText);
         _notifier.Notify($"«{field.Label}» вернулось к заводскому значению: {field.DefaultText}.");
+    }
+
+    private void OnPreferencesPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        RefreshResetAvailability();
+    }
+
+    private void NotifyDerivedOptions()
+    {
+        OnPropertyChanged(nameof(SelectedThemeOption));
+        OnPropertyChanged(nameof(SelectedStartupOption));
+        OnPropertyChanged(nameof(SelectedDeleteModeOption));
+        OnPropertyChanged(nameof(SelectedCompressionOption));
+        OnPropertyChanged(nameof(SelectedGitFolderOption));
+        NotifyAgentBackendChanged();
     }
 
     private void RefreshResetAvailability()
