@@ -17,13 +17,48 @@ public class CompactWrapPanelTests
     private static readonly bool[] Optional = [false, true, false, true];
     private static readonly bool[] NoKeep = [false, false, false, false];
 
-    [TestCase(double.PositiveInfinity, new[] { F, F, F, F })]
-    [TestCase(310, new[] { F, F, F, F })]
-    [TestCase(309, new[] { F, F, F, N })]
-    [TestCase(240, new[] { F, F, F, N })]
-    [TestCase(239, new[] { F, N, F, N })]
-    [TestCase(159, new[] { F, N, N, N })]
-    [TestCase(10, new[] { F, N, N, N })]
+    [TestCase(
+        double.PositiveInfinity,
+        new[]
+        {
+            F, F, F, F,
+        })]
+    [TestCase(
+        310,
+        new[]
+        {
+            F, F, F, F,
+        })]
+    [TestCase(
+        309,
+        new[]
+        {
+            F, F, F, N,
+        })]
+    [TestCase(
+        240,
+        new[]
+        {
+            F, F, F, N,
+        })]
+    [TestCase(
+        239,
+        new[]
+        {
+            F, N, F, N,
+        })]
+    [TestCase(
+        159,
+        new[]
+        {
+            F, N, N, N,
+        })]
+    [TestCase(
+        10,
+        new[]
+        {
+            F, N, N, N,
+        })]
     public void В_одну_строку_первыми_уходят_необязательные_с_конца_потом_остальные_с_конца(double available, CompactSlot[] expected)
     {
         Assert.That(CompactWrapPanel.Plan(available, Widths, Optional, NoKeep), Is.EqualTo(expected));
@@ -33,9 +68,27 @@ public class CompactWrapPanelTests
     [TestCase(true, 1, false)]
     public void Не_влезшее_в_одну_строку_не_видно_и_недоступно(bool singleLine, int rows, bool lastEnabled)
     {
-        var first = new Border { Width = 100, Height = 20 };
-        var last = new Border { Width = 100, Height = 20 };
-        var panel = new CompactWrapPanel { SingleLine = singleLine, Children = { first, last } };
+        var first = new Border
+        {
+            Width = 100,
+            Height = 20,
+        };
+
+        var last = new Border
+        {
+            Width = 100,
+            Height = 20,
+        };
+
+        var panel = new CompactWrapPanel
+        {
+            SingleLine = singleLine,
+            Children =
+            {
+                first,
+                last,
+            },
+        };
 
         panel.Measure(new(150, double.PositiveInfinity));
         panel.Arrange(new(panel.DesiredSize));
@@ -51,8 +104,20 @@ public class CompactWrapPanelTests
     [Test]
     public void Первый_элемент_шире_панели_не_выходит_за_её_край()
     {
-        var first = new TextBlock { Text = new('ж', 80), TextTrimming = TextTrimming.CharacterEllipsis };
-        var panel = new CompactWrapPanel { SingleLine = true, Children = { first } };
+        var first = new TextBlock
+        {
+            Text = new('ж', 80),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+
+        var panel = new CompactWrapPanel
+        {
+            SingleLine = true,
+            Children =
+            {
+                first,
+            },
+        };
 
         panel.Measure(new(120, double.PositiveInfinity));
         panel.Arrange(new(new(120, panel.DesiredSize.Height)));
@@ -68,11 +133,35 @@ public class CompactWrapPanelTests
     [Test]
     public void Предупреждение_в_сжатом_виде_стоит_второй_строкой_и_доступно()
     {
-        var first = new Border { Width = 100, Height = 20 };
-        var metric = new Border { Width = 60, Height = 20 };
-        var warning = new Border { Width = 120, Height = 24 };
+        var first = new Border
+        {
+            Width = 100,
+            Height = 20,
+        };
+
+        var metric = new Border
+        {
+            Width = 60,
+            Height = 20,
+        };
+
+        var warning = new Border
+        {
+            Width = 120,
+            Height = 24,
+        };
+
         CompactWrapPanel.SetKeep(warning, true);
-        var panel = new CompactWrapPanel { SingleLine = true, Children = { first, metric, warning } };
+        var panel = new CompactWrapPanel
+        {
+            SingleLine = true,
+            Children =
+            {
+                first,
+                metric,
+                warning,
+            },
+        };
 
         panel.Measure(new(150, double.PositiveInfinity));
         panel.Arrange(new(panel.DesiredSize));
@@ -88,10 +177,30 @@ public class CompactWrapPanelTests
         }
     }
 
-    [TestCase(310, new[] { F, F, F, F })]
-    [TestCase(229, new[] { F, N, N, F })]
-    [TestCase(169, new[] { F, N, F, S })]
-    [TestCase(90, new[] { F, N, N, S })]
+    [TestCase(
+        310,
+        new[]
+        {
+            F, F, F, F,
+        })]
+    [TestCase(
+        229,
+        new[]
+        {
+            F, N, N, F,
+        })]
+    [TestCase(
+        169,
+        new[]
+        {
+            F, N, F, S,
+        })]
+    [TestCase(
+        90,
+        new[]
+        {
+            F, N, N, S,
+        })]
     public void Предупреждение_не_снимается_а_если_не_влезает_уходит_на_вторую_строку(double available, CompactSlot[] expected)
     {
         bool[] optional = [false, true, false, false];
@@ -106,6 +215,12 @@ public class CompactWrapPanelTests
         double[] widths = [100, 80, 60, 0];
         bool[] keep = [false, false, false, true];
 
-        Assert.That(CompactWrapPanel.Plan(150, widths, NoKeep, keep), Is.EqualTo(new[] { F, N, N, F }));
+        Assert.That(
+            CompactWrapPanel.Plan(150, widths, NoKeep, keep),
+            Is.EqualTo(
+                new[]
+                {
+                    F, N, N, F,
+                }));
     }
 }

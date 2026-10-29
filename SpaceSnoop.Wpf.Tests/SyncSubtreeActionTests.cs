@@ -11,9 +11,17 @@ public class SyncSubtreeActionTests
     [Test]
     public void Встречное_копирование_снимает_удаление_каталога()
     {
-        var dir = new DirectoryComparison("orphan", "orphan") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft };
+        var dir = new DirectoryComparison("orphan", "orphan")
+        {
+            Status = ComparisonStatus.LeftOnly,
+            Action = SyncAction.DeleteLeft,
+        };
 
-        dir.Files.Add(new("a.txt", "orphan\\a.txt") { Status = ComparisonStatus.LeftOnly });
+        dir.Files.Add(
+            new("a.txt", "orphan\\a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
 
         Rows().ApplyToSubtree(dir, SyncAction.CopyToLeft);
 
@@ -50,12 +58,23 @@ public class SyncSubtreeActionTests
     {
         var cycle = SyncActionCycles.ForFile(ComparisonStatus.Modified, true, true);
 
-        Assert.That(cycle, Is.EqualTo(new[] { SyncAction.Skip }));
+        Assert.That(
+            cycle,
+            Is.EqualTo(
+                new[]
+                {
+                    SyncAction.Skip,
+                }));
     }
 
     private static DirectoryComparison Conflict(out FileComparison file)
     {
-        file = new("config", "config") { Status = ComparisonStatus.Modified, Action = SyncAction.Skip, TypeConflict = FileTypeConflict.LeftFileRightDirectory };
+        file = new("config", "config")
+        {
+            Status = ComparisonStatus.Modified,
+            Action = SyncAction.Skip,
+            TypeConflict = FileTypeConflict.LeftFileRightDirectory,
+        };
 
         var dir = new DirectoryComparison("root", "");
         dir.Files.Add(file);

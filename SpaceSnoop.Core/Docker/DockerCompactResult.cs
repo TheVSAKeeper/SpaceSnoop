@@ -82,7 +82,10 @@ public sealed record DockerCompactResult(
 
     public string ToDisplayText()
     {
-        var lines = new List<string> { Summary };
+        var lines = new List<string>
+        {
+            Summary,
+        };
 
         if (VhdxPath is not null)
         {

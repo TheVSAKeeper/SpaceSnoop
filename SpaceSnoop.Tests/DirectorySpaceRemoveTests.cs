@@ -60,7 +60,10 @@ public class DirectorySpaceRemoveTests
     {
         var parentDir = new DirectoryInfo(_tempDir);
         var parent = new DirectorySpace(parentDir.Name, null, parentDir.CreationTime, parentDir.LastAccessTime);
-        var files = new[] { "a.bin", "b.bin", "c.bin" }.Select(x =>
+        var files = new[]
+            {
+                "a.bin", "b.bin", "c.bin",
+            }.Select(x =>
             {
                 var path = Path.Combine(_tempDir, x);
                 File.WriteAllBytes(path, new byte[10]);

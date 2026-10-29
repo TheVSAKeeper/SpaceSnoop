@@ -45,8 +45,20 @@ public class StretchWrapPanelTests
         Assert.That(rows, Is.EqualTo([(0, 2), (2, 1)]));
     }
 
-    [TestCase(new[] { 400d, 34d, 400d }, 880d, 1)]
-    [TestCase(new[] { 400d, 34d, 400d }, 620d, 2)]
+    [TestCase(
+        new[]
+        {
+            400d, 34d, 400d,
+        },
+        880d,
+        1)]
+    [TestCase(
+        new[]
+        {
+            400d, 34d, 400d,
+        },
+        620d,
+        2)]
     public void Раскладка_путей_одна_строка_на_широком_две_на_узком(double[] widths, double line, int expectedRows)
     {
         var rows = StretchWrapPanel.PackRows(widths, line);

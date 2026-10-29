@@ -243,7 +243,8 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             new ConfirmTextLine("Остановите сборки, тесты и бенчмарки.", ConfirmTextTone.Strong),
             new ConfirmTextLine("В найденных каталогах могут лежать ваши файлы. Проверьте выбранные пути и содержимое."),
             new ConfirmTextLine("В корзину попадут только просмотренные неизменившиеся файлы. Новые файлы и пустые каталоги останутся."),
-            new ConfirmTextLine("Файлы попадут в корзину в папках SpaceSnoop. Для восстановления верните такую папку из корзины. Исходные пути записаны в файле SpaceSnoop-restore.json внутри неё; автоматическое восстановление не гарантируется."),
+            new ConfirmTextLine(
+                "Файлы попадут в корзину в папках SpaceSnoop. Для восстановления верните такую папку из корзины. Исходные пути записаны в файле SpaceSnoop-restore.json внутри неё; автоматическое восстановление не гарантируется."),
             new ConfirmTextLine("Результаты тестов и бенчмарков могут понадобиться для проверки работы."),
             new ConfirmTextLine("Повторная сборка может потребовать загрузки пакетов. Убедитесь, что их источники доступны."),
         };
@@ -258,7 +259,10 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
             "Очистка проектов",
             PackIconLucideKind.Trash2,
             lines,
-            [new("Отмена", ConfirmChoiceKind.Dismissive), new("В корзину", ConfirmChoiceKind.Destructive)]) { Warning = "Корзина продолжает занимать место на диске. Перед очисткой проверьте выбранные файлы." };
+            [new("Отмена", ConfirmChoiceKind.Dismissive), new("В корзину", ConfirmChoiceKind.Destructive)])
+        {
+            Warning = "Корзина продолжает занимать место на диске. Перед очисткой проверьте выбранные файлы.",
+        };
 
         _operation.Begin(value => IsBusy = value);
         try

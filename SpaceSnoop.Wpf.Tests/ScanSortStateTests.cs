@@ -30,7 +30,11 @@ public class ScanSortStateTests
         var dir = MakeDir("a", 1);
         var file = MakeFile("b.bin", 1_000_000);
 
-        var sorter = new ScanSortState { Field = ScanSortField.Size, Invert = invert };
+        var sorter = new ScanSortState
+        {
+            Field = ScanSortField.Size,
+            Invert = invert,
+        };
 
         using (Assert.EnterMultipleScope())
         {
@@ -45,7 +49,11 @@ public class ScanSortStateTests
         var older = MakeDir("o", 1, new(2020, 1, 1));
         var newer = MakeDir("n", 1, new(2024, 1, 1));
 
-        var sorter = new ScanSortState { Field = ScanSortField.CreationDate, Invert = false };
+        var sorter = new ScanSortState
+        {
+            Field = ScanSortField.CreationDate,
+            Invert = false,
+        };
 
         Assert.That(sorter.Compare(older, newer), Is.LessThan(0));
     }
@@ -56,7 +64,11 @@ public class ScanSortStateTests
         var alpha = MakeDir("alpha", 1);
         var beta = MakeDir("beta", 1);
 
-        var sorter = new ScanSortState { Field = ScanSortField.Name, Invert = false };
+        var sorter = new ScanSortState
+        {
+            Field = ScanSortField.Name,
+            Invert = false,
+        };
 
         Assert.That(sorter.Compare(alpha, beta), Is.LessThan(0));
     }
@@ -74,8 +86,21 @@ public class ScanSortStateTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(many.TotalFileCount, Is.EqualTo(5));
-            Assert.That(new ScanSortState { Field = ScanSortField.FileCount, Invert = false }.Compare(few, many), Is.LessThan(0));
-            Assert.That(new ScanSortState { Field = ScanSortField.FileCount, Invert = true }.Compare(few, many), Is.GreaterThan(0));
+            Assert.That(
+                new ScanSortState
+                {
+                    Field = ScanSortField.FileCount,
+                    Invert = false,
+                }.Compare(few, many),
+                Is.LessThan(0));
+
+            Assert.That(
+                new ScanSortState
+                {
+                    Field = ScanSortField.FileCount,
+                    Invert = true,
+                }.Compare(few, many),
+                Is.GreaterThan(0));
         }
     }
 
@@ -87,8 +112,21 @@ public class ScanSortStateTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(new ScanSortState { Field = ScanSortField.Size, Invert = false }.Compare(small, big), Is.LessThan(0));
-            Assert.That(new ScanSortState { Field = ScanSortField.Size, Invert = true }.Compare(small, big), Is.GreaterThan(0));
+            Assert.That(
+                new ScanSortState
+                {
+                    Field = ScanSortField.Size,
+                    Invert = false,
+                }.Compare(small, big),
+                Is.LessThan(0));
+
+            Assert.That(
+                new ScanSortState
+                {
+                    Field = ScanSortField.Size,
+                    Invert = true,
+                }.Compare(small, big),
+                Is.GreaterThan(0));
         }
     }
 

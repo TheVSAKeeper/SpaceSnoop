@@ -25,7 +25,11 @@ public class AgentModelSelectorTests
     public void Выбор_уровня_пишется_в_ключ_своего_бэкенда()
     {
         var settings = new MemorySettings();
-        var preferences = new AgentPreferences(settings) { Backend = AgentBackendKind.Codex };
+        var preferences = new AgentPreferences(settings)
+        {
+            Backend = AgentBackendKind.Codex,
+        };
+
         var selector = Selector(preferences);
 
         selector.SelectedEffort = selector.EffortOptions.First(option => option.Id == "ultra");
@@ -40,7 +44,11 @@ public class AgentModelSelectorTests
     [Test]
     public void Слаг_вне_каталога_становится_отдельным_пунктом_списка()
     {
-        var preferences = new AgentPreferences(new MemorySettings()) { Model = "claude-opus-5-мой" };
+        var preferences = new AgentPreferences(new MemorySettings())
+        {
+            Model = "claude-opus-5-мой",
+        };
+
         var selector = Selector(preferences);
 
         using (Assert.EnterMultipleScope())

@@ -36,13 +36,28 @@ public class ScanTreeLayoutTests
         settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
         AppThemes.Register();
         ThemeManager.Apply(AppThemes.LightKey);
-        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_directory, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+        _logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(_directory, "logs"),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
 
         _services = App.ConfigureServices(settings, _logging);
         _scan = _services.GetRequiredService<ScanViewModel>();
         _factory = _services.GetRequiredService<ScanNodeFactory>();
-        var panel = new ScanStructurePanel { DataContext = _scan };
-        _host = VisualTestHost.Show(new() { Content = panel }, 1000, 700);
+        var panel = new ScanStructurePanel
+        {
+            DataContext = _scan,
+        };
+
+        _host = VisualTestHost.Show(
+            new()
+            {
+                Content = panel,
+            },
+            1000,
+            700);
 
         _host.Settle();
         _tree = Descendants<TreeView>(panel).Single();
@@ -169,7 +184,10 @@ public class ScanTreeLayoutTests
             }
         };
 
-        foreach (var candidate in new[] { node, leaf })
+        foreach (var candidate in new[]
+        {
+            node, leaf,
+        })
         {
             candidate.PropertyChanged += countNotifications;
         }
@@ -205,7 +223,14 @@ public class ScanTreeLayoutTests
                 Assert.That(_tree.SelectedItem, Is.SameAs(leaf));
                 Assert.That(node.IsSelected, Is.False);
                 Assert.That(leaf.IsSelected, Is.True);
-                Assert.That(selections, Is.EqualTo(new[] { leaf }));
+                Assert.That(
+                    selections,
+                    Is.EqualTo(
+                        new[]
+                        {
+                            leaf,
+                        }));
+
                 Assert.That(notifications, Is.EqualTo(2));
             }
 

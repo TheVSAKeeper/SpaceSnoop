@@ -65,7 +65,10 @@ public sealed class WorkloadCleanupTests
             info =>
             {
                 launched = true;
-                return new() { StartInfo = info };
+                return new()
+                {
+                    StartInfo = info,
+                };
             });
 
         var result = await runner.RunAsync(
@@ -165,7 +168,14 @@ public sealed class WorkloadCleanupTests
             {
                 Assert.Multiple(() =>
                 {
-                    Assert.That(info.ArgumentList, Is.EqualTo(new[] { "probe", "one value" }));
+                    Assert.That(
+                        info.ArgumentList,
+                        Is.EqualTo(
+                            new[]
+                            {
+                                "probe", "one value",
+                            }));
+
                     Assert.That(info.WorkingDirectory, Is.EqualTo(Path.GetFullPath(_scratch)));
                     Assert.That(info.UseShellExecute, Is.False);
                     Assert.That(info.Environment["DOTNET_CLI_UI_LANGUAGE"], Is.EqualTo("en"));
@@ -228,7 +238,13 @@ public sealed class WorkloadCleanupTests
     [Test]
     public async Task Runner_сообщает_отказ_запуска_без_ожидания_несуществующего_процесса()
     {
-        var runner = new DotNetCli(() => _scratch, _ => true, info => new() { StartInfo = info });
+        var runner = new DotNetCli(
+            () => _scratch,
+            _ => true,
+            info => new()
+            {
+                StartInfo = info,
+            });
 
         var result = await runner.RunAsync(
             runner.ResolveExecutable(),
@@ -256,7 +272,13 @@ public sealed class WorkloadCleanupTests
         {
             Assert.That(report.Succeeded, Is.False);
             Assert.That(report.Error, Does.Contain("изменились"));
-            Assert.That(calls.Any(args => args.SequenceEqual(new[] { "workload", "clean" })), Is.False);
+            Assert.That(
+                calls.Any(args => args.SequenceEqual(
+                    new[]
+                    {
+                        "workload", "clean",
+                    })),
+                Is.False);
         });
     }
 
@@ -274,7 +296,13 @@ public sealed class WorkloadCleanupTests
         Assert.Multiple(() =>
         {
             Assert.That(report.Cancelled, Is.True);
-            Assert.That(calls.Any(args => args.SequenceEqual(new[] { "workload", "clean" })), Is.False);
+            Assert.That(
+                calls.Any(args => args.SequenceEqual(
+                    new[]
+                    {
+                        "workload", "clean",
+                    })),
+                Is.False);
         });
     }
 
@@ -290,7 +318,14 @@ public sealed class WorkloadCleanupTests
         Assert.Multiple(() =>
         {
             Assert.That(report.Succeeded, Is.True);
-            Assert.That(calls, Does.Contain(new[] { "workload", "clean" }));
+            Assert.That(
+                calls,
+                Does.Contain(
+                    new[]
+                    {
+                        "workload", "clean",
+                    }));
+
             Assert.That(calls.SelectMany(args => args), Does.Not.Contain("--all"));
             Assert.That(report.OutputTail, Does.Contain("workload clean"));
         });
@@ -337,14 +372,25 @@ public sealed class WorkloadCleanupTests
             () => Path.Combine(_scratch, "dotnet.exe"),
             (executable, args, directory, log, timeout, token, environment) =>
             {
-                cleaned |= args.SequenceEqual(new[] { "workload", "clean" });
+                cleaned |= args.SequenceEqual(
+                    new[]
+                    {
+                        "workload", "clean",
+                    });
+
                 return Task.FromResult(
                     rechecking
                         ? new(outcome, null, "partial inspection", log, false, "controlled failure")
                         : new DotNetCliResult(
                             DotNetCliOutcome.Succeeded,
                             0,
-                            args.SequenceEqual(new[] { "--version" }) ? "10.0.303" : "",
+                            args.SequenceEqual(
+                                new[]
+                                {
+                                    "--version",
+                                })
+                                ? "10.0.303"
+                                : "",
                             log,
                             false,
                             null));
@@ -378,7 +424,13 @@ public sealed class WorkloadCleanupTests
         {
             Assert.That(plan.InstalledWorkloads, Is.Empty);
             Assert.That(report.Succeeded, Is.True);
-            Assert.That(calls, Does.Contain(new[] { "workload", "clean" }));
+            Assert.That(
+                calls,
+                Does.Contain(
+                    new[]
+                    {
+                        "workload", "clean",
+                    }));
         });
     }
 
@@ -394,9 +446,17 @@ public sealed class WorkloadCleanupTests
             {
                 var args = info.ArgumentList.ToArray();
                 calls.Add(args);
-                var output = args.SequenceEqual(new[] { "--version" })
+                var output = args.SequenceEqual(
+                    new[]
+                    {
+                        "--version",
+                    })
                     ? "[Console]::WriteLine('10.0.303'); exit " + versionExitCode
-                    : args.SequenceEqual(new[] { "workload", "list" })
+                    : args.SequenceEqual(
+                        new[]
+                        {
+                            "workload", "list",
+                        })
                         ? "[Console]::WriteLine('" + (installed?.Invoke() ?? "sdk-manifest-1") + "')"
                         : "[Console]::WriteLine('workload clean'); exit 0";
 

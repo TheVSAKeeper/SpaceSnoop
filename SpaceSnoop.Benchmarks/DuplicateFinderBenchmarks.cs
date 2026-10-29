@@ -46,7 +46,10 @@ public class DuplicateFinderBenchmarks
         var directory = new DirectoryInfo(_root);
         _tree = new DiskSpaceCalculator().Calculate(directory, CancellationToken.None);
         _tree.FixAbsolutePath(directory);
-        _options = DuplicateOptions.Default with { MaxParallelism = Parallelism };
+        _options = DuplicateOptions.Default with
+        {
+            MaxParallelism = Parallelism,
+        };
     }
 
     [GlobalCleanup]

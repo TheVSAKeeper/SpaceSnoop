@@ -31,7 +31,11 @@ public class SyncFlatFilesTests
         var applied = File("done.txt", ComparisonStatus.LeftOnly);
         var failed = File("fail.txt", ComparisonStatus.LeftOnly);
         var root = Dir("", applied, failed);
-        var outcomes = new Dictionary<object, SyncOutcome> { [applied] = SyncOutcome.Applied, [failed] = SyncOutcome.Failed };
+        var outcomes = new Dictionary<object, SyncOutcome>
+        {
+            [applied] = SyncOutcome.Applied,
+            [failed] = SyncOutcome.Failed,
+        };
 
         var files = SyncRowsProjector.CollectVisibleFiles(root, false, true, outcomes).ToList();
 
@@ -73,8 +77,18 @@ public class SyncFlatFilesTests
     [Test]
     public void Сортировка_по_дате_берёт_позднюю_из_сторон()
     {
-        var old = new FileComparison("o.txt", "o.txt") { LeftModified = new(2026, 1, 1), RightModified = new(2025, 1, 1) };
-        var fresh = new FileComparison("f.txt", "f.txt") { LeftModified = null, RightModified = new(2026, 6, 1) };
+        var old = new FileComparison("o.txt", "o.txt")
+        {
+            LeftModified = new(2026, 1, 1),
+            RightModified = new(2025, 1, 1),
+        };
+
+        var fresh = new FileComparison("f.txt", "f.txt")
+        {
+            LeftModified = null,
+            RightModified = new(2026, 6, 1),
+        };
+
         var never = new FileComparison("n.txt", "n.txt");
 
         var asc = SyncRowsProjector.SortFiles([old, fresh, never], SyncSortField.Modified, false).ToList();
@@ -101,9 +115,23 @@ public class SyncFlatFilesTests
     [Test]
     public void Сортировка_по_размеру_берёт_большую_из_сторон()
     {
-        var small = new FileComparison("s.txt", "s.txt") { LeftSize = 10, RightSize = 5 };
-        var big = new FileComparison("b.txt", "b.txt") { LeftSize = 100, RightSize = 0 };
-        var mid = new FileComparison("m.txt", "m.txt") { LeftSize = null, RightSize = 50 };
+        var small = new FileComparison("s.txt", "s.txt")
+        {
+            LeftSize = 10,
+            RightSize = 5,
+        };
+
+        var big = new FileComparison("b.txt", "b.txt")
+        {
+            LeftSize = 100,
+            RightSize = 0,
+        };
+
+        var mid = new FileComparison("m.txt", "m.txt")
+        {
+            LeftSize = null,
+            RightSize = 50,
+        };
 
         var asc = SyncRowsProjector.SortFiles([small, big, mid], SyncSortField.Size, false).ToList();
         var desc = SyncRowsProjector.SortFiles([small, big, mid], SyncSortField.Size, true).ToList();
@@ -118,9 +146,20 @@ public class SyncFlatFilesTests
     [Test]
     public void Сортировка_по_статусу_группирует_и_упорядочивает_по_пути()
     {
-        var modifiedZ = new FileComparison("z.txt", "z.txt") { Status = ComparisonStatus.Modified };
-        var modifiedA = new FileComparison("a.txt", "a.txt") { Status = ComparisonStatus.Modified };
-        var leftOnly = new FileComparison("l.txt", "l.txt") { Status = ComparisonStatus.LeftOnly };
+        var modifiedZ = new FileComparison("z.txt", "z.txt")
+        {
+            Status = ComparisonStatus.Modified,
+        };
+
+        var modifiedA = new FileComparison("a.txt", "a.txt")
+        {
+            Status = ComparisonStatus.Modified,
+        };
+
+        var leftOnly = new FileComparison("l.txt", "l.txt")
+        {
+            Status = ComparisonStatus.LeftOnly,
+        };
 
         var sorted = SyncRowsProjector.SortFiles([modifiedZ, leftOnly, modifiedA], SyncSortField.Status, false).ToList();
 
@@ -172,7 +211,10 @@ public class SyncFlatFilesTests
     private static FileComparison File(string relativePath, ComparisonStatus status)
     {
         var name = relativePath.Split('/')[^1];
-        return new(name, relativePath) { Status = status };
+        return new(name, relativePath)
+        {
+            Status = status,
+        };
     }
 
     private static DirectoryComparison Dir(string name, params FileComparison[] files)

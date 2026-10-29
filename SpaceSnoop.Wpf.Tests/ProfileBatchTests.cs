@@ -48,7 +48,14 @@ public class ProfileBatchTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(rows.Select(row => row.Name), Is.EquivalentTo(new[] { "A", "B" }));
+            Assert.That(
+                rows.Select(row => row.Name),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        "A", "B",
+                    }));
+
             Assert.That(rows.All(row => row.Right.StartsWith(dest, StringComparison.Ordinal)), Is.True);
             Assert.That(rows.All(row => row.DestWillBeCreated), Is.True);
             Assert.That(rows.All(row => row.Include), Is.True);
@@ -60,7 +67,12 @@ public class ProfileBatchTests
     [TestCase(2, "B,C,A")]
     public void Сортировка_пар_по_режиму(int mode, string expected)
     {
-        var rows = new List<BatchPairRow> { new("B", "l", "r", false, true), new("A", "l", "r", true, true), new("C", "l", "r", false, true) };
+        var rows = new List<BatchPairRow>
+        {
+            new("B", "l", "r", false, true),
+            new("A", "l", "r", true, true),
+            new("C", "l", "r", false, true),
+        };
 
         var sorted = ProfileBatch.Sort(rows, mode);
 
@@ -83,7 +95,11 @@ public class ProfileBatchTests
     {
         var source = Make("src", "A");
         var dest = Path.Combine(_root, "dst");
-        var existing = new SyncProfile { Left = Path.Combine(source, "A"), Right = Path.Combine(dest, "A") };
+        var existing = new SyncProfile
+        {
+            Left = Path.Combine(source, "A"),
+            Right = Path.Combine(dest, "A"),
+        };
 
         var row = ProfileBatch.BuildPairs(source, dest, [existing]).Single();
 

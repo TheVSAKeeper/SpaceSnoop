@@ -34,7 +34,11 @@ public static class MarkdownText
 
     private static FlowDocument BuildDocument(string text)
     {
-        var document = new FlowDocument { PagePadding = new(0) };
+        var document = new FlowDocument
+        {
+            PagePadding = new(0),
+        };
+
         var blocks = MarkdownParser.Parse(text);
         var index = 0;
 
@@ -65,13 +69,20 @@ public static class MarkdownText
         var kind = blocks[index].Kind;
         var list = new List
         {
-            MarkerStyle = kind == MarkdownBlockKind.Ordered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc, Margin = new(0, 0, 0, BlockSpacing), Padding = new(ListIndent, 0, 0, 0), MarkerOffset = 6,
+            MarkerStyle = kind == MarkdownBlockKind.Ordered ? TextMarkerStyle.Decimal : TextMarkerStyle.Disc,
+            Margin = new(0, 0, 0, BlockSpacing),
+            Padding = new(ListIndent, 0, 0, 0),
+            MarkerOffset = 6,
         };
 
         while (index < blocks.Count && blocks[index].Kind == kind)
         {
             var block = blocks[index];
-            var paragraph = new Paragraph { Margin = new(block.Level * ListIndent, 0, 0, 2) };
+            var paragraph = new Paragraph
+            {
+                Margin = new(block.Level * ListIndent, 0, 0, 2),
+            };
+
             AppendSpans(paragraph, block.Spans);
             list.ListItems.Add(new(paragraph));
             index++;
@@ -82,7 +93,10 @@ public static class MarkdownText
 
     private static Paragraph BuildParagraph(MarkdownBlock block)
     {
-        var paragraph = new Paragraph { Margin = new(0, 0, 0, BlockSpacing) };
+        var paragraph = new Paragraph
+        {
+            Margin = new(0, 0, 0, BlockSpacing),
+        };
 
         if (block.Kind == MarkdownBlockKind.Heading)
         {
@@ -97,7 +111,11 @@ public static class MarkdownText
 
     private static Paragraph BuildCode(MarkdownBlock block)
     {
-        var paragraph = new Paragraph(new Run(block.Text)) { Margin = new(0, 0, 0, BlockSpacing), Padding = new(CodePadding) };
+        var paragraph = new Paragraph(new Run(block.Text))
+        {
+            Margin = new(0, 0, 0, BlockSpacing),
+            Padding = new(CodePadding),
+        };
 
         paragraph.SetResourceReference(TextElement.FontFamilyProperty, "Font.Mono");
         paragraph.SetResourceReference(TextElement.BackgroundProperty, "Bg.SurfaceMute");

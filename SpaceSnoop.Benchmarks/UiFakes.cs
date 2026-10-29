@@ -24,7 +24,10 @@ internal sealed class BenchUiDispatcher : IUiDispatcher
 
     public IUiTimer CreateTimer(TimeSpan interval, Action tick)
     {
-        return new BenchUiTimer { Interval = interval };
+        return new BenchUiTimer
+        {
+            Interval = interval,
+        };
     }
 }
 

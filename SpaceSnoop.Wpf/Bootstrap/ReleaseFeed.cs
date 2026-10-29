@@ -61,7 +61,11 @@ internal static class ReleaseFeed
 
     private static HttpClient CreateClient()
     {
-        var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+        var client = new HttpClient
+        {
+            Timeout = TimeSpan.FromMinutes(5),
+        };
+
         client.DefaultRequestHeaders.UserAgent.Add(new(AppInfo.Name, AppInfo.Version));
         client.DefaultRequestHeaders.Accept.Add(new("application/vnd.github+json"));
         return client;

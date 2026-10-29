@@ -36,7 +36,10 @@ internal sealed class GalleryHost : IGalleryHost
         Window = services.GetRequiredService<MainWindow>();
 
         Cases = cases;
-        Tags = new Dictionary<string, string>(StringComparer.Ordinal) { [StateTag] = options.State };
+        Tags = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            [StateTag] = options.State,
+        };
     }
 
     public static GalleryHost Create(IServiceProvider services, GalleryFixture fixture, GalleryOptions options, ILogger logger)
@@ -90,7 +93,10 @@ internal sealed class GalleryHost : IGalleryHost
             _ => await CapturePageAsync(item.Name, context).ConfigureAwait(true),
         };
 
-        return shot with { Tags = Tags };
+        return shot with
+        {
+            Tags = Tags,
+        };
     }
 
     internal static async Task ArrangeAsync(IServiceProvider services, GalleryFixture fixture)

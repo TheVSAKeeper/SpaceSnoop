@@ -22,7 +22,13 @@ public class TextDiffTests
         var lines = SingleChangeDiff();
         var gap = TextDiff.Collapse(lines, 3, new HashSet<int>()).First(static s => s.IsGap);
 
-        var expanded = TextDiff.Collapse(lines, 3, new HashSet<int> { gap.Start });
+        var expanded = TextDiff.Collapse(
+            lines,
+            3,
+            new HashSet<int>
+            {
+                gap.Start,
+            });
 
         Assert.That(expanded.Any(static s => s.IsGap), Is.False);
     }
@@ -37,7 +43,11 @@ public class TextDiffTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(segments.Any(static s => s.IsGap), "длинный неизменный хвост должен схлопнуться");
-            Assert.That(segments.Where(static s => !s.IsGap).Where(s => lines[s.Start].Kind == DiffLineKind.Context).Sum(static s => s.Count), Is.EqualTo(3), "вокруг изменения остаётся ровно context строк");
+            Assert.That(
+                segments.Where(static s => !s.IsGap).Where(s => lines[s.Start].Kind == DiffLineKind.Context).Sum(static s => s.Count),
+                Is.EqualTo(3),
+                "вокруг изменения остаётся ровно context строк");
+
             Assert.That(segments.Sum(static s => s.Count), Is.EqualTo(lines.Count), "сегменты покрывают все строки без потерь");
         }
     }
@@ -183,32 +193,59 @@ public class TextDiffTests
     private static IEnumerable<TestCaseData> ChangeCases()
     {
         yield return new TestCaseData(
-            new[] { "a", "c" },
-            new[] { "a", "b", "c" },
+            new[]
+            {
+                "a", "c",
+            },
+            new[]
+            {
+                "a", "b", "c",
+            },
             0,
             1).SetName("Вставка_строки_даёт_одно_добавление");
 
         yield return new TestCaseData(
-            new[] { "a", "b", "c" },
-            new[] { "a", "c" },
+            new[]
+            {
+                "a", "b", "c",
+            },
+            new[]
+            {
+                "a", "c",
+            },
             1,
             0).SetName("Удаление_строки_даёт_одно_удаление");
 
         yield return new TestCaseData(
-            new[] { "a", "b", "c" },
-            new[] { "a", "B", "c" },
+            new[]
+            {
+                "a", "b", "c",
+            },
+            new[]
+            {
+                "a", "B", "c",
+            },
             1,
             1).SetName("Модификация_строки_даёт_удаление_и_добавление");
 
         yield return new TestCaseData(
             Array.Empty<string>(),
-            new[] { "a", "b" },
+            new[]
+            {
+                "a", "b",
+            },
             0,
             2).SetName("Пустой_левый_файл_всё_добавлено");
 
         yield return new TestCaseData(
-            new[] { "x", "y" },
-            new[] { "p", "q" },
+            new[]
+            {
+                "x", "y",
+            },
+            new[]
+            {
+                "p", "q",
+            },
             2,
             2).SetName("Полностью_разные_файлы");
     }

@@ -166,7 +166,10 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     internal void ReportPhase(string name)
     {
         var phase = _reported is { } reported
-            ? reported with { Name = name }
+            ? reported with
+            {
+                Name = name,
+            }
             : new(name, 0, 0, TimeSpan.Zero);
 
         if (_operations.TryReport(phase, _reported))

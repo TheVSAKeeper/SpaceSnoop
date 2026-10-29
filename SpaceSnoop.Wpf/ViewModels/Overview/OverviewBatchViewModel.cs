@@ -402,7 +402,11 @@ public sealed partial class OverviewBatchViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Синхронизировать", destructive ? ConfirmChoiceKind.Destructive : ConfirmChoiceKind.Primary),
-            ]) { Summary = planned is null ? null : SyncPlanNarrative.DescribePlanVolume(planned), Warning = warning };
+            ])
+        {
+            Summary = planned is null ? null : SyncPlanNarrative.DescribePlanVolume(planned),
+            Warning = warning,
+        };
 
         return await _dialogs.ShowAsync(confirm);
     }

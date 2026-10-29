@@ -31,7 +31,10 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
         "question",
     ];
 
-    private static readonly JsonSerializerOptions ConfigJson = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    private static readonly JsonSerializerOptions ConfigJson = new()
+    {
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+    };
 
     public override AgentBackendKind Kind => AgentBackendKind.OpenCode;
 
@@ -45,7 +48,8 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
 
     public override string MissingCliHint => "установите его (npm install -g opencode-ai) и укажите путь в настройках, если он не попадает в PATH.";
 
-    public override string ModelHint => "OpenCode ждёт слаг в формате provider/model. Список выше заполняет кнопка обновления – CLI отдаёт только те модели, которые доступны вашей авторизации. Пусто – модель, выбранная по умолчанию в самом CLI.";
+    public override string ModelHint =>
+        "OpenCode ждёт слаг в формате provider/model. Список выше заполняет кнопка обновления – CLI отдаёт только те модели, которые доступны вашей авторизации. Пусто – модель, выбранная по умолчанию в самом CLI.";
 
     protected override IReadOnlyList<string> ExtraDirectories
     {
@@ -176,7 +180,13 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
             {
                 [mcp.ServerName] = new Dictionary<string, object>(StringComparer.Ordinal)
                 {
-                    ["type"] = "remote", ["enabled"] = true, ["url"] = mcp.Endpoint, ["headers"] = new Dictionary<string, string>(StringComparer.Ordinal) { ["Authorization"] = $"Bearer {{env:{TokenVariable}}}" },
+                    ["type"] = "remote",
+                    ["enabled"] = true,
+                    ["url"] = mcp.Endpoint,
+                    ["headers"] = new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["Authorization"] = $"Bearer {{env:{TokenVariable}}}",
+                    },
                 },
             };
         }
@@ -187,7 +197,10 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
     protected override AgentLaunch CreateLaunch(AgentRequest request)
     {
         var configPath = TempConfigPath("json");
-        var environment = new Dictionary<string, string> { [ConfigVariable] = configPath };
+        var environment = new Dictionary<string, string>
+        {
+            [ConfigVariable] = configPath,
+        };
 
         if (request.Mcp is { } mcp)
         {
@@ -196,7 +209,10 @@ public sealed class OpenCodeAgentBackend : AgentBackendBase
 
         return new()
         {
-            Arguments = BuildArguments(request), Stdin = request.TurnText, Environment = environment, TempFiles = [new(configPath, BuildConfigJson(request))],
+            Arguments = BuildArguments(request),
+            Stdin = request.TurnText,
+            Environment = environment,
+            TempFiles = [new(configPath, BuildConfigJson(request))],
         };
     }
 

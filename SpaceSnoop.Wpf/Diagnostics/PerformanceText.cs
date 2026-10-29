@@ -75,7 +75,10 @@ public static class PerformanceText
             return null;
         }
 
-        var parts = new List<string>(3) { operation.Name };
+        var parts = new List<string>(3)
+        {
+            operation.Name,
+        };
 
         if (Rate(operation) is { } rate)
         {
@@ -119,7 +122,10 @@ public static class PerformanceText
             return null;
         }
 
-        var parts = new List<string>(2) { Directories(traversal.Directories) };
+        var parts = new List<string>(2)
+        {
+            Directories(traversal.Directories),
+        };
 
         if (operation.DirectoriesPerSecond is { } rate)
         {

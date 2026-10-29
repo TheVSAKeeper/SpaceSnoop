@@ -50,13 +50,24 @@ public partial class ScanExportTests
     [TestCase(99, ScanExport.MaxDepth)]
     public void Build_ClampsDepthAndReportsAppliedValue(int requested, int expected)
     {
-        Assert.That(Build(Options with { Depth = requested }).Options.Depth, Is.EqualTo(expected));
+        Assert.That(
+            Build(
+                    Options with
+                    {
+                        Depth = requested,
+                    })
+                .Options.Depth,
+            Is.EqualTo(expected));
     }
 
     [Test]
     public void Build_CountsWholeTreeRegardlessOfDepth()
     {
-        var model = Build(Options with { Depth = 1 });
+        var model = Build(
+            Options with
+            {
+                Depth = 1,
+            });
 
         using (Assert.EnterMultipleScope())
         {
@@ -71,7 +82,11 @@ public partial class ScanExportTests
     [TestCase(2, true)]
     public void Build_ListsSubDirectoriesUpToDepth(int depth, bool expectsNested)
     {
-        var model = Build(Options with { Depth = depth });
+        var model = Build(
+            Options with
+            {
+                Depth = depth,
+            });
 
         Assert.That(
             model.Directories.Select(x => x.Path),
@@ -144,7 +159,14 @@ public partial class ScanExportTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(model.Files.Select(x => x.Bytes), Is.EqualTo(new[] { 5000L, 700L }));
+            Assert.That(
+                model.Files.Select(x => x.Bytes),
+                Is.EqualTo(
+                    new[]
+                    {
+                        5000L, 700L,
+                    }));
+
             Assert.That(model.OmittedFiles, Is.EqualTo(2));
             Assert.That(model.Directories, Has.Count.EqualTo(2));
             Assert.That(model.OmittedDirectories, Is.EqualTo(2));

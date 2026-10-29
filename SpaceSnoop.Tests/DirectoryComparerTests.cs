@@ -67,7 +67,14 @@ public class DirectoryComparerTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(result.Root.SubDirectories, Is.Empty);
-            Assert.That(result.Root.Files.Select(x => x.Name), Is.EquivalentTo(new[] { "Data", "data" }));
+            Assert.That(
+                result.Root.Files.Select(x => x.Name),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        "Data", "data",
+                    }));
+
             Assert.That(
                 result.Root.Files.Select(x => x.TypeConflict),
                 Is.All.EqualTo(FileTypeConflict.CaseCollision));
@@ -436,7 +443,14 @@ public class DirectoryComparerTests
         {
             Assert.That(result.Root.Files, Is.Empty);
             Assert.That(result.Root.SubDirectories, Is.Empty);
-            Assert.That(result.SkippedLinks(), Is.EqualTo(new[] { "link" }), "пропуск ссылки должен доезжать до вызывающего");
+            Assert.That(
+                result.SkippedLinks(),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "link",
+                    }),
+                "пропуск ссылки должен доезжать до вызывающего");
         }
     }
 

@@ -41,7 +41,10 @@ public sealed class DeveloperCleanupViewModelTests
 
         var package = Path.Combine(_paths[NuGetCacheKind.GlobalPackages], "package", "1.0.0");
         Directory.CreateDirectory(package);
-        foreach (var name in new[] { ".nupkg.metadata", "package.nuspec", "package.1.0.0.nupkg" })
+        foreach (var name in new[]
+        {
+            ".nupkg.metadata", "package.nuspec", "package.1.0.0.nupkg",
+        })
         {
             File.WriteAllText(Path.Combine(package, name), "package");
         }
@@ -132,7 +135,15 @@ public sealed class DeveloperCleanupViewModelTests
             ? throw new InvalidOperationException("повторный замер недоступен")
             : Task.FromResult(new NuGetCacheLocations("user", _paths)));
 
-        var vm = new DeveloperCleanupViewModel(service, new NoopDialogs(showResult: true), new FakeUiDispatcher(), NullLogger<DeveloperCleanupViewModel>.Instance, CreateProjects(), CreateWorkloads(), CreateDotNetClean());
+        var vm = new DeveloperCleanupViewModel(
+            service,
+            new NoopDialogs(showResult: true),
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+
         await vm.RefreshCommand.ExecuteAsync(null);
         await vm.CleanCommand.ExecuteAsync(null);
         Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 2"));
@@ -190,7 +201,11 @@ public sealed class DeveloperCleanupViewModelTests
         await vm.RefreshCommand.ExecuteAsync(null);
         Assert.That(
             vm.Caches.Where(x => x.IsSelected).Select(x => x.Kind),
-            Is.EquivalentTo(new[] { NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache }));
+            Is.EquivalentTo(
+                new[]
+                {
+                    NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache,
+                }));
 
         Assert.That(vm.CanClean, Is.True);
     }
@@ -214,7 +229,11 @@ public sealed class DeveloperCleanupViewModelTests
         {
             Assert.That(
                 vm.Caches.Where(x => x.IsSelected).Select(x => x.Kind),
-                Is.EquivalentTo(new[] { NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache }));
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        NuGetCacheKind.HttpCache, NuGetCacheKind.PluginsCache,
+                    }));
 
             Assert.That(vm.HasSelectedBytes, Is.True);
             Assert.That(vm.SelectionText, Is.EqualTo("Категорий: 2 из 4"));

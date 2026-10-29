@@ -48,7 +48,12 @@ public class DeleteDialogLayoutTests
         ThemeManager.Apply(AppThemes.LightKey);
         ViewLocator.InstallIntoApplication();
 
-        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+        _logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(_root, "logs"),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
 
         _services = App.ConfigureServices(settings, _logging);
         _window = _services.GetRequiredService<MainWindow>();
@@ -417,20 +422,31 @@ public class DeleteDialogLayoutTests
 
     private void Press(UIElement target, Key key)
     {
-        target.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(_window), 0, key) { RoutedEvent = Keyboard.KeyDownEvent });
+        target.RaiseEvent(
+            new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(_window), 0, key)
+            {
+                RoutedEvent = Keyboard.KeyDownEvent,
+            });
 
         _host.Settle();
     }
 
     private void Wheel(UIElement target, int delta)
     {
-        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta) { RoutedEvent = UIElement.PreviewMouseWheelEvent };
+        var preview = new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta)
+        {
+            RoutedEvent = UIElement.PreviewMouseWheelEvent,
+        };
 
         target.RaiseEvent(preview);
 
         if (!preview.Handled)
         {
-            target.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta) { RoutedEvent = UIElement.MouseWheelEvent });
+            target.RaiseEvent(
+                new MouseWheelEventArgs(Mouse.PrimaryDevice, 0, delta)
+                {
+                    RoutedEvent = UIElement.MouseWheelEvent,
+                });
         }
 
         _host.Settle();

@@ -86,7 +86,11 @@ public class OverviewRowGroupingTests
     private static OverviewRowViewModel Row()
     {
         return new(
-            new() { Left = "l", Right = "r" },
+            new()
+            {
+                Left = "l",
+                Right = "r",
+            },
             static (_, _) =>
             {
             },

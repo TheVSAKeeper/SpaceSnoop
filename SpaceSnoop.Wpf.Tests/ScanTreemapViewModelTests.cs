@@ -39,9 +39,23 @@ public class ScanTreemapViewModelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(treemap.TreemapBreadcrumbs.Select(static crumb => crumb.Node.Name), Is.EqualTo(new[] { _tempDir }));
+            Assert.That(
+                treemap.TreemapBreadcrumbs.Select(static crumb => crumb.Node.Name),
+                Is.EqualTo(
+                    new[]
+                    {
+                        _tempDir,
+                    }));
+
             Assert.That(treemap.TreemapBreadcrumbs[0].ShowSeparator, Is.False);
-            Assert.That(treemap.TreemapTiles.Select(static tile => tile.Name), Is.EqualTo(new[] { "big", "mid", "small", "loose.bin" }));
+            Assert.That(
+                treemap.TreemapTiles.Select(static tile => tile.Name),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "big", "mid", "small", "loose.bin",
+                    }));
+
             Assert.That(treemap.HasTreemapTiles, Is.True);
             Assert.That(treemap.TreemapTruncated, Is.False);
         }
@@ -66,7 +80,13 @@ public class ScanTreemapViewModelTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(treemap.TreemapRoot, Is.SameAs(big));
-            Assert.That(treemap.TreemapBreadcrumbs.Select(static crumb => crumb.Node.Name), Is.EqualTo(new[] { _tempDir, "big" }));
+            Assert.That(
+                treemap.TreemapBreadcrumbs.Select(static crumb => crumb.Node.Name),
+                Is.EqualTo(
+                    new[]
+                    {
+                        _tempDir, "big",
+                    }));
         }
     }
 
@@ -106,7 +126,10 @@ public class ScanTreemapViewModelTests
         var file = root.Children.First(static child => !child.IsDirectory);
         var empty = root.Children.First(static child => child.IsDirectory && !child.HasChildren);
 
-        foreach (var target in new[] { null, file, empty })
+        foreach (var target in new[]
+        {
+            null, file, empty,
+        })
         {
             treemap.DrillIntoCommand.Execute(target);
         }
@@ -132,9 +155,22 @@ public class ScanTreemapViewModelTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(treemap.TreemapRoot, Is.SameAs(big));
-            Assert.That(treemap.TreemapBreadcrumbs.Select(static crumb => crumb.Node.Name), Is.EqualTo(new[] { _tempDir, "big" }));
+            Assert.That(
+                treemap.TreemapBreadcrumbs.Select(static crumb => crumb.Node.Name),
+                Is.EqualTo(
+                    new[]
+                    {
+                        _tempDir, "big",
+                    }));
+
             Assert.That(treemap.TreemapBreadcrumbs[1].ShowSeparator, Is.True);
-            Assert.That(drilled, Is.EqualTo(new[] { big }));
+            Assert.That(
+                drilled,
+                Is.EqualTo(
+                    new[]
+                    {
+                        big,
+                    }));
         }
     }
 

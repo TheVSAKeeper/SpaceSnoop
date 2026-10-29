@@ -80,15 +80,27 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
         {
             return
             [
-                new("Прогоны", "не запускались") { Hint = "после сканирования или синхронизации здесь встанут длительность, объём, скорость и обход" },
+                new("Прогоны", "не запускались")
+                {
+                    Hint = "после сканирования или синхронизации здесь встанут длительность, объём, скорость и обход",
+                },
             ];
         }
 
-        var rows = new List<DiagnosticsCardRow>(4) { new("Длительность", _tile.Value), new("Объём", _tile.Volume), new("Скорость", _tile.Rate) };
+        var rows = new List<DiagnosticsCardRow>(4)
+        {
+            new("Длительность", _tile.Value),
+            new("Объём", _tile.Volume),
+            new("Скорость", _tile.Rate),
+        };
 
         if (_tile.Traversal is { } traversal)
         {
-            rows.Add(new("Обход", traversal) { Hint = _tile.TraversalDetail });
+            rows.Add(
+                new("Обход", traversal)
+                {
+                    Hint = _tile.TraversalDetail,
+                });
         }
 
         return rows;

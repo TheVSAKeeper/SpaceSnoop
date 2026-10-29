@@ -87,7 +87,13 @@ public class MftLayoutTests
     {
         var runs = MftLayout.DecodeRuns([0x11, 0x10, 0x40, 0x11, 0x08, 0xF0, 0x00]);
 
-        Assert.That(runs.Select(static run => run.Cluster), Is.EqualTo(new long[] { 0x40, 0x30 }));
+        Assert.That(
+            runs.Select(static run => run.Cluster),
+            Is.EqualTo(
+                new long[]
+                {
+                    0x40, 0x30,
+                }));
     }
 
     [Test]
@@ -107,8 +113,21 @@ public class MftLayoutTests
     {
         var runs = MftLayout.DecodeRuns([0x11, 0x10, 0x40, 0x01, 0x08, 0x11, 0x04, 0x10, 0x00]);
 
-        Assert.That(runs.Select(static run => run.Cluster), Is.EqualTo(new long[] { 0x40, 0x50 }));
-        Assert.That(runs.Select(static run => run.Count), Is.EqualTo(new long[] { 0x10, 0x04 }));
+        Assert.That(
+            runs.Select(static run => run.Cluster),
+            Is.EqualTo(
+                new long[]
+                {
+                    0x40, 0x50,
+                }));
+
+        Assert.That(
+            runs.Select(static run => run.Count),
+            Is.EqualTo(
+                new long[]
+                {
+                    0x10, 0x04,
+                }));
     }
 
     [Test]
@@ -116,8 +135,21 @@ public class MftLayoutTests
     {
         var runs = MftLayout.DecodeRuns([0x11, 0x10, 0x20, 0x11, 0x08, 0x10, 0x00]);
 
-        Assert.That(runs.Select(static run => run.Cluster), Is.EqualTo(new long[] { 0x20, 0x30 }));
-        Assert.That(runs.Select(static run => run.Count), Is.EqualTo(new long[] { 0x10, 0x08 }));
+        Assert.That(
+            runs.Select(static run => run.Cluster),
+            Is.EqualTo(
+                new long[]
+                {
+                    0x20, 0x30,
+                }));
+
+        Assert.That(
+            runs.Select(static run => run.Count),
+            Is.EqualTo(
+                new long[]
+                {
+                    0x10, 0x08,
+                }));
     }
 
     [Test]

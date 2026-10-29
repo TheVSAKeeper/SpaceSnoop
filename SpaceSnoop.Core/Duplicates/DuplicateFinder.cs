@@ -33,7 +33,11 @@ public sealed class DuplicateFinder(ILogger<DuplicateFinder>? logger = null)
 
         Parallel.ForEach(
             buckets,
-            new() { MaxDegreeOfParallelism = Math.Max(1, options.MaxParallelism), CancellationToken = token },
+            new()
+            {
+                MaxDegreeOfParallelism = Math.Max(1, options.MaxParallelism),
+                CancellationToken = token,
+            },
             x =>
             {
                 foreach (var group in Resolve(x, options, state, token))
@@ -334,13 +338,19 @@ public sealed class DuplicateFinder(ILogger<DuplicateFinder>? logger = null)
                 try
                 {
                     using var stream = Open(probe.Path);
-                    links[0] = probe with { Digest = Hash(stream, long.MaxValue, state, token) };
+                    links[0] = probe with
+                    {
+                        Digest = Hash(stream, long.MaxValue, state, token),
+                    };
                 }
                 catch (Exception exception) when (IsReadError(exception))
                 {
                     _logger.DuplicateFileSkipped(exception, probe.Path);
                     state.Fail(probe.Path, exception);
-                    links[0] = probe with { Digest = null };
+                    links[0] = probe with
+                    {
+                        Digest = null,
+                    };
                 }
             }
         }

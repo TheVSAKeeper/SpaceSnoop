@@ -34,8 +34,16 @@ public class SyncEngineTests
     public void ApplyMode_AssignsActionsToOneSidedDirectories_AndCountsThem()
     {
         var root = new DirectoryComparison("root", "");
-        var left = new DirectoryComparison("onlyLeft", "onlyLeft") { Status = ComparisonStatus.LeftOnly };
-        var right = new DirectoryComparison("onlyRight", "onlyRight") { Status = ComparisonStatus.RightOnly };
+        var left = new DirectoryComparison("onlyLeft", "onlyLeft")
+        {
+            Status = ComparisonStatus.LeftOnly,
+        };
+
+        var right = new DirectoryComparison("onlyRight", "onlyRight")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
+
         root.SubDirectories.Add(left);
         root.SubDirectories.Add(right);
 
@@ -60,7 +68,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_rightDir, "b.txt"), Content);
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.CopyToLeft });
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.CopyToLeft,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -79,8 +92,17 @@ public class SyncEngineTests
     {
         File.WriteAllText(Path.Combine(_rightDir, "new.txt"), "copy me");
 
-        var root = new DirectoryComparison("root", "") { RightIncomplete = true };
-        root.Files.Add(new("new.txt", "new.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.CopyToLeft });
+        var root = new DirectoryComparison("root", "")
+        {
+            RightIncomplete = true,
+        };
+
+        root.Files.Add(
+            new("new.txt", "new.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.CopyToLeft,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -140,7 +162,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "a.txt"), content);
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -161,7 +188,12 @@ public class SyncEngineTests
         Directory.CreateDirectory(Path.Combine(_leftDir, "empty"));
 
         var root = new DirectoryComparison("root", "");
-        root.SubDirectories.Add(new("empty", "empty") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.SubDirectories.Add(
+            new("empty", "empty")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -182,8 +214,17 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(subLeft, "file.txt"), "data");
 
         var root = new DirectoryComparison("root", "");
-        var sub = new DirectoryComparison("sub", "sub") { Status = ComparisonStatus.LeftOnly };
-        sub.Files.Add(new("file.txt", "sub\\file.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        var sub = new DirectoryComparison("sub", "sub")
+        {
+            Status = ComparisonStatus.LeftOnly,
+        };
+
+        sub.Files.Add(
+            new("file.txt", "sub\\file.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         root.SubDirectories.Add(sub);
 
@@ -203,7 +244,13 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(occupied, "inner.txt"), "inner");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("config", "config") { Status = ComparisonStatus.Conflict, TypeConflict = FileTypeConflict.LeftFileRightDirectory, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("config", "config")
+            {
+                Status = ComparisonStatus.Conflict,
+                TypeConflict = FileTypeConflict.LeftFileRightDirectory,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -225,8 +272,19 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "good.txt"), "данные");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("good.txt", "good.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
-        root.Files.Add(new("gone.txt", "gone.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("good.txt", "good.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.Files.Add(
+            new("gone.txt", "gone.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var reports = new List<long>();
@@ -252,7 +310,12 @@ public class SyncEngineTests
         File.WriteAllText(bystander, "bystander");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -276,7 +339,12 @@ public class SyncEngineTests
         File.WriteAllText(bystander, "bystander");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -333,7 +401,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_rightDir, "a.txt"), "old content");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -351,7 +424,12 @@ public class SyncEngineTests
         File.SetAttributes(destination, File.GetAttributes(destination) | FileAttributes.ReadOnly);
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -371,7 +449,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_rightDir, "a.txt"), "old content");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance, false, true);
@@ -392,7 +475,13 @@ public class SyncEngineTests
         File.WriteAllText(filePath, "delete me");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("remove.txt", "remove.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft, DeleteLeftBlocked = true });
+        root.Files.Add(
+            new("remove.txt", "remove.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+                DeleteLeftBlocked = true,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -413,7 +502,12 @@ public class SyncEngineTests
         File.WriteAllText(filePath, "delete me");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("remove.txt", "remove.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft });
+        root.Files.Add(
+            new("remove.txt", "remove.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -434,7 +528,12 @@ public class SyncEngineTests
         File.SetAttributes(filePath, File.GetAttributes(filePath) | FileAttributes.ReadOnly);
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("remove.txt", "remove.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft });
+        root.Files.Add(
+            new("remove.txt", "remove.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -454,7 +553,12 @@ public class SyncEngineTests
         File.WriteAllText(filePath, "delete me");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("remove.txt", "remove.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft });
+        root.Files.Add(
+            new("remove.txt", "remove.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance, false);
@@ -476,10 +580,24 @@ public class SyncEngineTests
         Directory.CreateDirectory(innerPath);
         File.WriteAllText(Path.Combine(innerPath, "keep.txt"), "keep me");
 
-        var inner = new DirectoryComparison("inner", "extra\\inner") { Status = ComparisonStatus.RightOnly };
-        inner.Files.Add(new("keep.txt", "extra\\inner\\keep.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight, DeleteRightBlocked = true });
+        var inner = new DirectoryComparison("inner", "extra\\inner")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
 
-        var extra = new DirectoryComparison("extra", "extra") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight };
+        inner.Files.Add(
+            new("keep.txt", "extra\\inner\\keep.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.DeleteRight,
+                DeleteRightBlocked = true,
+            });
+
+        var extra = new DirectoryComparison("extra", "extra")
+        {
+            Status = ComparisonStatus.RightOnly,
+            Action = SyncAction.DeleteRight,
+        };
 
         extra.SubDirectories.Add(inner);
 
@@ -506,7 +624,13 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(dirPath, "inner.txt"), "keep me");
 
         var root = new DirectoryComparison("root", "");
-        root.SubDirectories.Add(new("extra", "extra") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight, DeleteRightBlocked = true });
+        root.SubDirectories.Add(
+            new("extra", "extra")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.DeleteRight,
+                DeleteRightBlocked = true,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -528,9 +652,25 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(dirPath, "one.txt"), "keep me");
         File.WriteAllText(Path.Combine(dirPath, "two.txt"), "keep me too");
 
-        var blind = new DirectoryComparison("extra", "extra") { Status = ComparisonStatus.Modified, LeftIncomplete = true };
-        blind.Files.Add(new("one.txt", "extra\\one.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight });
-        blind.Files.Add(new("two.txt", "extra\\two.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight });
+        var blind = new DirectoryComparison("extra", "extra")
+        {
+            Status = ComparisonStatus.Modified,
+            LeftIncomplete = true,
+        };
+
+        blind.Files.Add(
+            new("one.txt", "extra\\one.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.DeleteRight,
+            });
+
+        blind.Files.Add(
+            new("two.txt", "extra\\two.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.DeleteRight,
+            });
 
         var root = new DirectoryComparison("root", "");
         root.SubDirectories.Add(blind);
@@ -556,10 +696,23 @@ public class SyncEngineTests
         Directory.CreateDirectory(innerPath);
         File.WriteAllText(Path.Combine(innerPath, "gone.txt"), "delete me");
 
-        var inner = new DirectoryComparison("inner", "extra\\inner") { Status = ComparisonStatus.RightOnly };
-        inner.Files.Add(new("gone.txt", "extra\\inner\\gone.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight });
+        var inner = new DirectoryComparison("inner", "extra\\inner")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
 
-        var extra = new DirectoryComparison("extra", "extra") { Status = ComparisonStatus.RightOnly, Action = SyncAction.DeleteRight };
+        inner.Files.Add(
+            new("gone.txt", "extra\\inner\\gone.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.DeleteRight,
+            });
+
+        var extra = new DirectoryComparison("extra", "extra")
+        {
+            Status = ComparisonStatus.RightOnly,
+            Action = SyncAction.DeleteRight,
+        };
 
         extra.SubDirectories.Add(inner);
 
@@ -582,9 +735,19 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "good.txt"), "data");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("bad.txt", "bad.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("bad.txt", "bad.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
-        root.Files.Add(new("good.txt", "good.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("good.txt", "good.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -605,9 +768,26 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "b.txt"), "second");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("missing.txt", "missing.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("missing.txt", "missing.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var report = new SyncEngine(NullLogger<SyncEngine>.Instance).Execute(result, CancellationToken.None);
@@ -652,7 +832,13 @@ public class SyncEngineTests
         File.WriteAllText(real, "payload");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("data", "data") { Status = ComparisonStatus.Conflict, TypeConflict = FileTypeConflict.LeftLinkRightObject, Action = action });
+        root.Files.Add(
+            new("data", "data")
+            {
+                Status = ComparisonStatus.Conflict,
+                TypeConflict = FileTypeConflict.LeftLinkRightObject,
+                Action = action,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -674,8 +860,19 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "gone.txt"), "data");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("copy.txt", "copy.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
-        root.Files.Add(new("gone.txt", "gone.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft });
+        root.Files.Add(
+            new("copy.txt", "copy.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.Files.Add(
+            new("gone.txt", "gone.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -695,7 +892,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "a.txt"), "hello");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.Skip });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.Skip,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -714,7 +916,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "a.txt"), "hello world");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var engine = new SyncEngine(NullLogger<SyncEngine>.Instance);
@@ -811,7 +1018,12 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "a.txt"), "hello world");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var report = new SyncEngine(NullLogger<SyncEngine>.Instance).Execute(result, CancellationToken.None);
@@ -847,8 +1059,21 @@ public class SyncEngineTests
         File.WriteAllText(Path.Combine(_leftDir, "gone.txt"), "data");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("copy.txt", "copy.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = 1024 });
-        root.Files.Add(new("gone.txt", "gone.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft, LeftSize = 0 });
+        root.Files.Add(
+            new("copy.txt", "copy.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+                LeftSize = 1024,
+            });
+
+        root.Files.Add(
+            new("gone.txt", "gone.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+                LeftSize = 0,
+            });
 
         var result = new ComparisonResult(_leftDir, _rightDir, root);
         var report = new SyncEngine(NullLogger<SyncEngine>.Instance).Execute(result, CancellationToken.None);
@@ -869,7 +1094,12 @@ public class SyncEngineTests
     private ComparisonResult OneCopyToRight(string relativePath)
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new(relativePath, relativePath) { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new(relativePath, relativePath)
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         return new(_leftDir, _rightDir, root);
     }

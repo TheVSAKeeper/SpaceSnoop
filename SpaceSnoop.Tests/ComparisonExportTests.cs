@@ -39,7 +39,12 @@ public class ComparisonExportTests
     public void Build_IncludesOneSidedDirectoriesAsEntries()
     {
         var root = new DirectoryComparison("root", string.Empty);
-        var sub = new DirectoryComparison("only", "only") { Status = ComparisonStatus.RightOnly, Action = SyncAction.CopyToLeft };
+        var sub = new DirectoryComparison("only", "only")
+        {
+            Status = ComparisonStatus.RightOnly,
+            Action = SyncAction.CopyToLeft,
+        };
+
         root.SubDirectories.Add(sub);
 
         var model = ComparisonExport.Build(new("L", "R", root), Options);
@@ -59,14 +64,27 @@ public class ComparisonExportTests
 
         for (var i = 0; i < 5; i++)
         {
-            root.Files.Add(new($"f{i}.bin", $"f{i}.bin") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = i });
+            root.Files.Add(
+                new($"f{i}.bin", $"f{i}.bin")
+                {
+                    Status = ComparisonStatus.LeftOnly,
+                    Action = SyncAction.CopyToRight,
+                    LeftSize = i,
+                });
         }
 
         var model = ComparisonExport.Build(new("L", "R", root), Options, entryLimit: 2);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(model.Entries.Select(x => x.Path), Is.EqualTo(new[] { "f3.bin", "f4.bin" }));
+            Assert.That(
+                model.Entries.Select(x => x.Path),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "f3.bin", "f4.bin",
+                    }));
+
             Assert.That(model.OmittedEntries, Is.EqualTo(3));
         }
     }
@@ -75,14 +93,33 @@ public class ComparisonExportTests
     public void Build_SkipsIdenticalFilesAndKeepsDifferences()
     {
         var root = new DirectoryComparison("root", string.Empty);
-        root.Files.Add(new("same.txt", "same.txt") { Status = ComparisonStatus.Identical, Action = SyncAction.Skip });
-        root.Files.Add(new("new.txt", "new.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = 10 });
+        root.Files.Add(
+            new("same.txt", "same.txt")
+            {
+                Status = ComparisonStatus.Identical,
+                Action = SyncAction.Skip,
+            });
+
+        root.Files.Add(
+            new("new.txt", "new.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+                LeftSize = 10,
+            });
 
         var model = ComparisonExport.Build(new("L", "R", root), Options);
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(model.Entries.Select(x => x.Path), Is.EqualTo(new[] { "new.txt" }));
+            Assert.That(
+                model.Entries.Select(x => x.Path),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "new.txt",
+                    }));
+
             Assert.That(model.Entries[0].Kind, Is.EqualTo(ComparisonEntryKind.File));
             Assert.That(model.Totals.Files["Identical"], Is.EqualTo(1));
             Assert.That(model.Totals.Planned.NewCopies, Is.EqualTo(1));
@@ -94,14 +131,31 @@ public class ComparisonExportTests
     public void Build_SummarizesTopLevelDirectoriesByDifferingBytes()
     {
         var root = new DirectoryComparison("root", string.Empty);
-        root.Files.Add(new("root.txt", "root.txt") { Status = ComparisonStatus.LeftOnly, LeftSize = 1 });
+        root.Files.Add(
+            new("root.txt", "root.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                LeftSize = 1,
+            });
 
         var small = new DirectoryComparison("small", "small");
-        small.Files.Add(new("s.txt", @"small\s.txt") { Status = ComparisonStatus.Modified, LeftSize = 5, RightSize = 7 });
+        small.Files.Add(
+            new("s.txt", @"small\s.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftSize = 5,
+                RightSize = 7,
+            });
 
         var big = new DirectoryComparison("big", "big");
         var nested = new DirectoryComparison("nested", @"big\nested");
-        nested.Files.Add(new("b.txt", @"big\nested\b.txt") { Status = ComparisonStatus.RightOnly, RightSize = 100 });
+        nested.Files.Add(
+            new("b.txt", @"big\nested\b.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 100,
+            });
+
         big.SubDirectories.Add(nested);
 
         root.SubDirectories.Add(small);
@@ -111,7 +165,14 @@ public class ComparisonExportTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(directories.Select(x => x.Path), Is.EqualTo(new[] { "big", "small", "." }));
+            Assert.That(
+                directories.Select(x => x.Path),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "big", "small", ".",
+                    }));
+
             Assert.That(directories[0].DifferingBytes, Is.EqualTo(100));
             Assert.That(directories[0].RightOnly, Is.EqualTo(1));
             Assert.That(directories[1].Modified, Is.EqualTo(1));
@@ -122,7 +183,12 @@ public class ComparisonExportTests
     public void ToJson_WritesCamelCaseWithReadableEnumsAndPaths()
     {
         var root = new DirectoryComparison("root", string.Empty);
-        root.Files.Add(new("отчёт.txt", "отчёт.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("отчёт.txt", "отчёт.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var json = ComparisonExport.ToJson(ComparisonExport.Build(new(@"C:\left", @"C:\right", root), Options));
         var document = JsonDocument.Parse(json);

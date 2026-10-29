@@ -37,7 +37,12 @@ public class ScanReleaseTests
         ISettingsStore settings = new MemorySettings();
         settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
 
-        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+        _logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(_root, "logs"),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
 
         _services = App.ConfigureServices(settings, _logging);
         _scan = _services.GetRequiredService<ScanViewModel>();
@@ -188,7 +193,12 @@ public class ScanReleaseTests
         var root = ArrangeDisplayTree();
         var domain = (DirectorySpace)root.Space!;
         var other = new DirectorySpace("other", domain, DateTime.Today, DateTime.Today);
-        other.AddFiles(new[] { new FileInfo(Path.Combine(_root, "target", "other.bin")) }.AsSpan());
+        other.AddFiles(
+            new[]
+            {
+                new FileInfo(Path.Combine(_root, "target", "other.bin")),
+            }.AsSpan());
+
         domain.Add(other);
         _scan.Sort.State.Field = field;
         _scan.Sort.State.Invert = invert;
@@ -255,7 +265,13 @@ public class ScanReleaseTests
         Assert.That(_scan.HasIgnoredItems, Is.False);
         Assert.That(root.Weight, Is.EqualTo(200));
         _scan.ResetIgnoredCommand.Execute(null);
-        Assert.That(root.Children.Select(static node => node.Name), Is.EqualTo(new[] { "other.bin" }));
+        Assert.That(
+            root.Children.Select(static node => node.Name),
+            Is.EqualTo(
+                new[]
+                {
+                    "other.bin",
+                }));
     }
 
     [Test]
@@ -271,7 +287,14 @@ public class ScanReleaseTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(branch.Children.Select(static node => node.Name), Is.EqualTo(new[] { "large.bin", "small.bin" }));
+            Assert.That(
+                branch.Children.Select(static node => node.Name),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "large.bin", "small.bin",
+                    }));
+
             Assert.That(large.IsIgnored, Is.True);
             Assert.That(large.Fraction, Is.Zero);
             Assert.That(large.ShareText, Is.EqualTo("–"));
@@ -282,10 +305,24 @@ public class ScanReleaseTests
             Assert.That(root.Weight, Is.EqualTo(300));
             Assert.That(branch.Weight, Is.EqualTo(100));
             Assert.That(branch.Share, Is.EqualTo(1d / 3).Within(0.0001));
-            Assert.That(_scan.Treemap.TreemapTiles.Select(static node => node.Weight), Is.EqualTo(new[] { 200d, 100d }));
+            Assert.That(
+                _scan.Treemap.TreemapTiles.Select(static node => node.Weight),
+                Is.EqualTo(
+                    new[]
+                    {
+                        200d, 100d,
+                    }));
+
             Assert.That(_scan.Inspector.TotalSizeText, Is.EqualTo(branch.SizeText));
             Assert.That(_scan.Inspector.OwnSizeText, Is.EqualTo(SizeFormatter.Format(100)));
-            Assert.That(_scan.Inspector.TopChildren.Select(static node => node.Name), Is.EqualTo(new[] { "small.bin" }));
+            Assert.That(
+                _scan.Inspector.TopChildren.Select(static node => node.Name),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "small.bin",
+                    }));
+
             Assert.That(root.Space!.TotalSize, Is.EqualTo(1200));
             Assert.That(((DirectorySpace)root.Space).TotalFileCount, Is.EqualTo(3));
             Assert.That(root.FileCountText, Is.EqualTo("2"));
@@ -388,7 +425,14 @@ public class ScanReleaseTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(result.Transferred, Is.EqualTo(new[] { fresh }));
+            Assert.That(
+                result.Transferred,
+                Is.EqualTo(
+                    new[]
+                    {
+                        fresh,
+                    }));
+
             Assert.That(result.Lost, Is.Zero);
             Assert.That(fresh.SubDirectories.Single().IsDeleted, Is.True);
         }
@@ -616,7 +660,10 @@ public class ScanReleaseTests
             using var process = Process.Start(
                 new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
                 {
-                    CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                 });
 
             if (process is null)

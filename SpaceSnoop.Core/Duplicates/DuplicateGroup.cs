@@ -32,7 +32,12 @@ public sealed record DuplicateGroup(
 
             if (copyGone && member.Kind == DuplicateMemberKind.HardLink)
             {
-                surviving.Add(member with { Kind = DuplicateMemberKind.Copy });
+                surviving.Add(
+                    member with
+                    {
+                        Kind = DuplicateMemberKind.Copy,
+                    });
+
                 copyGone = false;
                 continue;
             }

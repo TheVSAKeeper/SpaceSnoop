@@ -262,7 +262,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         var plan = _plan;
         var selected = Caches.Where(x => x.IsSelected && x.CanSelect).ToArray();
         var selectedKinds = selected.Select(x => x.Kind).ToArray();
-        var lines = new List<ConfirmLine> { new ConfirmTextLine("Перед очисткой остановите restore, сборки и операции NuGet в IDE."), new ConfirmTextLine("Будут удалены только файлы из показанного замера. Новые файлы останутся.") };
+        var lines = new List<ConfirmLine>
+        {
+            new ConfirmTextLine("Перед очисткой остановите restore, сборки и операции NuGet в IDE."),
+            new ConfirmTextLine("Будут удалены только файлы из показанного замера. Новые файлы останутся."),
+        };
 
         foreach (var row in selected)
         {
@@ -278,7 +282,10 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             "Очистка NuGet",
             PackIconLucideKind.Trash2,
             lines,
-            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Удалить безвозвратно", ConfirmChoiceKind.Destructive)]) { Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника." };
+            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Удалить безвозвратно", ConfirmChoiceKind.Destructive)])
+        {
+            Warning = "Файлы удаляются безвозвратно, мимо корзины. Восстановить их можно только повторной загрузкой из доступного источника.",
+        };
 
         _operation.Begin(value => IsNuGetBusy = value);
         try
@@ -298,7 +305,8 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             _plan = null;
             StatusText = "Удаляю выбранные файлы NuGet…";
             var result = await _service.CleanAsync(plan, selected.Select(x => x.Kind).ToArray(), null, _operation.Token);
-            ResultText = $"{CleanupOutcomeText.For(result)}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
+            ResultText =
+                $"{CleanupOutcomeText.For(result)}. Удалено файлов: {result.Deleted:N0}, данных: {SizeFormatter.Format(result.FreedBytes)}. Пропущено: {result.Skipped:N0}."
                 + (result.Errors.Count == 0 ? string.Empty : Environment.NewLine + string.Join(Environment.NewLine, result.Errors));
 
             _logger.DeveloperCleanupFinished(result.Deleted, result.FreedBytes, result.Skipped, result.Cancelled);

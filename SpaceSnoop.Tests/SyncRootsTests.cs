@@ -101,8 +101,20 @@ public class SyncRootsTests
         var link = Junction("link", _nestedDir);
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
-        root.SubDirectories.Add(new("fresh", "fresh") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.SubDirectories.Add(
+            new("fresh", "fresh")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
         var result = new ComparisonResult(_leftDir, link, root);
 
         var refusal = Assert.Throws<InvalidOperationException>(() => new SyncEngine(NullLogger<SyncEngine>.Instance, false).Execute(result, CancellationToken.None));
@@ -188,7 +200,10 @@ public class SyncRootsTests
         var path = Path.Combine(_tempDir, name);
         var start = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{path}\" \"{target}\"")
         {
-            CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
         };
 
         using var process = Process.Start(start);

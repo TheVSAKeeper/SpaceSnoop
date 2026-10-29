@@ -169,7 +169,11 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
         foreach (var target in CleanupCatalog.BuildDefault(TimeSpan.FromHours(MinAgeHours)))
         {
-            var row = new CleanupTargetViewModel(target) { IsSelected = selected.Contains(target.Id) };
+            var row = new CleanupTargetViewModel(target)
+            {
+                IsSelected = selected.Contains(target.Id),
+            };
+
             row.PropertyChanged += OnTargetChanged;
             Targets.Add(row);
         }

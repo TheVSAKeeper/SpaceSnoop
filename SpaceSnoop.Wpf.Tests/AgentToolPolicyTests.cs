@@ -199,7 +199,12 @@ public class AgentToolPolicyTests
     {
         Assert.That(
             AgentPrompt.AllowedTools(mutations, false),
-            Is.SupersetOf(new[] { "get_app_state", "list_profiles", "list_drives", "scan_directory", "get_current_scan", "compare_directories", "get_current_comparison", "docker_usage", "open_scan" }));
+            Is.SupersetOf(
+                new[]
+                {
+                    "get_app_state", "list_profiles", "list_drives", "scan_directory", "get_current_scan", "compare_directories", "get_current_comparison", "docker_usage",
+                    "open_scan",
+                }));
     }
 
     [TestCase(null)]

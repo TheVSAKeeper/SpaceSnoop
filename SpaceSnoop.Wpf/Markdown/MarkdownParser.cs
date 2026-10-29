@@ -106,7 +106,11 @@ public static class MarkdownParser
 
     private static IEnumerable<MarkdownSpan> Nest(string inner, MarkdownSpanStyle style)
     {
-        return ParseInline(inner).Select(span => span with { Style = span.Style | style });
+        return ParseInline(inner)
+            .Select(span => span with
+            {
+                Style = span.Style | style,
+            });
     }
 
     private static bool TryReadDelimited(string text, int start, string marker, out string inner, out int next)
@@ -181,7 +185,10 @@ public static class MarkdownParser
             return false;
         }
 
-        block = new(MarkdownBlockKind.Heading, ParseInline(trimmed[(level + 1)..].Trim())) { Level = level };
+        block = new(MarkdownBlockKind.Heading, ParseInline(trimmed[(level + 1)..].Trim()))
+        {
+            Level = level,
+        };
 
         return true;
     }
@@ -196,7 +203,10 @@ public static class MarkdownParser
 
         if (trimmed.Length > 1 && trimmed[0] is '-' or '*' or '+' && trimmed[1] == ' ')
         {
-            block = new(MarkdownBlockKind.Bullet, ParseInline(trimmed[2..].Trim())) { Level = level };
+            block = new(MarkdownBlockKind.Bullet, ParseInline(trimmed[2..].Trim()))
+            {
+                Level = level,
+            };
 
             return true;
         }
@@ -213,7 +223,11 @@ public static class MarkdownParser
             return false;
         }
 
-        block = new(MarkdownBlockKind.Ordered, ParseInline(trimmed[(digits + 2)..].Trim())) { Level = level, Marker = trimmed[..digits] };
+        block = new(MarkdownBlockKind.Ordered, ParseInline(trimmed[(digits + 2)..].Trim()))
+        {
+            Level = level,
+            Marker = trimmed[..digits],
+        };
 
         return true;
     }

@@ -202,7 +202,10 @@ public sealed class SyncLedgerViewModel : ObservableObject
                     ConfirmTextTone.Muted));
         }
 
-        var choices = new List<ConfirmChoice> { new("Отмена", ConfirmChoiceKind.Dismissive) };
+        var choices = new List<ConfirmChoice>
+        {
+            new("Отмена", ConfirmChoiceKind.Dismissive),
+        };
 
         if (offerHashes)
         {
@@ -211,7 +214,11 @@ public sealed class SyncLedgerViewModel : ObservableObject
 
         choices.Add(new("Синхронизировать", deletes > 0 ? ConfirmChoiceKind.Destructive : ConfirmChoiceKind.Primary));
 
-        return new($"Синхронизация {direction.Text}", direction.IconKind, lines, choices) { Summary = SyncPlanNarrative.DescribePlanVolume(planned), Warning = BuildSyncWarning(current, deletes) };
+        return new($"Синхронизация {direction.Text}", direction.IconKind, lines, choices)
+        {
+            Summary = SyncPlanNarrative.DescribePlanVolume(planned),
+            Warning = BuildSyncWarning(current, deletes),
+        };
     }
 
     private void RefreshFreeSpace(ComparisonResult result, PlannedActions plan)
@@ -251,7 +258,12 @@ public sealed class SyncLedgerViewModel : ObservableObject
         var links = current.SkippedLinks() is { Count: > 0 } skipped ? SyncPlanNarrative.DescribeSkippedLinks(skipped) : null;
         var recency = deletes > 0 ? SyncPlanNarrative.DescribeDeletionRecency(current) : null;
 
-        return string.Join(' ', new[] { incomplete, links, recency }.OfType<string>()) is { Length: > 0 } warning
+        return string.Join(
+            ' ',
+            new[]
+            {
+                incomplete, links, recency,
+            }.OfType<string>()) is { Length: > 0 } warning
             ? warning
             : null;
     }

@@ -143,10 +143,15 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
                 new ConfirmTextLine("Рабочий каталог: " + plan.WorkingDirectory),
                 new ConfirmTextLine("Активный SDK: " + plan.SdkVersion),
                 new ConfirmTextLine("Установленные workloads:" + Environment.NewLine + plan.InstalledWorkloads),
-                new ConfirmTextLine("Удаление необратимо. Точного предварительного просмотра нет, отмена не вернёт уже удалённые данные, откат недоступен; размер освобождённого места не измеряется.", ConfirmTextTone.Strong),
+                new ConfirmTextLine(
+                    "Удаление необратимо. Точного предварительного просмотра нет, отмена не вернёт уже удалённые данные, откат недоступен; размер освобождённого места не измеряется.",
+                    ConfirmTextTone.Strong),
                 new ConfirmTextLine("SDK, Runtime, инструменты и проекты не являются выбираемыми целями этой команды."),
             ],
-            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Очистить", ConfirmChoiceKind.Destructive)]) { Warning = "Проверьте SDK и список workloads. Не запускайте параллельно установку или обновление SDK и workloads." };
+            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Очистить", ConfirmChoiceKind.Destructive)])
+        {
+            Warning = "Проверьте SDK и список workloads. Не запускайте параллельно установку или обновление SDK и workloads.",
+        };
 
         _operation.Begin(value => IsBusy = value);
         try

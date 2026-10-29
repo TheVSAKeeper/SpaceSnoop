@@ -29,7 +29,14 @@ public class AgentBackendChoiceTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(choice.Alternatives, Is.EqualTo(new[] { AgentBackendKind.Claude, AgentBackendKind.OpenCode }));
+            Assert.That(
+                choice.Alternatives,
+                Is.EqualTo(
+                    new[]
+                    {
+                        AgentBackendKind.Claude, AgentBackendKind.OpenCode,
+                    }));
+
             Assert.That(choice.Suggested, Is.EqualTo(AgentBackendKind.Claude));
         });
     }
@@ -44,7 +51,13 @@ public class AgentBackendChoiceTests
         Assert.Multiple(() =>
         {
             Assert.That(choice.CurrentFound, Is.True);
-            Assert.That(choice.Alternatives, Is.EqualTo(new[] { AgentBackendKind.Claude }));
+            Assert.That(
+                choice.Alternatives,
+                Is.EqualTo(
+                    new[]
+                    {
+                        AgentBackendKind.Claude,
+                    }));
         });
     }
 

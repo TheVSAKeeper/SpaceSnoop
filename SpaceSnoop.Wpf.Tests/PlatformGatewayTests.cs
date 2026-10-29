@@ -34,9 +34,23 @@ public class PlatformGatewayTests
     public void Профиль_расписания_сообщает_о_судьбе_фонового_запуска(bool succeeds, string expected)
     {
         var settings = new MemorySettings();
-        SyncProfileStore.Save(settings, [new() { Id = "one", Name = "Один", Left = @"C:\A", Right = @"C:\B" }]);
+        SyncProfileStore.Save(
+            settings,
+            [
+                new()
+                {
+                    Id = "one",
+                    Name = "Один",
+                    Left = @"C:\A",
+                    Right = @"C:\B",
+                },
+            ]);
 
-        var shell = new FakeShellLauncher { Succeeds = succeeds };
+        var shell = new FakeShellLauncher
+        {
+            Succeeds = succeeds,
+        };
+
         var schedule = new ScheduleViewModel(settings, new NoopDialogs(), new FakeFilePicker(), shell, new FakeScheduleRunner(), NullLogger<ScheduleViewModel>.Instance);
 
         var profile = schedule.Profiles[0];
@@ -56,7 +70,11 @@ public class PlatformGatewayTests
     public void Узел_дерева_показывает_файл_выделенным_а_каталог_открывает(bool directory, bool revealFiles, bool expectReveal)
     {
         var settings = new MemorySettings();
-        var preferences = new ScanPreferences(settings) { RevealFiles = revealFiles };
+        var preferences = new ScanPreferences(settings)
+        {
+            RevealFiles = revealFiles,
+        };
+
         var shell = new FakeShellLauncher();
         var factory = new ScanNodeFactory(preferences, new(settings), shell);
 
@@ -71,8 +89,25 @@ public class PlatformGatewayTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(shell.Revealed, Is.EqualTo(expectReveal ? new[] { node.Space!.AbsolutePath } : []));
-            Assert.That(shell.Opened, Is.EqualTo(expectReveal ? [] : new[] { node.Space!.AbsolutePath }));
+            Assert.That(
+                shell.Revealed,
+                Is.EqualTo(
+                    expectReveal
+                        ? new[]
+                        {
+                            node.Space!.AbsolutePath,
+                        }
+                        : []));
+
+            Assert.That(
+                shell.Opened,
+                Is.EqualTo(
+                    expectReveal
+                        ? []
+                        : new[]
+                        {
+                            node.Space!.AbsolutePath,
+                        }));
         }
     }
 

@@ -77,7 +77,11 @@ public static class StorageMedia
                 return StorageKind.None;
             }
 
-            var query = new StoragePropertyQuery { PropertyId = StorageDeviceSeekPenaltyProperty, QueryType = PropertyStandardQuery };
+            var query = new StoragePropertyQuery
+            {
+                PropertyId = StorageDeviceSeekPenaltyProperty,
+                QueryType = PropertyStandardQuery,
+            };
 
             var descriptor = default(DeviceSeekPenaltyDescriptor);
 

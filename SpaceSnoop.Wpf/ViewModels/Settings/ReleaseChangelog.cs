@@ -158,7 +158,11 @@ internal static partial class ReleaseChangelog
 
     private static string FormatChange(ReleaseChangeViewModel change)
     {
-        var lines = new List<string> { $"- {change.Summary}" };
+        var lines = new List<string>
+        {
+            $"- {change.Summary}",
+        };
+
         lines.AddRange(change.Details.Select(static detail => $"  {detail}"));
         return string.Join(Environment.NewLine, lines);
     }

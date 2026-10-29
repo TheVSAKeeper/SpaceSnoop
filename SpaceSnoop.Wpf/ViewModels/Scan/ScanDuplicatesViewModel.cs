@@ -214,7 +214,11 @@ public sealed partial class ScanDuplicatesViewModel : ObservableObject
             return;
         }
 
-        _report = report with { Groups = [.. Groups.Select(static x => x.Group)], ReclaimableBytes = Math.Max(0, reclaimable) };
+        _report = report with
+        {
+            Groups = [.. Groups.Select(static x => x.Group)],
+            ReclaimableBytes = Math.Max(0, reclaimable),
+        };
 
         SummaryText = Groups.Count switch
         {
@@ -287,7 +291,11 @@ public sealed partial class ScanDuplicatesViewModel : ObservableObject
         var path = root.AbsolutePath;
         var parallelism = await _preferences.ResolveParallelismAsync(path);
 
-        var options = DuplicateOptions.Default with { MinSize = Math.Max(1, (long)MinSizeMb * 1024 * 1024), MaxParallelism = parallelism };
+        var options = DuplicateOptions.Default with
+        {
+            MinSize = Math.Max(1, (long)MinSizeMb * 1024 * 1024),
+            MaxParallelism = parallelism,
+        };
 
         var dialog = _dialogFactory.Create(new(root, options));
 

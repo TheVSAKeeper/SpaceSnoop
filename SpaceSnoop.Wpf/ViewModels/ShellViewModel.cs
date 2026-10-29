@@ -8,7 +8,10 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 {
     private static readonly Dictionary<string, string> LegacyTitleToKey = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["Сканирование"] = SectionKey.Scan, ["Синхронизация"] = SectionKey.Sync, ["Логи"] = SectionKey.Logs, ["О программе"] = SectionKey.About,
+        ["Сканирование"] = SectionKey.Scan,
+        ["Синхронизация"] = SectionKey.Sync,
+        ["Логи"] = SectionKey.Logs,
+        ["О программе"] = SectionKey.About,
     };
 
     private readonly NavigationItem _settingsItem;
@@ -88,11 +91,19 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         AppUpdate = appUpdate;
 
         var scanItem = new NavigationItem("Сканирование", PackIconLucideKind.HardDrive, scan, key: SectionKey.Scan);
-        var syncItem = new NavigationItem("Синхронизация", PackIconLucideKind.FolderSync, sync, key: SectionKey.Sync) { KeepAlive = true };
+        var syncItem = new NavigationItem("Синхронизация", PackIconLucideKind.FolderSync, sync, key: SectionKey.Sync)
+        {
+            KeepAlive = true,
+        };
+
         var overviewItem = new NavigationItem("Все профили", PackIconLucideKind.LayoutGrid, overview, key: SectionKey.Overview);
         var scheduleItem = new NavigationItem("Расписание", PackIconLucideKind.CalendarClock, schedule, key: SectionKey.Schedule);
         var cleanupItem = new NavigationItem("Очистка", PackIconLucideKind.Trash2, cleanup, key: SectionKey.Cleanup);
-        var logsItem = new NavigationItem("Логи", PackIconLucideKind.ScrollText, logs, key: SectionKey.Logs) { StartsGroup = true };
+        var logsItem = new NavigationItem("Логи", PackIconLucideKind.ScrollText, logs, key: SectionKey.Logs)
+        {
+            StartsGroup = true,
+        };
+
         var performanceItem = new NavigationItem("Диагностика", PackIconLucideKind.Gauge, diagnostics, key: SectionKey.Performance);
         var aboutItem = new NavigationItem("О программе", PackIconLucideKind.Info, about, key: SectionKey.About);
 
@@ -110,7 +121,10 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         Sections.Add(performanceItem);
         Sections.Add(aboutItem);
 
-        _sectionByKey = new[] { scanItem, syncItem, overviewItem, scheduleItem, cleanupItem, _chatItem, logsItem, performanceItem, aboutItem, _settingsItem }
+        _sectionByKey = new[]
+            {
+                scanItem, syncItem, overviewItem, scheduleItem, cleanupItem, _chatItem, logsItem, performanceItem, aboutItem, _settingsItem,
+            }
             .ToDictionary(static item => item.Key, StringComparer.OrdinalIgnoreCase);
 
         _agent = agent;

@@ -38,7 +38,12 @@ public class SyncUseCaseTests
         File.WriteAllText(Path.Combine(_leftDir, "a.txt"), "данные");
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
 
         var comparison = new ComparisonResult(_leftDir, _rightDir, root);
         var report = Sync().Execute(new(comparison, VerifyAfterSync: verify), CancellationToken.None);
@@ -57,7 +62,12 @@ public class SyncUseCaseTests
     public bool Синхронизация_разрешает_конфликты_только_по_политике(SyncConflictPolicy policy)
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Conflict, Action = SyncAction.None });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Conflict,
+                Action = SyncAction.None,
+            });
 
         var comparison = new ComparisonResult(_leftDir, _rightDir, root);
         Sync().Execute(new(comparison, policy), CancellationToken.None);
@@ -102,7 +112,13 @@ public class SyncUseCaseTests
 
         var result = Compare().Execute(new(_leftDir, _rightDir, "*.tmp", SyncMode.LeftToRight, SyncWinner.Newest, false), CancellationToken.None);
 
-        Assert.That(result.Root.Files.Select(file => file.Name), Is.EqualTo(new[] { "keep.txt" }));
+        Assert.That(
+            result.Root.Files.Select(file => file.Name),
+            Is.EqualTo(
+                new[]
+                {
+                    "keep.txt",
+                }));
     }
 
     private static CompareDirectoriesUseCase Compare()

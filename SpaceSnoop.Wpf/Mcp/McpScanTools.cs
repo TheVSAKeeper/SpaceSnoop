@@ -107,7 +107,8 @@ internal sealed class McpScanTools(
                     if (scan.IsScanning)
                     {
                         logger.McpToolRejected("scan_directory", "страница занялась операцией, пока шёл обход");
-                        throw new McpException("Страница «Сканирование» занялась другой операцией, пока шёл обход – результат не показан. Повторите с show=false, чтобы получить данные без окна.");
+                        throw new McpException(
+                            "Страница «Сканирование» занялась другой операцией, пока шёл обход – результат не показан. Повторите с show=false, чтобы получить данные без окна.");
                     }
 
                     scan.ApplyScanResult(tree, run.Elapsed, run.Traversal, notes);
@@ -168,7 +169,10 @@ internal sealed class McpScanTools(
 
         var options = DuplicateOptions.Default with
         {
-            MinSize = minSize, MaxParallelism = parallelism, GroupLimit = entryLimit, MemberLimit = entryLimit,
+            MinSize = minSize,
+            MaxParallelism = parallelism,
+            GroupLimit = entryLimit,
+            MemberLimit = entryLimit,
         };
 
         var report = await duplicates.FindAsync(root, options, null, cancellationToken).ConfigureAwait(false);
@@ -403,7 +407,10 @@ internal sealed class McpScanTools(
         }
 
         var (dir, request) = PrepareArchive(path, deleteOriginal);
-        logger.McpMutationRequested(ArchiveTool, $"«{request.SourcePath}» → «{request.TargetPath}», файлов ≈{request.EstimatedFiles}, оригинал в корзину {request.DeleteOriginal}");
+        logger.McpMutationRequested(
+            ArchiveTool,
+            $"«{request.SourcePath}» → «{request.TargetPath}», файлов ≈{request.EstimatedFiles}, оригинал в корзину {request.DeleteOriginal}");
+
         notifier.Notify($"Агент упаковывает в архив: {request.SourcePath}", StatusSeverity.Warning);
 
         return (request, scan.ArchiveFromAutomationAsync(dir, request, cancellationToken));
@@ -418,7 +425,8 @@ internal sealed class McpScanTools(
 
         if (scan.FindForAutomation(path) is not { } space)
         {
-            throw new McpException($"Каталог «{path}» не найден в открытом сканировании. Упаковывается только то, что уже отсканировано: откройте дерево через open_scan с scan=true.");
+            throw new McpException(
+                $"Каталог «{path}» не найден в открытом сканировании. Упаковывается только то, что уже отсканировано: откройте дерево через open_scan с scan=true.");
         }
 
         if (space is not DirectorySpace dir)

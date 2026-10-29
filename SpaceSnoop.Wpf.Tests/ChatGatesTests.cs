@@ -44,7 +44,11 @@ public class ChatGatesTests
 
     private static AgentPreferences Preferences(bool enabled, bool consent)
     {
-        var preferences = new AgentPreferences(new MemorySettings()) { Enabled = enabled, Consent = consent };
+        var preferences = new AgentPreferences(new MemorySettings())
+        {
+            Enabled = enabled,
+            Consent = consent,
+        };
 
         return preferences;
     }

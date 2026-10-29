@@ -26,7 +26,12 @@ internal sealed class McpSyncTools(
         McpGuards.Validate(left, right, request.Mode);
 
         var patterns = request.Exclusions.Trim();
-        request = request with { LeftPath = left, RightPath = right, Exclusions = patterns };
+        request = request with
+        {
+            LeftPath = left,
+            RightPath = right,
+            Exclusions = patterns,
+        };
 
         var model = await Task.Run(
                 () =>
@@ -84,7 +89,9 @@ internal sealed class McpSyncTools(
                 navigator.CurrentSectionKey ?? SectionKey.Sync,
                 state.ReadSyncState(),
                 McpFormat.DescribeDeferredNavigation(comparison.Deferred),
-                comparison.Ignored.Count == 0 ? null : $"Параметры {string.Join(", ", comparison.Ignored)} не применены: изменяющие операции выключены в настройках приложения.")));
+                comparison.Ignored.Count == 0
+                    ? null
+                    : $"Параметры {string.Join(", ", comparison.Ignored)} не применены: изменяющие операции выключены в настройках приложения.")));
     }
 
     public async Task<string> SyncCurrentAsync(bool dryRun, int entryLimit, CancellationToken cancellationToken)
@@ -104,7 +111,11 @@ internal sealed class McpSyncTools(
 
             var model = await Task.Run(captured.Plan, cancellationToken).ConfigureAwait(false);
 
-            return SyncPlanExport.ToJson(model with { PlanFreshness = captured.Freshness.ToString() });
+            return SyncPlanExport.ToJson(
+                model with
+                {
+                    PlanFreshness = captured.Freshness.ToString(),
+                });
         }
 
         McpGuards.RequireMutations(preferences, logger, "sync_current");
@@ -154,7 +165,8 @@ internal sealed class McpSyncTools(
 
         if (outcome is null)
         {
-            throw new McpException("Синхронизация не доведена до конца: операция отменена или сравнение сброшено. Часть файлов могла быть уже перенесена – сравните каталоги заново.");
+            throw new McpException(
+                "Синхронизация не доведена до конца: операция отменена или сравнение сброшено. Часть файлов могла быть уже перенесена – сравните каталоги заново.");
         }
 
         var report = outcome.Report;

@@ -115,6 +115,30 @@ public sealed class ProjectCleanupTests
     }
 
     [Test]
+    public async Task Changed_files_beyond_report_ceiling_are_counted_but_not_logged()
+    {
+        const int count = 60;
+        var logger = new CapturingLogger<ProjectCleanupService>();
+        var service = new ProjectCleanupService(_ => Assert.Fail("nothing to recycle"), logger);
+        Write("app/app.csproj");
+        var files = Enumerable.Range(0, count).Select(x => Write($"app/bin/{x}.dll")).ToArray();
+        var plan = await service.ScanAsync(_root, default);
+        foreach (var file in files)
+        {
+            File.WriteAllText(file, "changed after preview");
+        }
+
+        var result = await service.CleanAsync(plan, plan.Artifacts.Where(x => x.Kind == ProjectArtifactKind.Bin).Select(x => x.Id).ToArray(), null, default);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Skipped, Is.EqualTo(count));
+            Assert.That(result.Errors, Has.Count.EqualTo(CleanupDefaults.MaxReportedErrors));
+            Assert.That(logger.Entries.Count(x => x.EventId == 1534), Is.EqualTo(CleanupDefaults.MaxReportedErrors));
+            Assert.That(logger.Entries.Select(x => x.EventId), Has.None.InRange(1540, 1543));
+        });
+    }
+
+    [Test]
     public async Task Coverage_outside_application_directory_is_not_blocked_by_its_group_directory()
     {
         Write("app.csproj");
@@ -125,7 +149,10 @@ public sealed class ProjectCleanupTests
         var appDirectory = Path.Combine(_root, "bin");
         Assert.Multiple(() =>
         {
-            Assert.That(ProjectCleanupService.ContainsApplicationFiles(plan.Artifacts.Single(x => x.Kind == ProjectArtifactKind.Coverage && x.Path == _root), appDirectory), Is.False);
+            Assert.That(
+                ProjectCleanupService.ContainsApplicationFiles(plan.Artifacts.Single(x => x.Kind == ProjectArtifactKind.Coverage && x.Path == _root), appDirectory),
+                Is.False);
+
             Assert.That(
                 plan.Artifacts.Where(x => x.Path == appDirectory)
                     .All(x => ProjectCleanupService.ContainsApplicationFiles(x, appDirectory)),
@@ -229,7 +256,14 @@ public sealed class ProjectCleanupTests
         var newFile = Write("output/new.bin");
         Assert.Multiple(() =>
         {
-            Assert.That(plan.CustomOutputs, Is.EqualTo(new[] { output }));
+            Assert.That(
+                plan.CustomOutputs,
+                Is.EqualTo(
+                    new[]
+                    {
+                        output,
+                    }));
+
             Assert.That(plan.Artifacts.Single().Kind, Is.EqualTo(ProjectArtifactKind.CustomOutput));
             Assert.That(plan.Artifacts.Single().Contents.Single().Path, Is.EqualTo(Path.GetFullPath(file)));
         });
@@ -285,7 +319,13 @@ public sealed class ProjectCleanupTests
         Assert.Multiple(() =>
         {
             Assert.That(plan.Errors, Is.Empty);
-            Assert.That(plan.Artifacts.Select(x => x.Kind), Is.EquivalentTo(new[] { ProjectArtifactKind.Bin, ProjectArtifactKind.Obj, ProjectArtifactKind.TestResults, ProjectArtifactKind.Benchmarks }));
+            Assert.That(
+                plan.Artifacts.Select(x => x.Kind),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        ProjectArtifactKind.Bin, ProjectArtifactKind.Obj, ProjectArtifactKind.TestResults, ProjectArtifactKind.Benchmarks,
+                    }));
 
             Assert.That(plan.Artifacts.Single(x => x.Kind == ProjectArtifactKind.Bin).Files, Is.EqualTo(1));
             Assert.That(plan.Artifacts.All(x => x.CanClean), Is.True);
@@ -370,7 +410,8 @@ public sealed class ProjectCleanupTests
         });
     }
 
-    [Test] [NonParallelizable]
+    [Test]
+    [NonParallelizable]
     public async Task Nested_dotnet_installation_disables_custom_output_cleanup()
     {
         var file = Write("output/dotnet/sdk/version.dat");
@@ -418,11 +459,22 @@ public sealed class ProjectCleanupTests
         var plan = await _service.ScanAsync([Path.Combine(_root, "a"), _root, Path.Combine(_root, "b"), _root], [], default);
         Assert.Multiple(() =>
         {
-            Assert.That(plan.Roots, Is.EqualTo(new[] { _root }));
+            Assert.That(
+                plan.Roots,
+                Is.EqualTo(
+                    new[]
+                    {
+                        _root,
+                    }));
+
             Assert.That(plan.Artifacts.Sum(x => x.Files), Is.EqualTo(2));
             Assert.That(
                 plan.Artifacts.Select(x => x.ProjectDirectory),
-                Is.EquivalentTo(new[] { Path.Combine(_root, "a"), Path.Combine(_root, "b") }));
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        Path.Combine(_root, "a"), Path.Combine(_root, "b"),
+                    }));
         });
     }
 
@@ -483,30 +535,6 @@ public sealed class ProjectCleanupTests
 
         Assert.That(File.ReadAllText(Path.Combine(_recycled.Single(), "files", "old.dll")), Is.EqualTo("data"));
         Assert.That(File.Exists(Path.Combine(_recycled.Single(), "SpaceSnoop-restore.json")), Is.True);
-    }
-
-    [Test]
-    public async Task Changed_files_beyond_report_ceiling_are_counted_but_not_logged()
-    {
-        const int count = 60;
-        var logger = new CapturingLogger<ProjectCleanupService>();
-        var service = new ProjectCleanupService(_ => Assert.Fail("nothing to recycle"), logger);
-        Write("app/app.csproj");
-        var files = Enumerable.Range(0, count).Select(x => Write($"app/bin/{x}.dll")).ToArray();
-        var plan = await service.ScanAsync(_root, default);
-        foreach (var file in files)
-        {
-            File.WriteAllText(file, "changed after preview");
-        }
-
-        var result = await service.CleanAsync(plan, plan.Artifacts.Where(x => x.Kind == ProjectArtifactKind.Bin).Select(x => x.Id).ToArray(), null, default);
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.Skipped, Is.EqualTo(count));
-            Assert.That(result.Errors, Has.Count.EqualTo(CleanupDefaults.MaxReportedErrors));
-            Assert.That(logger.Entries.Count(x => x.EventId == 1534), Is.EqualTo(CleanupDefaults.MaxReportedErrors));
-            Assert.That(logger.Entries.Select(x => x.EventId), Has.None.InRange(1540, 1543));
-        });
     }
 
     [Test]

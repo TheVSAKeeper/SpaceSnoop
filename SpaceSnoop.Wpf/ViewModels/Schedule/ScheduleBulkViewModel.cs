@@ -226,7 +226,10 @@ public sealed partial class ScheduleBulkViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Удалить профили", ConfirmChoiceKind.Destructive),
-            ]) { Warning = "Профили удаляются мимо корзины – восстановить их нельзя." };
+            ])
+        {
+            Warning = "Профили удаляются мимо корзины – восстановить их нельзя.",
+        };
 
         if (!await _dialogs.ShowAsync(confirm))
         {

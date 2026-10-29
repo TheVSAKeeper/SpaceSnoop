@@ -31,7 +31,11 @@ public static class AppResources
 
         foreach (var source in Sources)
         {
-            application.Resources.MergedDictionaries.Add(new() { Source = source });
+            application.Resources.MergedDictionaries.Add(
+                new()
+                {
+                    Source = source,
+                });
         }
     }
 }

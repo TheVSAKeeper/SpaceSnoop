@@ -66,7 +66,10 @@ public class ChatHistoryTests
         [
             Conversation("свежий", "Куда делось место?"),
             .. Enumerable.Range(0, AppDefaults.AgentHistoryLimit + 5).Select(index => Conversation($"старый-{index}", "Вопрос")),
-            new() { Id = "пустой" },
+            new()
+            {
+                Id = "пустой",
+            },
         ];
 
         var trimmed = ChatHistoryStore.Trim(conversations);
@@ -83,7 +86,11 @@ public class ChatHistoryTests
     public void Разговор_переживает_запись_и_чтение()
     {
         var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, _path);
-        var saved = Conversation("разговор", "Куда делось место?") with { Backend = AgentBackendKind.Codex, SessionId = "session-42" };
+        var saved = Conversation("разговор", "Куда делось место?") with
+        {
+            Backend = AgentBackendKind.Codex,
+            SessionId = "session-42",
+        };
 
         store.Save([saved]);
         var loaded = store.Load();
@@ -95,14 +102,25 @@ public class ChatHistoryTests
             Assert.That(loaded[0].Backend, Is.EqualTo(AgentBackendKind.Codex));
             Assert.That(loaded[0].SessionId, Is.EqualTo("session-42"));
             Assert.That(loaded[0].Messages, Has.Count.EqualTo(2));
-            Assert.That(loaded[0].Messages[1].Tools, Is.EqualTo(new[] { "scan_directory" }));
+            Assert.That(
+                loaded[0].Messages[1].Tools,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "scan_directory",
+                    }));
         }
     }
 
     [Test]
     public void Сообщение_восстанавливается_с_бейджами_инструментов_и_расходом()
     {
-        var source = new ChatMessageViewModel(ChatRole.Assistant, "Нашёл виновника") { CostUsd = 0.0123, Tokens = 4200 };
+        var source = new ChatMessageViewModel(ChatRole.Assistant, "Нашёл виновника")
+        {
+            CostUsd = 0.0123,
+            Tokens = 4200,
+        };
+
         source.ToolCalls.Add(ChatToolCall.From("scan_directory"));
         source.ToolCalls.Add(ChatToolCall.From("sync_current"));
 
@@ -129,8 +147,17 @@ public class ChatHistoryTests
             UpdatedUtc = DateTimeOffset.UtcNow,
             Messages =
             [
-                new() { Role = ChatRole.User, Text = prompt },
-                new() { Role = ChatRole.Assistant, Text = "Смотрю", Tools = ["scan_directory"] },
+                new()
+                {
+                    Role = ChatRole.User,
+                    Text = prompt,
+                },
+                new()
+                {
+                    Role = ChatRole.Assistant,
+                    Text = "Смотрю",
+                    Tools = ["scan_directory"],
+                },
             ],
         };
     }

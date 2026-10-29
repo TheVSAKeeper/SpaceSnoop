@@ -303,7 +303,11 @@ public sealed class NuGetCleanupService
                 using var lease = CacheFileAccess.LockDirectory(path);
                 foreach (var entry in new DirectoryInfo(path).EnumerateFileSystemInfos(
                     "*",
-                    new EnumerationOptions { AttributesToSkip = 0, IgnoreInaccessible = false }))
+                    new EnumerationOptions
+                    {
+                        AttributesToSkip = 0,
+                        IgnoreInaccessible = false,
+                    }))
                 {
                     token.ThrowIfCancellationRequested();
                     if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 || entry.Name.Equals(".git", StringComparison.OrdinalIgnoreCase))
@@ -371,8 +375,14 @@ public sealed class NuGetCleanupService
     {
         var extension = Path.GetExtension(name);
         return extension.EndsWith("proj", StringComparison.OrdinalIgnoreCase)
-            || new[] { ".sln", ".slnx", ".cs", ".fs", ".vb" }.Contains(extension, StringComparer.OrdinalIgnoreCase)
-            || new[] { "global.json", "Directory.Build.props", "Directory.Build.targets" }.Contains(name, StringComparer.OrdinalIgnoreCase);
+            || new[]
+            {
+                ".sln", ".slnx", ".cs", ".fs", ".vb",
+            }.Contains(extension, StringComparer.OrdinalIgnoreCase)
+            || new[]
+            {
+                "global.json", "Directory.Build.props", "Directory.Build.targets",
+            }.Contains(name, StringComparer.OrdinalIgnoreCase);
     }
 
     private static string Fingerprint(NuGetCacheLocations locations)

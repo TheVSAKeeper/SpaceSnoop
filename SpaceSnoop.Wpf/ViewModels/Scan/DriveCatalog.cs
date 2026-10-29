@@ -50,7 +50,10 @@ public sealed class DriveCatalog
 
     internal void AddDrive(string path)
     {
-        var item = new DriveItem(path) { IsSelected = IsSelectedPath(path) };
+        var item = new DriveItem(path)
+        {
+            IsSelected = IsSelectedPath(path),
+        };
 
         if (!item.IsDirectory)
         {

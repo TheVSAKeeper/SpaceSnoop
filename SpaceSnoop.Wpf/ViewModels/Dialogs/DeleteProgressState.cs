@@ -89,7 +89,10 @@ internal sealed class DeleteProgressState
     {
         lock (_gate)
         {
-            _chunk = _chunk with { Running = false };
+            _chunk = _chunk with
+            {
+                Running = false,
+            };
         }
     }
 

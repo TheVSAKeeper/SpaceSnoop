@@ -356,7 +356,12 @@ public sealed class DockerCompactTests
             runner,
             fileSystem,
             settingsProvider ?? new StaticSettingsProvider(settings ?? new(BasePath, true, null)),
-            new() { ProcessTimeout = TimeSpan.FromSeconds(1), StopTimeout = TimeSpan.FromSeconds(1), StatusPollInterval = TimeSpan.Zero },
+            new()
+            {
+                ProcessTimeout = TimeSpan.FromSeconds(1),
+                StopTimeout = TimeSpan.FromSeconds(1),
+                StatusPollInterval = TimeSpan.Zero,
+            },
             legacyVhdxProvider,
             administratorCheck ?? (() => true));
     }

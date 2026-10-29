@@ -93,7 +93,10 @@ public sealed partial class DockerCompactViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Сжать диск", ConfirmChoiceKind.Primary),
-            ]) { Warning = "Экспериментальная операция. После запуска diskpart сжатие нельзя безопасно прервать." };
+            ])
+        {
+            Warning = "Экспериментальная операция. После запуска diskpart сжатие нельзя безопасно прервать.",
+        };
 
         if (!await _dialogs.ShowAsync(confirm))
         {
@@ -185,11 +188,17 @@ public sealed partial class DockerCompactViewModel : ObservableObject
             true,
             stageChanged: run.StageChanged);
 
-        var attempts = new List<DockerCompactStep>(result.Steps) { new("Повтор после подтверждения остановки WSL", true, "Повторена операция с подтверждённым fallback.") };
+        var attempts = new List<DockerCompactStep>(result.Steps)
+        {
+            new("Повтор после подтверждения остановки WSL", true, "Повторена операция с подтверждённым fallback."),
+        };
 
         attempts.AddRange(fallbackResult.Steps);
 
-        return fallbackResult with { Steps = attempts };
+        return fallbackResult with
+        {
+            Steps = attempts,
+        };
     }
 
     private void Finish(CompactRun run, DockerCompactResult result)
@@ -246,7 +255,10 @@ public sealed partial class DockerCompactViewModel : ObservableObject
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Остановить WSL", ConfirmChoiceKind.Destructive),
-            ]) { Warning = "Другие работающие WSL-дистрибутивы тоже будут остановлены." };
+            ])
+        {
+            Warning = "Другие работающие WSL-дистрибутивы тоже будут остановлены.",
+        };
 
         return await _dialogs.ShowAsync(confirm);
     }

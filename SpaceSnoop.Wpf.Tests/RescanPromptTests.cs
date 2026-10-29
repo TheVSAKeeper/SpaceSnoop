@@ -63,7 +63,10 @@ public class RescanPromptTests
         var factory = new ScanNodeFactory(preferences, new(new MemorySettings()), new FakeShellLauncher());
         var marked = new DirectorySpace(Other, null, DateTime.Now, DateTime.Now);
         marked.Delete();
-        var roots = new[] { factory.CreateRoot(new DirectorySpace(Scanned, null, DateTime.Now, DateTime.Now), new()), factory.CreateRoot(marked, new()) };
+        var roots = new[]
+        {
+            factory.CreateRoot(new DirectorySpace(Scanned, null, DateTime.Now, DateTime.Now), new()), factory.CreateRoot(marked, new()),
+        };
 
         var dialogs = new NoopDialogs(showResult: true);
 

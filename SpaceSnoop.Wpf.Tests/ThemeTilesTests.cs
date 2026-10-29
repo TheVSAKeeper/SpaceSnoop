@@ -77,7 +77,11 @@ public class ThemeTilesTests
 
         var first = (ListBoxItem)list.ItemContainerGenerator.ContainerFromIndex(0);
         first.Focus();
-        first.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(first)!, 0, Key.Right) { RoutedEvent = Keyboard.KeyDownEvent });
+        first.RaiseEvent(
+            new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(first)!, 0, Key.Right)
+            {
+                RoutedEvent = Keyboard.KeyDownEvent,
+            });
 
         host.Settle();
 
@@ -86,9 +90,20 @@ public class ThemeTilesTests
 
     private static VisualTestHost Show(out ListBox list)
     {
-        list = new() { Style = (Style)Application.Current.FindResource("ListBox.ThemeTiles"), ItemsSource = SettingsOptions.Themes };
+        list = new()
+        {
+            Style = (Style)Application.Current.FindResource("ListBox.ThemeTiles"),
+            ItemsSource = SettingsOptions.Themes,
+        };
 
-        var host = VisualTestHost.Show(new() { Content = list }, 640, 240, true);
+        var host = VisualTestHost.Show(
+            new()
+            {
+                Content = list,
+            },
+            640,
+            240,
+            true);
 
         host.Settle();
 

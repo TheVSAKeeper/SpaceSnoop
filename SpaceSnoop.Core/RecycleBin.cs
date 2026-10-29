@@ -18,7 +18,12 @@ public static class RecycleBin
 
     public static void DeleteSilent(string path)
     {
-        var op = new ShFileOpStruct { wFunc = FO_DELETE, pFrom = path + '\0' + '\0', fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI };
+        var op = new ShFileOpStruct
+        {
+            wFunc = FO_DELETE,
+            pFrom = path + '\0' + '\0',
+            fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI,
+        };
 
         var result = SHFileOperation(ref op);
 
@@ -51,7 +56,12 @@ public static class RecycleBin
 
         builder.Append('\0');
 
-        var op = new ShFileOpStruct { wFunc = FO_DELETE, pFrom = builder.ToString(), fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI };
+        var op = new ShFileOpStruct
+        {
+            wFunc = FO_DELETE,
+            pFrom = builder.ToString(),
+            fFlags = FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI,
+        };
 
         var result = SHFileOperation(ref op);
 
@@ -63,7 +73,10 @@ public static class RecycleBin
 
     internal static RecycleBinContent Query()
     {
-        var info = new ShQueryRbInfo { cbSize = Marshal.SizeOf<ShQueryRbInfo>() };
+        var info = new ShQueryRbInfo
+        {
+            cbSize = Marshal.SizeOf<ShQueryRbInfo>(),
+        };
 
         return SHQueryRecycleBin(null, ref info) == 0 ? new(true, info.i64Size, info.i64NumItems) : new(false, 0, 0);
     }

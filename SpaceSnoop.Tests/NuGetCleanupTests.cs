@@ -149,25 +149,46 @@ public class NuGetCleanupTests
     {
         var script = Path.Combine(_root, "discovery.ps1");
         var lines = NuGetCacheDiscovery.Names.Select(x => $"'{x.Value}: {_paths[x.Key]}'");
-        await File.WriteAllLinesAsync(script, (truncated ? new[] { "'x' * 30000" } : []).Concat(lines));
+        await File.WriteAllLinesAsync(
+            script,
+            (truncated
+                ? new[]
+                {
+                    "'x' * 30000",
+                }
+                : []).Concat(lines));
+
         var starts = 0;
         var cli = new DotNetCli(
             () => _root,
             _ => true,
             x =>
             {
-                Assert.That(x.ArgumentList, Is.EqualTo(new[] { "nuget", "locals", "all", "--list", "--force-english-output" }));
+                Assert.That(
+                    x.ArgumentList,
+                    Is.EqualTo(
+                        new[]
+                        {
+                            "nuget", "locals", "all", "--list", "--force-english-output",
+                        }));
+
                 Assert.That(x.WorkingDirectory, Is.EqualTo(_root));
                 Assert.That(x.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"], Is.EqualTo("1"));
                 starts++;
                 x.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "WindowsPowerShell", "v1.0", "powershell.exe");
                 x.ArgumentList.Clear();
-                foreach (var argument in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script })
+                foreach (var argument in new[]
+                {
+                    "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
+                })
                 {
                     x.ArgumentList.Add(argument);
                 }
 
-                return new() { StartInfo = x };
+                return new()
+                {
+                    StartInfo = x,
+                };
             });
 
         var log = Path.Combine(_root, "discovery.log");

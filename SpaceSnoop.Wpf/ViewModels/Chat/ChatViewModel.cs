@@ -231,7 +231,8 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
         }
 
         var removed = Messages.Count - index;
-        var question = $"Всё, что после этого вопроса, пропадёт из разговора: сообщений – {removed}. Текст вопроса вернётся в поле ввода, а разговор с CLI начнётся заново – прежних ответов {AgentPersona.NameGenitive} он уже не вспомнит.";
+        var question =
+            $"Всё, что после этого вопроса, пропадёт из разговора: сообщений – {removed}. Текст вопроса вернётся в поле ввода, а разговор с CLI начнётся заново – прежних ответов {AgentPersona.NameGenitive} он уже не вспомнит.";
 
         if (!_dialogs.Confirm("Вернуться к вопросу", question))
         {
@@ -350,7 +351,11 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
     {
         Messages.Add(new(ChatRole.User, prompt));
 
-        var assistant = new ChatMessageViewModel(ChatRole.Assistant) { IsStreaming = true };
+        var assistant = new ChatMessageViewModel(ChatRole.Assistant)
+        {
+            IsStreaming = true,
+        };
+
         Messages.Add(assistant);
         RefreshLastFlags();
         OnPropertyChanged(nameof(HasMessages));

@@ -19,11 +19,41 @@ public class PriorityRowPanelTests
     [Apartment(ApartmentState.STA)]
     public void Настоящая_панель_держит_полосу_в_своих_границах_и_прячет_счётчики(double width, double sizeTextWidth, double barWidth)
     {
-        var name = new Border { MinWidth = NameMin };
-        var files = new Border { Width = Meta[0] };
-        var share = new Border { Width = Meta[1] };
-        var bar = new Border { MinWidth = BarMin, MaxWidth = BarMax, Child = new Border { Width = sizeTextWidth } };
-        var panel = new PriorityRowPanel { Children = { name, files, share, bar } };
+        var name = new Border
+        {
+            MinWidth = NameMin,
+        };
+
+        var files = new Border
+        {
+            Width = Meta[0],
+        };
+
+        var share = new Border
+        {
+            Width = Meta[1],
+        };
+
+        var bar = new Border
+        {
+            MinWidth = BarMin,
+            MaxWidth = BarMax,
+            Child = new Border
+            {
+                Width = sizeTextWidth,
+            },
+        };
+
+        var panel = new PriorityRowPanel
+        {
+            Children =
+            {
+                name,
+                files,
+                share,
+                bar,
+            },
+        };
 
         panel.Measure(new(width, 20));
         panel.Arrange(new(0, 0, width, 20));
@@ -65,7 +95,14 @@ public class PriorityRowPanelTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(plan.Kept, Is.EqualTo(new[] { keepsFiles, keepsShare }));
+            Assert.That(
+                plan.Kept,
+                Is.EqualTo(
+                    new[]
+                    {
+                        keepsFiles, keepsShare,
+                    }));
+
             Assert.That(plan.TailWidth, Is.EqualTo(barWidth));
         }
     }

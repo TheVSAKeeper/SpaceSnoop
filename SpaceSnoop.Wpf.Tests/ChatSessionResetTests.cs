@@ -171,7 +171,14 @@ public class ChatSessionResetTests
                 SessionId = "сессия-прежнего-CLI",
                 StartedUtc = DateTimeOffset.UtcNow,
                 UpdatedUtc = DateTimeOffset.UtcNow,
-                Messages = [new() { Role = ChatRole.User, Text = "Куда делось место?" }],
+                Messages =
+                [
+                    new()
+                    {
+                        Role = ChatRole.User,
+                        Text = "Куда делось место?",
+                    },
+                ],
             },
         ]);
 

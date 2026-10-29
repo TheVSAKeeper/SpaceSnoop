@@ -28,7 +28,14 @@ public class GalleryOptionsTests
             Assert.That(options.Dialogs, Is.EqualTo(GalleryDialogs.All));
             Assert.That(options.Tips, Is.EqualTo(GalleryTips.All));
             Assert.That(options.State, Is.EqualTo(GalleryStates.Idle));
-            Assert.That(options.Themes, Is.EqualTo(new[] { AppThemes.LightKey, AppThemes.DarkKey }));
+            Assert.That(
+                options.Themes,
+                Is.EqualTo(
+                    new[]
+                    {
+                        AppThemes.LightKey, AppThemes.DarkKey,
+                    }));
+
             Assert.That(options.Arguments.Unknown, Is.Empty);
         });
     }
@@ -41,7 +48,14 @@ public class GalleryOptionsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(picked.Dialogs, Is.EqualTo(new[] { GalleryDialogs.Diff, GalleryDialogs.Confirm }));
+            Assert.That(
+                picked.Dialogs,
+                Is.EqualTo(
+                    new[]
+                    {
+                        GalleryDialogs.Diff, GalleryDialogs.Confirm,
+                    }));
+
             Assert.That(off.Dialogs, Is.Empty);
             Assert.That(off.Arguments.Unknown, Is.Empty);
         });
@@ -54,9 +68,29 @@ public class GalleryOptionsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(options.Pages, Is.EqualTo(new[] { SectionKey.Scan }));
-            Assert.That(options.Themes, Is.EqualTo(new[] { AppThemes.LightKey }));
-            Assert.That(options.Arguments.Unknown, Is.EqualTo(new[] { "неон", "тьма" }));
+            Assert.That(
+                options.Pages,
+                Is.EqualTo(
+                    new[]
+                    {
+                        SectionKey.Scan,
+                    }));
+
+            Assert.That(
+                options.Themes,
+                Is.EqualTo(
+                    new[]
+                    {
+                        AppThemes.LightKey,
+                    }));
+
+            Assert.That(
+                options.Arguments.Unknown,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "неон", "тьма",
+                    }));
         });
     }
 
@@ -68,7 +102,13 @@ public class GalleryOptionsTests
         Assert.Multiple(() =>
         {
             Assert.That(options.State, Is.EqualTo(GalleryStates.Idle));
-            Assert.That(options.Arguments.Unknown, Is.EqualTo(new[] { "работает" }));
+            Assert.That(
+                options.Arguments.Unknown,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "работает",
+                    }));
         });
     }
 
@@ -79,8 +119,21 @@ public class GalleryOptionsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(options.Dialogs, Is.EqualTo(new[] { GalleryDialogs.Diff }));
-            Assert.That(options.Arguments.Unknown, Is.EqualTo(new[] { "вьюха" }));
+            Assert.That(
+                options.Dialogs,
+                Is.EqualTo(
+                    new[]
+                    {
+                        GalleryDialogs.Diff,
+                    }));
+
+            Assert.That(
+                options.Arguments.Unknown,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "вьюха",
+                    }));
         });
     }
 
@@ -93,11 +146,31 @@ public class GalleryOptionsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(picked.Tips, Is.EqualTo(new[] { GalleryTips.TreemapCorner }));
+            Assert.That(
+                picked.Tips,
+                Is.EqualTo(
+                    new[]
+                    {
+                        GalleryTips.TreemapCorner,
+                    }));
+
             Assert.That(picked.Dialogs, Is.EqualTo(GalleryDialogs.All));
             Assert.That(off.Tips, Is.Empty);
-            Assert.That(unknown.Tips, Is.EqualTo(new[] { GalleryTips.TreemapCenter }));
-            Assert.That(unknown.Arguments.Unknown, Is.EqualTo(new[] { "всплывашка" }));
+            Assert.That(
+                unknown.Tips,
+                Is.EqualTo(
+                    new[]
+                    {
+                        GalleryTips.TreemapCenter,
+                    }));
+
+            Assert.That(
+                unknown.Arguments.Unknown,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "всплывашка",
+                    }));
         });
     }
 
@@ -122,8 +195,21 @@ public class GalleryOptionsTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(options.Pages, Is.EqualTo(new[] { SectionKey.Sync, SectionKey.Scan }));
-            Assert.That(options.Themes, Is.EqualTo(new[] { AppThemes.DarkKey, AppThemes.LightKey }));
+            Assert.That(
+                options.Pages,
+                Is.EqualTo(
+                    new[]
+                    {
+                        SectionKey.Sync, SectionKey.Scan,
+                    }));
+
+            Assert.That(
+                options.Themes,
+                Is.EqualTo(
+                    new[]
+                    {
+                        AppThemes.DarkKey, AppThemes.LightKey,
+                    }));
         });
     }
 
@@ -135,7 +221,11 @@ public class GalleryOptionsTests
             Assert.That(GalleryOptions.Parse([], Default).Themes, Does.Not.Contain(AppThemes.TarkovKey));
             Assert.That(
                 GalleryOptions.Parse(["--themes", AppThemes.TarkovKey], Default).Themes,
-                Is.EqualTo(new[] { AppThemes.TarkovKey }));
+                Is.EqualTo(
+                    new[]
+                    {
+                        AppThemes.TarkovKey,
+                    }));
         });
     }
 

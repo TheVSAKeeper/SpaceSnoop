@@ -21,7 +21,13 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Встроенные_инструменты_выключены_и_запрещены()
     {
-        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = Mcp() }));
+        var agent = Agent(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "тест",
+                    Mcp = Mcp(),
+                }));
 
         using (Assert.EnterMultipleScope())
         {
@@ -66,7 +72,12 @@ public class OpenCodeAgentBackendTests
     [TestCase("high", ExpectedResult = true)]
     public bool Глубина_рассуждений_уходит_вариантом_модели(string effort)
     {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", Effort = effort });
+        var args = OpenCodeAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Effort = effort,
+            });
 
         return args.Contains("--variant") && args.Contains(effort);
     }
@@ -74,7 +85,13 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Инструменты_приложения_разрешены_под_именем_с_префиксом_сервера()
     {
-        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = Mcp("sync_current") }));
+        var agent = Agent(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "тест",
+                    Mcp = Mcp("sync_current"),
+                }));
 
         using (Assert.EnterMultipleScope())
         {
@@ -103,7 +120,12 @@ public class OpenCodeAgentBackendTests
     [TestCase("opencode/big-pickle", ExpectedResult = true)]
     public bool Модель_добавляется_только_когда_задана(string model)
     {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", Model = model });
+        var args = OpenCodeAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Model = model,
+            });
 
         return args.Contains("--model") && args.Contains(model);
     }
@@ -123,11 +145,22 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Новый_разговор_запускается_подкомандой_run_своим_агентом_и_фиксированным_заголовком()
     {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "привет" });
+        var args = OpenCodeAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "привет",
+            });
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(args.Take(6), Is.EqualTo(new[] { "run", "--format", "json", "--pure", "--agent", OpenCodeAgentBackend.AgentName }));
+            Assert.That(
+                args.Take(6),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "run", "--format", "json", "--pure", "--agent", OpenCodeAgentBackend.AgentName,
+                    }));
+
             Assert.That(args, Does.Contain("--title"));
             Assert.That(args, Does.Not.Contain("--session"));
         }
@@ -136,7 +169,12 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Оболочка_системы_запрещена_даже_без_настроенного_Mcp()
     {
-        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест" }));
+        var agent = Agent(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "тест",
+                }));
 
         Assert.That(agent.GetProperty("tools").GetProperty("bash").GetBoolean(), Is.False);
     }
@@ -174,7 +212,13 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Пользовательские_инструкции_и_публикация_сессии_отключены()
     {
-        using var document = JsonDocument.Parse(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест" }));
+        using var document = JsonDocument.Parse(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "тест",
+                }));
+
         var root = document.RootElement;
 
         using (Assert.EnterMultipleScope())
@@ -189,7 +233,12 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Продолжение_сессии_идёт_ключом_session_вместо_заголовка()
     {
-        var args = OpenCodeAgentBackend.BuildArguments(new() { Prompt = "тест", ResumeSessionId = SessionId });
+        var args = OpenCodeAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                ResumeSessionId = SessionId,
+            });
 
         using (Assert.EnterMultipleScope())
         {
@@ -203,7 +252,13 @@ public class OpenCodeAgentBackendTests
     public void Разрешённые_мутации_открывают_sync_current()
     {
         var mcp = new AgentMcpConfig("spacesnoop", "http://127.0.0.1:7654/mcp", "secret-token", ["scan_directory", "sync_current"], []);
-        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = mcp }));
+        var agent = Agent(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "тест",
+                    Mcp = mcp,
+                }));
 
         Assert.That(agent.GetProperty("tools").GetProperty("spacesnoop_sync_current").GetBoolean(), Is.True);
     }
@@ -211,7 +266,14 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Сервер_описывается_удалённым_адресом_а_токен_подстановкой_переменной()
     {
-        using var document = JsonDocument.Parse(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = Mcp() }));
+        using var document = JsonDocument.Parse(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "тест",
+                    Mcp = Mcp(),
+                }));
+
         var server = document.RootElement.GetProperty("mcp").GetProperty("spacesnoop");
 
         using (Assert.EnterMultipleScope())
@@ -227,7 +289,13 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Системный_промпт_уезжает_промптом_агента()
     {
-        var agent = Agent(OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "куда делось место", SystemPrompt = "Ты помощник." }));
+        var agent = Agent(
+            OpenCodeAgentBackend.BuildConfigJson(
+                new()
+                {
+                    Prompt = "куда делось место",
+                    SystemPrompt = "Ты помощник.",
+                }));
 
         Assert.That(agent.GetProperty("prompt").GetString(), Is.EqualTo("Ты помощник."));
     }
@@ -254,7 +322,12 @@ public class OpenCodeAgentBackendTests
     [Test]
     public void Токен_во_временный_файл_не_записывается()
     {
-        var json = OpenCodeAgentBackend.BuildConfigJson(new() { Prompt = "тест", Mcp = Mcp() });
+        var json = OpenCodeAgentBackend.BuildConfigJson(
+            new()
+            {
+                Prompt = "тест",
+                Mcp = Mcp(),
+            });
 
         Assert.That(json, Does.Not.Contain("secret-token"));
     }
@@ -266,7 +339,21 @@ public class OpenCodeAgentBackendTests
 
     private static string TextPart(string partId, string text)
     {
-        return Event("text", "part", JsonSerializer.Serialize(new { id = partId, type = "text", text, time = new { start = 1, end = 2 } }));
+        return Event(
+            "text",
+            "part",
+            JsonSerializer.Serialize(
+                new
+                {
+                    id = partId,
+                    type = "text",
+                    text,
+                    time = new
+                    {
+                        start = 1,
+                        end = 2,
+                    },
+                }));
     }
 
     private static string StepFinish(string partId, long input, long output, long reasoning, double cost)
@@ -276,7 +363,13 @@ public class OpenCodeAgentBackendTests
             id = partId,
             type = "step-finish",
             reason = "stop",
-            tokens = new { total = input + output + reasoning, input, output, reasoning },
+            tokens = new
+            {
+                total = input + output + reasoning,
+                input,
+                output,
+                reasoning,
+            },
             cost,
         };
 

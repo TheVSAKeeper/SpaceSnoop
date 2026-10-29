@@ -35,7 +35,11 @@ public class AgentPreferencesTests
     {
         var store = Open();
 
-        var preferences = new AgentPreferences(store) { Effort = "xhigh", Backend = AgentBackendKind.Codex };
+        var preferences = new AgentPreferences(store)
+        {
+            Effort = "xhigh",
+            Backend = AgentBackendKind.Codex,
+        };
 
         preferences.Effort = "ultra";
         store.Flush();
@@ -55,7 +59,12 @@ public class AgentPreferencesTests
     {
         var store = Open();
 
-        var preferences = new AgentPreferences(store) { Model = "sonnet", CliPath = @"D:\tools\claude.exe", Backend = AgentBackendKind.Codex };
+        var preferences = new AgentPreferences(store)
+        {
+            Model = "sonnet",
+            CliPath = @"D:\tools\claude.exe",
+            Backend = AgentBackendKind.Codex,
+        };
 
         preferences.Model = "gpt-5.6";
         preferences.CliPath = @"D:\tools\codex.exe";
@@ -99,7 +108,11 @@ public class AgentPreferencesTests
         Seed(store => store.SetValue(SettingsKeys.AgentModelShared, "sonnet"));
 
         var first = Open();
-        _ = new AgentPreferences(first) { Model = string.Empty };
+        _ = new AgentPreferences(first)
+        {
+            Model = string.Empty,
+        };
+
         first.Flush();
 
         Assert.That(new AgentPreferences(Open()).ModelFor(AgentBackendKind.Claude), Is.Empty);
@@ -176,7 +189,10 @@ public class AgentPreferencesTests
     {
         var store = Open();
 
-        var preferences = new AgentPreferences(store) { Consent = true };
+        var preferences = new AgentPreferences(store)
+        {
+            Consent = true,
+        };
 
         preferences.Backend = AgentBackendKind.Codex;
 
@@ -197,7 +213,11 @@ public class AgentPreferencesTests
     {
         var store = Open();
 
-        var preferences = new AgentPreferences(store) { Model = "sonnet" };
+        var preferences = new AgentPreferences(store)
+        {
+            Model = "sonnet",
+        };
+
         preferences.Backend = AgentBackendKind.Codex;
 
         Assert.That(preferences.Model, Is.Empty);
@@ -213,7 +233,10 @@ public class AgentPreferencesTests
     {
         var store = Open();
 
-        var preferences = new AgentPreferences(store) { Consent = true };
+        var preferences = new AgentPreferences(store)
+        {
+            Consent = true,
+        };
 
         bool? consentAtBackendNotice = null;
 
@@ -235,7 +258,10 @@ public class AgentPreferencesTests
     {
         var store = Open();
 
-        _ = new AgentPreferences(store) { Consent = true };
+        _ = new AgentPreferences(store)
+        {
+            Consent = true,
+        };
 
         store.Flush();
 

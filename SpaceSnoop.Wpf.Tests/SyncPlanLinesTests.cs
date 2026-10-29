@@ -12,8 +12,16 @@ public class SyncPlanLinesTests
     [Test]
     public void Достаточное_место_докладывается_без_предупреждения()
     {
-        var planned = new PlannedActions(1, 0, 0, 0, 0) { NewCopyBytes = 10 * Megabyte, CopyToRightBytes = 10 * Megabyte };
-        var receivers = new PlanReceiver[] { new("D:\\Backup", 10 * Megabyte, 40 * Megabyte) };
+        var planned = new PlannedActions(1, 0, 0, 0, 0)
+        {
+            NewCopyBytes = 10 * Megabyte,
+            CopyToRightBytes = 10 * Megabyte,
+        };
+
+        var receivers = new PlanReceiver[]
+        {
+            new("D:\\Backup", 10 * Megabyte, 40 * Megabyte),
+        };
 
         var lines = SyncPlanNarrative.BuildPlanLines(planned, null, receivers);
 
@@ -29,8 +37,16 @@ public class SyncPlanLinesTests
     [Test]
     public void Неизвестное_свободное_место_оговаривается()
     {
-        var planned = new PlannedActions(1, 0, 0, 0, 0) { NewCopyBytes = Megabyte, CopyToRightBytes = Megabyte };
-        var receivers = new PlanReceiver[] { new("\\\\server\\share", Megabyte, null) };
+        var planned = new PlannedActions(1, 0, 0, 0, 0)
+        {
+            NewCopyBytes = Megabyte,
+            CopyToRightBytes = Megabyte,
+        };
+
+        var receivers = new PlanReceiver[]
+        {
+            new("\\\\server\\share", Megabyte, null),
+        };
 
         var lines = SyncPlanNarrative.BuildPlanLines(planned, null, receivers);
 
@@ -40,8 +56,16 @@ public class SyncPlanLinesTests
     [Test]
     public void Нехватка_места_на_приёмнике_предупреждает()
     {
-        var planned = new PlannedActions(1, 0, 0, 0, 0) { NewCopyBytes = 10 * Megabyte, CopyToRightBytes = 10 * Megabyte };
-        var receivers = new PlanReceiver[] { new("D:\\Backup", 10 * Megabyte, 4 * Megabyte) };
+        var planned = new PlannedActions(1, 0, 0, 0, 0)
+        {
+            NewCopyBytes = 10 * Megabyte,
+            CopyToRightBytes = 10 * Megabyte,
+        };
+
+        var receivers = new PlanReceiver[]
+        {
+            new("D:\\Backup", 10 * Megabyte, 4 * Megabyte),
+        };
 
         var lines = SyncPlanNarrative.BuildPlanLines(planned, null, receivers);
 
@@ -55,8 +79,16 @@ public class SyncPlanLinesTests
     [Test]
     public void Односторонний_приёмник_в_двустороннем_режиме_оговаривается()
     {
-        var planned = new PlannedActions(1, 0, 0, 0, 0) { NewCopyBytes = Megabyte, CopyToRightBytes = Megabyte };
-        var receivers = new PlanReceiver[] { new("D:\\Backup", Megabyte, 40 * Megabyte) };
+        var planned = new PlannedActions(1, 0, 0, 0, 0)
+        {
+            NewCopyBytes = Megabyte,
+            CopyToRightBytes = Megabyte,
+        };
+
+        var receivers = new PlanReceiver[]
+        {
+            new("D:\\Backup", Megabyte, 40 * Megabyte),
+        };
 
         var lines = SyncPlanNarrative.BuildPlanLines(planned, null, receivers, true);
 
@@ -105,7 +137,10 @@ public class SyncPlanLinesTests
     [Test]
     public void Удаление_каталогов_без_файлов_не_ссылается_на_счётчик()
     {
-        var planned = new PlannedActions(0, 0, 0, 0, 1) { DeleteDirBytes = 4 * Megabyte };
+        var planned = new PlannedActions(0, 0, 0, 0, 1)
+        {
+            DeleteDirBytes = 4 * Megabyte,
+        };
 
         var lines = SyncPlanNarrative.BuildPlanLines(planned, null, []);
 
@@ -119,7 +154,11 @@ public class SyncPlanLinesTests
     [Test]
     public void Удаляемые_каталоги_оговаривают_своё_содержимое()
     {
-        var planned = new PlannedActions(0, 0, 2, 0, 1) { DeleteFileBytes = Megabyte, DeleteDirBytes = 4 * Megabyte };
+        var planned = new PlannedActions(0, 0, 2, 0, 1)
+        {
+            DeleteFileBytes = Megabyte,
+            DeleteDirBytes = 4 * Megabyte,
+        };
 
         var lines = SyncPlanNarrative.BuildPlanLines(planned, null, []);
 

@@ -1,5 +1,4 @@
-﻿using SpaceSnoop.Core.Domain;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace SpaceSnoop.Core.Export;
 
@@ -15,7 +14,13 @@ public static class FullScanExport
         IProgress<int>? progress,
         CancellationToken cancel)
     {
-        using var writer = new Utf8JsonWriter(output, new JsonWriterOptions { Encoder = ExportJson.Options.Encoder });
+        using var writer = new Utf8JsonWriter(
+            output,
+            new()
+            {
+                Encoder = ExportJson.Options.Encoder,
+            });
+
         var total = root.TotalFileCount + root.TotalDirectoryCount;
         var completed = 0;
         var errors = root.State == SpaceState.Error ? 1 : 0;

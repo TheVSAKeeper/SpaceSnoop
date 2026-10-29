@@ -32,7 +32,10 @@ public class ChatMessageTests
     {
         var record = new ChatMessageRecord
         {
-            Role = ChatRole.Assistant, Text = "Нашёл.", Tools = ["mcp__spacesnoop__scan_directory", "mcp__spacesnoop__scan_directory"], ToolArguments = ["""{"path":"C:\\Data"}""", string.Empty],
+            Role = ChatRole.Assistant,
+            Text = "Нашёл.",
+            Tools = ["mcp__spacesnoop__scan_directory", "mcp__spacesnoop__scan_directory"],
+            ToolArguments = ["""{"path":"C:\\Data"}""", string.Empty],
         };
 
         var message = ChatMessageViewModel.Restore(record);
@@ -139,7 +142,13 @@ public class ChatMessageTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(message.ToolBadges.Select(badge => badge.Label), Is.EqualTo(new[] { "сканирование каталога ×2", "состояние программы", "сканирование каталога" }));
+            Assert.That(
+                message.ToolBadges.Select(badge => badge.Label),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "сканирование каталога ×2", "состояние программы", "сканирование каталога",
+                    }));
 
             Assert.That(message.ToolBadges[0].Hint, Is.EqualTo($"path: C:\\Data{Environment.NewLine}path: C:\\Data\\ВКР"));
         });
@@ -148,7 +157,11 @@ public class ChatMessageTests
     [Test]
     public void Пока_ход_идёт_переспрашивать_нечего()
     {
-        var message = new ChatMessageViewModel(ChatRole.Assistant) { IsLast = true, IsStreaming = true };
+        var message = new ChatMessageViewModel(ChatRole.Assistant)
+        {
+            IsLast = true,
+            IsStreaming = true,
+        };
 
         Assert.That(message.CanRetry, Is.False);
     }
@@ -168,7 +181,10 @@ public class ChatMessageTests
     [Test]
     public void Статус_хода_называет_последний_инструмент()
     {
-        var message = new ChatMessageViewModel(ChatRole.Assistant) { IsStreaming = true };
+        var message = new ChatMessageViewModel(ChatRole.Assistant)
+        {
+            IsStreaming = true,
+        };
 
         message.ToolCalls.Add(ChatToolCall.From("mcp__spacesnoop__get_app_state"));
         message.ToolCalls.Add(ChatToolCall.From("mcp__spacesnoop__scan_directory"));

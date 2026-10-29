@@ -15,10 +15,36 @@ public class ToolTipOwnerWatchTests
     {
         ToolTipOwnerWatch.Install();
 
-        var toolTip = new ToolTip { Content = "Сканировать заново" };
-        var button = new Button { Content = "Сканировать снова", ToolTip = toolTip };
-        var card = new Border { Child = button, Visibility = Visibility.Collapsed };
-        using var host = VisualTestHost.Show(new() { Content = new StackPanel { Children = { card } } }, 320, 200);
+        var toolTip = new ToolTip
+        {
+            Content = "Сканировать заново",
+        };
+
+        var button = new Button
+        {
+            Content = "Сканировать снова",
+            ToolTip = toolTip,
+        };
+
+        var card = new Border
+        {
+            Child = button,
+            Visibility = Visibility.Collapsed,
+        };
+
+        using var host = VisualTestHost.Show(
+            new()
+            {
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        card,
+                    },
+                },
+            },
+            320,
+            200);
 
         var opened = false;
         toolTip.Opened += (_, _) => opened = true;
@@ -40,10 +66,35 @@ public class ToolTipOwnerWatchTests
     {
         ToolTipOwnerWatch.Install();
 
-        var toolTip = new ToolTip { Content = "Сканировать заново" };
-        var button = new Button { Content = "Сканировать снова", ToolTip = toolTip };
-        var card = new Border { Child = button };
-        using var host = VisualTestHost.Show(new() { Content = new StackPanel { Children = { card } } }, 320, 200);
+        var toolTip = new ToolTip
+        {
+            Content = "Сканировать заново",
+        };
+
+        var button = new Button
+        {
+            Content = "Сканировать снова",
+            ToolTip = toolTip,
+        };
+
+        var card = new Border
+        {
+            Child = button,
+        };
+
+        using var host = VisualTestHost.Show(
+            new()
+            {
+                Content = new StackPanel
+                {
+                    Children =
+                    {
+                        card,
+                    },
+                },
+            },
+            320,
+            200);
 
         toolTip.PlacementTarget = button;
         toolTip.IsOpen = true;

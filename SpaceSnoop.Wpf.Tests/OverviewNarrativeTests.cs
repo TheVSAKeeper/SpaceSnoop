@@ -1,4 +1,5 @@
-﻿using SpaceSnoop.Wpf.ViewModels.Overview;
+﻿using KeepShell.ViewModels;
+using SpaceSnoop.Wpf.ViewModels.Overview;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -18,6 +19,21 @@ public class OverviewNarrativeTests
             Assert.That(tally.Synced, Is.EqualTo(1));
             Assert.That(tally.Failed, Is.EqualTo(1));
             Assert.That(tally.Skipped, Is.EqualTo(3));
+        }
+    }
+
+    [TestCase(0, 0, StatusSeverity.Warning)]
+    [TestCase(1, 0, StatusSeverity.Success)]
+    [TestCase(0, 1, StatusSeverity.Error)]
+    [TestCase(1, 1, StatusSeverity.Error)]
+    public void Итог_отдаёт_приоритет_ошибкам_и_сохраняет_подпись(int ok, int failed, StatusSeverity expected)
+    {
+        var result = OverviewNarrative.DescribeOutcome("Итог", ok, failed);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(result.Severity, Is.EqualTo(expected));
+            Assert.That(result.Message, Is.EqualTo("Итог"));
         }
     }
 
@@ -42,12 +58,19 @@ public class OverviewNarrativeTests
     private static OverviewRowViewModel Row(OverviewRunStatus status)
     {
         return new(
-            new() { Left = "l", Right = "r" },
+            new()
+            {
+                Left = "l",
+                Right = "r",
+            },
             static (_, _) =>
             {
             },
             static () =>
             {
-            }) { Status = status };
+            })
+        {
+            Status = status,
+        };
     }
 }

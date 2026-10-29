@@ -107,7 +107,13 @@ public class AgentModelsTests
         var models = AgentModels.ParseOpenCodeModels(OpenCodeListing);
         var laguna = models.First(model => model.Id == "opencode/laguna-s-2.1-free");
 
-        Assert.That(AgentModels.EffortsFor(laguna, AgentBackendKind.OpenCode).Select(option => option.Id), Is.EqualTo(new[] { "", "low", "medium", "high" }));
+        Assert.That(
+            AgentModels.EffortsFor(laguna, AgentBackendKind.OpenCode).Select(option => option.Id),
+            Is.EqualTo(
+                new[]
+                {
+                    "", "low", "medium", "high",
+                }));
     }
 
     [Test]
@@ -115,7 +121,13 @@ public class AgentModelsTests
     {
         var models = AgentModels.ParseCodexCache(Cache);
 
-        Assert.That(models?.Select(model => model.Id), Is.EqualTo(new[] { "gpt-fast", "gpt-slow" }));
+        Assert.That(
+            models?.Select(model => model.Id),
+            Is.EqualTo(
+                new[]
+                {
+                    "gpt-fast", "gpt-slow",
+                }));
     }
 
     [Test]
@@ -124,7 +136,13 @@ public class AgentModelsTests
         var models = AgentModels.ParseOpenCodeModels(OpenCodeListing);
         var pickle = models.First(model => model.Id == "opencode/big-pickle");
 
-        Assert.That(AgentModels.EffortsFor(pickle, AgentBackendKind.OpenCode), Is.EqualTo(new[] { AgentModels.EffortDefault }));
+        Assert.That(
+            AgentModels.EffortsFor(pickle, AgentBackendKind.OpenCode),
+            Is.EqualTo(
+                new[]
+                {
+                    AgentModels.EffortDefault,
+                }));
     }
 
     [Test]
@@ -136,7 +154,13 @@ public class AgentModelsTests
         {
             Assert.That(model?.Title, Is.EqualTo("GPT Fast"));
             Assert.That(model?.Hint, Is.EqualTo("Быстрая"));
-            Assert.That(model?.Efforts, Is.EqualTo(new[] { "low", "medium", "ultra" }));
+            Assert.That(
+                model?.Efforts,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "low", "medium", "ultra",
+                    }));
         }
     }
 
@@ -184,7 +208,14 @@ public class AgentModelsTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(models.Select(model => model.Id), Is.EqualTo(new[] { "opencode/big-pickle", "opencode/laguna-s-2.1-free", "opencode/gpt-5.6-sol" }));
+            Assert.That(
+                models.Select(model => model.Id),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "opencode/big-pickle", "opencode/laguna-s-2.1-free", "opencode/gpt-5.6-sol",
+                    }));
+
             Assert.That(models[0].Title, Is.EqualTo("Big Pickle"));
             Assert.That(models[0].Hint, Does.StartWith("Бесплатная"));
             Assert.That(models[0].Hint, Does.Contain("контекст"));
@@ -197,6 +228,12 @@ public class AgentModelsTests
     {
         var efforts = AgentModels.Efforts(AgentBackendKind.Claude, "opus").Select(option => option.Id);
 
-        Assert.That(efforts, Is.EqualTo(new[] { "", "low", "medium", "high", "xhigh", "max" }));
+        Assert.That(
+            efforts,
+            Is.EqualTo(
+                new[]
+                {
+                    "", "low", "medium", "high", "xhigh", "max",
+                }));
     }
 }

@@ -70,7 +70,10 @@ public class DeleteDialogTests
     [Test]
     public void Длинная_причина_отказа_обрезана_многоточием()
     {
-        var row = new DeleteRowViewModel(Space("объект")) { Error = new('я', 150) };
+        var row = new DeleteRowViewModel(Space("объект"))
+        {
+            Error = new('я', 150),
+        };
 
         using (Assert.EnterMultipleScope())
         {
@@ -175,9 +178,36 @@ public class DeleteDialogTests
         }
     }
 
-    [TestCase(5, new[] { 0 }, new[] { 4 })]
-    [TestCase(2, new[] { 0, 2, 4 }, new[] { 1, 3, 4 })]
-    [TestCase(1, new[] { 0, 1, 2, 3, 4 }, new[] { 0, 1, 2, 3, 4 })]
+    [TestCase(
+        5,
+        new[]
+        {
+            0,
+        },
+        new[]
+        {
+            4,
+        })]
+    [TestCase(
+        2,
+        new[]
+        {
+            0, 2, 4,
+        },
+        new[]
+        {
+            1, 3, 4,
+        })]
+    [TestCase(
+        1,
+        new[]
+        {
+            0, 1, 2, 3, 4,
+        },
+        new[]
+        {
+            0, 1, 2, 3, 4,
+        })]
     public void Каждая_пачка_объявлена_парой_с_номером_и_диапазоном(int chunkSize, int[] firsts, int[] lasts)
     {
         var trace = new ChunkTrace();
@@ -348,7 +378,14 @@ public class DeleteDialogTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(sent, Is.EqualTo(new[] { @"C:\a", @"C:\b" }));
+            Assert.That(
+                sent,
+                Is.EqualTo(
+                    new[]
+                    {
+                        @"C:\a", @"C:\b",
+                    }));
+
             Assert.That(results, Has.Count.EqualTo(2));
         }
     }
@@ -510,7 +547,14 @@ public class DeleteDialogTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(chunks, Is.EqualTo(new[] { 5 }));
+            Assert.That(
+                chunks,
+                Is.EqualTo(
+                    new[]
+                    {
+                        5,
+                    }));
+
             Assert.That(singles, Is.Zero);
             Assert.That(results.Select(static result => result.Status), Is.All.EqualTo(DeleteItemStatus.Removed));
         }
@@ -563,7 +607,10 @@ public class DeleteDialogTests
     [TestCase("   ", ExpectedResult = null)]
     public string? Причина_отказа_сжата_до_одной_строки(string error)
     {
-        return new DeleteRowViewModel(Space("объект")) { Error = error }.ErrorSummary;
+        return new DeleteRowViewModel(Space("объект"))
+        {
+            Error = error,
+        }.ErrorSummary;
     }
 
     [Test]
@@ -753,9 +800,30 @@ public class DeleteDialogTests
         }
     }
 
-    [TestCase(new[] { DeleteRowState.Done, DeleteRowState.Failed, DeleteRowState.Deleting, DeleteRowState.Pending }, 0, 3, ExpectedResult = 2)]
-    [TestCase(new[] { DeleteRowState.Pending, DeleteRowState.Pending, DeleteRowState.Pending }, 1, 2, ExpectedResult = 1)]
-    [TestCase(new[] { DeleteRowState.Done, DeleteRowState.Done }, 0, 1, ExpectedResult = 1)]
+    [TestCase(
+        new[]
+        {
+            DeleteRowState.Done, DeleteRowState.Failed, DeleteRowState.Deleting, DeleteRowState.Pending,
+        },
+        0,
+        3,
+        ExpectedResult = 2)]
+    [TestCase(
+        new[]
+        {
+            DeleteRowState.Pending, DeleteRowState.Pending, DeleteRowState.Pending,
+        },
+        1,
+        2,
+        ExpectedResult = 1)]
+    [TestCase(
+        new[]
+        {
+            DeleteRowState.Done, DeleteRowState.Done,
+        },
+        0,
+        1,
+        ExpectedResult = 1)]
     [TestCase(new DeleteRowState[0], 0, 0, ExpectedResult = -1)]
     public int Следование_показывает_первую_незакрытую_строку_пачки(DeleteRowState[] states, int firstIndex, int lastIndex)
     {
@@ -800,7 +868,14 @@ public class DeleteDialogTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(singles, Is.EqualTo(new[] { @"C:\c", @"C:\d", @"C:\e" }));
+            Assert.That(
+                singles,
+                Is.EqualTo(
+                    new[]
+                    {
+                        @"C:\c", @"C:\d", @"C:\e",
+                    }));
+
             Assert.That(results.Select(static result => result.Status), Is.All.EqualTo(DeleteItemStatus.Removed));
         }
     }
@@ -942,7 +1017,11 @@ public class DeleteDialogTests
 
         for (var index = 0; index < states.Length; index++)
         {
-            rows.Add(new(Space($"объект-{index}")) { State = states[index] });
+            rows.Add(
+                new(Space($"объект-{index}"))
+                {
+                    State = states[index],
+                });
         }
 
         return rows;

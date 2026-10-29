@@ -19,7 +19,12 @@ public class SyncLedgerFreeSpaceTests
         var left = Path.Combine(root, "SpaceSnoopMissing", "Left");
         var right = Path.Combine(root, "SpaceSnoopMissing", "Right");
         var comparison = new DirectoryComparison(string.Empty, string.Empty);
-        comparison.Files.Add(new("a.bin", "a.bin") { Status = ComparisonStatus.LeftOnly, LeftSize = 1024 });
+        comparison.Files.Add(
+            new("a.bin", "a.bin")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                LeftSize = 1024,
+            });
 
         var hinted = new TaskCompletionSource();
         page.Ledger.PropertyChanged += OnLedgerChanged;

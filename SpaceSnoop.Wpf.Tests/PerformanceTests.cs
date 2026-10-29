@@ -240,7 +240,11 @@ public class PerformanceTests
     [Test]
     public void Итог_короткой_операции_обходится_без_скорости()
     {
-        var report = new SyncReport { CopiedCount = 1 };
+        var report = new SyncReport
+        {
+            CopiedCount = 1,
+        };
+
         report.AddApplied(SyncAction.CopyToRight, "a.txt", 512);
 
         Assert.That(SyncSessionViewModel.DescribeRate("Синхронизация", report, TimeSpan.FromMilliseconds(80)), Is.Empty);
@@ -266,7 +270,11 @@ public class PerformanceTests
     [Test]
     public void Итог_считает_скорость_по_применённым_и_скопированным()
     {
-        var report = new SyncReport { CopiedCount = 9 };
+        var report = new SyncReport
+        {
+            CopiedCount = 9,
+        };
+
         report.Errors.Add(new("b.txt", SyncAction.CopyToRight, "нет доступа"));
         report.AddApplied(SyncAction.CopyToRight, "a.txt", 2048);
 
@@ -326,7 +334,14 @@ public class PerformanceTests
             Assert.That(started, Is.True);
             Assert.That(title, Is.EqualTo("Сейчас идёт: Сканирование"));
             Assert.That(card.State, Is.EqualTo(DiagnosticsCardState.Ok));
-            Assert.That(rows.Select(static row => row.Key), Is.EqualTo(new[] { "Длительность", "Объём", "Скорость" }));
+            Assert.That(
+                rows.Select(static row => row.Key),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "Длительность", "Объём", "Скорость",
+                    }));
+
             Assert.That(timer.IsRunning, Is.False);
         });
     }
@@ -610,7 +625,11 @@ public class PerformanceTests
     [Test]
     public void Просадка_называет_пик_а_не_только_красит_строку()
     {
-        var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, UiPeakMs = 800 };
+        var snapshot = PerformanceSnapshot.Empty with
+        {
+            UiDelayMs = 3,
+            UiPeakMs = 800,
+        };
 
         Assert.That(PerformanceText.Summary(snapshot, null), Does.Contain("пик 800 мс"));
     }
@@ -618,7 +637,11 @@ public class PerformanceTests
     [Test]
     public void Сводка_без_операции_несёт_отклик_и_память()
     {
-        var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 12.4, ManagedBytes = 1024 };
+        var snapshot = PerformanceSnapshot.Empty with
+        {
+            UiDelayMs = 12.4,
+            ManagedBytes = 1024,
+        };
 
         Assert.That(PerformanceText.Summary(snapshot, null), Is.EqualTo($"Отклик 12 мс · Память {SizeFormatter.Format(1024)}"));
     }
@@ -627,7 +650,11 @@ public class PerformanceTests
     public void Сводка_с_операцией_дописывает_её_в_конец()
     {
         var operation = new PerformanceOperation("Сканирование", 1000, 0, TimeSpan.FromSeconds(2));
-        var snapshot = PerformanceSnapshot.Empty with { UiDelayMs = 3, ManagedBytes = 2048 };
+        var snapshot = PerformanceSnapshot.Empty with
+        {
+            UiDelayMs = 3,
+            ManagedBytes = 2048,
+        };
 
         Assert.That(PerformanceText.Summary(snapshot, operation), Does.EndWith("Сканирование · 500 файлов/с"));
     }

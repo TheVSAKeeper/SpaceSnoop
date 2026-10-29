@@ -341,7 +341,10 @@ internal sealed class MftVolumeBuilder(int bytesPerSector = 512, int sectorsPerC
                 .DataRuns(0, EncodeRuns(tail), vcn)
                 .Build());
 
-        var entries = new MftListEntry[] { new(MftLayout.AttributeData, 0, 0), new(MftLayout.AttributeData, vcn, _splitRecord) };
+        var entries = new MftListEntry[]
+        {
+            new(MftLayout.AttributeData, 0, 0), new(MftLayout.AttributeData, vcn, _splitRecord),
+        };
 
         var self = new MftRecordBuilder(recordSize, bytesPerSector).FileName(MftLayout.RootRecord, 1, "$MFT");
 

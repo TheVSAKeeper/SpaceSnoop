@@ -45,7 +45,10 @@ public sealed record GalleryOptions(
 
         if (unknown.Count > 0)
         {
-            arguments = arguments with { Unknown = [.. arguments.Unknown, .. unknown] };
+            arguments = arguments with
+            {
+                Unknown = [.. arguments.Unknown, .. unknown],
+            };
         }
 
         return new(arguments, dialogs, tips, state);

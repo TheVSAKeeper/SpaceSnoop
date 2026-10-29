@@ -8,7 +8,12 @@ namespace SpaceSnoop.Core.Cleanup;
 
 public sealed class ProjectCleanupService
 {
-    private static readonly EnumerationOptions Entries = new() { AttributesToSkip = 0, IgnoreInaccessible = false };
+    private static readonly EnumerationOptions Entries = new()
+    {
+        AttributesToSkip = 0,
+        IgnoreInaccessible = false,
+    };
+
     private readonly Guid _owner = Guid.NewGuid();
     private readonly Action<string> _recycle;
     private readonly ILogger<ProjectCleanupService> _logger;
@@ -78,7 +83,11 @@ public sealed class ProjectCleanupService
             {
                 completion.SetException(exception);
             }
-        }) { IsBackground = true, Name = "SpaceSnoop project cleanup" };
+        })
+        {
+            IsBackground = true,
+            Name = "SpaceSnoop project cleanup",
+        };
 
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
@@ -357,7 +366,15 @@ public sealed class ProjectCleanupService
     private static void WriteManifest(ProjectArtifactScan target, StagingBatch batch)
     {
         var path = Path.Combine(batch.Path!, "SpaceSnoop-restore.json");
-        File.WriteAllText(path, JsonSerializer.Serialize(new { OriginalDirectory = target.Path, PreviewedFiles = target.Entries.Select(x => Path.GetRelativePath(target.Path, x.Path)).ToArray() }));
+        File.WriteAllText(
+            path,
+            JsonSerializer.Serialize(
+                new
+                {
+                    OriginalDirectory = target.Path,
+                    PreviewedFiles = target.Entries.Select(x => Path.GetRelativePath(target.Path, x.Path)).ToArray(),
+                }));
+
         using var handle = CacheFileAccess.OpenFile(path, false);
         batch.Manifest = CacheFileAccess.Read(handle, path);
     }
@@ -417,7 +434,11 @@ public sealed class ProjectCleanupService
                 using var parent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Stamp.Path)!);
                 using var stagedParent = CacheFileAccess.LockDirectory(Path.GetDirectoryName(file.Destination)!);
                 using var handle = CacheFileAccess.OpenFile(file.Destination, true);
-                if (CacheFileAccess.Read(handle, file.Destination) != file.Stamp with { Path = file.Destination })
+                if (CacheFileAccess.Read(handle, file.Destination)
+                    != file.Stamp with
+                    {
+                        Path = file.Destination,
+                    })
                 {
                     throw new IOException("Файл в каталоге восстановления изменился.");
                 }

@@ -69,7 +69,10 @@ public sealed class CodexAgentBackend : AgentBackendBase
 
     internal static IReadOnlyList<string> BuildArguments(AgentRequest request)
     {
-        var args = new List<string> { "exec" };
+        var args = new List<string>
+        {
+            "exec",
+        };
 
         if (!string.IsNullOrEmpty(request.ResumeSessionId))
         {
@@ -163,7 +166,12 @@ public sealed class CodexAgentBackend : AgentBackendBase
             environment[TokenVariable] = mcp.Token;
         }
 
-        return new() { Arguments = BuildArguments(request), Stdin = BuildStdin(request), Environment = environment };
+        return new()
+        {
+            Arguments = BuildArguments(request),
+            Stdin = BuildStdin(request),
+            Environment = environment,
+        };
     }
 
     protected override IAgentStreamParser CreateParser()

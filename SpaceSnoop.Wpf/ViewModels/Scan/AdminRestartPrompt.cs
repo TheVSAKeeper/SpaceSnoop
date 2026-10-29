@@ -37,6 +37,10 @@ public sealed class AdminRestartPrompt(IDialogService dialogs, ToastNotifier not
             [
                 new("Не перезапускать", ConfirmChoiceKind.Dismissive),
                 new("Перезапустить", ConfirmChoiceKind.Destructive),
-            ]) { Warning = $"Пометки на удаление пропадут: {Plural.Format(marked, "объект", "объекта", "объектов")} {Plural.Word(marked, "не уйдёт", "не уйдут", "не уйдут")} в корзину." };
+            ])
+        {
+            Warning =
+                $"Пометки на удаление пропадут: {Plural.Format(marked, "объект", "объекта", "объектов")} {Plural.Word(marked, "не уйдёт", "не уйдут", "не уйдут")} в корзину.",
+        };
     }
 }

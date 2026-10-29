@@ -44,7 +44,11 @@ public static class AppThemes
     public static void RegisterSystem(bool appsUseLightTheme)
     {
         var source = appsUseLightTheme ? ThemeManager.DefaultLight : ThemeManager.DefaultDark;
-        ThemeManager.Register(source with { Key = SystemKey });
+        ThemeManager.Register(
+            source with
+            {
+                Key = SystemKey,
+            });
     }
 
     public static string StartupKey(ISettingsStore settings, bool freshProfile)

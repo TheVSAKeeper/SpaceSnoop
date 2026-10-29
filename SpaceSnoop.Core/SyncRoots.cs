@@ -103,7 +103,12 @@ public static class SyncRoots
 
             if (final.Kind == FinalKind.Resolved)
             {
-                return tail.Count == 0 ? final : final with { Path = Path.Combine([final.Path, .. tail]) };
+                return tail.Count == 0
+                    ? final
+                    : final with
+                    {
+                        Path = Path.Combine([final.Path, .. tail]),
+                    };
             }
 
             if (final.Kind == FinalKind.NoVolumeName)

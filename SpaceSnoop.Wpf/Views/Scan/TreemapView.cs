@@ -76,7 +76,11 @@ public sealed class TreemapView : FrameworkElement
 
     private readonly FrameworkElement _menuHost = new();
     private readonly List<INotifyPropertyChanged> _subscribed = [];
-    private readonly ToolTip _toolTip = new() { Placement = PlacementMode.Custom };
+
+    private readonly ToolTip _toolTip = new()
+    {
+        Placement = PlacementMode.Custom,
+    };
 
     private (Rect Rect, ScanNodeViewModel Node)[] _tiles = [];
     private ScanNodeViewModel? _hover;
@@ -423,7 +427,11 @@ public sealed class TreemapView : FrameworkElement
 
     private static Geometry ParseIcon(PackIconLucideKind kind)
     {
-        var data = new PackIconLucide { Kind = kind }.Data;
+        var data = new PackIconLucide
+        {
+            Kind = kind,
+        }.Data;
+
         var geometry = string.IsNullOrEmpty(data) ? Geometry.Empty : Geometry.Parse(data);
         geometry.Freeze();
         return geometry;
@@ -454,7 +462,16 @@ public sealed class TreemapView : FrameworkElement
 
     private static Brush FrozenCushion()
     {
-        var brush = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(0, 1), GradientStops = { new(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF), 0), new(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.55) } };
+        var brush = new LinearGradientBrush
+        {
+            StartPoint = new(0, 0),
+            EndPoint = new(0, 1),
+            GradientStops =
+            {
+                new(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF), 0),
+                new(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0.55),
+            },
+        };
 
         brush.Freeze();
         return brush;
@@ -708,7 +725,12 @@ public sealed class TreemapView : FrameworkElement
             typeface,
             size,
             brush,
-            VisualTreeHelper.GetDpi(this).PixelsPerDip) { MaxTextWidth = Math.Max(0, maxWidth), MaxLineCount = 1, Trimming = TextTrimming.CharacterEllipsis };
+            VisualTreeHelper.GetDpi(this).PixelsPerDip)
+        {
+            MaxTextWidth = Math.Max(0, maxWidth),
+            MaxLineCount = 1,
+            Trimming = TextTrimming.CharacterEllipsis,
+        };
 
         if (strikethrough)
         {

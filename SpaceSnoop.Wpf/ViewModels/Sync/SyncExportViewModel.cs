@@ -74,7 +74,11 @@ public sealed partial class SyncExportViewModel : ObservableObject
             ? null
             : new ComparisonExportSync(lastReport.CopiedCount, lastReport.DeletedCount, lastReport.Errors, lastReport.Mismatches);
 
-        return () => ComparisonExport.Build(result, options, AppInfo.Version, entryLimit) with { Git = git, LastSync = lastSync };
+        return () => ComparisonExport.Build(result, options, AppInfo.Version, entryLimit) with
+        {
+            Git = git,
+            LastSync = lastSync,
+        };
     }
 
     private bool CanExport()
@@ -90,7 +94,12 @@ public sealed partial class SyncExportViewModel : ObservableObject
             return;
         }
 
-        var path = _filePicker.SaveFile(new("Экспорт сравнения", "JSON (*.json)|*.json") { DefaultExtension = ".json", FileName = BuildExportFileName() });
+        var path = _filePicker.SaveFile(
+            new("Экспорт сравнения", "JSON (*.json)|*.json")
+            {
+                DefaultExtension = ".json",
+                FileName = BuildExportFileName(),
+            });
 
         if (path is null)
         {

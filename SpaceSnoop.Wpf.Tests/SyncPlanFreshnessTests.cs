@@ -220,7 +220,13 @@ public class SyncPlanFreshnessTests
             .Select(static method => method.Name)
             .ToList();
 
-        Assert.That(transitions, Is.EquivalentTo(new[] { nameof(SyncPlanFreshnessState.AfterComparison), nameof(SyncPlanFreshnessState.AfterSync) }));
+        Assert.That(
+            transitions,
+            Is.EquivalentTo(
+                new[]
+                {
+                    nameof(SyncPlanFreshnessState.AfterComparison), nameof(SyncPlanFreshnessState.AfterSync),
+                }));
     }
 
     [Test]

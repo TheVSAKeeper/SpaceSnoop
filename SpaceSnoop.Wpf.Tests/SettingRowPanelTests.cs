@@ -39,10 +39,31 @@ public class SettingRowPanelTests
     [Apartment(ApartmentState.STA)]
     public void Столбиком_последний_контрол_не_выходит_за_правый_край()
     {
-        var control = new Border { Child = new Border { Width = 280, Height = 20 } };
-        var reset = new Border { Child = new Border { Width = 24, Height = 20 } };
+        var control = new Border
+        {
+            Child = new Border
+            {
+                Width = 280,
+                Height = 20,
+            },
+        };
+
+        var reset = new Border
+        {
+            Child = new Border
+            {
+                Width = 24,
+                Height = 20,
+            },
+        };
+
         var panel = new SettingRowPanel();
-        panel.Children.Add(new Border { Height = 20 });
+        panel.Children.Add(
+            new Border
+            {
+                Height = 20,
+            });
+
         panel.Children.Add(control);
         panel.Children.Add(reset);
 

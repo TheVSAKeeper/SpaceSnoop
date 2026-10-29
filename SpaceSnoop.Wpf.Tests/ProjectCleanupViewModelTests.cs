@@ -31,7 +31,10 @@ public sealed class ProjectCleanupViewModelTests
         _root = Path.Combine(repository!.FullName, ".kc", "scratch", "project-cleanup-vm-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
         File.WriteAllText(Path.Combine(_root, "app.csproj"), "<Project />");
-        foreach (var name in new[] { "bin", "obj", "TestResults", "BenchmarkDotNet.Artifacts" })
+        foreach (var name in new[]
+        {
+            "bin", "obj", "TestResults", "BenchmarkDotNet.Artifacts",
+        })
         {
             Directory.CreateDirectory(Path.Combine(_root, name));
             File.WriteAllText(Path.Combine(_root, name, "data.txt"), "data");
@@ -70,7 +73,11 @@ public sealed class ProjectCleanupViewModelTests
     [Test]
     public async Task Выбор_каталога_запускает_поиск_а_отмена_диалога_сохраняет_состояние()
     {
-        var picker = new FakeFilePicker { Folder = _root };
+        var picker = new FakeFilePicker
+        {
+            Folder = _root,
+        };
+
         var vm = Create(picker: picker);
         await vm.BrowseCommand.ExecuteAsync(null);
         var rows = vm.Artifacts.ToArray();
@@ -84,8 +91,18 @@ public sealed class ProjectCleanupViewModelTests
     public void Демонстрационный_сброс_не_перезаписывает_сохранённые_пути()
     {
         var settings = new MemorySettings();
-        var roots = JsonSerializer.Serialize(new[] { _root, Path.Combine(_root, "second") });
-        var outputs = JsonSerializer.Serialize(new[] { Path.Combine(_root, "custom") });
+        var roots = JsonSerializer.Serialize(
+            new[]
+            {
+                _root, Path.Combine(_root, "second"),
+            });
+
+        var outputs = JsonSerializer.Serialize(
+            new[]
+            {
+                Path.Combine(_root, "custom"),
+            });
+
         settings.SetValue(SettingsKeys.DeveloperProjectRoots, roots);
         settings.SetValue(SettingsKeys.DeveloperCustomOutputs, outputs);
         var vm = Create(settings: settings);
@@ -262,7 +279,11 @@ public sealed class ProjectCleanupViewModelTests
 
         vm.RootPath = _root;
         await vm.FindCommand.ExecuteAsync(null);
-        Assert.That(vm.Artifacts.Count, Is.EqualTo(4), $"{vm.StatusText}{Environment.NewLine}{string.Join(Environment.NewLine, vm.Artifacts.Select(x => $"{x.Kind}: {x.Path}"))}");
+        Assert.That(
+            vm.Artifacts.Count,
+            Is.EqualTo(4),
+            $"{vm.StatusText}{Environment.NewLine}{string.Join(Environment.NewLine, vm.Artifacts.Select(x => $"{x.Kind}: {x.Path}"))}");
+
         var bin = vm.Artifacts.Single(x => x.Kind == ProjectArtifactKind.Bin);
         bin.IsSelected = true;
         var hiddenChanged = false;
@@ -285,21 +306,53 @@ public sealed class ProjectCleanupViewModelTests
     public void Пути_восстанавливаются_и_сохраняются_без_деструктивного_выбора()
     {
         var settings = new MemorySettings();
-        settings.SetValue(SettingsKeys.DeveloperProjectRoots, JsonSerializer.Serialize(new[] { _root, Path.Combine(_root, "second") }));
-        settings.SetValue(SettingsKeys.DeveloperCustomOutputs, JsonSerializer.Serialize(new[] { Path.Combine(_root, "custom") }));
+        settings.SetValue(
+            SettingsKeys.DeveloperProjectRoots,
+            JsonSerializer.Serialize(
+                new[]
+                {
+                    _root, Path.Combine(_root, "second"),
+                }));
+
+        settings.SetValue(
+            SettingsKeys.DeveloperCustomOutputs,
+            JsonSerializer.Serialize(
+                new[]
+                {
+                    Path.Combine(_root, "custom"),
+                }));
+
         var vm = Create(settings: settings);
         Assert.Multiple(() =>
         {
             Assert.That(vm.RootPath, Is.EqualTo(_root));
-            Assert.That(vm.AdditionalRoots, Is.EqualTo(new[] { Path.Combine(_root, "second") }));
-            Assert.That(vm.CustomOutputs, Is.EqualTo(new[] { Path.Combine(_root, "custom") }));
+            Assert.That(
+                vm.AdditionalRoots,
+                Is.EqualTo(
+                    new[]
+                    {
+                        Path.Combine(_root, "second"),
+                    }));
+
+            Assert.That(
+                vm.CustomOutputs,
+                Is.EqualTo(
+                    new[]
+                    {
+                        Path.Combine(_root, "custom"),
+                    }));
+
             Assert.That(vm.Artifacts, Is.Empty);
         });
 
         vm.RootPath = string.Empty;
         Assert.That(
             JsonSerializer.Deserialize<string[]>(settings.GetStringValue(SettingsKeys.DeveloperProjectRoots)!),
-            Is.EqualTo(new[] { Path.Combine(_root, "second") }));
+            Is.EqualTo(
+                new[]
+                {
+                    Path.Combine(_root, "second"),
+                }));
     }
 
     [Test]

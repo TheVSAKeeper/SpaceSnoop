@@ -87,7 +87,10 @@ public class PathCaseTests
             using var process = Process.Start(
                 new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
                 {
-                    CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
                 });
 
             if (process is null)

@@ -4,13 +4,12 @@ namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanViewModel : IScanAutomation
 {
-    bool IScanAutomation.IsScanning => IsBusy;
-
     internal TimeSpan LastScanElapsed { get; private set; }
 
     internal int LastScanParallelism { get; private set; } = 1;
 
     internal ScanNotes LastScanNotes { get; private set; }
+    bool IScanAutomation.IsScanning => IsBusy;
 
     string IScanAutomation.ResultPath => Summary.ResultPath;
 

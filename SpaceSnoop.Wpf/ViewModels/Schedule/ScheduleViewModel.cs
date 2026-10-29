@@ -152,7 +152,11 @@ public sealed partial class ScheduleViewModel : ObservableObject, IPageHeader, I
             Exclusions = (Settings.GetStringValue(SettingsKeys.SyncExclusions) ?? string.Empty).Trim(),
         };
 
-        var profile = new SyncProfileViewModel(this, model) { IsEditing = true };
+        var profile = new SyncProfileViewModel(this, model)
+        {
+            IsEditing = true,
+        };
+
         Profiles.Add(profile);
         Persist();
     }

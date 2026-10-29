@@ -30,7 +30,12 @@ public class FileDiffHiddenDifferenceTests
     [TestCase(ComparisonStatus.RightOnly, "только справа")]
     public void Односторонний_файл_объясняет_отсутствующую_сторону(ComparisonStatus status, string expected)
     {
-        var file = new FileComparison("a.txt", "a.txt") { Status = status, LeftSize = status == ComparisonStatus.LeftOnly ? 2048 : null, RightSize = status == ComparisonStatus.RightOnly ? 2048 : null };
+        var file = new FileComparison("a.txt", "a.txt")
+        {
+            Status = status,
+            LeftSize = status == ComparisonStatus.LeftOnly ? 2048 : null,
+            RightSize = status == ComparisonStatus.RightOnly ? 2048 : null,
+        };
 
         var text = FileDiffDialogViewModel.DescribeOneSided(file);
 

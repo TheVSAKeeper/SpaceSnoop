@@ -4,7 +4,10 @@ namespace SpaceSnoop.Wpf.Bootstrap.Schedule;
 
 public static class SyncProfileStore
 {
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = false };
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        WriteIndented = false,
+    };
 
     public static List<SyncProfile> Load(ISettingsStore settings)
     {

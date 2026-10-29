@@ -171,7 +171,14 @@ public class ArchiveServiceTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(content.EmptyDirectories, Is.EqualTo(new[] { hollow }));
+            Assert.That(
+                content.EmptyDirectories,
+                Is.EqualTo(
+                    new[]
+                    {
+                        hollow,
+                    }));
+
             Assert.That(content.Files, Has.Count.EqualTo(2));
             Assert.That(stats.Count, Is.EqualTo(3));
             Assert.That(service.VerifyZip(_zipPath, stats).Ok, Is.True);
@@ -260,7 +267,14 @@ public class ArchiveServiceTests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(blocked.Unreadable, Is.EqualTo(new[] { locked }));
+                Assert.That(
+                    blocked.Unreadable,
+                    Is.EqualTo(
+                        new[]
+                        {
+                            locked,
+                        }));
+
                 Assert.That(coverage.Ok, Is.False);
                 Assert.That(coverage.Detail, Does.Contain("locked"));
             }
@@ -371,7 +385,13 @@ public class ArchiveServiceTests
         {
             Assert.That(verify.Ok, Is.True);
             Assert.That(verify.Detail, Is.Empty);
-            Assert.That(verified, Is.EqualTo(new[] { "a.txt", "nested/b.txt" }));
+            Assert.That(
+                verified,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "a.txt", "nested/b.txt",
+                    }));
         }
     }
 
@@ -381,7 +401,12 @@ public class ArchiveServiceTests
         var service = new ArchiveService();
         var stats = service.ZipFiles(_sourceDir, SourceFiles(), _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
 
-        var verify = service.VerifyZip(_zipPath, stats with { Count = stats.Count + 1 });
+        var verify = service.VerifyZip(
+            _zipPath,
+            stats with
+            {
+                Count = stats.Count + 1,
+            });
 
         Assert.That(verify.Ok, Is.False);
     }

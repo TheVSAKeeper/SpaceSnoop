@@ -32,6 +32,9 @@ public static class CleanupConfirm
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new("Очистить", ConfirmChoiceKind.Destructive),
-            ]) { Warning = "Файлы удаляются безвозвратно, мимо корзины – восстановить их нельзя." };
+            ])
+        {
+            Warning = "Файлы удаляются безвозвратно, мимо корзины – восстановить их нельзя.",
+        };
     }
 }

@@ -11,13 +11,36 @@ public class SyncRowsProjectorTests
     {
         var root = BuildRoot();
 
-        var flat = Project(new() { Result = Comparison(root), FlatView = true });
-        var tree = Project(new() { Result = Comparison(root) });
+        var flat = Project(
+            new()
+            {
+                Result = Comparison(root),
+                FlatView = true,
+            });
+
+        var tree = Project(
+            new()
+            {
+                Result = Comparison(root),
+            });
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(flat, Is.EqualTo(new[] { "docs/report.txt", "src/main.cs" }));
-            Assert.That(tree, Is.EqualTo(new[] { "docs", "report.txt", "src", "main.cs" }));
+            Assert.That(
+                flat,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "docs/report.txt", "src/main.cs",
+                    }));
+
+            Assert.That(
+                tree,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "docs", "report.txt", "src", "main.cs",
+                    }));
         }
     }
 
@@ -27,7 +50,13 @@ public class SyncRowsProjectorTests
     {
         var root = BuildRoot();
 
-        return Joined(new() { Result = Comparison(root), FlatView = flat, SearchText = " main " });
+        return Joined(
+            new()
+            {
+                Result = Comparison(root),
+                FlatView = flat,
+                SearchText = " main ",
+            });
     }
 
     [Test]
@@ -37,12 +66,23 @@ public class SyncRowsProjectorTests
         var docs = root.SubDirectories[0];
 
         var rows = SyncRowsProjector.Build(
-            new() { Result = Comparison(root), Collapsed = [docs] },
+            new()
+            {
+                Result = Comparison(root),
+                Collapsed = [docs],
+            },
             new RowHost());
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(rows.Select(Label), Is.EqualTo(new[] { "docs", "src", "main.cs" }));
+            Assert.That(
+                rows.Select(Label),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "docs", "src", "main.cs",
+                    }));
+
             Assert.That(rows[0].IsExpanded, Is.False);
         }
     }
@@ -57,7 +97,10 @@ public class SyncRowsProjectorTests
         return Joined(
             new()
             {
-                Result = Comparison(root), FlatView = true, GroupFolders = "bin,obj", GitGroupExpanded = groupExpanded,
+                Result = Comparison(root),
+                FlatView = true,
+                GroupFolders = "bin,obj",
+                GitGroupExpanded = groupExpanded,
             });
     }
 
@@ -77,7 +120,10 @@ public class SyncRowsProjectorTests
                 FlatView = true,
                 ShowIdentical = showIdentical,
                 HideApplied = hideApplied,
-                Outcomes = new() { [applied] = SyncOutcome.Applied },
+                Outcomes = new()
+                {
+                    [applied] = SyncOutcome.Applied,
+                },
             });
     }
 
@@ -104,14 +150,21 @@ public class SyncRowsProjectorTests
 
     private static DirectoryComparison Dir(string name, ComparisonStatus status, params FileComparison[] files)
     {
-        var dir = new DirectoryComparison(name, name) { Status = status };
+        var dir = new DirectoryComparison(name, name)
+        {
+            Status = status,
+        };
+
         dir.Files.AddRange(files);
         return dir;
     }
 
     private static FileComparison File(string name, string relativePath, ComparisonStatus status)
     {
-        return new(name, relativePath) { Status = status };
+        return new(name, relativePath)
+        {
+            Status = status,
+        };
     }
 
     private static string[] Project(SyncRowsRequest request)

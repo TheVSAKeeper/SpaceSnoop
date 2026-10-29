@@ -20,7 +20,14 @@ public class DriveItemTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(catalog.Items.Where(item => item.IsSelected).Select(item => item.Path), Is.EqualTo(new[] { second }));
+            Assert.That(
+                catalog.Items.Where(item => item.IsSelected).Select(item => item.Path),
+                Is.EqualTo(
+                    new[]
+                    {
+                        second,
+                    }));
+
             Assert.That(catalog.Volumes.Any(item => item.IsSelected), Is.False);
         });
 
@@ -76,7 +83,10 @@ public class DriveItemTests
             Assert.That(item.Caption, Is.Null);
             Assert.That(item.IsMissingMedia, Is.False);
             Assert.That(item.TypeHint, Is.Null);
-            Assert.That(item.Title, Is.EqualTo($"{Path.GetPathRoot(path)!.TrimEnd(Path.DirectorySeparatorChar)}{Path.DirectorySeparatorChar}…{Path.DirectorySeparatorChar}recent{Path.DirectorySeparatorChar}недавний"));
+            Assert.That(
+                item.Title,
+                Is.EqualTo(
+                    $"{Path.GetPathRoot(path)!.TrimEnd(Path.DirectorySeparatorChar)}{Path.DirectorySeparatorChar}…{Path.DirectorySeparatorChar}recent{Path.DirectorySeparatorChar}недавний"));
         });
     }
 
@@ -163,7 +173,14 @@ public class DriveItemTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(catalog.RecentDirectories.Select(item => item.Path), Is.EqualTo(new[] { first, second }));
+            Assert.That(
+                catalog.RecentDirectories.Select(item => item.Path),
+                Is.EqualTo(
+                    new[]
+                    {
+                        first, second,
+                    }));
+
             Assert.That(catalog.Items.Count(item => string.Equals(item.Path, first, StringComparison.OrdinalIgnoreCase)), Is.EqualTo(1));
         });
     }

@@ -84,7 +84,13 @@ public class DiagnosticsBundleTests
         {
             Assert.That(empty.Values, Is.Empty);
             Assert.That(empty.KeyNames, Does.Contain("token"));
-            Assert.That(filled.Values, Is.EqualTo(new[] { Token }));
+            Assert.That(
+                filled.Values,
+                Is.EqualTo(
+                    new[]
+                    {
+                        Token,
+                    }));
         }
     }
 

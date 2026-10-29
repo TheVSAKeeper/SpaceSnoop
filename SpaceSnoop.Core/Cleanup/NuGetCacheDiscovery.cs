@@ -7,7 +7,10 @@ internal static class NuGetCacheDiscovery
 {
     internal static readonly IReadOnlyDictionary<NuGetCacheKind, string> Names = new Dictionary<NuGetCacheKind, string>
     {
-        [NuGetCacheKind.HttpCache] = "http-cache", [NuGetCacheKind.Temp] = "temp", [NuGetCacheKind.PluginsCache] = "plugins-cache", [NuGetCacheKind.GlobalPackages] = "global-packages",
+        [NuGetCacheKind.HttpCache] = "http-cache",
+        [NuGetCacheKind.Temp] = "temp",
+        [NuGetCacheKind.PluginsCache] = "plugins-cache",
+        [NuGetCacheKind.GlobalPackages] = "global-packages",
     };
 
     internal static async Task<NuGetCacheLocations> DiscoverAsync(string logsDirectory, CancellationToken token)
@@ -44,7 +47,10 @@ internal static class NuGetCacheDiscovery
                 logPath,
                 TimeSpan.FromSeconds(30),
                 token,
-                new Dictionary<string, string> { ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1" })
+                new Dictionary<string, string>
+                {
+                    ["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1",
+                })
             .ConfigureAwait(false);
 
         if (result.Outcome == DotNetCliOutcome.Cancelled)

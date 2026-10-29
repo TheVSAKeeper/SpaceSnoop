@@ -42,7 +42,10 @@ public class SyncGitTests
     [Test]
     public void Выбор_с_чекбоксом_запоминается()
     {
-        var prompt = new GitFolderPromptViewModel(1) { RememberChoice = true };
+        var prompt = new GitFolderPromptViewModel(1)
+        {
+            RememberChoice = true,
+        };
 
         prompt.KeepCommand.Execute(null);
 

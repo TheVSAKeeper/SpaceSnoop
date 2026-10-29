@@ -118,7 +118,10 @@ public sealed partial class ProjectCleanupViewModel
 
     private string[] ScopeRoots()
     {
-        return new[] { RootPath }.Concat(AdditionalRoots)
+        return new[]
+            {
+                RootPath,
+            }.Concat(AdditionalRoots)
             .Where(path => !string.IsNullOrWhiteSpace(path))
             .ToArray();
     }

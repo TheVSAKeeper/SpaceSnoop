@@ -39,12 +39,16 @@ internal static class ProjectRecycleBin
         ref Guid id,
         out IShellItem item);
 
-    [ComImport] [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")] [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport]
+    [Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IShellItem
     {
     }
 
-    [ComImport] [Guid("947AAB5F-0A5C-4C13-B4D6-4BF7836FC9F8")] [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    [ComImport]
+    [Guid("947AAB5F-0A5C-4C13-B4D6-4BF7836FC9F8")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
     private interface IFileOperation
     {
         void Advise(nint sink, out uint cookie);

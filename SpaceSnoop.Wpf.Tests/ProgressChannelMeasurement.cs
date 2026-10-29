@@ -148,7 +148,11 @@ public class ProgressChannelMeasurement
                 return new(null);
             }
 
-            var panel = new StackPanel { DataContext = sink };
+            var panel = new StackPanel
+            {
+                DataContext = sink,
+            };
+
             var path = new TextBlock();
             var count = new TextBlock();
 
@@ -157,7 +161,13 @@ public class ProgressChannelMeasurement
             panel.Children.Add(path);
             panel.Children.Add(count);
 
-            var host = VisualTestHost.Show(new() { Content = panel }, 640, 200);
+            var host = VisualTestHost.Show(
+                new()
+                {
+                    Content = panel,
+                },
+                640,
+                200);
 
             host.Settle();
 

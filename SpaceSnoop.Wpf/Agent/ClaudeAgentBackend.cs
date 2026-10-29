@@ -197,9 +197,21 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
 
     internal static string BuildMcpConfigJson(AgentMcpConfig mcp)
     {
-        var entry = new McpConfigServer("http", mcp.Endpoint, new() { ["Authorization"] = $"Bearer {mcp.Token}" });
+        var entry = new McpConfigServer(
+            "http",
+            mcp.Endpoint,
+            new()
+            {
+                ["Authorization"] = $"Bearer {mcp.Token}",
+            });
 
-        var payload = new Dictionary<string, Dictionary<string, McpConfigServer>> { ["mcpServers"] = new() { [mcp.ServerName] = entry } };
+        var payload = new Dictionary<string, Dictionary<string, McpConfigServer>>
+        {
+            ["mcpServers"] = new()
+            {
+                [mcp.ServerName] = entry,
+            },
+        };
 
         return JsonSerializer.Serialize(payload);
     }
@@ -208,7 +220,12 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
     {
         var configPath = request.Mcp is null ? null : TempConfigPath("json");
 
-        return new() { Arguments = BuildArguments(request, configPath), Stdin = request.TurnText, TempFiles = configPath is null || request.Mcp is null ? [] : [new(configPath, BuildMcpConfigJson(request.Mcp))] };
+        return new()
+        {
+            Arguments = BuildArguments(request, configPath),
+            Stdin = request.TurnText,
+            TempFiles = configPath is null || request.Mcp is null ? [] : [new(configPath, BuildMcpConfigJson(request.Mcp))],
+        };
     }
 
     protected override IAgentStreamParser CreateParser()
@@ -326,8 +343,10 @@ public sealed class ClaudeAgentBackend : AgentBackendBase
     }
 
     private sealed record McpConfigServer(
-        [property: JsonPropertyName("type")] string Type,
-        [property: JsonPropertyName("url")] string Url,
+        [property: JsonPropertyName("type")]
+        string Type,
+        [property: JsonPropertyName("url")]
+        string Url,
         [property: JsonPropertyName("headers")]
         Dictionary<string, string> Headers);
 }

@@ -45,7 +45,11 @@ public sealed class DotNetCleanViewModelTests
     [Test]
     public async Task Без_доверия_проверка_и_выбор_файла_не_запускают_dotnet()
     {
-        var picker = new FakeFilePicker { OpenPath = _project };
+        var picker = new FakeFilePicker
+        {
+            OpenPath = _project,
+        };
+
         var vm = Create(picker: picker);
         vm.PickProjectCommand.Execute(null);
         await vm.InspectCommand.ExecuteAsync(null);
@@ -290,7 +294,14 @@ public sealed class DotNetCleanViewModelTests
                     return _runOverride(executable, args, workingDirectory, logPath, timeout, token, environment);
                 }
 
-                var text = args.SequenceEqual(new[] { "--version" }) ? "10.0.303" : "partial clean output";
+                var text = args.SequenceEqual(
+                    new[]
+                    {
+                        "--version",
+                    })
+                    ? "10.0.303"
+                    : "partial clean output";
+
                 return Task.FromResult(new DotNetCliResult(DotNetCliOutcome.Succeeded, 0, text, logPath, false, null));
             },
             name => Path.Combine(_root, name + ".log"),

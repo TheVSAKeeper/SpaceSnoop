@@ -181,7 +181,17 @@ public class SyncQuickProfileTests
 
         if (update)
         {
-            SyncProfileStore.Save(settings, [new() { Id = "abc", Name = "Backup", Left = @"C:\OldLeft", Right = @"C:\OldRight" }]);
+            SyncProfileStore.Save(
+                settings,
+                [
+                    new()
+                    {
+                        Id = "abc",
+                        Name = "Backup",
+                        Left = @"C:\OldLeft",
+                        Right = @"C:\OldRight",
+                    },
+                ]);
         }
 
         var vm = Create(settings);
@@ -229,7 +239,10 @@ public class SyncQuickProfileTests
             [
                 new()
                 {
-                    Id = "abc", Name = "Backup", Left = @"C:\Left", Right = @"C:\Right",
+                    Id = "abc",
+                    Name = "Backup",
+                    Left = @"C:\Left",
+                    Right = @"C:\Right",
                 },
             ]);
 
@@ -241,7 +254,14 @@ public class SyncQuickProfileTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(vm.Setup.Profiles.Items.Select(profile => profile.Id), Is.EqualTo(new[] { SyncQuickProfilesViewModel.CurrentProfileId }));
+            Assert.That(
+                vm.Setup.Profiles.Items.Select(profile => profile.Id),
+                Is.EqualTo(
+                    new[]
+                    {
+                        SyncQuickProfilesViewModel.CurrentProfileId,
+                    }));
+
             Assert.That(SyncProfileStore.Load(settings), Is.Empty);
             Assert.That(vm.Setup.Profiles.SelectedProfile?.Id, Is.EqualTo(SyncQuickProfilesViewModel.CurrentProfileId));
         }

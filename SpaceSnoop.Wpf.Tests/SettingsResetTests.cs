@@ -33,7 +33,10 @@ public class SettingsResetTests
             {
                 var shell = bench.Shell;
 
-                Assert.That(store.GetStringValue(SettingsKeys.Theme), Is.EqualTo(AppThemes.SystemKey), "Тема осталась прежней: без окна ThemeManager.Apply ничего не делает, и единственный след сброса – ключ в хранилище.");
+                Assert.That(
+                    store.GetStringValue(SettingsKeys.Theme),
+                    Is.EqualTo(AppThemes.SystemKey),
+                    "Тема осталась прежней: без окна ThemeManager.Apply ничего не делает, и единственный след сброса – ключ в хранилище.");
 
                 Assert.That(shell.ShowPageHeader, Is.EqualTo(AppDefaults.ShowPageHeaderDefault));
                 Assert.That(shell.EnableToastNotifications, Is.EqualTo(AppDefaults.ToastNotificationsDefault));
@@ -272,7 +275,10 @@ public class SettingsResetTests
         {
             foreach (var plan in bench.Plans.Values)
             {
-                Assert.That(plan.Restored, Is.EqualTo(plan.Fields.Select(field => field.Label).ToArray()), $"Раздел «{plan.SectionKey}» перечисляет в тосте не то, что сбрасывает.");
+                Assert.That(
+                    plan.Restored,
+                    Is.EqualTo(plan.Fields.Select(field => field.Label).ToArray()),
+                    $"Раздел «{plan.SectionKey}» перечисляет в тосте не то, что сбрасывает.");
             }
 
             foreach (var plan in bench.Plans.Values)
@@ -423,7 +429,14 @@ public class SettingsResetTests
             Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(bench.Scan.DefaultParallelism), "Сброс строки не доехал до хранилища.");
             Assert.That(bench.Scan.MftEnabled, Is.True, "Сброс одной строки задел соседнюю настройку того же раздела.");
             Assert.That(bench.Scan.RevealFiles, Is.True, "Сброс одной строки задел соседнюю настройку того же раздела.");
-            Assert.That(bench.Reset.Select(field => field.Key), Is.EqualTo(new[] { SettingsKeys.ScanParallelism }), "Команда строки доложила не о той настройке или сразу о нескольких.");
+            Assert.That(
+                bench.Reset.Select(field => field.Key),
+                Is.EqualTo(
+                    new[]
+                    {
+                        SettingsKeys.ScanParallelism,
+                    }),
+                "Команда строки доложила не о той настройке или сразу о нескольких.");
         }
     }
 
@@ -441,7 +454,10 @@ public class SettingsResetTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(scan.MaxParallelism, Is.EqualTo(ceiling));
-            Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(ceiling), "Кламп конструктора не доехал до хранилища: сброс к тому же числу окажется молчаливым no-op.");
+            Assert.That(
+                store.GetInt(SettingsKeys.ScanParallelism),
+                Is.EqualTo(ceiling),
+                "Кламп конструктора не доехал до хранилища: сброс к тому же числу окажется молчаливым no-op.");
         }
 
         bench.Plans["scan"].Reset();

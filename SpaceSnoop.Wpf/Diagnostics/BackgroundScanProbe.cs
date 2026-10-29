@@ -65,7 +65,10 @@ internal sealed class BackgroundScanProbe : IDisposable
                 return;
             }
 
-            var phase = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, _parallelism) with { Name = name };
+            var phase = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, _parallelism) with
+            {
+                Name = name,
+            };
 
             if (_operations.TryReport(phase, _reported))
             {

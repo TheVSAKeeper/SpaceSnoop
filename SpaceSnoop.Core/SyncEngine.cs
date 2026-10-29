@@ -397,7 +397,10 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
         {
             if (gate.Blocks(dir.Action) || SubtreeBlocks(dir, dir.Action, blocked))
             {
-                gate = gate with { Reported = Reject(dir.Action, dir.RelativePath, report, gate.Reported) };
+                gate = gate with
+                {
+                    Reported = Reject(dir.Action, dir.RelativePath, report, gate.Reported),
+                };
             }
             else
             {
@@ -422,7 +425,11 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
 
             if (gate.Blocks(file.Action, file.DeleteLeftBlocked, file.DeleteRightBlocked))
             {
-                gate = gate with { Reported = Reject(file.Action, file.RelativePath, report, gate.Reported) };
+                gate = gate with
+                {
+                    Reported = Reject(file.Action, file.RelativePath, report, gate.Reported),
+                };
+
                 continue;
             }
 
@@ -492,7 +499,11 @@ public sealed class SyncEngine(ILogger<SyncEngine> logger, bool showDeleteUi = t
 
         public DeleteGate Inherit(DirectoryComparison dir)
         {
-            return this with { Left = Left || dir.RightIncomplete || dir.DeleteLeftBlocked, Right = Right || dir.LeftIncomplete || dir.DeleteRightBlocked };
+            return this with
+            {
+                Left = Left || dir.RightIncomplete || dir.DeleteLeftBlocked,
+                Right = Right || dir.LeftIncomplete || dir.DeleteRightBlocked,
+            };
         }
 
         public bool Blocks(SyncAction action, bool leftBlocked = false, bool rightBlocked = false)

@@ -9,7 +9,12 @@ public class CodexAgentBackendTests
     [Test]
     public void Mcp_описывается_адресом_переменной_токена_и_белым_списком()
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "тест", Mcp = Mcp() });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Mcp = Mcp(),
+            });
 
         using (Assert.EnterMultipleScope())
         {
@@ -60,7 +65,12 @@ public class CodexAgentBackendTests
     [TestCase("high", ExpectedResult = true)]
     public bool Глубина_рассуждений_уходит_ключом_конфигурации(string effort)
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "тест", Effort = effort });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Effort = effort,
+            });
 
         return args.Contains($"model_reasoning_effort=\"{effort}\"");
     }
@@ -88,7 +98,12 @@ public class CodexAgentBackendTests
     [Test]
     public void Запрещённые_инструменты_попадают_в_disabled_tools()
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "тест", Mcp = Mcp("sync_current") });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Mcp = Mcp("sync_current"),
+            });
 
         Assert.That(args, Does.Contain("mcp_servers.spacesnoop.disabled_tools=[\"sync_current\"]"));
     }
@@ -116,7 +131,11 @@ public class CodexAgentBackendTests
     [Test]
     public void Минимальный_запрос_держит_подкоманду_и_чтение_промпта_из_stdin()
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "привет" });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "привет",
+            });
 
         using (Assert.EnterMultipleScope())
         {
@@ -136,7 +155,12 @@ public class CodexAgentBackendTests
     [TestCase("gpt-5.6", ExpectedResult = true)]
     public bool Модель_добавляется_только_когда_задана(string model)
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "тест", Model = model });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Model = model,
+            });
 
         return args.Contains("--model") && args.Contains(model);
     }
@@ -174,7 +198,13 @@ public class CodexAgentBackendTests
     [Test]
     public void При_продолжении_сессии_промпт_не_повторяется()
     {
-        var stdin = CodexAgentBackend.BuildStdin(new() { Prompt = "а теперь удали", SystemPrompt = "Ты помощник.", ResumeSessionId = "abc" });
+        var stdin = CodexAgentBackend.BuildStdin(
+            new()
+            {
+                Prompt = "а теперь удали",
+                SystemPrompt = "Ты помощник.",
+                ResumeSessionId = "abc",
+            });
 
         Assert.That(stdin, Is.EqualTo("а теперь удали"));
     }
@@ -218,15 +248,31 @@ public class CodexAgentBackendTests
     [Test]
     public void Продолжение_сессии_идёт_подкомандой_resume_перед_промптом()
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "тест", ResumeSessionId = "019f9f78-2608-7ab2-9ff0-485e4fe26a52" });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                ResumeSessionId = "019f9f78-2608-7ab2-9ff0-485e4fe26a52",
+            });
 
-        Assert.That(args.Take(4), Is.EqualTo(new[] { "exec", "resume", "019f9f78-2608-7ab2-9ff0-485e4fe26a52", "-" }));
+        Assert.That(
+            args.Take(4),
+            Is.EqualTo(
+                new[]
+                {
+                    "exec", "resume", "019f9f78-2608-7ab2-9ff0-485e4fe26a52", "-",
+                }));
     }
 
     [Test]
     public void Системный_промпт_уезжает_преамбулой_к_первому_сообщению()
     {
-        var stdin = CodexAgentBackend.BuildStdin(new() { Prompt = "куда делось место", SystemPrompt = "Ты помощник." });
+        var stdin = CodexAgentBackend.BuildStdin(
+            new()
+            {
+                Prompt = "куда делось место",
+                SystemPrompt = "Ты помощник.",
+            });
 
         Assert.That(stdin, Is.EqualTo("Ты помощник.\n\nкуда делось место"));
     }
@@ -260,7 +306,12 @@ public class CodexAgentBackendTests
     [Test]
     public void Токен_уходит_переменной_окружения_а_не_аргументом()
     {
-        var args = CodexAgentBackend.BuildArguments(new() { Prompt = "тест", Mcp = Mcp() });
+        var args = CodexAgentBackend.BuildArguments(
+            new()
+            {
+                Prompt = "тест",
+                Mcp = Mcp(),
+            });
 
         Assert.That(args.Any(argument => argument.Contains("secret-token", StringComparison.Ordinal)), Is.False);
     }

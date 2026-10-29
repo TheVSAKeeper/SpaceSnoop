@@ -51,12 +51,21 @@ public class ChatQuestionTests
     [Test]
     public void Контекст_окна_уезжает_приставкой_к_ходу_а_не_вместо_него()
     {
-        var request = new AgentRequest { Prompt = "Куда делось место?", Context = "[Состояние окна]" };
+        var request = new AgentRequest
+        {
+            Prompt = "Куда делось место?",
+            Context = "[Состояние окна]",
+        };
 
         using (Assert.EnterMultipleScope())
         {
             Assert.That(request.TurnText, Is.EqualTo("[Состояние окна]\n\nКуда делось место?"));
-            Assert.That(request with { Context = null }, Has.Property(nameof(AgentRequest.TurnText)).EqualTo("Куда делось место?"));
+            Assert.That(
+                request with
+                {
+                    Context = null,
+                },
+                Has.Property(nameof(AgentRequest.TurnText)).EqualTo("Куда делось место?"));
         }
     }
 

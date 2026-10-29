@@ -15,7 +15,14 @@ public sealed class DotNetCleanPlan
     public DotNetCleanOptions Options { get; }
     public IReadOnlyList<string> Arguments { get; }
     public string InspectionLogPath { get; }
-    public string Command => string.Join(" ", new[] { Executable }.Concat(Arguments).Select(Quote));
+
+    public string Command => string.Join(
+        " ",
+        new[]
+            {
+                Executable,
+            }.Concat(Arguments)
+            .Select(Quote));
 
     internal Guid Owner { get; }
     internal DotNetCleanInput Input { get; }

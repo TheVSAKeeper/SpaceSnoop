@@ -287,7 +287,13 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     {
         return measured is null
             ? new(name, 0, 0, elapsed)
-            : measured with { Elapsed = elapsed, TotalItems = null, TotalBytes = null, Basis = EtaBasis.None };
+            : measured with
+            {
+                Elapsed = elapsed,
+                TotalItems = null,
+                TotalBytes = null,
+                Basis = EtaBasis.None,
+            };
     }
 
     [RelayCommand]

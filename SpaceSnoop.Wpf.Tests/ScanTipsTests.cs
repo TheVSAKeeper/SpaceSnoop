@@ -126,7 +126,12 @@ public class ScanTipsPageTests
         settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
         settings.SetInt(SettingsKeys.ScanTipsShown, 0);
 
-        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+        _logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(_root, "logs"),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
 
         _services = App.ConfigureServices(settings, _logging);
         _scan = _services.GetRequiredService<ScanViewModel>();

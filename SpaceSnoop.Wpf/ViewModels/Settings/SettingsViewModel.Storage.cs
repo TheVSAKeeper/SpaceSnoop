@@ -1,5 +1,4 @@
-﻿using KeepShell.Services;
-using MahApps.Metro.IconPacks;
+﻿using MahApps.Metro.IconPacks;
 
 namespace SpaceSnoop.Wpf.ViewModels.Settings;
 

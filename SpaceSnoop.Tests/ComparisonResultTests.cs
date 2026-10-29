@@ -13,14 +13,41 @@ public class ComparisonResultTests
 
         var root = new DirectoryComparison("root", "");
 
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, LeftModified = now, RightModified = earlier });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftModified = now,
+                RightModified = earlier,
+            });
 
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.Modified, LeftModified = earlier, RightModified = now });
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftModified = earlier,
+                RightModified = now,
+            });
 
-        root.Files.Add(new("c.txt", "c.txt") { Status = ComparisonStatus.Modified, LeftModified = now, RightModified = now });
+        root.Files.Add(
+            new("c.txt", "c.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftModified = now,
+                RightModified = now,
+            });
 
-        root.Files.Add(new("d.txt", "d.txt") { Status = ComparisonStatus.LeftOnly });
-        root.Files.Add(new("e.txt", "e.txt") { Status = ComparisonStatus.RightOnly });
+        root.Files.Add(
+            new("d.txt", "d.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
+
+        root.Files.Add(
+            new("e.txt", "e.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         result.ApplyMode(SyncMode.Bidirectional);
@@ -41,11 +68,28 @@ public class ComparisonResultTests
     public void ApplyBidirectional_MirrorWinner_DeletesLoserOnlyItems_KeepsWinnerOnly(SyncWinner winner)
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("left.txt", "left.txt") { Status = ComparisonStatus.LeftOnly });
-        root.Files.Add(new("right.txt", "right.txt") { Status = ComparisonStatus.RightOnly });
+        root.Files.Add(
+            new("left.txt", "left.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
 
-        var leftDir = new DirectoryComparison("ld", "ld") { Status = ComparisonStatus.LeftOnly };
-        var rightDir = new DirectoryComparison("rd", "rd") { Status = ComparisonStatus.RightOnly };
+        root.Files.Add(
+            new("right.txt", "right.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
+
+        var leftDir = new DirectoryComparison("ld", "ld")
+        {
+            Status = ComparisonStatus.LeftOnly,
+        };
+
+        var rightDir = new DirectoryComparison("rd", "rd")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
+
         root.SubDirectories.Add(leftDir);
         root.SubDirectories.Add(rightDir);
 
@@ -70,7 +114,13 @@ public class ComparisonResultTests
         var now = DateTime.Now;
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, LeftModified = now, RightModified = now });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftModified = now,
+                RightModified = now,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         result.ApplyMode(SyncMode.Bidirectional);
@@ -94,10 +144,33 @@ public class ComparisonResultTests
         var earlier = now.AddHours(-1);
 
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Modified, LeftModified = earlier, RightModified = now });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.Modified, LeftModified = now, RightModified = earlier });
-        root.Files.Add(new("l.txt", "l.txt") { Status = ComparisonStatus.LeftOnly });
-        root.Files.Add(new("r.txt", "r.txt") { Status = ComparisonStatus.RightOnly });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftModified = earlier,
+                RightModified = now,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                LeftModified = now,
+                RightModified = earlier,
+            });
+
+        root.Files.Add(
+            new("l.txt", "l.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
+
+        root.Files.Add(
+            new("r.txt", "r.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         result.ApplyMode(SyncMode.Bidirectional, false, winner);
@@ -116,10 +189,29 @@ public class ComparisonResultTests
     public void ApplyLeftToRightMode_SetsCorrectActions()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.RightOnly });
-        root.Files.Add(new("c.txt", "c.txt") { Status = ComparisonStatus.Modified });
-        root.Files.Add(new("d.txt", "d.txt") { Status = ComparisonStatus.Identical });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
+
+        root.Files.Add(
+            new("c.txt", "c.txt")
+            {
+                Status = ComparisonStatus.Modified,
+            });
+
+        root.Files.Add(
+            new("d.txt", "d.txt")
+            {
+                Status = ComparisonStatus.Identical,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         result.ApplyMode(SyncMode.LeftToRight);
@@ -138,14 +230,45 @@ public class ComparisonResultTests
     public void ApplyMode_IncompleteLeftSide_PlansNoDeletesOnRight(SyncMode mode, SyncWinner winner)
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("kept.txt", "kept.txt") { Status = ComparisonStatus.RightOnly, RightSize = 10 });
+        root.Files.Add(
+            new("kept.txt", "kept.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 10,
+            });
 
-        var blind = new DirectoryComparison("blind", "blind") { Status = ComparisonStatus.Modified, LeftIncomplete = true };
-        blind.Files.Add(new("orphan.txt", "blind\\orphan.txt") { Status = ComparisonStatus.RightOnly, RightSize = 20 });
-        blind.Files.Add(new("new.txt", "blind\\new.txt") { Status = ComparisonStatus.LeftOnly, LeftSize = 30 });
+        var blind = new DirectoryComparison("blind", "blind")
+        {
+            Status = ComparisonStatus.Modified,
+            LeftIncomplete = true,
+        };
 
-        var deeper = new DirectoryComparison("deeper", "blind\\deeper") { Status = ComparisonStatus.RightOnly };
-        deeper.Files.Add(new("deep.txt", "blind\\deeper\\deep.txt") { Status = ComparisonStatus.RightOnly, RightSize = 40 });
+        blind.Files.Add(
+            new("orphan.txt", "blind\\orphan.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 20,
+            });
+
+        blind.Files.Add(
+            new("new.txt", "blind\\new.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                LeftSize = 30,
+            });
+
+        var deeper = new DirectoryComparison("deeper", "blind\\deeper")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
+
+        deeper.Files.Add(
+            new("deep.txt", "blind\\deeper\\deep.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 40,
+            });
+
         blind.SubDirectories.Add(deeper);
         root.SubDirectories.Add(blind);
 
@@ -160,15 +283,30 @@ public class ComparisonResultTests
             Assert.That(deeper.Action, Is.EqualTo(SyncAction.Skip));
             Assert.That(deeper.Files[0].Action, Is.EqualTo(SyncAction.Skip), "запрет наследуется вглубь");
             Assert.That(result.CountPlannedActions().Deletes, Is.EqualTo(1));
-            Assert.That(result.IncompleteDirectories(), Is.EqualTo(new[] { "blind" }));
+            Assert.That(
+                result.IncompleteDirectories(),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "blind",
+                    }));
         }
     }
 
     [Test]
     public void ApplyMode_IncompleteRightSide_PlansNoDeletesOnLeft()
     {
-        var root = new DirectoryComparison("root", "") { RightIncomplete = true };
-        root.Files.Add(new("orphan.txt", "orphan.txt") { Status = ComparisonStatus.LeftOnly, LeftSize = 10 });
+        var root = new DirectoryComparison("root", "")
+        {
+            RightIncomplete = true,
+        };
+
+        root.Files.Add(
+            new("orphan.txt", "orphan.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                LeftSize = 10,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         result.ApplyMode(SyncMode.RightToLeft, true);
@@ -176,7 +314,13 @@ public class ComparisonResultTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(root.Files[0].Action, Is.EqualTo(SyncAction.Skip));
-            Assert.That(result.IncompleteDirectories(), Is.EqualTo(new[] { "root" }));
+            Assert.That(
+                result.IncompleteDirectories(),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "root",
+                    }));
         }
     }
 
@@ -184,11 +328,31 @@ public class ComparisonResultTests
     public void ApplyMode_MarksDeleteBlockedOnNodesAndInheritsDown()
     {
         var root = new DirectoryComparison("root", "");
-        var blind = new DirectoryComparison("blind", "blind") { Status = ComparisonStatus.Modified, LeftIncomplete = true };
-        blind.Files.Add(new("orphan.txt", "blind\\orphan.txt") { Status = ComparisonStatus.RightOnly, RightSize = 20 });
+        var blind = new DirectoryComparison("blind", "blind")
+        {
+            Status = ComparisonStatus.Modified,
+            LeftIncomplete = true,
+        };
 
-        var deeper = new DirectoryComparison("deeper", "blind\\deeper") { Status = ComparisonStatus.RightOnly };
-        deeper.Files.Add(new("deep.txt", "blind\\deeper\\deep.txt") { Status = ComparisonStatus.RightOnly, RightSize = 40 });
+        blind.Files.Add(
+            new("orphan.txt", "blind\\orphan.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 20,
+            });
+
+        var deeper = new DirectoryComparison("deeper", "blind\\deeper")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
+
+        deeper.Files.Add(
+            new("deep.txt", "blind\\deeper\\deep.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 40,
+            });
+
         blind.SubDirectories.Add(deeper);
         root.SubDirectories.Add(blind);
 
@@ -209,8 +373,18 @@ public class ComparisonResultTests
     [Test]
     public void ApplyMode_TypeConflictFile_StillGetsDeleteBlockedFlags()
     {
-        var blind = new DirectoryComparison("blind", "blind") { Status = ComparisonStatus.Modified, LeftIncomplete = true };
-        blind.Files.Add(new("config", "blind\\config") { Status = ComparisonStatus.Conflict, TypeConflict = FileTypeConflict.RightFileLeftDirectory });
+        var blind = new DirectoryComparison("blind", "blind")
+        {
+            Status = ComparisonStatus.Modified,
+            LeftIncomplete = true,
+        };
+
+        blind.Files.Add(
+            new("config", "blind\\config")
+            {
+                Status = ComparisonStatus.Conflict,
+                TypeConflict = FileTypeConflict.RightFileLeftDirectory,
+            });
 
         var root = new DirectoryComparison("root", "");
         root.SubDirectories.Add(blind);
@@ -230,9 +404,19 @@ public class ComparisonResultTests
     {
         var root = new DirectoryComparison("root", "");
 
-        var vanished = new DirectoryComparison("vanished", "vanished") { Status = ComparisonStatus.RightOnly, LeftIncomplete = true };
+        var vanished = new DirectoryComparison("vanished", "vanished")
+        {
+            Status = ComparisonStatus.RightOnly,
+            LeftIncomplete = true,
+        };
 
-        vanished.Files.Add(new("inside.txt", "vanished\\inside.txt") { Status = ComparisonStatus.RightOnly, RightSize = 10 });
+        vanished.Files.Add(
+            new("inside.txt", "vanished\\inside.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 10,
+            });
+
         root.SubDirectories.Add(vanished);
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
@@ -250,9 +434,23 @@ public class ComparisonResultTests
     public void ApplyRightToLeftMode_SetsCorrectActions()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.RightOnly });
-        root.Files.Add(new("c.txt", "c.txt") { Status = ComparisonStatus.Modified });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
+
+        root.Files.Add(
+            new("c.txt", "c.txt")
+            {
+                Status = ComparisonStatus.Modified,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         result.ApplyMode(SyncMode.RightToLeft);
@@ -269,11 +467,30 @@ public class ComparisonResultTests
     public void CountPlannedActions_CountsBytesInsideDeletedDirectory()
     {
         var root = new DirectoryComparison("root", "");
-        var extra = new DirectoryComparison("extra", "extra") { Status = ComparisonStatus.RightOnly };
-        extra.Files.Add(new("nested.txt", "extra\\nested.txt") { Status = ComparisonStatus.RightOnly, RightSize = 900 });
+        var extra = new DirectoryComparison("extra", "extra")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
 
-        var deeper = new DirectoryComparison("deeper", "extra\\deeper") { Status = ComparisonStatus.RightOnly };
-        deeper.Files.Add(new("deep.txt", "extra\\deeper\\deep.txt") { Status = ComparisonStatus.RightOnly, RightSize = 100 });
+        extra.Files.Add(
+            new("nested.txt", "extra\\nested.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 900,
+            });
+
+        var deeper = new DirectoryComparison("deeper", "extra\\deeper")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
+
+        deeper.Files.Add(
+            new("deep.txt", "extra\\deeper\\deep.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                RightSize = 100,
+            });
+
         extra.SubDirectories.Add(deeper);
         root.SubDirectories.Add(extra);
 
@@ -293,14 +510,49 @@ public class ComparisonResultTests
     public void CountPlannedActions_SplitsNewAndModifiedAndDeletes()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.CopyToLeft });
-        root.Files.Add(new("c.txt", "c.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
-        root.Files.Add(new("d.txt", "d.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft });
-        root.Files.Add(new("e.txt", "e.txt") { Status = ComparisonStatus.Identical, Action = SyncAction.Skip });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.CopyToLeft,
+            });
+
+        root.Files.Add(
+            new("c.txt", "c.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
+
+        root.Files.Add(
+            new("d.txt", "d.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+            });
+
+        root.Files.Add(
+            new("e.txt", "e.txt")
+            {
+                Status = ComparisonStatus.Identical,
+                Action = SyncAction.Skip,
+            });
 
         var sub = new DirectoryComparison("sub", "sub");
-        sub.Files.Add(new("f.txt", "sub\\f.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToLeft });
+        sub.Files.Add(
+            new("f.txt", "sub\\f.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToLeft,
+            });
+
         root.SubDirectories.Add(sub);
 
         var planned = new ComparisonResult("C:\\Left", "C:\\Right", root).CountPlannedActions();
@@ -319,10 +571,38 @@ public class ComparisonResultTests
     public void CountPlannedActions_SumsBytesBySideAndNovelty()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("new.txt", "new.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.CopyToRight, LeftSize = 100 });
-        root.Files.Add(new("mod.txt", "mod.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight, LeftSize = 500, RightSize = 200 });
-        root.Files.Add(new("back.txt", "back.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.CopyToLeft, RightSize = 70 });
-        root.Files.Add(new("gone.txt", "gone.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.DeleteLeft, LeftSize = 40 });
+        root.Files.Add(
+            new("new.txt", "new.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.CopyToRight,
+                LeftSize = 100,
+            });
+
+        root.Files.Add(
+            new("mod.txt", "mod.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+                LeftSize = 500,
+                RightSize = 200,
+            });
+
+        root.Files.Add(
+            new("back.txt", "back.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.CopyToLeft,
+                RightSize = 70,
+            });
+
+        root.Files.Add(
+            new("gone.txt", "gone.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.DeleteLeft,
+                LeftSize = 40,
+            });
 
         var planned = new ComparisonResult("C:\\Left", "C:\\Right", root).CountPlannedActions();
 
@@ -344,13 +624,34 @@ public class ComparisonResultTests
     [Test]
     public void DirectoryStatistics_CountsSubdirectoriesByStatus_ExcludingRoot()
     {
-        var root = new DirectoryComparison("root", "") { Status = ComparisonStatus.Modified };
+        var root = new DirectoryComparison("root", "")
+        {
+            Status = ComparisonStatus.Modified,
+        };
 
-        root.SubDirectories.Add(new("only-left", "only-left") { Status = ComparisonStatus.LeftOnly });
-        root.SubDirectories.Add(new("only-right", "only-right") { Status = ComparisonStatus.RightOnly });
+        root.SubDirectories.Add(
+            new("only-left", "only-left")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
 
-        var modified = new DirectoryComparison("modified", "modified") { Status = ComparisonStatus.Modified };
-        modified.SubDirectories.Add(new("nested-id", "modified\\nested-id") { Status = ComparisonStatus.Identical });
+        root.SubDirectories.Add(
+            new("only-right", "only-right")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
+
+        var modified = new DirectoryComparison("modified", "modified")
+        {
+            Status = ComparisonStatus.Modified,
+        };
+
+        modified.SubDirectories.Add(
+            new("nested-id", "modified\\nested-id")
+            {
+                Status = ComparisonStatus.Identical,
+            });
+
         root.SubDirectories.Add(modified);
 
         var stats = new ComparisonResult("C:\\Left", "C:\\Right", root).GetDirectoryStatistics();
@@ -369,7 +670,12 @@ public class ComparisonResultTests
     public void HasUnresolvedConflicts_ReturnsTrueWhenConflictsWithNoAction()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Conflict, Action = SyncAction.None });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Conflict,
+                Action = SyncAction.None,
+            });
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
         Assert.That(result.HasUnresolvedConflicts(), Is.True);
@@ -382,10 +688,23 @@ public class ComparisonResultTests
     public void MirrorCount_CountsDirDeleteOnce_NotNestedFiles()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("keep.txt", "keep.txt") { Status = ComparisonStatus.LeftOnly });
+        root.Files.Add(
+            new("keep.txt", "keep.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
 
-        var extra = new DirectoryComparison("extra", "extra") { Status = ComparisonStatus.RightOnly };
-        extra.Files.Add(new("nested.txt", "extra\\nested.txt") { Status = ComparisonStatus.RightOnly });
+        var extra = new DirectoryComparison("extra", "extra")
+        {
+            Status = ComparisonStatus.RightOnly,
+        };
+
+        extra.Files.Add(
+            new("nested.txt", "extra\\nested.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
+
         root.SubDirectories.Add(extra);
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
@@ -406,8 +725,17 @@ public class ComparisonResultTests
     public void Mirror_DeletesOppositeSideOnlyItems(SyncMode mode, ComparisonStatus orphanStatus, SyncAction expected)
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("orphan.txt", "orphan.txt") { Status = orphanStatus });
-        var orphanDir = new DirectoryComparison("orphan", "orphan") { Status = orphanStatus };
+        root.Files.Add(
+            new("orphan.txt", "orphan.txt")
+            {
+                Status = orphanStatus,
+            });
+
+        var orphanDir = new DirectoryComparison("orphan", "orphan")
+        {
+            Status = orphanStatus,
+        };
+
         root.SubDirectories.Add(orphanDir);
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
@@ -424,14 +752,49 @@ public class ComparisonResultTests
     public void ResolveAllConflicts_SetsActionAndClearsUnresolvedFlag()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.Conflict, Action = SyncAction.None });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.LeftOnly, Action = SyncAction.None });
-        root.Files.Add(new("c.txt", "c.txt") { Status = ComparisonStatus.RightOnly, Action = SyncAction.None });
-        root.Files.Add(new("d.txt", "d.txt") { Status = ComparisonStatus.Identical, Action = SyncAction.Skip });
-        root.Files.Add(new("e.txt", "e.txt") { Status = ComparisonStatus.Modified, Action = SyncAction.CopyToRight });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.Conflict,
+                Action = SyncAction.None,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+                Action = SyncAction.None,
+            });
+
+        root.Files.Add(
+            new("c.txt", "c.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+                Action = SyncAction.None,
+            });
+
+        root.Files.Add(
+            new("d.txt", "d.txt")
+            {
+                Status = ComparisonStatus.Identical,
+                Action = SyncAction.Skip,
+            });
+
+        root.Files.Add(
+            new("e.txt", "e.txt")
+            {
+                Status = ComparisonStatus.Modified,
+                Action = SyncAction.CopyToRight,
+            });
 
         var sub = new DirectoryComparison("sub", "sub");
-        sub.Files.Add(new("f.txt", "sub\\f.txt") { Status = ComparisonStatus.Conflict, Action = SyncAction.None });
+        sub.Files.Add(
+            new("f.txt", "sub\\f.txt")
+            {
+                Status = ComparisonStatus.Conflict,
+                Action = SyncAction.None,
+            });
+
         root.SubDirectories.Add(sub);
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
@@ -462,19 +825,44 @@ public class ComparisonResultTests
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);
 
-        Assert.That(result.SkippedLinks(), Is.EqualTo(new[] { "junction", Path.Combine("modules", "link.txt") }));
+        Assert.That(
+            result.SkippedLinks(),
+            Is.EqualTo(
+                new[]
+                {
+                    "junction", Path.Combine("modules", "link.txt"),
+                }));
     }
 
     [Test]
     public void Statistics_CountsStatusesCorrectly()
     {
         var root = new DirectoryComparison("root", "");
-        root.Files.Add(new("a.txt", "a.txt") { Status = ComparisonStatus.LeftOnly });
-        root.Files.Add(new("b.txt", "b.txt") { Status = ComparisonStatus.Modified });
-        root.Files.Add(new("c.txt", "c.txt") { Status = ComparisonStatus.Identical });
+        root.Files.Add(
+            new("a.txt", "a.txt")
+            {
+                Status = ComparisonStatus.LeftOnly,
+            });
+
+        root.Files.Add(
+            new("b.txt", "b.txt")
+            {
+                Status = ComparisonStatus.Modified,
+            });
+
+        root.Files.Add(
+            new("c.txt", "c.txt")
+            {
+                Status = ComparisonStatus.Identical,
+            });
 
         var sub = new DirectoryComparison("sub", "sub");
-        sub.Files.Add(new("d.txt", "sub\\d.txt") { Status = ComparisonStatus.RightOnly });
+        sub.Files.Add(
+            new("d.txt", "sub\\d.txt")
+            {
+                Status = ComparisonStatus.RightOnly,
+            });
+
         root.SubDirectories.Add(sub);
 
         var result = new ComparisonResult("C:\\Left", "C:\\Right", root);

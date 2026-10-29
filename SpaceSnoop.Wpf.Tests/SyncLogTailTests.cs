@@ -51,7 +51,13 @@ public class SyncLogTailTests
 
         var tail = SyncLog.ReadTail(_dir, static _ => true, 10);
 
-        Assert.That(tail, Is.EqualTo(new[] { "[x] Синхронизация: 1 успешно, 0 ошибок" }));
+        Assert.That(
+            tail,
+            Is.EqualTo(
+                new[]
+                {
+                    "[x] Синхронизация: 1 успешно, 0 ошибок",
+                }));
     }
 
     [Test]
@@ -61,7 +67,13 @@ public class SyncLogTailTests
 
         var tail = SyncLog.ReadTail(_dir, static line => line.Contains("Автосинхронизация"), 40);
 
-        Assert.That(tail, Is.EqualTo(new[] { "[x] Автосинхронизация" }));
+        Assert.That(
+            tail,
+            Is.EqualTo(
+                new[]
+                {
+                    "[x] Автосинхронизация",
+                }));
     }
 
     [Test]
@@ -79,6 +91,12 @@ public class SyncLogTailTests
 
         var tail = SyncLog.ReadTail(_dir, static _ => true, 3);
 
-        Assert.That(tail, Is.EqualTo(new[] { "f", "e", "d" }));
+        Assert.That(
+            tail,
+            Is.EqualTo(
+                new[]
+                {
+                    "f", "e", "d",
+                }));
     }
 }

@@ -37,7 +37,13 @@ public class ScheduleBulkTests
         {
             Assert.That(storedDuringCheck, Is.False);
             Assert.That(SyncProfileStore.Load(settings)[0].Enabled, Is.True);
-            Assert.That(scheduler.Applied.Select(request => request.Enabled), Is.EqualTo(new[] { true }));
+            Assert.That(
+                scheduler.Applied.Select(request => request.Enabled),
+                Is.EqualTo(
+                    new[]
+                    {
+                        true,
+                    }));
         }
     }
 
@@ -103,7 +109,11 @@ public class ScheduleBulkTests
     {
         using var dirs = new TempProfileDirectories();
         var settings = dirs.SeedProfiles();
-        var scheduler = new FakeScheduleRunner { Fails = _ => true };
+        var scheduler = new FakeScheduleRunner
+        {
+            Fails = _ => true,
+        };
+
         var vm = Create(settings, scheduler);
 
         vm.Bulk.SelectAllCommand.Execute(null);
@@ -143,8 +153,21 @@ public class ScheduleBulkTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(vm.Profiles.Select(profile => profile.Enabled), Is.EqualTo(new[] { false, true, true }));
-            Assert.That(stored.Select(profile => profile.Enabled), Is.EqualTo(new[] { false, true, true }));
+            Assert.That(
+                vm.Profiles.Select(profile => profile.Enabled),
+                Is.EqualTo(
+                    new[]
+                    {
+                        false, true, true,
+                    }));
+
+            Assert.That(
+                stored.Select(profile => profile.Enabled),
+                Is.EqualTo(
+                    new[]
+                    {
+                        false, true, true,
+                    }));
         }
     }
 
@@ -273,7 +296,14 @@ public class ScheduleBulkTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(scheduler.Removed, Has.Count.EqualTo(2));
-            Assert.That(vm.Profiles.Select(profile => profile.Id), Is.EqualTo(new[] { "two" }));
+            Assert.That(
+                vm.Profiles.Select(profile => profile.Id),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "two",
+                    }));
+
             Assert.That(SyncProfileStore.Load(settings), Has.Count.EqualTo(1));
         }
     }
@@ -354,7 +384,13 @@ public class ScheduleBulkTests
         {
             Assert.That(profile.Enabled, Is.False);
             Assert.That(SyncProfileStore.Load(settings)[0].Enabled, Is.False);
-            Assert.That(scheduler.Applied.Select(request => request.Enabled), Is.EqualTo(new[] { false }));
+            Assert.That(
+                scheduler.Applied.Select(request => request.Enabled),
+                Is.EqualTo(
+                    new[]
+                    {
+                        false,
+                    }));
         }
     }
 

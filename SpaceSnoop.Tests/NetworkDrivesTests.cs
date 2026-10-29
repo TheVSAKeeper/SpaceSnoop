@@ -47,7 +47,13 @@ public class NetworkDrivesTests
 
         var missing = NetworkDrives.SelectMissing(persistent, [@"C:\", @"z:\", @"X:\"]);
 
-        Assert.That(missing.Select(drive => drive.LocalName), Is.EqualTo(new[] { "Y:" }));
+        Assert.That(
+            missing.Select(drive => drive.LocalName),
+            Is.EqualTo(
+                new[]
+                {
+                    "Y:",
+                }));
     }
 
     [TestCase("ZZ", @"\\srv\share")]
@@ -83,8 +89,22 @@ public class NetworkDrivesTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(connected, Is.EquivalentTo(new[] { "Z:", "Y:", "X:" }));
-            Assert.That(results.Where(result => result.Succeeded).Select(result => result.Drive.LocalName), Is.EquivalentTo(new[] { "Y:", "X:" }));
+            Assert.That(
+                connected,
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        "Z:", "Y:", "X:",
+                    }));
+
+            Assert.That(
+                results.Where(result => result.Succeeded).Select(result => result.Drive.LocalName),
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        "Y:", "X:",
+                    }));
+
             Assert.That(failure.Message, Does.Contain("Z:").And.Contain(@"\\down\share").And.Contain(BadNetPath.ToString()));
             Assert.That(logger.Entries.Count(entry => entry.Level == LogLevel.Information), Is.EqualTo(2));
         });
@@ -102,7 +122,12 @@ public class NetworkDrivesTests
         string? expectedUserName,
         string? expectedProviderName)
     {
-        var values = new Dictionary<string, string?> { ["RemotePath"] = remotePath, ["UserName"] = userName, ["ProviderName"] = providerName };
+        var values = new Dictionary<string, string?>
+        {
+            ["RemotePath"] = remotePath,
+            ["UserName"] = userName,
+            ["ProviderName"] = providerName,
+        };
 
         var drive = NetworkDrives.Parse(keyName, name => values.GetValueOrDefault(name));
 

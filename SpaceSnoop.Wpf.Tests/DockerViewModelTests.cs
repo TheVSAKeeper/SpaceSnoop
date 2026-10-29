@@ -74,7 +74,12 @@ public sealed class DockerViewModelTests
             runner,
             fileSystem,
             new StaticSettingsProvider(new(BasePath, true, null)),
-            new() { ProcessTimeout = TimeSpan.FromSeconds(1), StopTimeout = stopTimeout ?? TimeSpan.FromSeconds(1), StatusPollInterval = TimeSpan.Zero },
+            new()
+            {
+                ProcessTimeout = TimeSpan.FromSeconds(1),
+                StopTimeout = stopTimeout ?? TimeSpan.FromSeconds(1),
+                StatusPollInterval = TimeSpan.Zero,
+            },
             administratorCheck: () => true);
 
         return new(service, new NoopDialogs(showResult: true), dispatcher ?? new FakeUiDispatcher(), NullLogger<DockerViewModel>.Instance);

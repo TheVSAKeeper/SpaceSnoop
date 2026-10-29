@@ -50,6 +50,10 @@ public sealed class RescanPrompt(IDialogService dialogs, ScanPreferences prefere
                 new("Не сканировать", ConfirmChoiceKind.Dismissive),
                 StopAsking,
                 new("Сканировать заново", ConfirmChoiceKind.Primary),
-            ]) { Summary = path, Warning = "Если остановить сканирование раньше времени, прежнего результата уже не будет – папку придётся сканировать ещё раз." };
+            ])
+        {
+            Summary = path,
+            Warning = "Если остановить сканирование раньше времени, прежнего результата уже не будет – папку придётся сканировать ещё раз.",
+        };
     }
 }

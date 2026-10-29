@@ -48,11 +48,12 @@ public sealed partial class ScanViewModel
         CancellationTokenSource? cancellation = null;
         try
         {
-            path = _filePicker.SaveFile(new("Сохранить скан", "JSON (*.json)|*.json")
-            {
-                DefaultExtension = ".json",
-                FileName = BuildFullScanFileName(root.AbsolutePath),
-            });
+            path = _filePicker.SaveFile(
+                new("Сохранить скан", "JSON (*.json)|*.json")
+                {
+                    DefaultExtension = ".json",
+                    FileName = BuildFullScanFileName(root.AbsolutePath),
+                });
 
             if (path is null)
             {
@@ -73,11 +74,13 @@ public sealed partial class ScanViewModel
                 ExportProgressText = $"Обработано {completed:N0} из {total:N0}";
             });
 
-            await Task.Run(() =>
-            {
-                using var output = new FileStream(temporaryFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.SequentialScan);
-                FullScanExport.WriteJson(output, root, root.AbsolutePath, options, AppInfo.Version, notes, progress, cancellationSource.Token);
-            }, cancellationSource.Token);
+            await Task.Run(
+                () =>
+                {
+                    using var output = new FileStream(temporaryFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1 << 16, FileOptions.SequentialScan);
+                    FullScanExport.WriteJson(output, root, root.AbsolutePath, options, AppInfo.Version, notes, progress, cancellationSource.Token);
+                },
+                cancellationSource.Token);
 
             File.Move(temporaryFile, path, true);
             ExportProgressPercent = 100;

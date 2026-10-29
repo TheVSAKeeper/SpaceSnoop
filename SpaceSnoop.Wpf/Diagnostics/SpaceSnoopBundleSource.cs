@@ -20,7 +20,10 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-        Converters = { new JsonStringEnumConverter() },
+        Converters =
+        {
+            new JsonStringEnumConverter(),
+        },
     };
 
     public IEnumerable<DiagnosticsEntry> Collect()
@@ -32,7 +35,11 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
         yield return new(
             OperationsEntry,
             JsonSerializer.Serialize(
-                new { Operation = operations.Current, LastRun = operations.Last },
+                new
+                {
+                    Operation = operations.Current,
+                    LastRun = operations.Last,
+                },
                 Json));
     }
 

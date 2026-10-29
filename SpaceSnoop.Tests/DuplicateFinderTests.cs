@@ -43,7 +43,14 @@ public class DuplicateFinderTests
         using (Assert.EnterMultipleScope())
         {
             Assert.That(report.Groups, Has.Count.EqualTo(1));
-            Assert.That(report.Groups[0].Members.Select(static x => x.Kind), Is.EqualTo(new[] { DuplicateMemberKind.Copy, DuplicateMemberKind.HardLink }));
+            Assert.That(
+                report.Groups[0].Members.Select(static x => x.Kind),
+                Is.EqualTo(
+                    new[]
+                    {
+                        DuplicateMemberKind.Copy, DuplicateMemberKind.HardLink,
+                    }));
+
             Assert.That(report.Groups[0].DistinctFiles, Is.EqualTo(1));
             Assert.That(report.ReclaimableBytes, Is.Zero);
         }
@@ -152,7 +159,11 @@ public class DuplicateFinderTests
         Write("small1.bin", new('s', 1024));
         Write("small2.bin", new('s', 1024));
 
-        var report = Find(DuplicateOptions.Default with { GroupLimit = 1 });
+        var report = Find(
+            DuplicateOptions.Default with
+            {
+                GroupLimit = 1,
+            });
 
         using (Assert.EnterMultipleScope())
         {
@@ -173,7 +184,11 @@ public class DuplicateFinderTests
             Write($"copy{index}.bin", content);
         }
 
-        var report = Find(DuplicateOptions.Default with { MemberLimit = 2 });
+        var report = Find(
+            DuplicateOptions.Default with
+            {
+                MemberLimit = 2,
+            });
 
         using (Assert.EnterMultipleScope())
         {
@@ -209,7 +224,11 @@ public class DuplicateFinderTests
         Write("small1.bin", "abc");
         Write("small2.bin", "abc");
 
-        var report = Find(DuplicateOptions.Default with { MinSize = 10 });
+        var report = Find(
+            DuplicateOptions.Default with
+            {
+                MinSize = 10,
+            });
 
         using (Assert.EnterMultipleScope())
         {

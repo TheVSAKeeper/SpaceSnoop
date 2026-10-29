@@ -54,7 +54,11 @@ public class ApplyDeletionResultBenchmarks
             child.ReloadChildren();
         }
 
-        var roots = new ObservableCollection<ScanNodeViewModel> { rootNode };
+        var roots = new ObservableCollection<ScanNodeViewModel>
+        {
+            rootNode,
+        };
+
         var summary = new ScanSummaryViewModel();
         summary.Apply(root, TimeSpan.Zero);
 

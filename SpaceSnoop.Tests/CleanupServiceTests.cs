@@ -29,7 +29,11 @@ public class CleanupServiceTests
     public void Clean_CancelledAfterLastFileStillReportsCancelled()
     {
         using var cts = new CancellationTokenSource();
-        var target = Target() with { Path = Path.Combine(_targetDir, "nested") };
+        var target = Target() with
+        {
+            Path = Path.Combine(_targetDir, "nested"),
+        };
+
         var progress = new InlineProgress(_ => cts.Cancel());
 
         var report = new CleanupService().Clean(target, progress, cts.Token);
@@ -253,7 +257,12 @@ public class CleanupServiceTests
             Assert.Ignore("не удалось создать junction");
         }
 
-        var measurement = new CleanupService().Measure(Target() with { Path = Path.Combine(link, "nested") }, CancellationToken.None);
+        var measurement = new CleanupService().Measure(
+            Target() with
+            {
+                Path = Path.Combine(link, "nested"),
+            },
+            CancellationToken.None);
 
         Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
     }
@@ -268,7 +277,12 @@ public class CleanupServiceTests
             Assert.Ignore("не удалось создать junction");
         }
 
-        var measurement = new CleanupService().Measure(Target() with { Path = link }, CancellationToken.None);
+        var measurement = new CleanupService().Measure(
+            Target() with
+            {
+                Path = link,
+            },
+            CancellationToken.None);
 
         Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
     }
@@ -312,7 +326,10 @@ public class CleanupServiceTests
     [Test]
     public void Measure_VolumeRootRefusedAsUnsafe()
     {
-        var target = Target() with { Path = Path.GetPathRoot(_targetDir)! };
+        var target = Target() with
+        {
+            Path = Path.GetPathRoot(_targetDir)!,
+        };
 
         var measurement = new CleanupService().Measure(target, CancellationToken.None);
 
@@ -372,7 +389,10 @@ public class CleanupServiceTests
     {
         var start = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{path}\" \"{target}\"")
         {
-            CreateNoWindow = true, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
         };
 
         using var process = Process.Start(start);

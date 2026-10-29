@@ -33,7 +33,10 @@ internal sealed class DotNetCli
     private readonly Func<string?> _path = () => Environment.GetEnvironmentVariable("PATH");
     private readonly Func<string, bool> _fileExists = File.Exists;
 
-    private readonly Func<ProcessStartInfo, Process> _start = info => new() { StartInfo = info };
+    private readonly Func<ProcessStartInfo, Process> _start = info => new()
+    {
+        StartInfo = info,
+    };
 
     private readonly Func<string, Stream> _openLog = path => new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
 

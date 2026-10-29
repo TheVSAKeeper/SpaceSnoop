@@ -42,7 +42,11 @@ public class GalleryStatesTests
     {
         Assert.That(
             GalleryStates.All.Where(state => GalleryStates.SupportsDialog(dialog, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Done }));
+            Is.EqualTo(
+                new[]
+                {
+                    GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Done,
+                }));
     }
 
     [TestCase(SectionKey.Scan)]
@@ -93,7 +97,11 @@ public class GalleryStatesTests
     {
         Assert.That(
             GalleryStates.All.Where(state => GalleryStates.SupportsPage(SectionKey.Scan, state)),
-            Is.EqualTo(new[] { GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice }));
+            Is.EqualTo(
+                new[]
+                {
+                    GalleryStates.Idle, GalleryStates.Busy, GalleryStates.Picker, GalleryStates.Welcome, GalleryStates.Advice,
+                }));
     }
 
     [TestCase(SectionKey.Logs)]

@@ -14,9 +14,27 @@ public class FirstFitPanelTests
     [TestCase(120, Visibility.Hidden, Visibility.Visible)]
     public void Вертикальная_панель_выбирает_вариант_по_высоте(double available, Visibility full, Visibility compact)
     {
-        var tall = new Border { Width = 30, Height = 240 };
-        var low = new Border { Width = 30, Height = 34 };
-        var panel = new FirstFitPanel { Orientation = Orientation.Vertical, Children = { tall, low } };
+        var tall = new Border
+        {
+            Width = 30,
+            Height = 240,
+        };
+
+        var low = new Border
+        {
+            Width = 30,
+            Height = 34,
+        };
+
+        var panel = new FirstFitPanel
+        {
+            Orientation = Orientation.Vertical,
+            Children =
+            {
+                tall,
+                low,
+            },
+        };
 
         panel.Measure(new(48, available));
         panel.Arrange(new(new(48, available)));
@@ -33,9 +51,26 @@ public class FirstFitPanelTests
     [TestCase(200, Visibility.Hidden, Visibility.Visible)]
     public void Невыбранный_вариант_спрятан_и_не_занимает_места(double available, Visibility full, Visibility compact)
     {
-        var wide = new Border { Width = Widths[0], Height = 20 };
-        var narrow = new Border { Width = Widths[1], Height = 24 };
-        var panel = new FirstFitPanel { Children = { wide, narrow } };
+        var wide = new Border
+        {
+            Width = Widths[0],
+            Height = 20,
+        };
+
+        var narrow = new Border
+        {
+            Width = Widths[1],
+            Height = 24,
+        };
+
+        var panel = new FirstFitPanel
+        {
+            Children =
+            {
+                wide,
+                narrow,
+            },
+        };
 
         panel.Measure(new(available, 40));
         panel.Arrange(new(new(available, 40)));
@@ -55,8 +90,23 @@ public class FirstFitPanelTests
     [TestCase(HorizontalAlignment.Left, 0, 100)]
     public void Показанный_вариант_встаёт_по_своему_выравниванию_во_всю_ширину_панели(HorizontalAlignment alignment, double left, double width)
     {
-        var shown = new Border { HorizontalAlignment = alignment, Child = new Border { Width = 100, Height = 20 } };
-        var panel = new FirstFitPanel { Children = { shown } };
+        var shown = new Border
+        {
+            HorizontalAlignment = alignment,
+            Child = new Border
+            {
+                Width = 100,
+                Height = 20,
+            },
+        };
+
+        var panel = new FirstFitPanel
+        {
+            Children =
+            {
+                shown,
+            },
+        };
 
         panel.Measure(new(300, 40));
         panel.Arrange(new(new(300, 40)));

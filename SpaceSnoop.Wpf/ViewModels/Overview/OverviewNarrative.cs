@@ -8,7 +8,7 @@ internal static class OverviewNarrative
         {
             OverviewRunStatus.Synced when !row.SyncHadErrors => (1, 0, 0),
             OverviewRunStatus.Synced or OverviewRunStatus.Error => (0, 1, 0),
-            _ => (0, 0, 1),
+            _ => (0, 0, 1)
         };
     }
 
@@ -37,7 +37,7 @@ internal static class OverviewNarrative
                 OverwriteLeftBytes = total.OverwriteLeftBytes + plan.OverwriteLeftBytes,
                 OverwriteRightBytes = total.OverwriteRightBytes + plan.OverwriteRightBytes,
                 DeleteFileBytes = total.DeleteFileBytes + plan.DeleteFileBytes,
-                DeleteDirBytes = total.DeleteDirBytes + plan.DeleteDirBytes,
+                DeleteDirBytes = total.DeleteDirBytes + plan.DeleteDirBytes
             });
     }
 
@@ -82,7 +82,7 @@ internal static class OverviewNarrative
         [
             new ConfirmTextLine(row.Name, ConfirmTextTone.Strong),
             new ConfirmTextLine($"{row.Left} → {row.Right}", ConfirmTextTone.Muted),
-            new ConfirmGapLine(),
+            new ConfirmGapLine()
         ];
 
         AddPlanLines(lines, planned, "Файлы будут скопированы по направлению профиля, удаления – в корзину.");
@@ -125,11 +125,11 @@ internal static class OverviewNarrative
 
     internal static (string Message, StatusSeverity Severity) DescribeOutcome(string caption, int ok, int failed)
     {
-        var severity = (failed, ok) switch
+        var severity = failed switch
         {
-            (> 0, _) => StatusSeverity.Error,
-            (_, 0) => StatusSeverity.Warning,
-            _ => StatusSeverity.Success,
+            > 0 => StatusSeverity.Error,
+            _ when ok == 0 => StatusSeverity.Warning,
+            _ => StatusSeverity.Success
         };
 
         return (caption, severity);

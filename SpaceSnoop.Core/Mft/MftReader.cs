@@ -169,7 +169,11 @@ internal static class MftReader
         var alignment = Math.Max((int)bytesPerSector, BufferAlignment);
         var workers = new ConcurrentStack<MftWorker>();
 
-        var options = new ParallelOptions { CancellationToken = cancel, MaxDegreeOfParallelism = Math.Max(1, threads) };
+        var options = new ParallelOptions
+        {
+            CancellationToken = cancel,
+            MaxDegreeOfParallelism = Math.Max(1, threads),
+        };
 
         try
         {

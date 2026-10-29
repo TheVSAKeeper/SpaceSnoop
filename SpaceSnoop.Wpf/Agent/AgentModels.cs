@@ -44,17 +44,38 @@ public static class AgentModels
 
     private static readonly AgentModelOption[] ClaudeModels =
     [
-        new("fable", "Fable 5", "Самая сильная и самая дорогая") { Efforts = StandardEfforts },
-        new("opus", "Opus 5", "Сильная модель для сложных задач") { Efforts = StandardEfforts },
-        new("sonnet", "Sonnet 5", "Баланс скорости и качества") { Efforts = StandardEfforts },
-        new("haiku", "Haiku 4.5", "Самая быстрая и дешёвая") { Efforts = StandardEfforts },
+        new("fable", "Fable 5", "Самая сильная и самая дорогая")
+        {
+            Efforts = StandardEfforts,
+        },
+        new("opus", "Opus 5", "Сильная модель для сложных задач")
+        {
+            Efforts = StandardEfforts,
+        },
+        new("sonnet", "Sonnet 5", "Баланс скорости и качества")
+        {
+            Efforts = StandardEfforts,
+        },
+        new("haiku", "Haiku 4.5", "Самая быстрая и дешёвая")
+        {
+            Efforts = StandardEfforts,
+        },
     ];
 
     private static readonly AgentModelOption[] CodexFallbackModels =
     [
-        new("gpt-5.6-sol", "GPT-5.6-Sol", "Флагманская агентная модель") { Efforts = CodexEfforts },
-        new("gpt-5.6-terra", "GPT-5.6-Terra", "Баланс скорости и качества") { Efforts = StandardEfforts },
-        new("gpt-5.6-luna", "GPT-5.6-Luna", "Быстрая модель для простых задач") { Efforts = StandardEfforts },
+        new("gpt-5.6-sol", "GPT-5.6-Sol", "Флагманская агентная модель")
+        {
+            Efforts = CodexEfforts,
+        },
+        new("gpt-5.6-terra", "GPT-5.6-Terra", "Баланс скорости и качества")
+        {
+            Efforts = StandardEfforts,
+        },
+        new("gpt-5.6-luna", "GPT-5.6-Luna", "Быстрая модель для простых задач")
+        {
+            Efforts = StandardEfforts,
+        },
     ];
 
     private static readonly Dictionary<string, string> EffortTitles = new(StringComparer.OrdinalIgnoreCase)
@@ -143,7 +164,10 @@ public static class AgentModels
                 }
 
                 var title = Text(model, "display_name") is { Length: > 0 } displayName ? displayName : slug;
-                var option = new AgentModelOption(slug, title, Text(model, "description")) { Efforts = ReasoningLevels(model) };
+                var option = new AgentModelOption(slug, title, Text(model, "description"))
+                {
+                    Efforts = ReasoningLevels(model),
+                };
 
                 parsed.Add((Priority(model), option));
             }
@@ -210,7 +234,10 @@ public static class AgentModels
 
             var title = Text(model, "name") is { Length: > 0 } name ? name : id;
 
-            return new($"{provider}/{id}", title, DescribeOpenCodeModel(model)) { Efforts = Variants(model) };
+            return new($"{provider}/{id}", title, DescribeOpenCodeModel(model))
+            {
+                Efforts = Variants(model),
+            };
         }
         catch (JsonException)
         {

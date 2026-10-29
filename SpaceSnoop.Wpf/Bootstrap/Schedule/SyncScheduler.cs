@@ -56,7 +56,10 @@ public static class SyncScheduler
 
         var enabled = Execute(["/query", "/tn", taskName, "/xml"], out var xml, out _) != 0 || ScheduleStatus.ParseEnabled(xml);
 
-        return ScheduleStatus.Parse(output) with { Enabled = enabled };
+        return ScheduleStatus.Parse(output) with
+        {
+            Enabled = enabled,
+        };
     }
 
     public static List<string> BuildCreateArgs(string taskName, ScheduleInterval interval, TimeSpan time, string exePath, string argument)
@@ -111,7 +114,10 @@ public static class SyncScheduler
         {
             var info = new ProcessStartInfo(SystemExecutable.SchTasks)
             {
-                UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
             };
 
             foreach (var arg in args)

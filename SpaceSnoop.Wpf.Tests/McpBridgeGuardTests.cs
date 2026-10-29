@@ -274,7 +274,14 @@ public class McpBridgeGuardTests
         Assert.Multiple(() =>
         {
             Assert.That(_cleanup.CleanCalls, Is.EqualTo(1));
-            Assert.That(_cleanup.LastIds, Is.EquivalentTo(new[] { RunnableTargetId }));
+            Assert.That(
+                _cleanup.LastIds,
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        RunnableTargetId,
+                    }));
+
             Assert.That(json, Does.Contain("\"freedBytes\": 1024"));
             Assert.That(json, Does.Contain("\"consent\": \"Granted\""));
         });
@@ -295,7 +302,13 @@ public class McpBridgeGuardTests
     {
         await _bridge.Scan.ScanAsync(_root, 2, 20, true, CancellationToken.None);
 
-        Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}", $"apply {_root}" }));
+        Assert.That(
+            _scan.PageCalls,
+            Is.EqualTo(
+                new[]
+                {
+                    $"release {_root}", $"apply {_root}",
+                }));
     }
 
     [Test]
@@ -401,7 +414,13 @@ public class McpBridgeGuardTests
 
             Assert.That(_scan.ApplyCalls, Is.Zero);
             Assert.That(_scan.SelectCalls, Is.Zero);
-            Assert.That(_scan.PageCalls, Is.EqualTo(new[] { $"release {_root}" }));
+            Assert.That(
+                _scan.PageCalls,
+                Is.EqualTo(
+                    new[]
+                    {
+                        $"release {_root}",
+                    }));
         });
     }
 
@@ -412,7 +431,10 @@ public class McpBridgeGuardTests
         _sync.PlanFreshness = SyncPlanFreshness.Applied;
         _sync.PlanBuilder = () => new()
         {
-            LeftPath = _root, RightPath = _root, Options = new(SyncMode.LeftToRight, SyncWinner.None, false, string.Empty), Actions = PlannedActions.Empty,
+            LeftPath = _root,
+            RightPath = _root,
+            Options = new(SyncMode.LeftToRight, SyncWinner.None, false, string.Empty),
+            Actions = PlannedActions.Empty,
         };
 
         var json = await _bridge.Sync.SyncCurrentAsync(true, 20, CancellationToken.None);

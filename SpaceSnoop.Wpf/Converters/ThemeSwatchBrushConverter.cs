@@ -30,6 +30,11 @@ public sealed class ThemeSwatchBrushConverter : IValueConverter
             return null;
         }
 
-        return Palettes.GetOrAdd(definition.Palette, static source => new() { Source = source });
+        return Palettes.GetOrAdd(
+            definition.Palette,
+            static source => new()
+            {
+                Source = source,
+            });
     }
 }

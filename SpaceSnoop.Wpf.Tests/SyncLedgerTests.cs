@@ -40,12 +40,21 @@ public class SyncLedgerTests
     private static FileComparison File(string relativePath, ComparisonStatus status, SyncAction action)
     {
         var name = relativePath.Split('/')[^1];
-        return new(name, relativePath) { Status = status, Action = action };
+        return new(name, relativePath)
+        {
+            Status = status,
+            Action = action,
+        };
     }
 
     private static DirectoryComparison Dir(string name, ComparisonStatus status, SyncAction action, params FileComparison[] files)
     {
-        var dir = new DirectoryComparison(name, name) { Status = status, Action = action };
+        var dir = new DirectoryComparison(name, name)
+        {
+            Status = status,
+            Action = action,
+        };
+
         dir.Files.AddRange(files);
         return dir;
     }

@@ -48,7 +48,11 @@ public class OverviewPipelineTests
         var left = Make("left");
         var nested = Path.Combine(left, "inner");
         Directory.CreateDirectory(nested);
-        var profile = new SyncProfile { Left = left, Right = nested };
+        var profile = new SyncProfile
+        {
+            Left = left,
+            Right = nested,
+        };
 
         Assert.That(OverviewPipeline.Classify(profile), Is.EqualTo(new OverviewPreflight(OverviewRunStatus.Overlap, SyncRoots.OverlapMessage)));
     }
@@ -56,7 +60,11 @@ public class OverviewPipelineTests
     [Test]
     public void Два_разных_существующих_каталога_дают_null()
     {
-        var profile = new SyncProfile { Left = Make("left"), Right = Make("right") };
+        var profile = new SyncProfile
+        {
+            Left = Make("left"),
+            Right = Make("right"),
+        };
 
         Assert.That(OverviewPipeline.Classify(profile), Is.Null);
     }
@@ -64,7 +72,11 @@ public class OverviewPipelineTests
     [Test]
     public void Несуществующий_источник_даёт_Unavailable()
     {
-        var profile = new SyncProfile { Left = Path.Combine(_root, "missing"), Right = Make("right") };
+        var profile = new SyncProfile
+        {
+            Left = Path.Combine(_root, "missing"),
+            Right = Make("right"),
+        };
 
         Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }
@@ -72,7 +84,12 @@ public class OverviewPipelineTests
     [Test]
     public void Несуществующий_приёмник_при_слева_направо_не_блокирует()
     {
-        var profile = new SyncProfile { Left = Make("left"), Right = Path.Combine(_root, "missing"), Mode = 0 };
+        var profile = new SyncProfile
+        {
+            Left = Make("left"),
+            Right = Path.Combine(_root, "missing"),
+            Mode = 0,
+        };
 
         Assert.That(OverviewPipeline.Classify(profile), Is.Null);
     }
@@ -81,7 +98,17 @@ public class OverviewPipelineTests
     public async Task Отмена_во_время_предпроверки_последней_строки_отменяет_сравнение_всех()
     {
         var settings = new MemorySettings();
-        SyncProfileStore.Save(settings, [new() { Id = "one", Name = "Один", Left = Path.Combine(_root, "missing"), Right = Make("right") }]);
+        SyncProfileStore.Save(
+            settings,
+            [
+                new()
+                {
+                    Id = "one",
+                    Name = "Один",
+                    Left = Path.Combine(_root, "missing"),
+                    Right = Make("right"),
+                },
+            ]);
 
         var overview = new OverviewViewModel(
             settings,
@@ -137,7 +164,11 @@ public class OverviewPipelineTests
     [Test]
     public void Пустой_путь_даёт_Unavailable()
     {
-        var profile = new SyncProfile { Left = string.Empty, Right = Make("right") };
+        var profile = new SyncProfile
+        {
+            Left = string.Empty,
+            Right = Make("right"),
+        };
 
         Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }
@@ -145,7 +176,12 @@ public class OverviewPipelineTests
     [Test]
     public void Тот_же_отсутствующий_каталог_как_источник_справа_налево_даёт_Unavailable()
     {
-        var profile = new SyncProfile { Left = Make("left"), Right = Path.Combine(_root, "missing"), Mode = 1 };
+        var profile = new SyncProfile
+        {
+            Left = Make("left"),
+            Right = Path.Combine(_root, "missing"),
+            Mode = 1,
+        };
 
         Assert.That(OverviewPipeline.Classify(profile)?.Status, Is.EqualTo(OverviewRunStatus.Unavailable));
     }

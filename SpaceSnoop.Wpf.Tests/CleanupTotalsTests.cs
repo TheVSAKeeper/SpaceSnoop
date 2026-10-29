@@ -81,7 +81,10 @@ public class CleanupTotalsTests
 
         return new(target)
         {
-            SizeBytes = bytes, Files = files, Availability = availability, IsSelected = selected,
+            SizeBytes = bytes,
+            Files = files,
+            Availability = availability,
+            IsSelected = selected,
         };
     }
 }

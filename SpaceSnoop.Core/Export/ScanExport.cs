@@ -92,7 +92,10 @@ public static class ScanExport
             Version = version,
             GeneratedAt = DateTimeOffset.Now,
             Path = rootPath,
-            Options = options with { Depth = context.Depth },
+            Options = options with
+            {
+                Depth = context.Depth,
+            },
             Totals = new(root.TotalSize, counts.Files, counts.Directories, context.Errors),
             Directories = directories,
             Files = files,

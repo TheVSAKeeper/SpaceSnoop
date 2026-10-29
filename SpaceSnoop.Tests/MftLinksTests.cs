@@ -239,7 +239,12 @@ public class MftLinksTests
     [TestCase(0u, false, false, TestName = "Файл с непрочитанным тегом остаётся файлом")]
     public void Непрочитанный_тег_reparse_судится_по_виду_записи(uint tag, bool directory, bool expected)
     {
-        var entry = new MftEntry { ReparseTag = tag, ReparseUnknown = true, IsDirectory = directory };
+        var entry = new MftEntry
+        {
+            ReparseTag = tag,
+            ReparseUnknown = true,
+            IsDirectory = directory,
+        };
 
         Assert.That(entry.IsLink, Is.EqualTo(expected));
     }
@@ -335,7 +340,10 @@ public class MftLinksTests
     [Test]
     public void Тег_с_битом_подмены_пространства_имён_остаётся_ссылкой()
     {
-        var entry = new MftEntry { ReparseTag = MftLayout.ReparseNameSurrogate | 0x03 };
+        var entry = new MftEntry
+        {
+            ReparseTag = MftLayout.ReparseNameSurrogate | 0x03,
+        };
 
         Assert.That(entry.IsLink, Is.True);
     }

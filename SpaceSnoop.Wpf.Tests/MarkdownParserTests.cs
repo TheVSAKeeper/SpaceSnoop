@@ -28,7 +28,14 @@ public class MarkdownParserTests
     {
         var spans = MarkdownParser.Parse("**у всех `mirror: true` в двустороннем**")[0].Spans;
 
-        Assert.That(spans.Select(span => span.Text), Is.EqualTo(new[] { "у всех ", "mirror: true", " в двустороннем" }));
+        Assert.That(
+            spans.Select(span => span.Text),
+            Is.EqualTo(
+                new[]
+                {
+                    "у всех ", "mirror: true", " в двустороннем",
+                }));
+
         Assert.That(spans[0].Style, Is.EqualTo(MarkdownSpanStyle.Bold));
         Assert.That(spans[1].Style, Is.EqualTo(MarkdownSpanStyle.Bold | MarkdownSpanStyle.Code));
     }
@@ -69,7 +76,14 @@ public class MarkdownParserTests
     {
         var spans = MarkdownParser.Parse("Виновник – **Docker**, 91 ГБ")[0].Spans;
 
-        Assert.That(spans.Select(span => span.Text), Is.EqualTo(new[] { "Виновник – ", "Docker", ", 91 ГБ" }));
+        Assert.That(
+            spans.Select(span => span.Text),
+            Is.EqualTo(
+                new[]
+                {
+                    "Виновник – ", "Docker", ", 91 ГБ",
+                }));
+
         Assert.That(spans[1].Style, Is.EqualTo(MarkdownSpanStyle.Bold));
     }
 
@@ -90,7 +104,13 @@ public class MarkdownParserTests
     {
         var blocks = MarkdownParser.Parse("Первый.\n\nВторой.");
 
-        Assert.That(blocks.Select(block => block.Text), Is.EqualTo(new[] { "Первый.", "Второй." }));
+        Assert.That(
+            blocks.Select(block => block.Text),
+            Is.EqualTo(
+                new[]
+                {
+                    "Первый.", "Второй.",
+                }));
     }
 
     [Test]
@@ -123,7 +143,13 @@ public class MarkdownParserTests
     {
         var blocks = MarkdownParser.Parse("Дальше по убыванию:\n- Корзина 41 ГБ");
 
-        Assert.That(blocks.Select(block => block.Kind), Is.EqualTo(new[] { MarkdownBlockKind.Paragraph, MarkdownBlockKind.Bullet }));
+        Assert.That(
+            blocks.Select(block => block.Kind),
+            Is.EqualTo(
+                new[]
+                {
+                    MarkdownBlockKind.Paragraph, MarkdownBlockKind.Bullet,
+                }));
     }
 
     [TestCase("- Корзина 41 ГБ")]

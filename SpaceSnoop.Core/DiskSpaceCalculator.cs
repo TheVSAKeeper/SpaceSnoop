@@ -14,7 +14,10 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
 {
     private static readonly EnumerationOptions Enumeration = new()
     {
-        AttributesToSkip = 0, IgnoreInaccessible = false, RecurseSubdirectories = false, ReturnSpecialDirectories = false,
+        AttributesToSkip = 0,
+        IgnoreInaccessible = false,
+        RecurseSubdirectories = false,
+        ReturnSpecialDirectories = false,
     };
 
     private readonly ILogger _log = logger ?? NullLogger<DiskSpaceCalculator>.Instance;
@@ -252,7 +255,11 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
         {
             for (var index = 0; index < degree; index++)
             {
-                var thread = new Thread(() => Work(run, progress, cancel)) { IsBackground = true, Name = "SpaceSnoop scan" };
+                var thread = new Thread(() => Work(run, progress, cancel))
+                {
+                    IsBackground = true,
+                    Name = "SpaceSnoop scan",
+                };
 
                 thread.Start();
                 threads[index] = thread;
@@ -298,7 +305,12 @@ public class DiskSpaceCalculator(ILogger<DiskSpaceCalculator>? logger = null)
 
                 foreach (var child in children)
                 {
-                    run.Queue.Add(child with { Branch = item.Branch ?? new ScanBranch() }, run.Token);
+                    run.Queue.Add(
+                        child with
+                        {
+                            Branch = item.Branch ?? new ScanBranch(),
+                        },
+                        run.Token);
                 }
 
                 if (item.Branch is { } branch && branch.Complete())

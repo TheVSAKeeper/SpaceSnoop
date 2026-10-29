@@ -58,7 +58,14 @@ public sealed class WorkloadCleanupViewModelTests
         Assert.Multiple(() =>
         {
             Assert.That(vm.ResultText, Does.Contain("изменились"));
-            Assert.That(_calls.Any(args => args.SequenceEqual(new[] { "workload", "clean" })), Is.False);
+            Assert.That(
+                _calls.Any(args => args.SequenceEqual(
+                    new[]
+                    {
+                        "workload", "clean",
+                    })),
+                Is.False);
+
             Assert.That(vm.LogPath, Does.EndWith("inspect-workloads.log"));
         });
     }
@@ -86,7 +93,13 @@ public sealed class WorkloadCleanupViewModelTests
             Assert.That(confirmation.Lines.Select(x => x.PlainText).Any(text => text.Contains("предварительного просмотра нет")), Is.True);
             Assert.That(confirmation.Lines.Select(x => x.PlainText).Any(text => text.Contains("SDK, Runtime, инструменты")), Is.True);
             Assert.That(vm.CleanCommand.CanExecute(null), Is.True);
-            Assert.That(_calls.Any(args => args.SequenceEqual(new[] { "workload", "clean" })), Is.False);
+            Assert.That(
+                _calls.Any(args => args.SequenceEqual(
+                    new[]
+                    {
+                        "workload", "clean",
+                    })),
+                Is.False);
         });
     }
 
@@ -96,7 +109,11 @@ public sealed class WorkloadCleanupViewModelTests
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _runOverride = async (executable, args, workingDirectory, logPath, timeout, token, environment) =>
         {
-            if (args.SequenceEqual(new[] { "workload", "clean" }))
+            if (args.SequenceEqual(
+                new[]
+                {
+                    "workload", "clean",
+                }))
             {
                 await File.WriteAllTextAsync(logPath, "controlled workload output");
                 started.SetResult();
@@ -110,7 +127,14 @@ public sealed class WorkloadCleanupViewModelTests
                 }
             }
 
-            var output = args.SequenceEqual(new[] { "--version" }) ? "10.0.303" : _installed;
+            var output = args.SequenceEqual(
+                new[]
+                {
+                    "--version",
+                })
+                ? "10.0.303"
+                : _installed;
+
             return new(DotNetCliOutcome.Succeeded, 0, output, logPath, false, null);
         };
 
@@ -234,7 +258,13 @@ public sealed class WorkloadCleanupViewModelTests
             Assert.That(vm.ResultText, Does.Contain("Завершено"));
             Assert.That(vm.ResultText, Does.Not.Contain("данных:"));
             Assert.That(vm.LogPath, Does.EndWith("workload-clean.log"));
-            Assert.That(_calls, Does.Contain(new[] { "workload", "clean" }));
+            Assert.That(
+                _calls,
+                Does.Contain(
+                    new[]
+                    {
+                        "workload", "clean",
+                    }));
         });
     }
 
@@ -250,8 +280,16 @@ public sealed class WorkloadCleanupViewModelTests
                     return _runOverride(executable, args, workingDirectory, logPath, timeout, token, environment);
                 }
 
-                var output = args.SequenceEqual(new[] { "--version" }) ? "10.0.303"
-                    : args.SequenceEqual(new[] { "workload", "list" }) ? _installed : "cleaned";
+                var output = args.SequenceEqual(
+                        new[]
+                        {
+                            "--version",
+                        }) ? "10.0.303"
+                    : args.SequenceEqual(
+                        new[]
+                        {
+                            "workload", "list",
+                        }) ? _installed : "cleaned";
 
                 return Task.FromResult(new DotNetCliResult(DotNetCliOutcome.Succeeded, 0, output, logPath, false, null));
             },

@@ -368,7 +368,10 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
             [
                 new("Отмена", ConfirmChoiceKind.Dismissive),
                 new(action, ConfirmChoiceKind.Destructive),
-            ]) { Warning = "Docker удаляет мимо корзины – вернуть удалённое нельзя." };
+            ])
+        {
+            Warning = "Docker удаляет мимо корзины – вернуть удалённое нельзя.",
+        };
 
         if (!await _dialogs.ShowAsync(confirm))
         {

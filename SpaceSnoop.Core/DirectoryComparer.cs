@@ -80,7 +80,11 @@ public sealed class DirectoryComparer(ExclusionFilter exclusionFilter, ILogger<D
         cancel.ThrowIfCancellationRequested();
 
         var name = leftDir?.Name ?? rightDir!.Name;
-        var comparison = new DirectoryComparison(name, relativePath) { LeftModified = leftDir is { Exists: true } ? leftDir.LastWriteTime : null, RightModified = rightDir is { Exists: true } ? rightDir.LastWriteTime : null };
+        var comparison = new DirectoryComparison(name, relativePath)
+        {
+            LeftModified = leftDir is { Exists: true } ? leftDir.LastWriteTime : null,
+            RightModified = rightDir is { Exists: true } ? rightDir.LastWriteTime : null,
+        };
 
         var leftLinks = new HashSet<string>(rules.Left);
         var rightLinks = new HashSet<string>(rules.Right);

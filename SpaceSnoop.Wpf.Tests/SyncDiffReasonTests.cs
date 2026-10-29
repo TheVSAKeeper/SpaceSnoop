@@ -11,7 +11,10 @@ public class SyncDiffReasonTests
     [Test]
     public void Не_изменённый_файл_без_причины()
     {
-        var file = new FileComparison("a.txt", "a.txt") { Status = ComparisonStatus.Identical };
+        var file = new FileComparison("a.txt", "a.txt")
+        {
+            Status = ComparisonStatus.Identical,
+        };
 
         Assert.That(SyncNodeText.DescribeDiff(file), Is.Empty);
     }

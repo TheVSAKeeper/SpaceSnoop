@@ -152,7 +152,10 @@ public sealed class DotNetCleanTests
     public async Task Exact_arguments_and_project_directory_are_previewed_and_executed_once()
     {
         var plan = await _service.InspectAsync(_project, new("Release", "net10.0", "win-x64"), true, default);
-        var expected = new[] { "clean", _project, "--configuration", "Release", "--framework", "net10.0", "--runtime", "win-x64", "--disable-build-servers" };
+        var expected = new[]
+        {
+            "clean", _project, "--configuration", "Release", "--framework", "net10.0", "--runtime", "win-x64", "--disable-build-servers",
+        };
 
         Assert.Multiple(() =>
         {
@@ -253,7 +256,10 @@ public sealed class DotNetCleanTests
     public async Task Real_MSBuild_target_runs_only_after_explicit_trust_and_clean()
     {
         var sentinel = Path.Combine(_root, "clean-owned-sentinel.txt");
-        File.WriteAllText(_project, "<Project><Target Name=\"Clean\"><WriteLinesToFile File=\"clean-owned-sentinel.txt\" Lines=\"executed\" Overwrite=\"true\" /></Target></Project>");
+        File.WriteAllText(
+            _project,
+            "<Project><Target Name=\"Clean\"><WriteLinesToFile File=\"clean-owned-sentinel.txt\" Lines=\"executed\" Overwrite=\"true\" /></Target></Project>");
+
         var service = new DotNetCleanService(new(), LogPath, () => DateTime.UtcNow);
         Assert.ThrowsAsync<InvalidOperationException>(() => service.InspectAsync(_project, new(), false, default));
         Assert.That(File.Exists(sentinel), Is.False);
@@ -305,7 +311,12 @@ public sealed class DotNetCleanTests
             Assert.That(executable, Is.EqualTo(_executable));
         });
 
-        var version = arguments.SequenceEqual(new[] { "--version" });
+        var version = arguments.SequenceEqual(
+            new[]
+            {
+                "--version",
+            });
+
         var outcome = version ? _versionOutcome : _cleanOutcome;
         return Task.FromResult(
             new DotNetCliResult(

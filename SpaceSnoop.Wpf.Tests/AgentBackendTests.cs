@@ -34,7 +34,11 @@ public class AgentBackendTests
     public void Mcp_добавляет_disallowed_tools_для_запрещённых_инструментов()
     {
         var mcp = new AgentMcpConfig("spacesnoop", "http://127.0.0.1:7654/mcp", "secret-token", ["scan_directory"], ["sync_current", "open_sync"]);
-        var request = new AgentRequest { Prompt = "куда делось место", Mcp = mcp };
+        var request = new AgentRequest
+        {
+            Prompt = "куда делось место",
+            Mcp = mcp,
+        };
 
         var args = ClaudeAgentBackend.BuildArguments(request, @"C:\temp\mcp.json");
 
@@ -49,7 +53,11 @@ public class AgentBackendTests
     public void Mcp_добавляет_путь_к_конфигу_и_allowed_tools()
     {
         var mcp = new AgentMcpConfig("spacesnoop", "http://127.0.0.1:7654/mcp", "secret-token", ["scan_directory", "list_profiles"], []);
-        var request = new AgentRequest { Prompt = "куда делось место", Mcp = mcp };
+        var request = new AgentRequest
+        {
+            Prompt = "куда делось место",
+            Mcp = mcp,
+        };
 
         var args = ClaudeAgentBackend.BuildArguments(request, @"C:\temp\mcp.json");
 
@@ -97,7 +105,12 @@ public class AgentBackendTests
     [TestCase("xhigh", ExpectedResult = true)]
     public bool Глубина_рассуждений_добавляется_только_когда_задана(string effort)
     {
-        var request = new AgentRequest { Prompt = "тест", Effort = effort };
+        var request = new AgentRequest
+        {
+            Prompt = "тест",
+            Effort = effort,
+        };
+
         var args = ClaudeAgentBackend.BuildArguments(request, null);
 
         return args.Contains("--effort") && args.Contains(effort);
@@ -179,18 +192,33 @@ public class AgentBackendTests
     [Test]
     public void Минимальный_запрос_даёт_базовый_набор_флагов()
     {
-        var request = new AgentRequest { Prompt = "привет" };
+        var request = new AgentRequest
+        {
+            Prompt = "привет",
+        };
 
         var args = ClaudeAgentBackend.BuildArguments(request, null);
 
-        Assert.That(args, Is.EqualTo(new[] { "--print", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-mode", "dontAsk", "--tools", "", "--setting-sources", "", "--disable-slash-commands", "--system-prompt", AgentPrompt.System }));
+        Assert.That(
+            args,
+            Is.EqualTo(
+                new[]
+                {
+                    "--print", "--output-format", "stream-json", "--verbose", "--include-partial-messages", "--permission-mode", "dontAsk", "--tools", "", "--setting-sources",
+                    "", "--disable-slash-commands", "--system-prompt", AgentPrompt.System,
+                }));
     }
 
     [TestCase("", ExpectedResult = false)]
     [TestCase("sonnet", ExpectedResult = true)]
     public bool Модель_добавляется_только_когда_задана(string model)
     {
-        var request = new AgentRequest { Prompt = "тест", Model = model };
+        var request = new AgentRequest
+        {
+            Prompt = "тест",
+            Model = model,
+        };
+
         var args = ClaudeAgentBackend.BuildArguments(request, null);
 
         return args.Contains("--model") && args.Contains(model);
@@ -204,7 +232,14 @@ public class AgentBackendTests
         Assert.Multiple(() =>
         {
             Assert.That(info!.FileName, Is.EqualTo(@"C:\A\claude.exe"));
-            Assert.That(info.ArgumentList, Is.EqualTo(new[] { "--model", "sonnet" }));
+            Assert.That(
+                info.ArgumentList,
+                Is.EqualTo(
+                    new[]
+                    {
+                        "--model", "sonnet",
+                    }));
+
             Assert.That(info.Arguments, Is.Empty);
         });
     }
@@ -230,7 +265,13 @@ public class AgentBackendTests
 
         var disconnected = ClaudeAgentBackend.ParseDisconnectedMcpServers(line);
 
-        Assert.That(disconnected, Is.EqualTo(new[] { ("spacesnoop", "failed") }));
+        Assert.That(
+            disconnected,
+            Is.EqualTo(
+                new[]
+                {
+                    ("spacesnoop", "failed"),
+                }));
     }
 
     [Test]
@@ -275,7 +316,11 @@ public class AgentBackendTests
     [Test]
     public void Продолжение_сессии_добавляется_через_resume()
     {
-        var request = new AgentRequest { Prompt = "тест", ResumeSessionId = "session-42" };
+        var request = new AgentRequest
+        {
+            Prompt = "тест",
+            ResumeSessionId = "session-42",
+        };
 
         var args = ClaudeAgentBackend.BuildArguments(request, null);
 
@@ -296,7 +341,11 @@ public class AgentBackendTests
     public void Пустой_deny_список_не_добавляет_disallowed_tools()
     {
         var mcp = new AgentMcpConfig("spacesnoop", "http://127.0.0.1:7654/mcp", "secret-token", ["scan_directory"], []);
-        var request = new AgentRequest { Prompt = "тест", Mcp = mcp };
+        var request = new AgentRequest
+        {
+            Prompt = "тест",
+            Mcp = mcp,
+        };
 
         var args = ClaudeAgentBackend.BuildArguments(request, @"C:\temp\mcp.json");
 
@@ -328,7 +377,11 @@ public class AgentBackendTests
     [Test]
     public void Свой_системный_промпт_заменяет_дефолтный()
     {
-        var request = new AgentRequest { Prompt = "тест", SystemPrompt = "Кастомный промпт" };
+        var request = new AgentRequest
+        {
+            Prompt = "тест",
+            SystemPrompt = "Кастомный промпт",
+        };
 
         var args = ClaudeAgentBackend.BuildArguments(request, null);
 
@@ -387,7 +440,13 @@ public class AgentBackendTests
     {
         var info = AgentCli.CreateStartInfo(@"C:\A\claude.exe", ["gpt-%USERNAME%-sol"]);
 
-        Assert.That(info?.ArgumentList, Is.EqualTo(new[] { "gpt-%USERNAME%-sol" }));
+        Assert.That(
+            info?.ArgumentList,
+            Is.EqualTo(
+                new[]
+                {
+                    "gpt-%USERNAME%-sol",
+                }));
     }
 
     [Test]

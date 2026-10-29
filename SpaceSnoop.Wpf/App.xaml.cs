@@ -51,7 +51,13 @@ public partial class App : Application
         services.AddSingleton<ThemeViewModel>();
         services.AddSingleton<SystemTheme>();
 
-        services.AddSingleton(new ErrorReportOptions { IssueRepo = () => AppInfo.RepoSlug, LogFileGlobs = [AppInfo.LogFileGlob], SessionStartMarker = AppInfo.SessionStartMarker });
+        services.AddSingleton(
+            new ErrorReportOptions
+            {
+                IssueRepo = () => AppInfo.RepoSlug,
+                LogFileGlobs = [AppInfo.LogFileGlob],
+                SessionStartMarker = AppInfo.SessionStartMarker,
+            });
 
         services.AddSingleton<ErrorReportService>();
 
@@ -143,7 +149,12 @@ public partial class App : Application
         services.AddSingleton<McpBridge>();
         services.AddSingleton<McpServerHost>();
 
-        return services.BuildServiceProvider(new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true });
+        return services.BuildServiceProvider(
+            new ServiceProviderOptions
+            {
+                ValidateOnBuild = true,
+                ValidateScopes = true,
+            });
     }
 
     protected override void OnStartup(StartupEventArgs e)
@@ -164,7 +175,13 @@ public partial class App : Application
 
             var candidate = Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName);
 
-            _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = candidate, FileNamePrefix = AppInfo.LogFilePrefix, MinimumLevelOverrides = AppDefaults.LogLevelOverrides });
+            _logging = KeepShellLogging.Bootstrap(
+                new()
+                {
+                    LogsDirectory = candidate,
+                    FileNamePrefix = AppInfo.LogFilePrefix,
+                    MinimumLevelOverrides = AppDefaults.LogLevelOverrides,
+                });
 
             logsDirectory = candidate;
         }

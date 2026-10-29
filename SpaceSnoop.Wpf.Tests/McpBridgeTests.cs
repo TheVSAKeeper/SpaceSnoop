@@ -71,7 +71,10 @@ public class McpBridgeTests
     [Test]
     public void Возраст_снимка_виден_агенту_чтобы_отличить_протухший()
     {
-        var fresh = PerformanceSnapshot.Empty with { CapturedAtUtc = DateTime.UtcNow.AddSeconds(-30) };
+        var fresh = PerformanceSnapshot.Empty with
+        {
+            CapturedAtUtc = DateTime.UtcNow.AddSeconds(-30),
+        };
 
         Assert.Multiple(() =>
         {
@@ -220,7 +223,11 @@ public class McpBridgeTests
     [Test]
     public void Окно_наблюдения_называет_охваченное_время_и_число_замеров()
     {
-        var snapshot = PerformanceSnapshot.Empty with { SampleCount = 20, ObservedSpanSeconds = 13.5 };
+        var snapshot = PerformanceSnapshot.Empty with
+        {
+            SampleCount = 20,
+            ObservedSpanSeconds = 13.5,
+        };
 
         Assert.That(McpFormat.DescribeWindow(snapshot), Does.StartWith("последние 13").And.Contains("(20 замеров)"));
     }

@@ -66,7 +66,11 @@ public sealed class GitService
 
         try
         {
-            using var process = new Process { StartInfo = psi };
+            using var process = new Process
+            {
+                StartInfo = psi,
+            };
+
             process.Start();
 
             var stdOut = process.StandardOutput.ReadToEndAsync(cancel);

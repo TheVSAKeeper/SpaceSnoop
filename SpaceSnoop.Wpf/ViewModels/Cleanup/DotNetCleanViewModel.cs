@@ -314,11 +314,15 @@ public sealed partial class DotNetCleanViewModel : ObservableObject
                 new ConfirmTextLine("Исполняемый файл: " + plan.Executable),
                 new ConfirmTextLine("Рабочий каталог: " + plan.WorkingDirectory),
                 new ConfirmTextLine("Активный SDK: " + plan.SdkVersion),
-                new ConfirmTextLine($"Параметры: configuration={plan.Options.Configuration}, framework={plan.Options.Framework ?? "(нет)"}, runtime={plan.Options.Runtime ?? "(нет)"}"),
+                new ConfirmTextLine(
+                    $"Параметры: configuration={plan.Options.Configuration}, framework={plan.Options.Framework ?? "(нет)"}, runtime={plan.Options.Runtime ?? "(нет)"}"),
                 new ConfirmTextLine("Очистка необратима, может завершиться частично и не имеет отката или пробного запуска.", ConfirmTextTone.Strong),
                 new ConfirmTextLine("Отмена останавливает только процесс dotnet и его дочерние процессы. Уже удалённые файлы не восстанавливаются."),
             ],
-            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Выполнить dotnet clean", ConfirmChoiceKind.Destructive)]) { Warning = "Проверьте проект, SDK и точную команду. Импортированные задачи могут менять данные вне каталога проекта." };
+            [new("Отмена", ConfirmChoiceKind.Dismissive), new("Выполнить dotnet clean", ConfirmChoiceKind.Destructive)])
+        {
+            Warning = "Проверьте проект, SDK и точную команду. Импортированные задачи могут менять данные вне каталога проекта.",
+        };
 
         _operation.Begin(value => IsBusy = value);
         try

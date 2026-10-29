@@ -15,7 +15,13 @@ public sealed class ChatHistoryStore
 
     private static readonly JsonSerializerOptions Options = new()
     {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping, Converters = { new JsonStringEnumConverter() }, WriteIndented = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        Converters =
+        {
+            new JsonStringEnumConverter(),
+        },
+        WriteIndented = true,
     };
 
     private readonly ILogger<ChatHistoryStore> _logger;
@@ -89,7 +95,10 @@ public sealed class ChatHistoryStore
 
     public void Save(IEnumerable<ChatConversationRecord> conversations)
     {
-        var document = new ChatHistoryDocument { Conversations = Trim(conversations) };
+        var document = new ChatHistoryDocument
+        {
+            Conversations = Trim(conversations),
+        };
 
         try
         {

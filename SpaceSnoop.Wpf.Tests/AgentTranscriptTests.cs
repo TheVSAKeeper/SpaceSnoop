@@ -36,9 +36,21 @@ public class AgentTranscriptTests
     [Test]
     public void Запуск_описывается_без_секретов_но_с_аргументами()
     {
-        var request = new AgentRequest { Prompt = "куда делось место", Model = "gpt-5.6-luna", Mcp = new("spacesnoop", "http://127.0.0.1:7654/mcp", "секретный-токен", ["scan_directory"], []) };
+        var request = new AgentRequest
+        {
+            Prompt = "куда делось место",
+            Model = "gpt-5.6-luna",
+            Mcp = new("spacesnoop", "http://127.0.0.1:7654/mcp", "секретный-токен", ["scan_directory"], []),
+        };
 
-        var launch = new AgentLaunch { Arguments = ["exec", "-", "--json"], Environment = new Dictionary<string, string> { ["SPACESNOOP_MCP_TOKEN"] = "секретный-токен" } };
+        var launch = new AgentLaunch
+        {
+            Arguments = ["exec", "-", "--json"],
+            Environment = new Dictionary<string, string>
+            {
+                ["SPACESNOOP_MCP_TOKEN"] = "секретный-токен",
+            },
+        };
 
         var text = AgentBackendBase.DescribeLaunch("Codex", new(@"C:\codex.exe", "0.145.0"), request, launch);
 
@@ -72,7 +84,13 @@ public class AgentTranscriptTests
             @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl",
         ];
 
-        Assert.That(AgentTranscriptStore.Obsolete(files, 1), Is.EqualTo(new[] { @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl", @"C:\logs\chat\turn-20260725-090000-000-claude.jsonl" }));
+        Assert.That(
+            AgentTranscriptStore.Obsolete(files, 1),
+            Is.EqualTo(
+                new[]
+                {
+                    @"C:\logs\chat\turn-20260726-120000-000-codex.jsonl", @"C:\logs\chat\turn-20260725-090000-000-claude.jsonl",
+                }));
     }
 
     [Test]
@@ -117,7 +135,10 @@ public class AgentTranscriptTests
 
     private AgentTranscriptStore Store(bool enabled)
     {
-        var preferences = new AgentPreferences(new MemorySettings()) { Transcript = enabled };
+        var preferences = new AgentPreferences(new MemorySettings())
+        {
+            Transcript = enabled,
+        };
 
         return new(preferences, NullLogger<AgentTranscriptStore>.Instance, Path.Combine(_directory.FullName, "chat"));
     }

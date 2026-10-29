@@ -110,13 +110,18 @@ public class SyncLogHeaderTests
         {
             Assert.That(SyncLog.MatchesOrigin("Автосинхронизация [Профиль]: 1 успешно, 0 ошибок", SyncLogOrigin.Scheduled), Is.False);
             Assert.That(SyncLog.MatchesOrigin("  файл.txt", SyncLogOrigin.Scheduled), Is.False);
-            Assert.That(SyncLog.MatchesOrigin(SyncLog.FormatHeader(SyncLogOrigin.Scheduled, "Профиль", Report(1, 0), SyncVerifyState.None, Stamp), SyncLogOrigin.None), Is.False);
+            Assert.That(
+                SyncLog.MatchesOrigin(SyncLog.FormatHeader(SyncLogOrigin.Scheduled, "Профиль", Report(1, 0), SyncVerifyState.None, Stamp), SyncLogOrigin.None),
+                Is.False);
         });
     }
 
     private static SyncReport Report(int success, int errors, int mismatches = 0)
     {
-        var report = new SyncReport { CopiedCount = success };
+        var report = new SyncReport
+        {
+            CopiedCount = success,
+        };
 
         for (var i = 0; i < errors; i++)
         {

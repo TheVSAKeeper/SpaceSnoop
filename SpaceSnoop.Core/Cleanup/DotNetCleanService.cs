@@ -9,7 +9,12 @@ namespace SpaceSnoop.Core.Cleanup;
 public sealed class DotNetCleanService
 {
     private static readonly IReadOnlyDictionary<string, string> ProcessEnvironment =
-        new ReadOnlyDictionary<string, string>(new Dictionary<string, string> { ["MSBUILDDISABLENODEREUSE"] = "1", ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0" });
+        new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>
+            {
+                ["MSBUILDDISABLENODEREUSE"] = "1",
+                ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0",
+            });
 
     private readonly Guid _owner = Guid.NewGuid();
     private readonly Func<string> _resolveExecutable;
@@ -67,7 +72,14 @@ public sealed class DotNetCleanService
             throw new IOException("Проект или global.json изменился во время проверки. Повторите проверку.");
         }
 
-        var arguments = new List<string> { "clean", project, "--configuration", options.Configuration };
+        var arguments = new List<string>
+        {
+            "clean",
+            project,
+            "--configuration",
+            options.Configuration,
+        };
+
         if (!string.IsNullOrEmpty(options.Framework))
         {
             arguments.AddRange(["--framework", options.Framework]);
@@ -228,7 +240,10 @@ public sealed class DotNetCleanService
             throw new IOException("Укажите configuration.");
         }
 
-        foreach (var value in new[] { options.Configuration, options.Framework, options.Runtime })
+        foreach (var value in new[]
+        {
+            options.Configuration, options.Framework, options.Runtime,
+        })
         {
             if (value is null)
             {

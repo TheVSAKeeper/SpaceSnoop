@@ -31,7 +31,12 @@ public class ScanPageNoticeTests
         ISettingsStore settings = new MemorySettings();
         settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
 
-        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+        _logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(_root, "logs"),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
 
         _services = App.ConfigureServices(settings, _logging);
         _dialogs = new();
@@ -120,8 +125,21 @@ public class ScanPageNoticeTests
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(afterCancel, Is.EqualTo(new[] { other.AbsolutePath }));
-            Assert.That(_scan.Roots.Select(static root => root.AbsolutePath), Is.EqualTo(new[] { target.AbsolutePath, other.AbsolutePath }));
+            Assert.That(
+                afterCancel,
+                Is.EqualTo(
+                    new[]
+                    {
+                        other.AbsolutePath,
+                    }));
+
+            Assert.That(
+                _scan.Roots.Select(static root => root.AbsolutePath),
+                Is.EqualTo(
+                    new[]
+                    {
+                        target.AbsolutePath, other.AbsolutePath,
+                    }));
         }
     }
 

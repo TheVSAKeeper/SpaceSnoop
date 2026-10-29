@@ -32,27 +32,45 @@ public sealed record AgentEvent(AgentEventKind Kind)
 
     public static AgentEvent Begin(string sessionId)
     {
-        return new(AgentEventKind.Started) { SessionId = sessionId };
+        return new(AgentEventKind.Started)
+        {
+            SessionId = sessionId,
+        };
     }
 
     public static AgentEvent Chunk(string text)
     {
-        return new(AgentEventKind.Text) { Text = text };
+        return new(AgentEventKind.Text)
+        {
+            Text = text,
+        };
     }
 
     public static AgentEvent Tool(string toolName, string arguments = "")
     {
-        return new(AgentEventKind.ToolCall) { ToolName = toolName, ToolArguments = arguments };
+        return new(AgentEventKind.ToolCall)
+        {
+            ToolName = toolName,
+            ToolArguments = arguments,
+        };
     }
 
     public static AgentEvent Done(string? sessionId, double costUsd, long tokens = 0)
     {
-        return new(AgentEventKind.Completed) { SessionId = sessionId, CostUsd = costUsd, Tokens = tokens };
+        return new(AgentEventKind.Completed)
+        {
+            SessionId = sessionId,
+            CostUsd = costUsd,
+            Tokens = tokens,
+        };
     }
 
     public static AgentEvent Fail(string reason)
     {
-        return new(AgentEventKind.Failed) { Text = reason };
+        return new(AgentEventKind.Failed)
+        {
+            Text = reason,
+        };
     }
 }
 

@@ -77,7 +77,12 @@ public class BindingSmokeTests
         ThemeManager.Apply(AppThemes.LightKey);
         ViewLocator.InstallIntoApplication();
 
-        _logging = KeepShellLogging.Bootstrap(new() { LogsDirectory = Path.Combine(_fixture.Root, "logs"), FileNamePrefix = AppInfo.LogFilePrefix });
+        _logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(_fixture.Root, "logs"),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
 
         _services = App.ConfigureServices(settings, _logging);
         _shell = _services.GetRequiredService<ShellViewModel>();
@@ -162,7 +167,14 @@ public class BindingSmokeTests
                 Assert.That(reopened, Is.Not.SameAs(rail), "Страница вернулась тем же рейлом – регрессию проверять не на чем.");
                 Assert.That(reopened.Sections, Is.SameAs(sections), "Разделы у страницы новые – терять фильтр было негде.");
                 Assert.That(reopened.SearchText, Is.EqualTo("шнырь"), "Новый рейл затёр запрос, который держал список разделов.");
-                Assert.That(sections.Items.Where(section => section.IsVisible).Select(section => section.Key), Is.EqualTo(new[] { "agent" }));
+                Assert.That(
+                    sections.Items.Where(section => section.IsVisible).Select(section => section.Key),
+                    Is.EqualTo(
+                        new[]
+                        {
+                            "agent",
+                        }));
+
                 Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
             }
         }
@@ -362,7 +374,11 @@ public class BindingSmokeTests
             var tipText = Descendants<TextBlock>(view).Single(text => text.Text == page.Tips.Text);
             var tree = Descendants<TreeView>(view).Single(static tree => tree.IsVisible);
             var viewport = Descendant<ScrollContentPresenter>(tree) ?? throw new InvalidOperationException("У дерева нет области прокрутки.");
-            var row = Descendants<TreeViewItem>(tree).Select(static item => item.Template.FindName("SelectionBd", item)).OfType<FrameworkElement>().First(static bd => bd.ActualHeight > 0);
+            var row = Descendants<TreeViewItem>(tree)
+                .Select(static item => item.Template.FindName("SelectionBd", item))
+                .OfType<FrameworkElement>()
+                .First(static bd => bd.ActualHeight > 0);
+
             var title = Descendants<TextBlock>(view).Single(static text => text.Text == "Структура каталога");
             var structure = Descendant<ScanStructurePanel>(view) ?? throw new InvalidOperationException("Панель структуры не найдена.");
             var railPanel = Descendant<ScanInspectorRail>(view) ?? throw new InvalidOperationException("Свёрнутая колонка деталей не найдена.");
@@ -383,7 +399,11 @@ public class BindingSmokeTests
                 Assert.That(tipText.IsVisible, Is.EqualTo(!bigFont), "Текст совета в сжатом виде должен прятаться до щелчка.");
                 Assert.That(railBottom, Is.LessThanOrEqualTo(content.ActualHeight + 0.5), "Подпись свёрнутых деталей режется снизу.");
                 Assert.That(tree.GetValue(AutomationProperties.NameProperty), Is.EqualTo("Структура каталога"), "Дерево без имени для экранного диктора.");
-                Assert.That(structure.TreeRowCapacity() * row.ActualHeight, Is.EqualTo(viewport.ActualHeight).Within(1), "Запас строк дерева посчитан не по его настоящей высоте.");
+                Assert.That(
+                    structure.TreeRowCapacity() * row.ActualHeight,
+                    Is.EqualTo(viewport.ActualHeight).Within(1),
+                    "Запас строк дерева посчитан не по его настоящей высоте.");
+
                 Assert.That(railBounds.Where(rect => rect.Bottom > (content.ActualHeight + 0.5)), Is.Empty, "Кнопка свёрнутых деталей режется снизу.");
                 Assert.That(railActions.IsVisible || moreButton.IsVisible, Is.True, "Действия выбранного узла недоступны из свёрнутых деталей.");
 
@@ -392,7 +412,11 @@ public class BindingSmokeTests
                     moreButton.RaiseEvent(new(ButtonBase.ClickEvent));
                     Settle();
                     Assert.That(moreMenu.IsOpen, Is.True, "Кнопка «Ещё» не открыла меню действий.");
-                    Assert.That(moreMenu.Items.OfType<MenuItem>().Count(static item => item.Visibility == Visibility.Visible), Is.EqualTo(actionCount), "В меню «Ещё» не все действия свёрнутых деталей.");
+                    Assert.That(
+                        moreMenu.Items.OfType<MenuItem>().Count(static item => item.Visibility == Visibility.Visible),
+                        Is.EqualTo(actionCount),
+                        "В меню «Ещё» не все действия свёрнутых деталей.");
+
                     moreMenu.IsOpen = false;
                 }
             }
@@ -426,7 +450,10 @@ public class BindingSmokeTests
             .Select(field => field.Label)
             .ToArray();
 
-        Assert.That(missing, Is.Empty, $"Настройка сбрасывается разделом, но кнопки в своей строке не получила: {string.Join(", ", missing)}. Заведите её в карточке или объявите исключением здесь.");
+        Assert.That(
+            missing,
+            Is.Empty,
+            $"Настройка сбрасывается разделом, но кнопки в своей строке не получила: {string.Join(", ", missing)}. Заведите её в карточке или объявите исключением здесь.");
     }
 
     [Test]
@@ -459,7 +486,10 @@ public class BindingSmokeTests
         sections.Restore(restore);
         Settle();
 
-        Assert.That(missing, Is.Empty, $"Подпункт рейла не нашёл своего блока в карточке, поэтому нажатие на него никуда не прокрутит: {string.Join(", ", missing)}. Пометьте блок через SettingsBlock.Key или уберите подпункт.");
+        Assert.That(
+            missing,
+            Is.Empty,
+            $"Подпункт рейла не нашёл своего блока в карточке, поэтому нажатие на него никуда не прокрутит: {string.Join(", ", missing)}. Пометьте блок через SettingsBlock.Key или уберите подпункт.");
     }
 
     [Test]
@@ -539,7 +569,10 @@ public class BindingSmokeTests
                 Assert.That(area.Bottom, Is.LessThanOrEqualTo(_window.ActualHeight + 0.5), "Страница скана выше окна – край страницы не край видимой области.");
                 Assert.That(start.IsVisible, Is.True, "Кнопка «Сканировать» не показана.");
                 Assert.That(button.Top, Is.GreaterThanOrEqualTo(area.Top), "Кнопка «Сканировать» выше страницы.");
-                Assert.That(button.Bottom, Is.LessThanOrEqualTo(area.Bottom + 0.5), $"Кнопка «Сканировать» уходит за нижний край страницы на {button.Bottom - area.Bottom:F0} px.");
+                Assert.That(
+                    button.Bottom,
+                    Is.LessThanOrEqualTo(area.Bottom + 0.5),
+                    $"Кнопка «Сканировать» уходит за нижний край страницы на {button.Bottom - area.Bottom:F0} px.");
             }
         }
         finally
@@ -590,7 +623,11 @@ public class BindingSmokeTests
 
             Assert.That(
                 flipped,
-                Is.EqualTo(new[] { button }),
+                Is.EqualTo(
+                    new[]
+                    {
+                        button,
+                    }),
                 $"Правка строки «{box.Content}» отозвалась не на своей кнопке: {string.Join(", ", flipped.Select(AutomationProperties.GetName))}. Кнопка привязана к чужой настройке.");
         }
     }
@@ -621,10 +658,23 @@ public class BindingSmokeTests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Синхронизировать .git", "Пропустить .git" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(
+                    buttons.Select(static button => button.Content),
+                    Is.EqualTo(
+                        new[]
+                        {
+                            "Синхронизировать .git", "Пропустить .git",
+                        }),
+                    "Порядок фокуса исходов изменился: первым должен идти отказ.");
+
                 Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда кнопок.");
                 Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик кнопок видны не взаимоисключающе.");
-                Assert.That(buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - button.Margin.Left - button.Margin.Right - 0.5)).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
+                Assert.That(
+                    buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - button.Margin.Left - button.Margin.Right - 0.5))
+                        .Select(static button => button.Content),
+                    Is.Empty,
+                    "Подпись кнопки режется.");
+
                 Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > (view.ActualWidth + 0.5)), Is.Empty, "Кнопка выходит за край диалога.");
                 Assert.That(buttons.Count(static button => button.IsDefault), Is.EqualTo(1), "Enter подтверждает не одну кнопку.");
                 Assert.That(buttons.Count(static button => button.IsCancel), Is.EqualTo(1), "Escape отвечает не одной кнопкой.");
@@ -637,7 +687,10 @@ public class BindingSmokeTests
                 else
                 {
                     Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Кнопки в обычном окне не в один ряд.");
-                    Assert.That(buttons[1].TransformToAncestor(row).TransformBounds(new(buttons[1].RenderSize)).Right, Is.EqualTo(row.ActualWidth).Within(1), "Ряд кнопок не прижат вправо.");
+                    Assert.That(
+                        buttons[1].TransformToAncestor(row).TransformBounds(new(buttons[1].RenderSize)).Right,
+                        Is.EqualTo(row.ActualWidth).Within(1),
+                        "Ряд кнопок не прижат вправо.");
                 }
             }
         }
@@ -677,10 +730,22 @@ public class BindingSmokeTests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Не перезапускать", "Больше не спрашивать", "Перезапустить" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(
+                    buttons.Select(static button => button.Content),
+                    Is.EqualTo(
+                        new[]
+                        {
+                            "Не перезапускать", "Больше не спрашивать", "Перезапустить",
+                        }),
+                    "Порядок фокуса исходов изменился: первым должен идти отказ.");
+
                 Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда исходов.");
                 Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик исходов видны не взаимоисключающе.");
-                Assert.That(buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - 0.5)).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
+                Assert.That(
+                    buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - 0.5)).Select(static button => button.Content),
+                    Is.Empty,
+                    "Подпись кнопки режется.");
+
                 Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > (view.ActualWidth + 0.5)), Is.Empty, "Кнопка выходит за край диалога.");
 
                 if (bigFont)
@@ -839,7 +904,8 @@ public class BindingSmokeTests
                     }
                     else if (element is Control && bounds.Right > (host.ActualWidth + 1))
                     {
-                        problems.Add($"{section.Title}: {element.GetType().Name} «{AutomationProperties.GetName(element)}» уходит за край на {bounds.Right - host.ActualWidth:F0} px");
+                        problems.Add(
+                            $"{section.Title}: {element.GetType().Name} «{AutomationProperties.GetName(element)}» уходит за край на {bounds.Right - host.ActualWidth:F0} px");
                     }
                 }
             }
@@ -1047,7 +1113,11 @@ public class BindingSmokeTests
     [Test]
     public void Потерянный_путь_биндинга_виден_тесту()
     {
-        var probe = new TextBlock { DataContext = _shell };
+        var probe = new TextBlock
+        {
+            DataContext = _shell,
+        };
+
         probe.SetBinding(TextBlock.TextProperty, new Binding("НетТакогоСвойства"));
 
         Settle();
@@ -1200,7 +1270,11 @@ public class BindingSmokeTests
             projects.SearchText = "coverage";
             Assert.That(
                 projects.RowsView.Cast<ProjectArtifactViewModel>().Select(x => x.Kind),
-                Is.EquivalentTo(new[] { ProjectArtifactKind.Coverage }));
+                Is.EquivalentTo(
+                    new[]
+                    {
+                        ProjectArtifactKind.Coverage,
+                    }));
 
             projects.SearchText = string.Empty;
             Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));

@@ -78,7 +78,11 @@ public class SyncOutcomesTests
     private static FileComparison File(string relativePath, SyncAction action)
     {
         var name = relativePath.Split('/')[^1];
-        return new(name, relativePath) { Status = ComparisonStatus.LeftOnly, Action = action };
+        return new(name, relativePath)
+        {
+            Status = ComparisonStatus.LeftOnly,
+            Action = action,
+        };
     }
 
     private static DirectoryComparison Dir(string name, params FileComparison[] files)
