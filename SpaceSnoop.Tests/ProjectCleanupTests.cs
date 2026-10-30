@@ -23,12 +23,7 @@ public sealed class ProjectCleanupTests
         _root = Path.Combine(repository!.FullName, ".kc", "scratch", "project-cleanup-tests", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_root);
         _recycled = [];
-        _service = new(path =>
-        {
-            var destination = path + "-recycled";
-            Directory.Move(path, destination);
-            _recycled.Add(destination);
-        });
+        _service = new(_recycled.Add);
     }
 
     [TearDown]
@@ -57,7 +52,7 @@ public sealed class ProjectCleanupTests
             Assert.That(result.Cancelled, Is.True);
             Assert.That(result.Deleted, Is.Zero);
             Assert.That(result.FreedBytes, Is.Zero);
-            Assert.That(result.Errors.Single(), Is.EqualTo("Recycle failed"));
+            Assert.That(result.Errors, Is.EqualTo(new[] { "Recycle failed" }));
             Assert.That(File.ReadAllText(file), Is.EqualTo("data"));
             Assert.That(Directory.EnumerateDirectories(_root, ".SpaceSnoop-*", SearchOption.AllDirectories), Is.Empty);
         });
@@ -71,9 +66,7 @@ public sealed class ProjectCleanupTests
         using var cancellation = new CancellationTokenSource();
         _service = new(path =>
         {
-            var destination = path + "-recycled";
-            Directory.Move(path, destination);
-            _recycled.Add(destination);
+            _recycled.Add(path);
             cancellation.Cancel();
         });
 
@@ -524,7 +517,8 @@ public sealed class ProjectCleanupTests
         var result = await Clean(plan, ProjectArtifactKind.Bin);
         Assert.Multiple(() =>
         {
-            Assert.That(result.Errors.Single(), Does.Contain(Path.GetFullPath(changed)).And.Contain("файл изменился после поиска"));
+            Assert.That(result.Errors, Has.Count.EqualTo(1), string.Join(Environment.NewLine, result.Errors));
+            Assert.That(result.Errors, Has.Some.Contains(Path.GetFullPath(changed)).And.Contains("файл изменился после поиска"));
             Assert.That(result.Deleted, Is.EqualTo(1));
             Assert.That(result.FreedBytes, Is.EqualTo(4));
             Assert.That(result.Skipped, Is.EqualTo(1));

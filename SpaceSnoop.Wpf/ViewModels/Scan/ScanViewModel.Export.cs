@@ -99,16 +99,16 @@ public sealed partial class ScanViewModel
         }
         finally
         {
-            try
+            if (temporaryPath is not null)
             {
-                if (temporaryPath is not null)
+                try
                 {
                     File.Delete(temporaryPath);
                 }
-            }
-            catch (Exception exception)
-            {
-                _logger.ScanExportTemporaryFileCleanupFailed(exception, temporaryPath ?? string.Empty);
+                catch (Exception exception)
+                {
+                    _logger.ScanExportTemporaryFileCleanupFailed(exception, temporaryPath);
+                }
             }
 
             cancellation?.Dispose();
