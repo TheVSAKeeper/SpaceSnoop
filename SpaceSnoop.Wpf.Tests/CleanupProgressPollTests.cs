@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Tests;
+using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using System.Runtime.CompilerServices;
 
@@ -73,13 +74,19 @@ public class CleanupProgressPollTests
         {
             using var cancel = new CancellationTokenSource();
             CleanupRequest request = new([Target(target)], 1, 1, cancel.Token);
-            var dialog = new CleanupProgressDialogViewModel(request, new(new CancelOnSkippedDirectory(cancel)), new FakeUiDispatcher(), NullLogger.Instance);
+            using var monitor = TestDiagnostics.Monitor();
+            var operations = new PerformanceOperations(monitor);
+            var dialog = new CleanupProgressDialogViewModel(request, new(new CancelOnSkippedDirectory(cancel)), new FakeUiDispatcher(), NullLogger.Instance, operations);
 
             await dialog.StartCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(dialog.WasCancelled, Is.True);
+                Assert.That(operations.Current, Is.Null);
+                Assert.That(operations.LastCleanup?.Cancelled, Is.True);
+                Assert.That(operations.LastCleanup?.Skipped, Is.EqualTo(1));
+                Assert.That(operations.LastCleanup?.ReportedErrors, Is.Not.Empty);
                 Assert.That(File.Exists(kept), Is.True, "Отмена на обходе не остановила удаление.");
                 Assert.That(dialog.StatusText, Is.EqualTo($"Отменено: удалено 0, освобождено {SizeFormatter.Format(0)}. Пропущено 1 – «{locked}»: каталог не читается"));
             }
@@ -88,6 +95,28 @@ public class CleanupProgressPollTests
         {
             TestAcl.AllowEnumeration(locked);
         }
+    }
+
+    [Test]
+    public async Task Очистка_сохраняет_итог_и_не_снимает_чужую_фазу()
+    {
+        using var monitor = TestDiagnostics.Monitor();
+        var operations = new PerformanceOperations(monitor);
+        var scan = new PerformanceOperation("Сканирование", 0, 0, TimeSpan.Zero);
+        operations.TryReport(scan, null);
+        var dialog = CreateDialog(new(), operations);
+
+        await dialog.StartCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(operations.Current, Is.SameAs(scan));
+            Assert.That(operations.LastCleanup?.Deleted, Is.EqualTo(FilesPerTarget * Targets));
+            Assert.That(operations.LastCleanup?.LogicalDeletedBytes, Is.EqualTo(dialog.FreedBytes));
+            Assert.That(operations.LastCleanup?.Cancelled, Is.False);
+        }
+
+        operations.Release(scan);
     }
 
     [Test]
@@ -160,7 +189,7 @@ public class CleanupProgressPollTests
         }
     }
 
-    private CleanupProgressDialogViewModel CreateDialog(FakeUiDispatcher dispatcher)
+    private CleanupProgressDialogViewModel CreateDialog(FakeUiDispatcher dispatcher, PerformanceOperations? operations = null)
     {
         var targets = Directory.GetDirectories(_root)
             .Order(StringComparer.Ordinal)
@@ -169,7 +198,7 @@ public class CleanupProgressPollTests
 
         CleanupRequest request = new(targets, 512L * FilesPerTarget * Targets, FilesPerTarget * Targets);
 
-        return new(request, new(), dispatcher, NullLogger.Instance);
+        return new(request, new(), dispatcher, NullLogger.Instance, operations ?? new(TestDiagnostics.Monitor()));
     }
 
     private static CleanupTarget Target(string path)

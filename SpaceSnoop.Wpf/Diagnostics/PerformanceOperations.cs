@@ -13,6 +13,8 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
 
     private PerformanceOperation? _last;
 
+    private PerformanceCleanupRun? _lastCleanup;
+
     private IDisposable? _frames;
     private bool _hasVisibleWindow;
 
@@ -21,6 +23,13 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
     public PerformanceOperation? Current => Volatile.Read(ref _current);
 
     public PerformanceOperation? Last => Volatile.Read(ref _last);
+
+    public PerformanceCleanupRun? LastCleanup => Volatile.Read(ref _lastCleanup);
+
+    public void ReportCleanup(PerformanceCleanupRun run)
+    {
+        Volatile.Write(ref _lastCleanup, run);
+    }
 
     public bool TryReport(PerformanceOperation operation, PerformanceOperation? own)
     {

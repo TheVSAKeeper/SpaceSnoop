@@ -244,8 +244,17 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
         var verb = _permanent ? "Удалено безвозвратно" : "Перемещено в корзину";
         var head = Cancelled ? "Отменено." : "Готово.";
+        if (!Cancelled && _failed > 0)
+        {
+            head = "Завершено с ошибками.";
+        }
+
         var errors = _failed > 0 ? $" Ошибок: {_failed}." : string.Empty;
-        return $"{head} {verb}: {_deleted} из {Items.Count}. Освобождено: {SizeFormatter.Format(_freedBytes)}.{errors}";
+        var partial = _permanent && Items.Any(static row => row.IsDirectory && row.State == DeleteRowState.Failed)
+            ? " Каталоги с ошибкой могли быть удалены частично. Повторите сканирование оставшихся данных."
+            : string.Empty;
+
+        return $"{head} {verb}: {_deleted} из {Items.Count}. Освобождено: {SizeFormatter.Format(_freedBytes)}.{errors}{partial}";
     }
 
     private void OnProgressTick()

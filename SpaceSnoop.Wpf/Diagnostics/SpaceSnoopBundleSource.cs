@@ -1,4 +1,5 @@
 ﻿using KeepShell.Diagnostics;
+using System.Diagnostics;
 using System.IO;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -13,6 +14,10 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
     public const string SettingsFailureEntry = "settings-unavailable.txt";
 
     public const string OperationsEntry = "operations.json";
+
+    public const string SessionEntry = "session.json";
+
+    public static string SessionId { get; } = Guid.NewGuid().ToString("N");
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -32,6 +37,16 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
 
         yield return new(name, text);
 
+        using var process = Process.GetCurrentProcess();
+        yield return new(SessionEntry, JsonSerializer.Serialize(new
+        {
+            SessionId,
+            ProcessId = Environment.ProcessId,
+            ProcessStartedAtUtc = process.StartTime.ToUniversalTime(),
+            CapturedAtUtc = DateTime.UtcNow,
+            BuildVersion = AppInfo.InformationalVersion,
+        }, Json));
+
         yield return new(
             OperationsEntry,
             JsonSerializer.Serialize(
@@ -39,6 +54,7 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
                 {
                     Operation = operations.Current,
                     LastRun = operations.Last,
+                    LastCleanup = operations.LastCleanup,
                 },
                 Json));
     }

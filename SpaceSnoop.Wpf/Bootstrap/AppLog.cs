@@ -403,7 +403,10 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1900, Level = LogLevel.Information, Message = "Пакетное сравнение начато: пар {Total}")]
     public static partial void OverviewCompareStarted(this ILogger logger, int total);
 
-    [LoggerMessage(EventId = 1901, Level = LogLevel.Information, Message = "Пакетное сравнение завершено: сравнено {Compared}, ошибок {Failed}, пропущено {Skipped}, за {ElapsedMs} мс")]
+    [LoggerMessage(
+        EventId = 1901,
+        Level = LogLevel.Information,
+        Message = "Пакетное сравнение завершено: сравнено {Compared}, ошибок {Failed}, пропущено {Skipped}, за {ElapsedMs} мс")]
     public static partial void OverviewCompareFinished(this ILogger logger, int compared, int failed, int skipped, long elapsedMs);
 
     [LoggerMessage(EventId = 1902, Level = LogLevel.Information, Message = "Пакетное сравнение отменено")]
@@ -412,7 +415,10 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 1903, Level = LogLevel.Information, Message = "Пакетная синхронизация начата: профилей {Total}")]
     public static partial void OverviewSyncStarted(this ILogger logger, int total);
 
-    [LoggerMessage(EventId = 1904, Level = LogLevel.Information, Message = "Пакетная синхронизация завершена: успешно {Synced}, с ошибками {Failed}, пропущено {Skipped}, за {ElapsedMs} мс")]
+    [LoggerMessage(
+        EventId = 1904,
+        Level = LogLevel.Information,
+        Message = "Пакетная синхронизация завершена: успешно {Synced}, с ошибками {Failed}, пропущено {Skipped}, за {ElapsedMs} мс")]
     public static partial void OverviewSyncFinished(this ILogger logger, int synced, int failed, int skipped, long elapsedMs);
 
     [LoggerMessage(EventId = 1905, Level = LogLevel.Information, Message = "Пакетная синхронизация отменена")]
@@ -451,7 +457,10 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 2009, Level = LogLevel.Error, Message = "MCP-сервер не остановился штатно")]
     public static partial void McpServerStopFailed(this ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 2010, Level = LogLevel.Debug, Message = "scan_directory по фазам: обход {WalkMs} мс, выгрузка {ExportMs} мс, сериализация {JsonMs} мс, показ {ApplyMs} мс, ответ {JsonLength} знаков")]
+    [LoggerMessage(
+        EventId = 2010,
+        Level = LogLevel.Debug,
+        Message = "scan_directory по фазам: обход {WalkMs} мс, выгрузка {ExportMs} мс, сериализация {JsonMs} мс, показ {ApplyMs} мс, ответ {JsonLength} знаков")]
     public static partial void McpScanPhases(this ILogger logger, long walkMs, long exportMs, long jsonMs, long applyMs, int jsonLength);
 
     [LoggerMessage(EventId = 2100, Level = LogLevel.Information, Message = "CLI агента найден: {Path} ({Version})")]
@@ -559,6 +568,9 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 2302, Level = LogLevel.Information, Message = "Машина: {Profile}")]
     public static partial void MachineProfileCaptured(this ILogger logger, string profile);
 
+    [LoggerMessage(EventId = 2303, Level = LogLevel.Information, Message = "Сеанс диагностики {SessionId}: процесс {ProcessId}, сборка {BuildVersion}")]
+    public static partial void DiagnosticsSessionStarted(this ILogger logger, string sessionId, int processId, string buildVersion);
+
     [LoggerMessage(EventId = 2400, Level = LogLevel.Information, Message = "Очистка: запуск, целей {Targets}, ожидается {PlannedBytes} Б")]
     public static partial void CleanupRunStarted(this ILogger logger, int targets, long plannedBytes);
 
@@ -589,7 +601,10 @@ internal static partial class AppLog
     [LoggerMessage(EventId = 2409, Level = LogLevel.Error, Message = "Очистка проектов: ошибка")]
     public static partial void ProjectCleanupFailed(this ILogger logger, Exception exception);
 
-    [LoggerMessage(EventId = 2410, Level = LogLevel.Information, Message = "Очистка проектов: в корзине {Deleted} файлов, {Bytes} Б данных, пропущено {Skipped}, отмена {Cancelled}")]
+    [LoggerMessage(
+        EventId = 2410,
+        Level = LogLevel.Information,
+        Message = "Очистка проектов: в корзине {Deleted} файлов, {Bytes} Б данных, пропущено {Skipped}, отмена {Cancelled}")]
     public static partial void ProjectCleanupFinished(this ILogger logger, int deleted, long bytes, int skipped, bool cancelled);
 
     [LoggerMessage(EventId = 2411, Level = LogLevel.Error, Message = "Очистка workloads: проверка не выполнена")]

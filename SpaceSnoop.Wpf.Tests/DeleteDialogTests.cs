@@ -492,6 +492,27 @@ public class DeleteDialogTests
     }
 
     [Test]
+    public async Task Ошибка_безвозвратного_удаления_сохраняет_каталог_и_предупреждает_о_частичном_результате()
+    {
+        var items = Items(1, _ => true);
+        var file = Path.Combine(items[0].AbsolutePath, "locked.txt");
+        await File.WriteAllTextAsync(file, "данные");
+        using var holder = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var dialog = Dialog(new(), items);
+
+        await dialog.StartCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dialog.DeletedItems, Is.Empty);
+            Assert.That(Directory.Exists(items[0].AbsolutePath), Is.True);
+            Assert.That(File.Exists(file), Is.True);
+            Assert.That(dialog.Items[0].State, Is.EqualTo(DeleteRowState.Failed));
+            Assert.That(dialog.StatusText, Does.StartWith("Завершено с ошибками.").And.Contain("могли быть удалены частично"));
+        }
+    }
+
+    [Test]
     public void Пачка_из_одного_объекта_исчезнувшего_на_сбое_считается_удалённой()
     {
         var gone = new HashSet<string>(StringComparer.Ordinal);

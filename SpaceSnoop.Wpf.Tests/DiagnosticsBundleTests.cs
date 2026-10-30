@@ -1,8 +1,11 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Diagnostics;
 using KeepShell.Testing;
+using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.Diagnostics;
+using System.Text.Json;
+using Tomlyn.Model;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -111,6 +114,94 @@ public class DiagnosticsBundleTests
                 Does.Contain("Настройки приложения в пакет не попали").And.Contain("Файла настроек ещё нет"));
 
             Assert.That(bundle.Describe(), Does.Contain(SpaceSnoopBundleSource.SettingsFailureEntry));
+        }
+    }
+
+    [TestCase("source", "target")]
+    [TestCase("источник", "цель")]
+    public void Пакет_скрывает_пути_профиля_и_сохраняет_читаемые_TOML_и_JSON(string leftLeaf, string rightLeaf)
+    {
+        var path = Path.Combine(_root, TomlSettingsFile.PrimaryFileName);
+        var table = new TomlTable();
+        var profiles = JsonSerializer.Serialize(
+            new[]
+            {
+                new
+                {
+                    Left = @"C:\private\work\" + leftLeaf,
+                    Right = @"\\server\share\private\" + rightLeaf,
+                    Enabled = false,
+                },
+            });
+
+        TomlSettingsFile.SetString(table, "wpf.schedule.profiles", profiles);
+        TomlSettingsFile.SetString(table, "wpf.mcp.token", Token);
+        TomlSettingsFile.Save(path, table);
+        using var monitor = TestDiagnostics.Monitor();
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), new(monitor), path);
+        var payload = new DiagnosticsPayload(
+            MachineProfile.Capture(new()),
+            PerformanceSnapshot.Empty,
+            PerformanceHistory.Empty,
+            PerformanceHitches.Empty,
+            "сводка",
+            [],
+            source.Collect().ToList());
+
+        var bundle = DiagnosticsBundle.Build(payload, Secrets(Token), new());
+        var text = Text(bundle.Entries, SpaceSnoopBundleSource.SettingsEntry);
+        var exported = Path.Combine(_root, "exported.toml");
+        File.WriteAllText(exported, text);
+        var restored = TomlSettingsFile.GetString(TomlSettingsFile.Read(exported), "wpf.schedule.profiles");
+        using var parsed = JsonDocument.Parse(restored!);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(text, Does.Not.Contain("private").And.Not.Contain(Token));
+            Assert.That(parsed.RootElement[0].GetProperty("Left").GetString(), Is.EqualTo(@"C:\…\" + leftLeaf));
+            Assert.That(parsed.RootElement[0].GetProperty("Right").GetString(), Is.EqualTo(@"\\server\share\…\" + rightLeaf));
+            Assert.That(parsed.RootElement[0].GetProperty("Enabled").GetBoolean(), Is.False);
+        }
+    }
+
+    [TestCase(Token)]
+    [TestCase(@"synthetic\token")]
+    [TestCase("synthetic\"token")]
+    public void Пакет_сохраняет_частичную_очистку_и_вымарывает_секрет_из_её_ошибки(string secret)
+    {
+        using var monitor = TestDiagnostics.Monitor();
+        var operations = new PerformanceOperations(monitor);
+        operations.ReportCleanup(new(DateTime.UtcNow.AddSeconds(-1), DateTime.UtcNow, 2, 3, 1024, true, null, [$"занят {secret}"]));
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, Path.Combine(_root, "missing.toml"));
+        var entries = Build(Secrets(secret), [], source.Collect().ToList());
+        var text = Text(entries, SpaceSnoopBundleSource.OperationsEntry);
+        using var parsed = JsonDocument.Parse(text);
+        var cleanup = parsed.RootElement.GetProperty("lastCleanup");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(cleanup.GetProperty("deleted").GetInt32(), Is.EqualTo(2));
+            Assert.That(cleanup.GetProperty("skipped").GetInt32(), Is.EqualTo(3));
+            Assert.That(cleanup.GetProperty("cancelled").GetBoolean(), Is.True);
+            Assert.That(cleanup.GetProperty("reportedErrors")[0].GetString(), Does.Not.Contain(secret).And.Contain(DiagnosticsSecrets.Mask));
+        }
+    }
+
+    [Test]
+    public void Пакеты_одного_процесса_содержат_стабильный_сеанс_и_версию_сборки()
+    {
+        using var monitor = TestDiagnostics.Monitor();
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), new(monitor), Path.Combine(_root, "missing.toml"));
+        using var first = JsonDocument.Parse(Text(source.Collect().ToList(), SpaceSnoopBundleSource.SessionEntry));
+        using var second = JsonDocument.Parse(Text(source.Collect().ToList(), SpaceSnoopBundleSource.SessionEntry));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(first.RootElement.GetProperty("sessionId").GetString(), Is.EqualTo(second.RootElement.GetProperty("sessionId").GetString()));
+            Assert.That(first.RootElement.GetProperty("sessionId").GetString(), Has.Length.EqualTo(32));
+            Assert.That(first.RootElement.GetProperty("processId").GetInt32(), Is.EqualTo(Environment.ProcessId));
+            Assert.That(first.RootElement.GetProperty("buildVersion").GetString(), Is.EqualTo(AppInfo.InformationalVersion));
+            Assert.That(first.RootElement.GetProperty("processStartedAtUtc").GetDateTime(), Is.LessThanOrEqualTo(first.RootElement.GetProperty("capturedAtUtc").GetDateTime()));
         }
     }
 

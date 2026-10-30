@@ -1,4 +1,6 @@
-﻿namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
+﻿using System.Diagnostics;
+
+namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
 
 public readonly record struct CleanupRequest(
     IReadOnlyList<CleanupTarget> Targets,
@@ -17,6 +19,11 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
     private readonly ILogger _logger;
     private readonly OperationProgressState _progress = new();
     private readonly IUiTimer _progressTimer;
+    private readonly PerformanceOperations _operations;
+    private readonly List<string> _reportedErrors = [];
+    private PerformanceOperation? _reported;
+    private long _started;
+    private DateTime _startedAtUtc;
 
     private bool _cancelMissedIndivisible;
 
@@ -59,9 +66,10 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
 
     protected override bool HasFailedItems => Skipped > 0 || FirstError.Length > 0;
 
-    public CleanupProgressDialogViewModel(CleanupRequest request, CleanupService service, IUiDispatcher uiDispatcher, ILogger logger)
+    public CleanupProgressDialogViewModel(CleanupRequest request, CleanupService service, IUiDispatcher uiDispatcher, ILogger logger, PerformanceOperations operations)
     {
         _request = request;
+        _operations = operations;
         _service = service;
         _logger = logger;
         _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
@@ -105,6 +113,7 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
                 linked.Token.ThrowIfCancellationRequested();
 
                 IsStepIndivisible = target.IsIndivisible;
+                ReportOperation($"Очистка: {target.Name}", Deleted, FreedBytes);
 
                 var progress = new OffsetProgress(_progress, Deleted, FreedBytes);
                 var report = await Task.Run(() => _service.Clean(target, progress, linked.Token), linked.Token);
@@ -128,11 +137,17 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
 
     protected override void OnStarting()
     {
+        _started = Stopwatch.GetTimestamp();
+        _startedAtUtc = DateTime.UtcNow;
+        ReportOperation("Подготовка очистки", 0, 0);
         _logger.CleanupRunStarted(_request.Targets.Count, _request.EstimatedBytes);
     }
 
     protected override void OnFinished()
     {
+        _operations.ReportCleanup(new(_startedAtUtc, DateTime.UtcNow, Deleted, Skipped, FreedBytes, Cancelled, Failure?.Message, _reportedErrors.ToArray()));
+        _operations.Release(_reported);
+        _reported = null;
         if (Cancelled)
         {
             _logger.CleanupRunCancelled(Deleted, FreedBytes);
@@ -165,6 +180,7 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         FreedBytes += report.FreedBytes;
         Deleted += report.Deleted;
         Skipped += report.Skipped;
+        _reportedErrors.AddRange(report.Errors);
 
         if (FirstError.Length == 0 && report.Errors.Count > 0)
         {
@@ -190,6 +206,16 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         CurrentPath = update.Current;
         CountText = total > 0 ? $"{done:N0} / {total:N0}" : done.ToString("N0");
         ProgressValue = total > 0 ? Math.Clamp((double)done / total, 0d, 1d) : 0d;
+        ReportOperation(_reported?.Name ?? "Очистка диска", done, update.Bytes);
+    }
+
+    private void ReportOperation(string name, int completed, long bytes)
+    {
+        var operation = new PerformanceOperation(name, completed, bytes, Stopwatch.GetElapsedTime(_started), LogicalBytes: true);
+        if (_operations.TryReport(operation, _reported))
+        {
+            _reported = operation;
+        }
     }
 
     private sealed class OffsetProgress(OperationProgressState state, int completed, long bytes) : IProgress<OperationProgress>

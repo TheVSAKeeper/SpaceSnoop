@@ -257,6 +257,7 @@ public partial class App : Application
             var diagnostics = _services.GetRequiredService<DiagnosticsCollector>();
             diagnostics.CaptureMachine(MainWindow!);
             _logging.CreateLogger<MachineProfile>().MachineProfileCaptured(string.Join(" · ", diagnostics.Machine.Describe()));
+            _logging.CreateLogger<SpaceSnoopBundleSource>().DiagnosticsSessionStarted(SpaceSnoopBundleSource.SessionId, Environment.ProcessId, AppInfo.InformationalVersion);
 
             _services.GetRequiredService<McpServerHost>().Apply();
             _services.GetRequiredService<SystemTheme>().Watch();

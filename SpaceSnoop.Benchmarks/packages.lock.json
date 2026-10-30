@@ -53,8 +53,8 @@
       },
       "KeepShell": {
         "type": "Transitive",
-        "resolved": "0.1.250",
-        "contentHash": "8zw59MTSky15FQFvbWtwAsAI+m/GnLlQsj9OTzDbCTkOpwKz5OguMHlN+MGQpFIRV4Mh90ZKP/w7yyquUSHuRQ==",
+        "resolved": "0.1.254",
+        "contentHash": "ZN7iuC3dPWzsgSnHkt/vehHoJicyIpgb3ps+nUex78VjJiPdwnjMD9LuTT1WM+4dwogK4eEVXUhBNpoiWKA6QA==",
         "dependencies": {
           "CommunityToolkit.Mvvm": "8.3.2",
           "MahApps.Metro.IconPacks.Lucide": "6.2.1",
@@ -69,18 +69,18 @@
       },
       "KeepShell.Automation": {
         "type": "Transitive",
-        "resolved": "0.1.250",
-        "contentHash": "LptBBZGoZpQo2m0y41SSgaaUbXZlGhKoECIOwvho2fpy2PLMsJDIHEmROot3KBkHSRnfnqiZ+vGSoQ1Pbn3jqQ==",
+        "resolved": "0.1.254",
+        "contentHash": "XE0B5G/U69qMX/rSZvV/UFQWSoPwY0SHfcylFI2mY4zPhgnhM2MwI+8cJ2SqXujMXrkAZHMATJfznacc7qiZWQ==",
         "dependencies": {
-          "KeepShell": "0.1.250"
+          "KeepShell": "0.1.254"
         }
       },
       "KeepShell.Themes.Tarkov": {
         "type": "Transitive",
-        "resolved": "0.1.250",
-        "contentHash": "dIzfxjg2yenJdabBduwjUu9ztwnO4pire9b8fIDBo3ZE80dyGPJLc00CzW8eFT7fnrEsRr51wQiAM+ZFIXG3NQ==",
+        "resolved": "0.1.254",
+        "contentHash": "FyUdHU+JDSKrwOKseObng3Zt7aPRbovuRyAm306cPtAQbn7jDQkE91EdVu4y3BJwgLC+BRIE6U+yF+ngMMr7aw==",
         "dependencies": {
-          "KeepShell": "0.1.250"
+          "KeepShell": "0.1.254"
         }
       },
       "MahApps.Metro.IconPacks.Core": {
@@ -352,15 +352,15 @@
         "type": "Project",
         "dependencies": {
           "CommunityToolkit.Mvvm": "[8.4.2, )",
-          "KeepShell": "[0.1.250, )",
-          "KeepShell.Automation": "[0.1.250, )",
-          "KeepShell.Themes.Tarkov": "[0.1.250, )",
+          "KeepShell": "[0.1.254, )",
+          "KeepShell.Automation": "[0.1.254, )",
+          "KeepShell.Themes.Tarkov": "[0.1.254, )",
           "MahApps.Metro.IconPacks.Lucide": "[6.2.1, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.9, )",
           "ModelContextProtocol.AspNetCore": "[1.4.1, )",
           "Serilog": "[4.3.1, )",
           "Serilog.Sinks.File": "[6.0.0, )",
-          "SpaceSnoop.Core": "[2.8.77, )",
+          "SpaceSnoop.Core": "[2.8.79, )",
           "Tomlyn": "[2.7.0, )"
         }
       }
