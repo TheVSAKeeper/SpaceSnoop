@@ -270,6 +270,30 @@ public sealed class DeveloperCleanupViewModelTests
         Assert.That(changedOutsideDispatcher, Is.False);
     }
 
+    [Test]
+    public async Task Исключённый_пакет_виден_и_не_мешает_очистке_остальных()
+    {
+        var bad = Path.Combine(_paths[NuGetCacheKind.GlobalPackages], "bad", "1.0.0", ".git");
+        Directory.CreateDirectory(bad);
+        var sentinel = Path.Combine(bad, "config");
+        await File.WriteAllTextAsync(sentinel, "repository");
+        var vm = Create(confirm: true);
+        await vm.RefreshCommand.ExecuteAsync(null);
+        var row = vm.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages);
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.CanSelect, Is.True);
+            Assert.That(row.ErrorText, Does.Contain("исключён"));
+            Assert.That(row.Files, Is.EqualTo(3));
+            Assert.That(vm.StatusText, Does.Contain("Исключено пакетов: 1"));
+        });
+        vm.ClearSelectionCommand.Execute(null);
+        row.IsSelected = true;
+        await vm.CleanCommand.ExecuteAsync(null);
+        Assert.That(vm.ResultText, Does.Contain("Удалено файлов: 3"));
+        Assert.That(File.Exists(sentinel), Is.True);
+    }
+
     private DeveloperCleanupViewModel Create(bool confirm = false)
     {
         return new(

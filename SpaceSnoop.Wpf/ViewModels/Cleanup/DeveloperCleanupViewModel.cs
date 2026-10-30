@@ -243,9 +243,14 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
                 Caches.Add(row);
             }
 
+            var excludedPackages = plan.Caches.Sum(x => x.ExcludedPackages);
             StatusText = plan.Caches.Any(x => x.Errors.Count > 0)
                 ? "Замер завершён. Категории с ошибками недоступны для очистки."
                 : "Замер завершён. Выберите кэши для очистки.";
+            if (excludedPackages > 0)
+            {
+                StatusText += $" Исключено пакетов: {excludedPackages}. Их файлы не будут удалены.";
+            }
 
             NotifySelection();
         });

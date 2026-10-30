@@ -25,6 +25,8 @@ public sealed class NuGetCacheScan
     public long Bytes => Entries.Sum(file => file.Length);
     public int Files => Entries.Count;
     public IReadOnlyList<string> Errors { get; }
+    public IReadOnlyList<string> Warnings { get; }
+    public int ExcludedPackages { get; }
     public bool CanClean => Errors.Count == 0 && Files > 0;
     internal CacheFileStamp Root { get; }
     internal IReadOnlyList<CacheFileStamp> Entries { get; }
@@ -35,13 +37,17 @@ public sealed class NuGetCacheScan
         CacheFileStamp root,
         IReadOnlyList<CacheFileStamp> files,
         IReadOnlyList<string> errors,
-        bool exists = true)
+        bool exists = true,
+        IReadOnlyList<string>? warnings = null,
+        int excludedPackages = 0)
     {
         Kind = kind;
         Path = path;
         Root = root;
         Entries = files;
         Errors = errors;
+        Warnings = warnings ?? [];
+        ExcludedPackages = excludedPackages;
         Exists = exists;
     }
 }

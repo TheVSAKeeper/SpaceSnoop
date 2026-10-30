@@ -11,6 +11,7 @@ public class NuGetCleanupTests
     private Dictionary<NuGetCacheKind, string> _paths = null!;
     private string _context = null!;
     private NuGetCleanupService _service = null!;
+    private CapturingLogger<NuGetCleanupService> _logger = null!;
 
     [SetUp]
     public void SetUp()
@@ -33,7 +34,8 @@ public class NuGetCleanupTests
         }
 
         _context = "test-user";
-        _service = new(_ => Task.FromResult(new NuGetCacheLocations(_context, new Dictionary<NuGetCacheKind, string>(_paths))));
+        _logger = new();
+        _service = new(_ => Task.FromResult(new NuGetCacheLocations(_context, new Dictionary<NuGetCacheKind, string>(_paths))), _logger);
     }
 
     [TearDown]
@@ -366,6 +368,143 @@ public class NuGetCleanupTests
         Assert.That(result.Deleted, Is.Zero);
         Assert.That(result.Errors, Is.Not.Empty);
         Assert.That(File.Exists(replacement), Is.True);
+    }
+
+    [Test]
+    public async Task Long_paths_are_measured_and_cleaned_through_native_handles()
+    {
+        var file = Write(new string('d', 160) + "/" + new string('f', 100) + ".dat");
+        Assert.That(file.Length, Is.GreaterThan(260));
+        var plan = await _service.ScanAsync(default);
+        var cache = plan.Caches.Single(x => x.Kind == NuGetCacheKind.HttpCache);
+        Assert.That(cache.Errors, Is.Empty);
+        Assert.That(cache.Files, Is.EqualTo(1));
+        var result = await Clean(plan);
+        Assert.That(result.Errors, Is.Empty);
+        Assert.That(result.Deleted, Is.EqualTo(1));
+        Assert.That(File.Exists(file), Is.False);
+        using var directory = CacheFileAccess.OpenDirectoryForDelete(Path.GetDirectoryName(file)!);
+    }
+
+    [TestCase(".git")]
+    [TestCase(".git/config")]
+    public async Task Repository_package_is_excluded_without_blocking_other_versions(string gitPath)
+    {
+        var bad = WritePackage("package", "1.0.0");
+        var git = Write("package/1.0.0/" + gitPath, kind: NuGetCacheKind.GlobalPackages);
+        var good = WritePackage("package", "2.0.0");
+        var plan = await _service.ScanAsync(default);
+        var cache = plan.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages);
+        Assert.Multiple(() =>
+        {
+            Assert.That(cache.CanClean, Is.True);
+            Assert.That(cache.Errors, Is.Empty);
+            Assert.That(cache.Warnings.Single(), Does.Contain("исключён"));
+            Assert.That(cache.ExcludedPackages, Is.EqualTo(1));
+            Assert.That(cache.Files, Is.EqualTo(4));
+            Assert.That(cache.Bytes, Is.EqualTo(20));
+            Assert.That(_logger.Entries.Any(x => x.EventId == 1548 && x.Exception is IOException && x.Message.Contains("1.0.0")), Is.True);
+            Assert.That(_logger.Entries.Count(x => x.EventId == 1549), Is.EqualTo(4));
+        });
+        var result = await Clean(plan, NuGetCacheKind.GlobalPackages);
+        Assert.That(result.Errors, Is.Empty);
+        Assert.That(result.Deleted, Is.EqualTo(4));
+        Assert.That(File.Exists(good), Is.False);
+        Assert.That(File.Exists(bad) && File.Exists(git), Is.True);
+        Assert.That(File.Exists(Path.Combine(Path.GetDirectoryName(bad)!, ".nupkg.metadata")), Is.True);
+    }
+
+    [Test]
+    public async Task Incomplete_package_is_excluded_while_valid_package_is_cleaned()
+    {
+        var bad = Write("incomplete/1.0.0/lib/a.dll", kind: NuGetCacheKind.GlobalPackages);
+        var good = WritePackage("complete", "1.0.0");
+        var plan = await _service.ScanAsync(default);
+        var cache = plan.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages);
+        Assert.That(cache.CanClean, Is.True);
+        Assert.That(cache.ExcludedPackages, Is.EqualTo(1));
+        var result = await Clean(plan, NuGetCacheKind.GlobalPackages);
+        Assert.That(result.Errors, Is.Empty);
+        Assert.That(File.Exists(good), Is.False);
+        Assert.That(File.Exists(bad), Is.True);
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Linked_package_is_excluded_without_following_it(bool entireVersion)
+    {
+        var good = WritePackage("complete", "1.0.0");
+        var outside = Path.Combine(_root, "outside");
+        Directory.CreateDirectory(outside);
+        var sentinel = Path.Combine(outside, "important.dat");
+        await File.WriteAllTextAsync(sentinel, "important");
+        var link = Path.Combine(_paths[NuGetCacheKind.GlobalPackages], "linked", "1.0.0");
+        if (!entireVersion)
+        {
+            WritePackage("linked", "1.0.0");
+            link = Path.Combine(link, "nested");
+        }
+
+        Directory.CreateDirectory(Path.GetDirectoryName(link)!);
+        try
+        {
+            Directory.CreateSymbolicLink(link, outside);
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            Assert.Ignore($"Создание ссылки недоступно: {exception.Message}");
+        }
+
+        try
+        {
+            var sibling = WritePackage("linked", "2.0.0");
+            var plan = await _service.ScanAsync(default);
+            var cache = plan.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages);
+            Assert.That(cache.CanClean, Is.True);
+            Assert.That(cache.ExcludedPackages, Is.EqualTo(1));
+            var result = await Clean(plan, NuGetCacheKind.GlobalPackages);
+            Assert.That(result.Errors, Is.Empty);
+            Assert.That(File.Exists(good), Is.False);
+            Assert.That(File.Exists(sibling), Is.False);
+            Assert.That(await File.ReadAllTextAsync(sentinel), Is.EqualTo("important"));
+        }
+        finally
+        {
+            Directory.Delete(link);
+        }
+    }
+
+    [TestCase(".git/config")]
+    [TestCase("package/.git/config")]
+    public async Task Repository_above_package_version_still_blocks_the_whole_category_and_is_logged(string gitPath)
+    {
+        var good = WritePackage("package", "1.0.0");
+        Write(gitPath, kind: NuGetCacheKind.GlobalPackages);
+        var plan = await _service.ScanAsync(default);
+        var cache = plan.Caches.Single(x => x.Kind == NuGetCacheKind.GlobalPackages);
+        Assert.That(cache.CanClean, Is.False);
+        Assert.That(cache.Errors, Is.Not.Empty);
+        Assert.That(_logger.Entries.Any(x => x.EventId == 1548 && x.Exception is IOException), Is.True);
+        var result = await Clean(plan, NuGetCacheKind.GlobalPackages);
+        Assert.That(result.Deleted, Is.Zero);
+        Assert.That(File.Exists(good), Is.True);
+    }
+
+    [Test]
+    public void Native_failure_preserves_the_windows_error_code()
+    {
+        var error = Assert.Throws<IOException>(() => CacheFileAccess.OpenFile(Path.Combine(_root, "missing.dat"), false));
+        Assert.That(error!.InnerException, Is.TypeOf<Win32Exception>());
+        Assert.That(((Win32Exception)error.InnerException!).NativeErrorCode, Is.EqualTo(2));
+        Assert.That(error.Message, Does.Contain("Win32: 2"));
+    }
+
+    private string WritePackage(string id, string version)
+    {
+        Write($"{id}/{version}/.nupkg.metadata", kind: NuGetCacheKind.GlobalPackages);
+        Write($"{id}/{version}/{id}.nuspec", kind: NuGetCacheKind.GlobalPackages);
+        Write($"{id}/{version}/{id}.{version}.nupkg", kind: NuGetCacheKind.GlobalPackages);
+        return Write($"{id}/{version}/payload.dat", kind: NuGetCacheKind.GlobalPackages);
     }
 
     private string Write(string name, string content = "cache", NuGetCacheKind kind = NuGetCacheKind.HttpCache)

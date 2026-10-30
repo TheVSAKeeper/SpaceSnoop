@@ -15,7 +15,7 @@ internal static class CacheFileAccess
     internal static SafeFileHandle OpenFile(string path, bool deleting)
     {
         var handle = CreateFile(
-            path,
+            ExtendedPath(path),
             deleting ? 0x10080u : 0x80u,
             deleting ? 0u : 7u,
             nint.Zero,
@@ -29,7 +29,7 @@ internal static class CacheFileAccess
 
     internal static SafeFileHandle OpenDirectoryForDelete(string path)
     {
-        var handle = CreateFile(path, 0x10080, 0, nint.Zero, 3, 0x02200000, nint.Zero);
+        var handle = CreateFile(ExtendedPath(path), 0x10080, 0, nint.Zero, 3, 0x02200000, nint.Zero);
         CheckHandle(handle, path);
         try
         {
@@ -129,7 +129,13 @@ internal static class CacheFileAccess
 
     private static IOException Error(string path)
     {
-        return new($"«{path}»: {new Win32Exception(Marshal.GetLastWin32Error()).Message}");
+        var error = new Win32Exception(Marshal.GetLastWin32Error());
+        return new($"«{path}»: {error.Message} (Win32: {error.NativeErrorCode}).", error);
+    }
+
+    private static string ExtendedPath(string path)
+    {
+        return path.StartsWith(@"\\?\", StringComparison.Ordinal) ? path : @"\\?\" + path;
     }
 
     [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
@@ -183,7 +189,7 @@ internal static class CacheFileAccess
 
                 while (chain.TryPop(out var current))
                 {
-                    var handle = CreateFile(current, 0x80, 1, nint.Zero, 3, 0x02200000, nint.Zero);
+                    var handle = CreateFile(ExtendedPath(current), 0x80, 1, nint.Zero, 3, 0x02200000, nint.Zero);
                     CheckHandle(handle, current);
                     _handles.Add(handle);
                     var stamp = Read(handle, current);

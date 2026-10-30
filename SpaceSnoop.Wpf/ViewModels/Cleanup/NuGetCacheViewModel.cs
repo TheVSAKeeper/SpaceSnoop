@@ -58,7 +58,7 @@ public sealed partial class NuGetCacheViewModel : ObservableObject
     };
 
     public NuGetCacheViewModel(NuGetCacheScan scan)
-        : this(scan.Kind, scan.Path, scan.Bytes, scan.Files, scan.CanClean, string.Join(Environment.NewLine, scan.Errors))
+        : this(scan.Kind, scan.Path, scan.Bytes, scan.Files, scan.CanClean, string.Join(Environment.NewLine, scan.Errors.Concat(scan.Warnings)))
     {
         Exists = scan.Exists;
     }

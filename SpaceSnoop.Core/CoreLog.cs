@@ -92,6 +92,12 @@ internal static partial class CoreLog
     [LoggerMessage(EventId = 1547, Level = LogLevel.Warning, Message = "Очистка NuGet завершилась с ошибкой")]
     public static partial void NuGetCleanupFailed(this ILogger logger, Exception exception);
 
+    [LoggerMessage(EventId = 1548, Level = LogLevel.Warning, Message = "Замер NuGet {Kind}: «{Path}», пакет исключён: {PackageExcluded}")]
+    public static partial void NuGetCacheScanFailed(this ILogger logger, Exception exception, string kind, string path, bool packageExcluded);
+
+    [LoggerMessage(EventId = 1549, Level = LogLevel.Information, Message = "Замер NuGet {Kind}: «{Path}», файлов {Files}, байт {Bytes}, ошибок {Errors}, исключено пакетов {ExcludedPackages}")]
+    public static partial void NuGetCacheScanCompleted(this ILogger logger, string kind, string path, int files, long bytes, int errors, int excludedPackages);
+
     [LoggerMessage(
         EventId = 1560,
         Level = LogLevel.Information,

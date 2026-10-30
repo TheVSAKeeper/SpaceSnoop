@@ -35,6 +35,8 @@ public sealed class NuGetCleanupService
                         var path = locations.Paths[kind];
                         var files = new List<CacheFileStamp>();
                         var errors = new List<string>();
+                        var warnings = new List<string>();
+                        var excluded = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                         CacheFileStamp root = default;
                         try
                         {
@@ -46,23 +48,39 @@ public sealed class NuGetCleanupService
                             catch (Exception missing) when (missing is DirectoryNotFoundException or FileNotFoundException)
                             {
                                 scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly(), false));
+                                _logger.NuGetCacheScanCompleted(kind.ToString(), path, 0, 0, 0, 0);
                                 continue;
                             }
 
                             using var lease = CacheFileAccess.LockDirectory(path);
                             root = lease.Stamp;
-                            Walk(path, kind, files, errors, token);
+                            Walk(path, kind, files, errors, warnings, excluded, token);
                             if (kind == NuGetCacheKind.GlobalPackages && errors.Count == 0)
                             {
-                                ValidatePackages(path, files);
+                                ValidatePackages(path, files, warnings, excluded);
                             }
                         }
                         catch (Exception exception) when (IsFileError(exception))
                         {
                             AddError(errors, exception.Message);
+                            _logger.NuGetCacheScanFailed(exception, kind.ToString(), path, false);
                         }
 
-                        scans.Add(new(kind, path, root, files.AsReadOnly(), errors.AsReadOnly()));
+                        if (excluded.Count > 0)
+                        {
+                            files.RemoveAll(file => excluded.Contains(PackageRoot(path, file.Path)!));
+                        }
+
+                        var scan = new NuGetCacheScan(
+                            kind,
+                            path,
+                            root,
+                            files.AsReadOnly(),
+                            errors.AsReadOnly(),
+                            warnings: warnings.AsReadOnly(),
+                            excludedPackages: excluded.Count);
+                        scans.Add(scan);
+                        _logger.NuGetCacheScanCompleted(kind.ToString(), path, scan.Files, scan.Bytes, errors.Count, excluded.Count);
                     }
 
                     return new NuGetCleanupPlan(_owner, Fingerprint(locations), scans.AsReadOnly());
@@ -286,11 +304,13 @@ public sealed class NuGetCleanupService
         }
     }
 
-    private static void Walk(
+    private void Walk(
         string root,
         NuGetCacheKind kind,
         List<CacheFileStamp> files,
         List<string> errors,
+        List<string> warnings,
+        HashSet<string> excluded,
         CancellationToken token)
     {
         var directories = new Stack<string>();
@@ -298,6 +318,11 @@ public sealed class NuGetCleanupService
         while (directories.TryPop(out var path))
         {
             token.ThrowIfCancellationRequested();
+            if (excluded.Count > 0 && excluded.Contains(PackageRoot(root, path)!))
+            {
+                continue;
+            }
+
             try
             {
                 using var lease = CacheFileAccess.LockDirectory(path);
@@ -310,29 +335,55 @@ public sealed class NuGetCleanupService
                     }))
                 {
                     token.ThrowIfCancellationRequested();
-                    if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 || entry.Name.Equals(".git", StringComparison.OrdinalIgnoreCase))
+                    if (excluded.Count > 0 && excluded.Contains(PackageRoot(root, path)!))
                     {
-                        throw new IOException($"«{entry.FullName}»: ссылка или рабочий репозиторий внутри кэша.");
+                        break;
                     }
 
-                    if ((entry.Attributes & FileAttributes.Directory) != 0)
+                    try
                     {
-                        directories.Push(entry.FullName);
-                        continue;
-                    }
+                        if ((entry.Attributes & FileAttributes.ReparsePoint) != 0 || entry.Name.Equals(".git", StringComparison.OrdinalIgnoreCase))
+                        {
+                            throw new IOException($"«{entry.FullName}»: ссылка или рабочий репозиторий внутри кэша.");
+                        }
 
-                    if (kind != NuGetCacheKind.GlobalPackages && IsProjectFile(entry.Name))
+                        if ((entry.Attributes & FileAttributes.Directory) != 0)
+                        {
+                            directories.Push(entry.FullName);
+                            continue;
+                        }
+
+                        if (kind != NuGetCacheKind.GlobalPackages && IsProjectFile(entry.Name))
+                        {
+                            throw new IOException($"«{entry.FullName}»: рабочие проекты не очищаются.");
+                        }
+
+                        using var handle = CacheFileAccess.OpenFile(entry.FullName, false);
+                        files.Add(CacheFileAccess.Read(handle, entry.FullName));
+                    }
+                    catch (Exception exception) when (IsFileError(exception))
                     {
-                        throw new IOException($"«{entry.FullName}»: рабочие проекты не очищаются.");
+                        RecordFailure(entry.Name.Equals(".git", StringComparison.OrdinalIgnoreCase) ? path : entry.FullName, exception);
                     }
-
-                    using var handle = CacheFileAccess.OpenFile(entry.FullName, false);
-                    files.Add(CacheFileAccess.Read(handle, entry.FullName));
                 }
             }
             catch (Exception exception) when (IsFileError(exception))
             {
+                RecordFailure(path, exception);
+            }
+        }
+
+        void RecordFailure(string path, Exception exception)
+        {
+            var package = kind == NuGetCacheKind.GlobalPackages ? PackageRoot(root, path) : null;
+            if (package is null)
+            {
                 AddError(errors, exception.Message);
+                _logger.NuGetCacheScanFailed(exception, kind.ToString(), path, false);
+            }
+            else
+            {
+                ExcludePackage(package, exception, warnings, excluded);
             }
         }
     }
@@ -403,10 +454,21 @@ public sealed class NuGetCleanupService
         return Path.Combine(root, segments[0], segments[1]);
     }
 
-    private static void ValidatePackages(string root, IEnumerable<CacheFileStamp> files)
+    private static string? PackageRoot(string root, string path)
+    {
+        var segments = Path.GetRelativePath(root, path).Split(Path.DirectorySeparatorChar);
+        return segments.Length >= 2 ? Path.Combine(root, segments[0], segments[1]) : null;
+    }
+
+    private void ValidatePackages(string root, IEnumerable<CacheFileStamp> files, List<string> warnings, HashSet<string> excluded)
     {
         foreach (var group in files.GroupBy(file => PackageDirectory(root, file.Path), StringComparer.OrdinalIgnoreCase))
         {
+            if (excluded.Contains(group.Key))
+            {
+                continue;
+            }
+
             var directory = new DirectoryInfo(group.Key);
             var id = directory.Parent!.Name;
             var names = group.Where(file => string.Equals(Path.GetDirectoryName(file.Path), group.Key, StringComparison.OrdinalIgnoreCase))
@@ -417,8 +479,21 @@ public sealed class NuGetCleanupService
                 || !names.Contains(id + ".nuspec")
                 || !names.Contains($"{id}.{directory.Name}.nupkg"))
             {
-                throw new IOException($"«{group.Key}»: пакет не завершён или структура не подтверждена. Очистка недоступна.");
+                ExcludePackage(
+                    group.Key,
+                    new IOException($"«{group.Key}»: пакет не завершён или структура не подтверждена."),
+                    warnings,
+                    excluded);
             }
+        }
+    }
+
+    private void ExcludePackage(string path, Exception exception, List<string> warnings, HashSet<string> excluded)
+    {
+        if (excluded.Add(path))
+        {
+            AddError(warnings, $"Пакет «{path}» исключён из очистки: {exception.Message}");
+            _logger.NuGetCacheScanFailed(exception, NuGetCacheKind.GlobalPackages.ToString(), path, true);
         }
     }
 
