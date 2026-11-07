@@ -231,13 +231,18 @@
                       AutomationProperties.Name="Сортировка пар"
                       ToolTip="Сортировка пар"
                       Visibility="{Binding HasRows, Converter={StaticResource BoolToVisibility}}" />
-            <TextBox views:StretchWrapPanel.Stretch="True"
-                     Text="{Binding Exclusions, UpdateSourceTrigger=PropertyChanged}"
-                     Style="{StaticResource TextBox.Toolbar}"
-                     VerticalAlignment="Center"
-                     Margin="0,0,0,8"
-                     AutomationProperties.Name="Исключения"
-                     ToolTip="Исключения (через запятую)" />
+            <StackPanel views:StretchWrapPanel.Stretch="True"
+                        VerticalAlignment="Center"
+                        Margin="0,0,0,8">
+                <TextBlock Text="Исключения (через запятую)"
+                           Style="{StaticResource Caption}"
+                           TextWrapping="Wrap"
+                           Margin="0,0,0,4" />
+                <TextBox Text="{Binding Exclusions, UpdateSourceTrigger=PropertyChanged}"
+                         Style="{StaticResource TextBox.Toolbar}"
+                         AutomationProperties.Name="Исключения"
+                         ToolTip="Исключения (через запятую)" />
+            </StackPanel>
         </views:StretchWrapPanel>
 
         <Border Grid.Row="3"

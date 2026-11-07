@@ -150,56 +150,66 @@
             </Grid>
 
             <Grid Margin="0,8,0,0">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
 
-                <ComboBox Grid.Column="0"
-                          Style="{StaticResource Chat.Selector}"
-                          ItemsSource="{Binding Gates.BackendOptions}"
-                          SelectedItem="{Binding Gates.SelectedBackendOption, Mode=TwoWay}"
-                          ToolTip="CLI, через который идёт разговор – переключение начнёт его заново"
-                          AutomationProperties.Name="CLI агента">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Title}"
-                                       ToolTip="{Binding Hint}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                <WrapPanel>
+                    <ComboBox Style="{StaticResource Chat.Selector}"
+                              ItemsSource="{Binding Gates.BackendOptions}"
+                              SelectedItem="{Binding Gates.SelectedBackendOption, Mode=TwoWay}"
+                              ToolTip="CLI, через который идёт разговор – переключение начнёт его заново"
+                              AutomationProperties.Name="CLI агента">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding Title}"
+                                           ToolTip="{Binding Hint}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
 
-                <ComboBox Grid.Column="1"
-                          Style="{StaticResource Chat.Selector}"
-                          ItemsSource="{Binding Gates.AgentModel.ModelOptions}"
-                          SelectedItem="{Binding Gates.AgentModel.SelectedModel, Mode=TwoWay}"
-                          Margin="4,0,0,0"
-                          ToolTip="Модель агента – применяется со следующего сообщения"
-                          AutomationProperties.Name="Модель агента">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Title}"
-                                       ToolTip="{Binding Hint}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
+                    <StackPanel Orientation="Horizontal"
+                                Margin="8,0,0,0">
+                        <TextBlock Text="Модель:"
+                                   Style="{StaticResource Caption}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,4,0" />
+                        <ComboBox Style="{StaticResource Chat.Selector}"
+                                  ItemsSource="{Binding Gates.AgentModel.ModelOptions}"
+                                  SelectedItem="{Binding Gates.AgentModel.SelectedModel, Mode=TwoWay}"
+                                  ToolTip="Модель агента – применяется со следующего сообщения"
+                                  AutomationProperties.Name="Модель агента">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Title}"
+                                               ToolTip="{Binding Hint}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                    </StackPanel>
 
-                <ComboBox Grid.Column="2"
-                          Style="{StaticResource Chat.Selector}"
-                          ItemsSource="{Binding Gates.AgentModel.EffortOptions}"
-                          SelectedItem="{Binding Gates.AgentModel.SelectedEffort, Mode=TwoWay}"
-                          Margin="4,0,0,0"
-                          ToolTip="Глубина рассуждений – чем выше, тем дольше и дороже ответ"
-                          AutomationProperties.Name="Глубина рассуждений" />
+                    <StackPanel Orientation="Horizontal"
+                                Margin="8,0,0,0">
+                        <TextBlock Text="Глубина:"
+                                   Style="{StaticResource Caption}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,4,0" />
+                        <ComboBox Style="{StaticResource Chat.Selector}"
+                                  ItemsSource="{Binding Gates.AgentModel.EffortOptions}"
+                                  SelectedItem="{Binding Gates.AgentModel.SelectedEffort, Mode=TwoWay}"
+                                  ToolTip="Глубина рассуждений – чем выше, тем дольше и дороже ответ"
+                                  AutomationProperties.Name="Глубина рассуждений" />
+                    </StackPanel>
+                </WrapPanel>
 
-                <TextBlock Grid.Column="3"
+                <TextBlock Grid.Row="1"
                            Style="{StaticResource TextBlock.Subtle}"
                            FontSize="{DynamicResource Font.Size.S}"
                            HorizontalAlignment="Right"
                            VerticalAlignment="Center"
-                           Margin="12,0,0,0"
+                           TextWrapping="Wrap"
+                           Margin="0,4,0,0"
                            Text="Enter – отправить, Shift+Enter – перенос строки" />
             </Grid>
         </StackPanel>

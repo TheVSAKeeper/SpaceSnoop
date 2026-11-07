@@ -377,6 +377,25 @@ public class PerformanceTests
         Assert.That(operations.Current, Is.Null);
     }
 
+    [TestCase("Сканирование")]
+    [TestCase("Сравнение")]
+    public void Короткий_прогон_не_дублирует_подпись_скорости_в_карточке(string name)
+    {
+        using var monitor = TestDiagnostics.Monitor();
+        var operations = new PerformanceOperations(monitor);
+        var card = new ScanOperationsCard(operations, new FakeUiDispatcher());
+
+        operations.ReportRun(new(name, 5, 1024, TimeSpan.FromSeconds(0.1)));
+
+        var row = card.Rows.Single(row => row.Key == "Скорость");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(card.Title, Does.Contain(name));
+            Assert.That(row.Value, Is.EqualTo("прогон слишком короткий"));
+        });
+    }
+
     [Test]
     public void Логический_объём_не_выдаётся_за_пропускную_способность()
     {

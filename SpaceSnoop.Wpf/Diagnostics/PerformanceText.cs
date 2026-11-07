@@ -56,7 +56,7 @@ public static class PerformanceText
                 $"Последний прогон: {finished.Name}",
                 Elapsed(finished.Elapsed),
                 Volume(finished),
-                Rate(finished) ?? "скорость: прогон слишком короткий",
+                Rate(finished) ?? "прогон слишком короткий",
                 Traversal(finished),
                 TraversalDetail(finished));
         }
