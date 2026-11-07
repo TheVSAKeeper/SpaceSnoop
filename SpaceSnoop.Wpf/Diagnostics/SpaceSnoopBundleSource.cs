@@ -17,8 +17,6 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
 
     public const string SessionEntry = "session.json";
 
-    public static string SessionId { get; } = Guid.NewGuid().ToString("N");
-
     private static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,
@@ -31,6 +29,8 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
         },
     };
 
+    public static string SessionId { get; } = Guid.NewGuid().ToString("N");
+
     public IEnumerable<DiagnosticsEntry> Collect()
     {
         var (name, text) = ReadSettings();
@@ -38,14 +38,18 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
         yield return new(name, text);
 
         using var process = Process.GetCurrentProcess();
-        yield return new(SessionEntry, JsonSerializer.Serialize(new
-        {
-            SessionId,
-            ProcessId = Environment.ProcessId,
-            ProcessStartedAtUtc = process.StartTime.ToUniversalTime(),
-            CapturedAtUtc = DateTime.UtcNow,
-            BuildVersion = AppInfo.InformationalVersion,
-        }, Json));
+        yield return new(
+            SessionEntry,
+            JsonSerializer.Serialize(
+                new
+                {
+                    SessionId,
+                    Environment.ProcessId,
+                    ProcessStartedAtUtc = process.StartTime.ToUniversalTime(),
+                    CapturedAtUtc = DateTime.UtcNow,
+                    BuildVersion = AppInfo.InformationalVersion,
+                },
+                Json));
 
         yield return new(
             OperationsEntry,
@@ -54,7 +58,7 @@ public sealed class SpaceSnoopBundleSource(ISettingsStore settings, PerformanceO
                 {
                     Operation = operations.Current,
                     LastRun = operations.Last,
-                    LastCleanup = operations.LastCleanup,
+                    operations.LastCleanup,
                 },
                 Json));
     }
