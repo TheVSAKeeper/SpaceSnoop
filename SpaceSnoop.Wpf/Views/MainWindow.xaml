@@ -32,6 +32,18 @@
                             CornerRadius="0" />
     </shell:WindowChrome.WindowChrome>
 
+    <Window.Resources>
+        <Style TargetType="keepshell:NavigationRailView">
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsNavigationLocked}"
+                             Value="True">
+                    <Setter Property="IsEnabled"
+                            Value="False" />
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
     <Window.InputBindings>
         <KeyBinding Key="F5"
                     Command="{Binding PageRefreshCommand}" />

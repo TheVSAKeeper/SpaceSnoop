@@ -10,6 +10,8 @@ internal sealed class FakeFilePicker : IFilePicker
 
     public string? OpenPath { get; set; }
 
+    public Func<FileSaveRequest, string?>? SaveHandler { get; set; }
+
     public List<string> Titles { get; } = [];
 
     public string? PickFolder(string title, string? initialDirectory = null)
@@ -30,6 +32,6 @@ internal sealed class FakeFilePicker : IFilePicker
     {
         Titles.Add(request.Title);
 
-        return SavePath;
+        return SaveHandler is not null ? SaveHandler(request) : SavePath;
     }
 }

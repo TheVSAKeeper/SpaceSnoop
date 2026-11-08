@@ -11,6 +11,11 @@
              d:DesignHeight="640"
              d:DesignWidth="980">
 
+    <UserControl.InputBindings>
+        <KeyBinding Key="Escape"
+                    Command="{Binding CancelFullScanExportCommand}" />
+    </UserControl.InputBindings>
+
     <Grid>
         <Grid>
             <Grid.Style>

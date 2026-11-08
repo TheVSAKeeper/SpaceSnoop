@@ -39,10 +39,6 @@ public sealed partial class ScanViewModel
             LastScanNotes.UnknownSizeFiles,
             LastScanNotes.PartialRecords);
 
-        ExportProgressPercent = 0;
-        ExportProgressText = "Выберите файл для сохранения";
-        IsExporting = true;
-
         string? path = null;
         string? temporaryPath = null;
         CancellationTokenSource? cancellation = null;
@@ -55,7 +51,7 @@ public sealed partial class ScanViewModel
                     FileName = BuildFullScanFileName(root.AbsolutePath),
                 });
 
-            if (path is null)
+            if (string.IsNullOrWhiteSpace(path))
             {
                 return;
             }
@@ -66,7 +62,10 @@ public sealed partial class ScanViewModel
             var cancellationSource = new CancellationTokenSource();
             cancellation = cancellationSource;
             _exportCancellation = cancellationSource;
+            ExportProgressPercent = 0;
             ExportProgressText = $"Подготовка {total:N0} записей";
+            StatusCaption = $"Сохранение полного скана: {ExportProgressText}";
+            IsExporting = true;
 
             var progress = new Progress<int>(completed =>
             {
@@ -82,6 +81,7 @@ public sealed partial class ScanViewModel
                 },
                 cancellationSource.Token);
 
+            cancellationSource.Token.ThrowIfCancellationRequested();
             File.Move(temporaryFile, path, true);
             ExportProgressPercent = 100;
             ExportProgressText = $"Сохранено: {root.TotalFileCount:N0} файлов, {root.TotalDirectoryCount:N0} каталогов";
@@ -113,11 +113,21 @@ public sealed partial class ScanViewModel
 
             cancellation?.Dispose();
             _exportCancellation = null;
-            IsExporting = false;
+
+            if (IsExporting)
+            {
+                StatusCaption = null;
+                IsExporting = false;
+            }
         }
     }
 
-    [RelayCommand]
+    private bool CanCancelFullScanExport()
+    {
+        return IsExporting;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCancelFullScanExport))]
     private void CancelFullScanExport()
     {
         _exportCancellation?.Cancel();
@@ -140,11 +150,34 @@ public sealed partial class ScanViewModel
     partial void OnIsExportingChanged(bool value)
     {
         OnPropertyChanged(nameof(IsBusy));
+        OnPropertyChanged(nameof(CancelCommand));
+        OnPropertyChanged(nameof(IsIndeterminate));
+        OnPropertyChanged(nameof(ProgressValue));
+        CancelFullScanExportCommand.NotifyCanExecuteChanged();
         ExportFullScanCommand.NotifyCanExecuteChanged();
         StartCommand.NotifyCanExecuteChanged();
         BrowseCommand.NotifyCanExecuteChanged();
         RescanCancelledCommand.NotifyCanExecuteChanged();
         Marks.DeleteMarkedCommand.NotifyCanExecuteChanged();
         Duplicates.NotifyScanStateChanged();
+    }
+
+    partial void OnExportProgressPercentChanged(int value)
+    {
+        if (IsExporting)
+        {
+            OnPropertyChanged(nameof(IsIndeterminate));
+            OnPropertyChanged(nameof(ProgressValue));
+        }
+    }
+
+    partial void OnExportProgressTextChanged(string value)
+    {
+        if (IsExporting)
+        {
+            StatusCaption = string.IsNullOrEmpty(value)
+                ? "Сохранение полного скана"
+                : $"Сохранение полного скана: {value}";
+        }
     }
 }

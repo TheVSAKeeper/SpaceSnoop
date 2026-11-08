@@ -32,10 +32,14 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 
     private readonly ChatViewModel _chat;
 
+    private readonly NavigationItem _scanItem;
+
     private readonly NavigationItem _syncItem;
 
     [ObservableProperty]
     private bool _isTarkovBootPlaying;
+
+    public bool IsNavigationLocked => _scan.IsExporting;
 
     public ToastHostViewModel Toasts { get; }
 
@@ -110,7 +114,9 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         _chatItem = new("Чат", PackIconLucideKind.MessageCircle, chat, key: SectionKey.Chat);
         _settingsItem = new("Настройки", PackIconLucideKind.Settings, settingsPage, key: SectionKey.Settings);
         _logsItem = logsItem;
+        _scanItem = scanItem;
         _syncItem = syncItem;
+        _scan.PropertyChanged += OnScanPropertyChanged;
 
         Sections.Add(scanItem);
         Sections.Add(syncItem);
@@ -149,19 +155,29 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
             return false;
         }
 
+        if (IsNavigationLocked && !ReferenceEquals(item, _scanItem))
+        {
+            return false;
+        }
+
         Selected = item;
         return true;
     }
 
     public void OpenSync(SyncProfile profile, ComparisonResult? comparison)
     {
+        if (IsNavigationLocked)
+        {
+            return;
+        }
+
         _sync.ApplyProfile(profile, comparison);
         Selected = _syncItem;
     }
 
     public void AskAgent(string question)
     {
-        if (!Sections.Contains(_chatItem))
+        if (IsNavigationLocked || !Sections.Contains(_chatItem))
         {
             return;
         }
@@ -172,6 +188,12 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 
     protected override void OnSelectionChanged(NavigationItem? value)
     {
+        if (IsNavigationLocked && !ReferenceEquals(value, _scanItem))
+        {
+            Selected = _scanItem;
+            return;
+        }
+
         StatusText = "Готов";
         OnPropertyChanged(nameof(PageRefreshCommand));
 
@@ -188,7 +210,20 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
 
     protected override void NavigateToSettings()
     {
+        if (IsNavigationLocked)
+        {
+            return;
+        }
+
         Selected = _settingsItem;
+    }
+
+    private void OnScanPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ScanViewModel.IsExporting))
+        {
+            OnPropertyChanged(nameof(IsNavigationLocked));
+        }
     }
 
     private void OnPreferencesChanged(object? sender, PropertyChangedEventArgs e)
