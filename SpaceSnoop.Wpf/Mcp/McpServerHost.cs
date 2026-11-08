@@ -12,6 +12,7 @@ public sealed partial class McpServerHost : ObservableObject, IDisposable
     private readonly McpPreferences _preferences;
     private readonly McpBridge _bridge;
     private readonly ScanPreferences _scan;
+    private readonly DiagnosticsCaptureSession _captures;
     private readonly ILogger<McpServerHost> _logger;
     private readonly SemaphoreSlim _gate = new(1, 1);
 
@@ -27,11 +28,12 @@ public sealed partial class McpServerHost : ObservableObject, IDisposable
 
     public bool IsRunning => Endpoint is not null;
 
-    public McpServerHost(McpPreferences preferences, McpBridge bridge, ScanPreferences scan, ILogger<McpServerHost> logger)
+    public McpServerHost(McpPreferences preferences, McpBridge bridge, ScanPreferences scan, DiagnosticsCaptureSession captures, ILogger<McpServerHost> logger)
     {
         _preferences = preferences;
         _bridge = bridge;
         _scan = scan;
+        _captures = captures;
         _logger = logger;
         _preferences.PropertyChanged += OnPreferencesChanged;
     }
@@ -117,6 +119,7 @@ public sealed partial class McpServerHost : ObservableObject, IDisposable
         builder.WebHost.ConfigureKestrel(options => options.Listen(IPAddress.Loopback, port));
 
         builder.Services.AddSingleton(_bridge);
+        builder.Services.AddSingleton(_captures);
 
         var mcp = builder.Services
             .AddMcpServer()

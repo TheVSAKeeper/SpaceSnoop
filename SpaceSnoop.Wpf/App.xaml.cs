@@ -37,7 +37,7 @@ public partial class App : Application
 
         services.AddSingleton<ProjectCleanupService>();
         services.AddSingleton(new WorkloadCleanupService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
-        services.AddSingleton<DotNetCleanService>(new DotNetCleanService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
+        services.AddSingleton(new DotNetCleanService(Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName)));
         services.AddSingleton<CompareDirectoriesUseCase>();
         services.AddSingleton<ExecuteSyncUseCase>();
 
@@ -97,6 +97,8 @@ public partial class App : Application
             Path.Combine(AppStorage.DataDirectory, TomlSettingsFile.PrimaryFileName)));
 
         services.AddSingleton<IDiagnosticsSecretSource, SpaceSnoopSecretSource>();
+        services.AddSingleton<DiagnosticsCaptureSession>();
+        services.AddSingleton<DiagnosticsTrace>();
 
         services.AddSingleton<ScanInspectorViewModel>();
         services.AddSingleton<ScanNodeFactory>();
@@ -252,6 +254,7 @@ public partial class App : Application
             }
 
             var monitor = _services.GetRequiredService<PerformanceMonitor>();
+            _services.GetRequiredService<DiagnosticsTrace>();
             monitor.ReportStartup(Stopwatch.GetElapsedTime(startedAt));
 
             var diagnostics = _services.GetRequiredService<DiagnosticsCollector>();

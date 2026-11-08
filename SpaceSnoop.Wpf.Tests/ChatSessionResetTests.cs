@@ -127,7 +127,7 @@ public class ChatSessionResetTests
 
     private ChatGatesViewModel Gates(SettingsStore settings, AgentPreferences preferences, AgentBackends backends, ChatHistoryViewModel history, Action cancelActiveTurn)
     {
-        _mcpServer = new(new(settings), null!, new(settings), NullLogger<McpServerHost>.Instance);
+        _mcpServer = new(new(settings), null!, new(settings), null!, NullLogger<McpServerHost>.Instance);
 
         return new(
             backends,
