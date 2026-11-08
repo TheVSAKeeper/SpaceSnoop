@@ -180,6 +180,14 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         RestartPrompt = new(dialogs, notifier, () => MarkedCount, () => AdminRestart.Run(lifetime));
         Summary = new(AdminElevation.IsElevated, RestartPrompt.RunAsync);
         FirstRun = new(settings, preferences, theme, updates, AdminElevation.IsElevated, RestartPrompt.RunAsync);
+        FirstRun.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(FirstRunViewModel.IsVisible))
+            {
+                StartCommand.NotifyCanExecuteChanged();
+                BrowseCommand.NotifyCanExecuteChanged();
+            }
+        };
         Tips = new(settings, () => FirstRun.IsVisible && ShowTargetPicker);
 
         Treemap = new(Roots);
@@ -399,7 +407,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     private bool CanStart()
     {
-        return !IsBusy;
+        return !IsBusy && !FirstRun.IsVisible;
     }
 
     private bool CanStartTarget()

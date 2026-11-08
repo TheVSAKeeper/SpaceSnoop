@@ -211,4 +211,25 @@ public class ScanTipsPageTests
             Assert.That(_scan.Tips.Current, Is.SameAs(ScanTipsViewModel.All[0]));
         }
     }
+
+    [Test]
+    public void Пока_открыта_карточка_первого_запуска_команды_выбора_и_запуска_неактивны_до_закрытия()
+    {
+        _scan.FirstRun.ShowForAutomation(false);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.StartCommand.CanExecute(null), Is.False);
+            Assert.That(_scan.BrowseCommand.CanExecute(null), Is.False);
+        }
+
+        _scan.FirstRun.DismissCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.FirstRun.IsVisible, Is.False);
+            Assert.That(_scan.StartCommand.CanExecute(null), Is.True);
+            Assert.That(_scan.BrowseCommand.CanExecute(null), Is.True);
+        }
+    }
 }

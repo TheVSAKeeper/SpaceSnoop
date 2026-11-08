@@ -354,24 +354,27 @@ public static class GalleryStates
     {
         var scan = services.GetRequiredService<ScanViewModel>();
         scan.FirstRun.ShowForAutomation(isElevated: false);
+        scan.HasResult = false;
+        scan.IsPickerOpen = false;
 
-        if (!scan.OpenPickerCommand.CanExecute(null))
+        if (!string.IsNullOrEmpty(scan.ScanTargetPath))
         {
-            throw new InvalidOperationException("Выбор цели не открывается – у скана нет результата.");
+            scan.Drives.RemoveDrive(scan.ScanTargetPath);
         }
 
-        scan.OpenPickerCommand.Execute(null);
+        scan.SelectedDrive = scan.Drives.Volumes.FirstOrDefault()?.Path ?? string.Empty;
     }
 
     private static void ResetWelcome(IServiceProvider services)
     {
         var scan = services.GetRequiredService<ScanViewModel>();
 
-        if (scan.ClosePickerCommand.CanExecute(null))
+        if (!string.IsNullOrEmpty(scan.ScanTargetPath))
         {
-            scan.ClosePickerCommand.Execute(null);
+            scan.SelectPathForAutomation(scan.ScanTargetPath);
         }
 
+        scan.HasResult = scan.Roots.Count > 0;
         scan.FirstRun.ShowForAutomation(AdminElevation.IsElevated);
         scan.FirstRun.IsVisible = false;
     }

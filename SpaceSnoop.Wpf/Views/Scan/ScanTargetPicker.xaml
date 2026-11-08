@@ -108,13 +108,13 @@
                             <DataTrigger Binding="{Binding FirstRun.IsVisible}"
                                          Value="True">
                                 <Setter Property="Margin"
-                                        Value="24,24,24,0" />
+                                        Value="24,12,24,0" />
                             </DataTrigger>
                             <DataTrigger
                                 Binding="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=local:ScanTargetPicker}, Converter={StaticResource IsLessThan}, ConverterParameter=640}"
                                 Value="True">
                                 <Setter Property="Margin"
-                                        Value="24,24,24,0" />
+                                        Value="24,12,24,0" />
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

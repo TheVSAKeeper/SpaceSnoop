@@ -524,10 +524,12 @@ public class BindingSmokeTests
         }
     }
 
-    [TestCase(false)]
-    [TestCase(true)]
-    public void Кнопка_скана_в_окне_900_на_600_видна_без_прокрутки(bool firstRun)
+    [TestCase(false, false)]
+    [TestCase(true, false)]
+    [TestCase(true, true)]
+    public void Кнопка_скана_в_окне_900_на_600_видна_без_прокрутки(bool firstRun, bool bigFont)
     {
+        var shell = _services.GetRequiredService<ShellPreferences>();
         var page = _services.GetRequiredService<ScanViewModel>();
         var recents = Directory.GetDirectories(_fixture.Root, "*", SearchOption.AllDirectories)
             .Prepend(_fixture.Root)
@@ -535,12 +537,13 @@ public class BindingSmokeTests
             .Take(RecentProbeCount)
             .ToArray();
 
-        var (width, height, welcome, elevated) = (_window.Width, _window.Height, page.FirstRun.IsVisible, page.FirstRun.IsElevated);
+        var (width, height, scale, welcome, elevated) = (_window.Width, _window.Height, shell.FontScale, page.FirstRun.IsVisible, page.FirstRun.IsElevated);
 
         try
         {
             _window.Width = FirstScreenWidth;
             _window.Height = FirstScreenHeight;
+            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
 
             Assert.That(_shell.TryNavigate(SectionKey.Scan), Is.True, "Страница «Сканирование» не открылась.");
 
@@ -562,17 +565,33 @@ public class BindingSmokeTests
             var scroll = (ScrollViewer)(ViewCapture.Find(_window, "PickerScroll") ?? throw new InvalidOperationException("Прокрутка выбора цели не найдена."));
             var button = start.TransformToAncestor(_window).TransformBounds(new(start.RenderSize));
             var area = view.TransformToAncestor(_window).TransformBounds(new(view.RenderSize));
+            var scrollBounds = scroll.TransformToAncestor(_window).TransformBounds(new(scroll.RenderSize));
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(scroll.ScrollableHeight, Is.GreaterThan(0), "Выбор цели влез целиком – кейс ничего не проверяет.");
                 Assert.That(area.Bottom, Is.LessThanOrEqualTo(_window.ActualHeight + 0.5), "Страница скана выше окна – край страницы не край видимой области.");
                 Assert.That(start.IsVisible, Is.True, "Кнопка «Сканировать» не показана.");
+                Assert.That(start.IsEnabled, Is.EqualTo(!firstRun), "При открытом первом запуске кнопка сканирования не должна быть активна.");
                 Assert.That(button.Top, Is.GreaterThanOrEqualTo(area.Top), "Кнопка «Сканировать» выше страницы.");
                 Assert.That(
                     button.Bottom,
                     Is.LessThanOrEqualTo(area.Bottom + 0.5),
                     $"Кнопка «Сканировать» уходит за нижний край страницы на {button.Bottom - area.Bottom:F0} px.");
+
+                if (firstRun)
+                {
+                    var card = Descendant<FirstRunCard>(scroll) ?? throw new InvalidOperationException("Карточка первого запуска не найдена.");
+                    var doneButton = Descendants<Button>(card).Single(static btn => Equals(btn.Content, "Готово"));
+                    var doneBounds = doneButton.TransformToAncestor(_window).TransformBounds(new(doneButton.RenderSize));
+
+                    Assert.That(doneButton.IsVisible, Is.True, "Кнопка «Готово» карточки первого запуска не показана.");
+                    Assert.That(doneBounds.Top, Is.GreaterThanOrEqualTo(scrollBounds.Top - 0.5), "Кнопка «Готово» выше области прокрутки.");
+                    Assert.That(
+                        doneBounds.Bottom,
+                        Is.LessThanOrEqualTo(scrollBounds.Bottom + 0.5),
+                        $"Кнопка «Готово» не видна без прокрутки в окне 900×600 (нижний край {doneBounds.Bottom:F0} > {scrollBounds.Bottom:F0}).");
+                }
             }
         }
         finally
@@ -586,6 +605,7 @@ public class BindingSmokeTests
                 page.Drives.RemoveDrive(path);
             }
 
+            shell.FontScale = scale;
             _window.Width = width;
             _window.Height = height;
             Settle();

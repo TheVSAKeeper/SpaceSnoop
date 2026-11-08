@@ -7,7 +7,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:FirstRunViewModel}"
-             d:DesignWidth="760"
+             d:DesignWidth="620"
              Visibility="{Binding IsVisible, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
 
     <UserControl.Resources>
@@ -43,142 +43,144 @@
     </UserControl.Resources>
 
     <Border Style="{StaticResource Card}"
-            Padding="20,16,12,20"
-            Margin="0,0,0,28"
+            Padding="18,14,14,16"
+            Margin="0,0,0,16"
             AutomationProperties.Name="Первый запуск">
-        <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
+        <StackPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-            <StackPanel Grid.Column="0"
-                        Margin="0,4,8,0">
-                <TextBlock Text="Добро пожаловать в SpaceSnoop"
-                           Style="{StaticResource TextBlock.Heading}"
-                           FontSize="{DynamicResource Font.Size.L}"
-                           TextWrapping="Wrap" />
-                <TextBlock
-                    Text="Три настройки, от которых зависит результат. Поменять их можно и позже в «Настройках»."
-                    Style="{StaticResource Form.Hint}"
-                    TextWrapping="Wrap"
-                    Margin="0,4,0,0" />
+                <StackPanel Grid.Column="0"
+                            Margin="0,2,12,0">
+                    <TextBlock Text="Добро пожаловать в SpaceSnoop"
+                               Style="{StaticResource TextBlock.Heading}"
+                               FontSize="{DynamicResource Font.Size.L}"
+                               TextWrapping="Wrap" />
+                    <TextBlock
+                        Text="Три настройки, от которых зависит результат. Поменять их можно и позже в «Настройках»."
+                        Style="{StaticResource Form.Hint}"
+                        TextWrapping="Wrap"
+                        Margin="0,2,0,0" />
+                </StackPanel>
 
-                <Grid Margin="0,16,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0"
-                            Style="{StaticResource FirstRun.IconTile}">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Zap}"
-                                                  Style="{StaticResource FirstRun.Icon}" />
-                    </Border>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Быстрый скан дисков NTFS"
-                                   Style="{StaticResource Form.Label}"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding FastScanHint}"
-                                   Style="{StaticResource Form.Hint}"
-                                   TextWrapping="Wrap"
-                                   Margin="0,2,0,0" />
-                        <CheckBox Content="Включить быстрый скан"
-                                  IsChecked="{Binding FastScan, Mode=TwoWay}"
-                                  Margin="0,10,0,0"
-                                  HorizontalAlignment="Left"
-                                  Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
-                        <StackPanel
-                            Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                            <Button Style="{StaticResource Button.Secondary}"
-                                    Command="{Binding RestartAsAdminCommand}"
-                                    Margin="0,10,0,0"
-                                    HorizontalAlignment="Left"
-                                    ToolTip="Включить быстрый скан и перезапустить программу с правами администратора"
-                                    AutomationProperties.Name="Включить быстрый скан и перезапустить от администратора">
-                                <DockPanel>
-                                    <iconPacks:PackIconLucide DockPanel.Dock="Left"
-                                                              Kind="{x:Static iconPacks:PackIconLucideKind.ShieldCheck}"
-                                                              Width="14"
-                                                              Height="14"
-                                                              VerticalAlignment="Center"
-                                                              Margin="0,0,8,0" />
-                                    <TextBlock Text="Включить и перезапустить от администратора"
-                                               TextWrapping="Wrap"
-                                               VerticalAlignment="Center" />
-                                </DockPanel>
-                            </Button>
-                            <TextBlock
-                                Text="Без прав администратора скан пойдёт медленнее, часть системных папок не прочитается."
-                                Style="{StaticResource Form.Hint}"
-                                TextWrapping="Wrap"
-                                Margin="0,6,0,0" />
-                        </StackPanel>
-                    </StackPanel>
-                </Grid>
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Top">
+                    <Button Style="{StaticResource Button.Primary}"
+                            Command="{Binding DismissCommand}"
+                            Margin="0,0,6,0"
+                            ToolTip="Сохранить выбор и скрыть карточку – она больше не появится"
+                            Content="Готово" />
+                    <Button Style="{StaticResource Button.Icon}"
+                            Command="{Binding DismissCommand}"
+                            ToolTip="Скрыть – карточка больше не появится"
+                            AutomationProperties.Name="Закрыть карточку первого запуска">
+                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.X}"
+                                                  Width="15"
+                                                  Height="15" />
+                    </Button>
+                </StackPanel>
+            </Grid>
 
-                <Grid Margin="0,16,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0"
-                            Style="{StaticResource FirstRun.IconTile}">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Palette}"
-                                                  Style="{StaticResource FirstRun.Icon}" />
-                    </Border>
-                    <StackPanel Grid.Column="1">
-                        <TextBlock Text="Оформление"
-                                   Style="{StaticResource Form.Label}" />
-                        <ListBox Style="{StaticResource ListBox.ThemeTiles}"
-                                 ItemsSource="{Binding ThemeOptions}"
-                                 SelectedIndex="{Binding SelectedThemeIndex}"
-                                 HorizontalAlignment="Left"
-                                 Margin="-8,8,0,-8"
-                                 AutomationProperties.Name="Тема оформления" />
-                    </StackPanel>
-                </Grid>
-
-                <Grid Margin="0,16,0,0">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <Border Grid.Column="0"
-                            Style="{StaticResource FirstRun.IconTile}">
-                        <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.CloudDownload}"
-                                                  Style="{StaticResource FirstRun.Icon}" />
-                    </Border>
-                    <StackPanel Grid.Column="1">
-                        <CheckBox IsChecked="{Binding CheckUpdates, Mode=TwoWay}"
-                                  HorizontalAlignment="Left">
-                            <TextBlock Text="Проверять обновления при запуске"
-                                       TextWrapping="Wrap" />
-                        </CheckBox>
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Style="{StaticResource FirstRun.IconTile}">
+                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Zap}"
+                                              Style="{StaticResource FirstRun.Icon}" />
+                </Border>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Быстрый скан дисков NTFS"
+                               Style="{StaticResource Form.Label}"
+                               TextWrapping="Wrap" />
+                    <TextBlock Text="{Binding FastScanHint}"
+                               Style="{StaticResource Form.Hint}"
+                               TextWrapping="Wrap"
+                               Margin="0,2,0,0" />
+                    <CheckBox Content="Включить быстрый скан"
+                              IsChecked="{Binding FastScan, Mode=TwoWay}"
+                              Margin="0,8,0,0"
+                              HorizontalAlignment="Left"
+                              Visibility="{Binding IsElevated, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}" />
+                    <StackPanel
+                        Visibility="{Binding NeedsElevation, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
+                        <Button Style="{StaticResource Button.Secondary}"
+                                Command="{Binding RestartAsAdminCommand}"
+                                Margin="0,8,0,0"
+                                HorizontalAlignment="Left"
+                                ToolTip="Включить быстрый скан и перезапустить программу с правами администратора"
+                                AutomationProperties.Name="Включить быстрый скан и перезапустить от администратора">
+                            <DockPanel>
+                                <iconPacks:PackIconLucide DockPanel.Dock="Left"
+                                                          Kind="{x:Static iconPacks:PackIconLucideKind.ShieldCheck}"
+                                                          Width="14"
+                                                          Height="14"
+                                                          VerticalAlignment="Center"
+                                                          Margin="0,0,8,0" />
+                                <TextBlock Text="Включить и перезапустить от администратора"
+                                           TextWrapping="Wrap"
+                                           VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Button>
                         <TextBlock
-                            Text="Программа спрашивает GitHub, вышла ли новая версия. Сама она ничего не скачивает."
-                            Style="{StaticResource Form.CheckHint}"
-                            TextWrapping="Wrap" />
+                            Text="Без прав администратора скан пойдёт медленнее, часть системных папок не прочитается."
+                            Style="{StaticResource Form.Hint}"
+                            TextWrapping="Wrap"
+                            Margin="0,4,0,0" />
                     </StackPanel>
-                </Grid>
+                </StackPanel>
+            </Grid>
 
-                <Button Style="{StaticResource Button.Primary}"
-                        Command="{Binding DismissCommand}"
-                        Margin="46,18,0,0"
-                        HorizontalAlignment="Left"
-                        ToolTip="Сохранить выбор и скрыть карточку – она больше не появится"
-                        Content="Готово" />
-            </StackPanel>
+            <Grid Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Style="{StaticResource FirstRun.IconTile}">
+                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Palette}"
+                                              Style="{StaticResource FirstRun.Icon}" />
+                </Border>
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="Оформление"
+                               Style="{StaticResource Form.Label}" />
+                    <ListBox Style="{StaticResource ListBox.ThemeTiles}"
+                             ItemsSource="{Binding ThemeOptions}"
+                             SelectedIndex="{Binding SelectedThemeIndex}"
+                             HorizontalAlignment="Left"
+                             Margin="-8,4,0,-8"
+                             AutomationProperties.Name="Тема оформления" />
+                </StackPanel>
+            </Grid>
 
-            <Button Grid.Column="1"
-                    Style="{StaticResource Button.Icon}"
-                    Command="{Binding DismissCommand}"
-                    VerticalAlignment="Top"
-                    ToolTip="Скрыть – карточка больше не появится"
-                    AutomationProperties.Name="Закрыть карточку первого запуска">
-                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.X}"
-                                          Width="15"
-                                          Height="15" />
-            </Button>
-        </Grid>
+            <Grid Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Style="{StaticResource FirstRun.IconTile}">
+                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.CloudDownload}"
+                                              Style="{StaticResource FirstRun.Icon}" />
+                </Border>
+                <StackPanel Grid.Column="1">
+                    <CheckBox IsChecked="{Binding CheckUpdates, Mode=TwoWay}"
+                              HorizontalAlignment="Left">
+                        <TextBlock Text="Проверять обновления при запуске"
+                                   TextWrapping="Wrap" />
+                    </CheckBox>
+                    <TextBlock
+                        Text="Программа спрашивает GitHub, вышла ли новая версия. Сама она ничего не скачивает."
+                        Style="{StaticResource Form.CheckHint}"
+                        TextWrapping="Wrap" />
+                </StackPanel>
+            </Grid>
+        </StackPanel>
     </Border>
 </UserControl>
