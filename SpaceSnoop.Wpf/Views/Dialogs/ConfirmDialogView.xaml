@@ -261,40 +261,60 @@
         <views:FirstFitPanel Grid.Row="3"
                              x:Name="ChoiceSlot"
                              Margin="0,14,0,0">
-            <ItemsControl x:Name="ChoiceRow"
-                          ItemsSource="{Binding Choices}"
-                          ItemTemplate="{StaticResource Confirm.Choice}"
-                          HorizontalAlignment="Right">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemContainerStyle>
-                    <Style TargetType="ContentPresenter">
-                        <Setter Property="Margin"
-                                Value="8,0,0,0" />
-                    </Style>
-                </ItemsControl.ItemContainerStyle>
-            </ItemsControl>
-            <ItemsControl x:Name="ChoiceColumn"
-                          ItemsSource="{Binding Choices}"
-                          ItemTemplate="{StaticResource Confirm.Choice}"
-                          Margin="0,-8,0,0">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <DockPanel LastChildFill="False" />
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemContainerStyle>
-                    <Style TargetType="ContentPresenter">
-                        <Setter Property="DockPanel.Dock"
-                                Value="Bottom" />
-                        <Setter Property="Margin"
-                                Value="0,8,0,0" />
-                    </Style>
-                </ItemsControl.ItemContainerStyle>
-            </ItemsControl>
+            <Grid x:Name="ChoiceRow">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <ItemsControl Grid.Column="1"
+                              ItemsSource="{Binding Choices}"
+                              ItemTemplate="{StaticResource Confirm.Choice}"
+                              HorizontalAlignment="Right">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="Margin"
+                                    Value="8,0,0,0" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                </ItemsControl>
+                <CheckBox Grid.Column="0"
+                          Content="{Binding RememberCaption}"
+                          IsChecked="{Binding RememberChoice}"
+                          VerticalAlignment="Center"
+                          Margin="0,0,16,0"
+                          Visibility="{Binding HasRememberChoice, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+            <DockPanel x:Name="ChoiceColumn"
+                       LastChildFill="False">
+                <ItemsControl DockPanel.Dock="Bottom"
+                              ItemsSource="{Binding Choices}"
+                              ItemTemplate="{StaticResource Confirm.Choice}"
+                              Margin="0,-8,0,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <DockPanel LastChildFill="False" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemContainerStyle>
+                        <Style TargetType="ContentPresenter">
+                            <Setter Property="DockPanel.Dock"
+                                    Value="Bottom" />
+                            <Setter Property="Margin"
+                                    Value="0,8,0,0" />
+                        </Style>
+                    </ItemsControl.ItemContainerStyle>
+                </ItemsControl>
+                <CheckBox DockPanel.Dock="Top"
+                          Content="{Binding RememberCaption}"
+                          IsChecked="{Binding RememberChoice}"
+                          Margin="0,0,0,10"
+                          Visibility="{Binding HasRememberChoice, Converter={StaticResource BoolToVisibility}}" />
+            </DockPanel>
         </views:FirstFitPanel>
     </Grid>
 </UserControl>

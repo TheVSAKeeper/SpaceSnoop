@@ -3,46 +3,93 @@ using MahApps.Metro.IconPacks;
 
 namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
+public enum StartupAdminMode
+{
+    None = 0,
+    Ask = 1,
+    WithoutAdmin = 2,
+    AlwaysAdmin = 3,
+}
+
 public enum StartupAdminAction
 {
     None = 0,
     WelcomeCard = 1,
     Question = 2,
+    Restart = 3,
 }
 
-public sealed class AdminStartupPrompt(IDialogService dialogs, ShellPreferences shell, Func<Task> restart)
+public sealed class AdminStartupPrompt(
+    IDialogService dialogs,
+    ShellPreferences shell,
+    Func<Task> restart,
+    ToastNotifier? notifier = null)
 {
-    internal static readonly ConfirmChoice StopAsking = new("Больше не спрашивать", ConfirmChoiceKind.Secondary);
+    internal static readonly ConfirmChoice ContinueWithoutAdmin = new("Не перезапускать", ConfirmChoiceKind.Dismissive);
 
     internal static readonly ConfirmChoice Restart = new("Перезапустить", ConfirmChoiceKind.Primary);
 
-    public static StartupAdminAction Decide(bool isElevated, bool welcomePending, bool warnIfNotAdmin)
+    public static StartupAdminAction Decide(
+        bool isElevated,
+        bool welcomePending,
+        StartupAdminMode mode,
+        bool elevationRefused = false)
     {
         if (welcomePending)
         {
             return StartupAdminAction.WelcomeCard;
         }
 
-        return !isElevated && warnIfNotAdmin ? StartupAdminAction.Question : StartupAdminAction.None;
+        if (isElevated)
+        {
+            return StartupAdminAction.None;
+        }
+
+        return mode switch
+        {
+            StartupAdminMode.AlwaysAdmin => elevationRefused ? StartupAdminAction.None : StartupAdminAction.Restart,
+            StartupAdminMode.Ask => StartupAdminAction.Question,
+            _ => StartupAdminAction.None,
+        };
     }
 
-    public async Task RunAsync(bool isElevated, bool welcomePending)
+    public async Task RunAsync(bool isElevated, bool welcomePending, bool elevationRefused = false)
     {
-        if (Decide(isElevated, welcomePending, shell.WarnIfNotAdministrator) != StartupAdminAction.Question)
+        if (elevationRefused)
         {
+            notifier?.Notify(AdminRestartPrompt.RefusedMessage, StatusSeverity.Warning);
             return;
+        }
+
+        switch (Decide(isElevated, welcomePending, shell.StartupAdmin, elevationRefused))
+        {
+            case StartupAdminAction.Restart:
+                await restart();
+                return;
+
+            case StartupAdminAction.Question:
+                break;
+
+            default:
+                return;
         }
 
         var dialog = BuildConfirm();
         await dialogs.ShowAsync(dialog);
 
-        if (ReferenceEquals(dialog.Chosen, StopAsking))
+        if (ReferenceEquals(dialog.Chosen, Restart))
         {
-            shell.WarnIfNotAdministrator = false;
-        }
-        else if (ReferenceEquals(dialog.Chosen, Restart))
-        {
+            if (dialog.RememberChoice)
+            {
+                shell.StartupAdmin = StartupAdminMode.AlwaysAdmin;
+                shell.Flush();
+            }
+
             await restart();
+        }
+        else if (dialog.RememberChoice && ReferenceEquals(dialog.Chosen, ContinueWithoutAdmin))
+        {
+            shell.StartupAdmin = StartupAdminMode.WithoutAdmin;
         }
     }
 
@@ -54,12 +101,14 @@ public sealed class AdminStartupPrompt(IDialogService dialogs, ShellPreferences 
             [
                 "Программа запущена без прав администратора, поэтому часть системных папок не прочитается и размеры выйдут заниженными.",
                 "Программа закроется и откроется снова, Windows спросит разрешение.",
-                "Если больше не спрашивать, вопрос можно вернуть в «Настройки → Запуск».",
+                "Выбор можно изменить в «Настройки → Запуск».",
             ],
             [
-                new("Не перезапускать", ConfirmChoiceKind.Dismissive),
-                StopAsking,
+                ContinueWithoutAdmin,
                 Restart,
-            ]);
+            ])
+        {
+            RememberCaption = "Больше не спрашивать",
+        };
     }
 }

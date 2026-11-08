@@ -55,7 +55,7 @@ public class SettingsResetTests
             {
                 store.SetEnum(SettingsKeys.StartupPage, StartupPage.Logs);
                 store.SetBool(SettingsKeys.NavCollapsed, true);
-                store.SetBool(SettingsKeys.WarnIfNotAdmin, false);
+                store.SetEnum(SettingsKeys.StartupAdmin, StartupAdminMode.AlwaysAdmin);
             },
             (bench, store) =>
             {
@@ -63,11 +63,11 @@ public class SettingsResetTests
 
                 Assert.That(shell.StartupPage, Is.EqualTo(AppDefaults.StartupPageDefault));
                 Assert.That(shell.NavCollapsed, Is.EqualTo(AppDefaults.NavCollapsedDefault));
-                Assert.That(shell.WarnIfNotAdministrator, Is.EqualTo(AppDefaults.WarnIfNotAdminDefault));
+                Assert.That(shell.StartupAdmin, Is.EqualTo(AppDefaults.StartupAdminDefault));
 
                 Assert.That(store.GetEnum(SettingsKeys.StartupPage, StartupPage.Logs), Is.EqualTo(AppDefaults.StartupPageDefault));
                 Assert.That(store.GetBool(SettingsKeys.NavCollapsed), Is.EqualTo(AppDefaults.NavCollapsedDefault));
-                Assert.That(store.GetBool(SettingsKeys.WarnIfNotAdmin), Is.EqualTo(AppDefaults.WarnIfNotAdminDefault));
+                Assert.That(store.GetEnum(SettingsKeys.StartupAdmin, StartupAdminMode.AlwaysAdmin), Is.EqualTo(AppDefaults.StartupAdminDefault));
             }),
 
         new(
@@ -501,7 +501,7 @@ public class SettingsResetTests
 
         store.SetEnum(SettingsKeys.StartupPage, StartupPage.Logs);
         store.SetBool(SettingsKeys.NavCollapsed, true);
-        store.SetBool(SettingsKeys.WarnIfNotAdmin, false);
+        store.SetEnum(SettingsKeys.StartupAdmin, StartupAdminMode.WithoutAdmin);
 
         store.SetBool(SettingsKeys.ScanMultithreading, false);
         store.SetInt(SettingsKeys.ScanParallelism, 1);

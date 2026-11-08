@@ -227,6 +227,24 @@ public partial class App : Application
                 settings.SetInt(SettingsKeys.ScanTipsShown, 0);
             }
 
+            var welcomePending = settings.GetBool(SettingsKeys.WelcomePending);
+            var startupAdmin = ShellPreferences.MigrateStartupAdmin(settings);
+            var elevationRefused = false;
+
+            if (AdminStartupPrompt.Decide(AdminElevation.IsElevated, welcomePending, startupAdmin) == StartupAdminAction.Restart)
+            {
+                settings.Flush();
+
+                if (AdminElevation.TryRestartAsAdmin())
+                {
+                    Log.Information("Перезапуск с правами администратора по настройке запуска");
+                    Shutdown();
+                    return;
+                }
+
+                elevationRefused = true;
+            }
+
             AppThemes.Register();
             ThemeManager.Apply(AppThemes.StartupKey(settings, freshProfile));
             FontScaleManager.Initialize(settings.GetDouble(SettingsKeys.FontScale, FontScaleManager.DefaultScale));
@@ -272,7 +290,7 @@ public partial class App : Application
             splash = null;
 
             _ = RestoreNetworkDrivesAsync(_services, _logging.CreateLogger<DriveCatalog>());
-            _ = AskAboutAdministratorAsync(_services);
+            _ = AskAboutAdministratorAsync(_services, elevationRefused);
         }
         catch (Exception ex)
         {
@@ -345,30 +363,38 @@ public partial class App : Application
         }
     }
 
-    private static async Task AskAboutAdministratorAsync(ServiceProvider services)
+    private static async Task AskAboutAdministratorAsync(ServiceProvider services, bool elevationRefused)
     {
         var isElevated = AdminElevation.IsElevated;
         var scan = services.GetRequiredService<ScanViewModel>();
         var shell = services.GetRequiredService<ShellPreferences>();
+        var notifier = services.GetRequiredService<ToastNotifier>();
         var welcomePending = scan.FirstRun.IsVisible;
 
         Log.Information(isElevated ? "Приложение запущено от имени администратора" : "Приложение запущено без прав администратора");
 
-        switch (AdminStartupPrompt.Decide(isElevated, welcomePending, shell.WarnIfNotAdministrator))
+        if (elevationRefused)
         {
-            case StartupAdminAction.WelcomeCard:
-                Log.Information("Первый запуск: вместо вопроса о правах администратора показана карточка первого запуска");
-                break;
+            Log.Information("Повышение прав при запуске отклонено пользователем, работа продолжается без прав администратора");
+        }
+        else
+        {
+            switch (AdminStartupPrompt.Decide(isElevated, welcomePending, shell.StartupAdmin))
+            {
+                case StartupAdminAction.WelcomeCard:
+                    Log.Information("Первый запуск: вместо вопроса о правах администратора показана карточка первого запуска");
+                    break;
 
-            case StartupAdminAction.None when !isElevated:
-                Log.Information("Предупреждение о запуске без прав администратора отключено в настройках");
-                break;
+                case StartupAdminAction.None when !isElevated:
+                    Log.Information("Предупреждение о запуске без прав администратора отключено в настройках");
+                    break;
+            }
         }
 
         try
         {
-            var prompt = new AdminStartupPrompt(services.GetRequiredService<IDialogService>(), shell, scan.RestartPrompt.RunAsync);
-            await prompt.RunAsync(isElevated, welcomePending);
+            var prompt = new AdminStartupPrompt(services.GetRequiredService<IDialogService>(), shell, scan.RestartPrompt.RunAsync, notifier);
+            await prompt.RunAsync(isElevated, welcomePending, elevationRefused);
         }
         catch (Exception ex)
         {

@@ -81,6 +81,9 @@ public sealed partial class ConfirmDialogViewModel(
     IReadOnlyList<ConfirmLine> lines,
     IReadOnlyList<ConfirmChoice> choices) : ObservableObject, IDialogViewModel, IAcceptableDialog
 {
+    [ObservableProperty]
+    private bool _rememberChoice;
+
     public event EventHandler<bool>? RequestClose;
 
     public string Title => title;
@@ -95,9 +98,13 @@ public sealed partial class ConfirmDialogViewModel(
 
     public string? Warning { get; init; }
 
+    public string? RememberCaption { get; init; }
+
     public bool HasSummary => !string.IsNullOrEmpty(Summary);
 
     public bool HasWarning => !string.IsNullOrEmpty(Warning);
+
+    public bool HasRememberChoice => !string.IsNullOrEmpty(RememberCaption);
 
     public ConfirmChoice? Chosen { get; private set; }
 

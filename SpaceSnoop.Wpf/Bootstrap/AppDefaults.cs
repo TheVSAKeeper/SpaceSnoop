@@ -55,7 +55,7 @@ public static class AppDefaults
     public const int CleanupMinAgeHoursMin = 1;
     public const int CleanupMinAgeHoursMax = 720;
 
-    public const bool WarnIfNotAdminDefault = true;
+    public const StartupAdminMode StartupAdminDefault = StartupAdminMode.Ask;
     public const bool WelcomePendingDefault = false;
     public const int ScanTipsShownDefault = int.MaxValue;
     public const StartupPage StartupPageDefault = StartupPage.Scan;

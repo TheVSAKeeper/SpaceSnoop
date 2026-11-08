@@ -70,7 +70,7 @@ public static class SettingsResetCatalog
 
             new(
                 "startup",
-                "Вернуть раздел к заводским значениям: стартовая страница «Сканирование», боковое меню развёрнуто, предупреждение о правах администратора включено.",
+                "Вернуть раздел к заводским значениям: стартовая страница «Сканирование», боковое меню развёрнуто, права администратора запрашиваются при запуске.",
                 [
                     Field(
                         SettingsKeys.StartupPage,
@@ -85,11 +85,11 @@ public static class SettingsResetCatalog
                         () => shell.NavCollapsed == AppDefaults.NavCollapsedDefault,
                         () => shell.NavCollapsed = AppDefaults.NavCollapsedDefault),
                     Field(
-                        SettingsKeys.WarnIfNotAdmin,
-                        "предупреждение о правах администратора",
-                        Flag(AppDefaults.WarnIfNotAdminDefault),
-                        () => shell.WarnIfNotAdministrator == AppDefaults.WarnIfNotAdminDefault,
-                        () => shell.WarnIfNotAdministrator = AppDefaults.WarnIfNotAdminDefault),
+                        SettingsKeys.StartupAdmin,
+                        "права администратора при запуске",
+                        SettingsOptions.LabelOf(SettingsOptions.StartupAdminModes, AppDefaults.StartupAdminDefault),
+                        () => shell.StartupAdmin == AppDefaults.StartupAdminDefault,
+                        () => shell.StartupAdmin = AppDefaults.StartupAdminDefault),
                 ],
                 []),
 

@@ -724,67 +724,58 @@ public class BindingSmokeTests
         }
     }
 
-    [TestCase(FirstScreenWidth, FirstScreenHeight, true, TestName = "Запрос прав при крупном шрифте в узком окне ставит исходы столбиком и не режет кнопки")]
-    [TestCase(1280d, 800d, false, TestName = "Запрос прав в обычном окне держит исходы одним рядом справа")]
-    public void Кнопки_запроса_прав(double width, double height, bool bigFont)
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, false, TestName = "Запрос прав при крупном шрифте в узком окне ставит исходы столбиком и не режет кнопки (светлая тема)")]
+    [TestCase(FirstScreenWidth, FirstScreenHeight, true, true, TestName = "Запрос прав при крупном шрифте в узком окне ставит исходы столбиком и не режет кнопки (тёмная тема)")]
+    [TestCase(1280d, 800d, false, false, TestName = "Запрос прав в обычном окне держит исходы одним рядом справа (светлая тема)")]
+    [TestCase(1280d, 800d, false, true, TestName = "Запрос прав в обычном окне держит исходы одним рядом справа (тёмная тема)")]
+    public void Кнопки_запроса_прав(double width, double height, bool bigFont, bool darkTheme)
     {
-        var shell = _services.GetRequiredService<ShellPreferences>();
-        var modals = _services.GetRequiredService<ModalHostViewModel>();
-        var (oldWidth, oldHeight, scale) = (_window.Width, _window.Height, shell.FontScale);
-
+        var (shell, settings, modals) = (_services.GetRequiredService<ShellPreferences>(), _services.GetRequiredService<SettingsViewModel>(), _services.GetRequiredService<ModalHostViewModel>());
+        var (oldWidth, oldHeight, scale, oldMode, oldSection) = (_window.Width, _window.Height, shell.FontScale, shell.StartupAdmin, settings.Sections.SelectedPath);
         try
         {
-            _window.Width = width;
-            _window.Height = height;
-            shell.FontScale = bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale;
+            ThemeManager.Apply(darkTheme ? AppThemes.DarkKey : AppThemes.LightKey);
+            (_window.Width, _window.Height, shell.FontScale) = (width, height, bigFont ? FontScaleManager.MaxScale : FontScaleManager.DefaultScale);
+            Assert.That(_shell.TryNavigate(SectionKey.Settings), Is.True, "Страница «Настройки» не открылась.");
+            settings.Sections.SelectCommand.Execute(settings.Sections["startup"]);
+            Settle();
+            var startupCard = Descendant<SettingsStartupCard>(_window) ?? throw new InvalidOperationException("Карточка настроек запуска не показана.");
+            foreach (var option in settings.StartupAdminOptions)
+            {
+                settings.SelectedStartupAdminOption = option;
+                Settle();
+                var cardOverflow = Descendants<Control>(startupCard).Where(c => c.IsVisible && c.TransformToAncestor(startupCard).TransformBounds(new(c.RenderSize)).Right > (startupCard.ActualWidth + 1));
+                Assert.That(cardOverflow, Is.Empty, $"Элемент в карточке запуска выходит за край при выборе «{option.Label}».");
+            }
+            settings.SelectedStartupAdminOption = settings.StartupAdminOptions[0];
             _ = modals.ShowAsync(AdminStartupPrompt.BuildConfirm());
             Settle();
-
             var view = Descendant<ConfirmDialogView>(_window) ?? throw new InvalidOperationException("Диалог подтверждения не показан.");
-            var row = (FrameworkElement)view.FindName("ChoiceRow");
-            var column = (FrameworkElement)view.FindName("ChoiceColumn");
-            var buttons = Descendants<Button>(view).Where(button => button.IsVisible).ToList();
+            var (row, column) = ((FrameworkElement)view.FindName("ChoiceRow"), (FrameworkElement)view.FindName("ChoiceColumn"));
+            var buttons = Descendants<Button>(view).Where(static button => button.IsVisible).ToList();
+            var checkBoxes = Descendants<CheckBox>(view).Where(static box => box.IsVisible).ToList();
             var bounds = buttons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToList();
-
+            var checkBounds = checkBoxes[0].TransformToAncestor(view).TransformBounds(new(checkBoxes[0].RenderSize));
             SaveFrame(view, bigFont ? "confirm-admin-column" : "confirm-admin-row");
-
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(
-                    buttons.Select(static button => button.Content),
-                    Is.EqualTo(
-                        new[]
-                        {
-                            "Не перезапускать", "Больше не спрашивать", "Перезапустить",
-                        }),
-                    "Порядок фокуса исходов изменился: первым должен идти отказ.");
-
-                Assert.That(column.IsVisible, Is.EqualTo(bigFont), "Показан не тот вариант ряда исходов.");
-                Assert.That(row.IsVisible, Is.EqualTo(!bigFont), "Ряд и столбик исходов видны не взаимоисключающе.");
-                Assert.That(
-                    buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - 0.5)).Select(static button => button.Content),
-                    Is.Empty,
-                    "Подпись кнопки режется.");
-
+                Assert.That(buttons.Select(static button => button.Content), Is.EqualTo(new[] { "Не перезапускать", "Перезапустить" }), "Порядок фокуса исходов изменился: первым должен идти отказ.");
+                Assert.That(checkBoxes.Select(static box => box.Content), Is.EqualTo(new[] { "Больше не спрашивать" }), "Чекбокс запоминания выбора не показан.");
+                Assert.That((column.IsVisible, row.IsVisible), Is.EqualTo((bigFont, !bigFont)), "Ряд и столбик исходов видны не взаимоисключающе.");
+                Assert.That(buttons.Where(static button => button.ActualWidth < (button.DesiredSize.Width - 0.5)).Select(static button => button.Content), Is.Empty, "Подпись кнопки режется.");
                 Assert.That(bounds.Where(rect => rect.Left < -0.5 || rect.Right > (view.ActualWidth + 0.5)), Is.Empty, "Кнопка выходит за край диалога.");
-
-                if (bigFont)
-                {
-                    Assert.That(bounds[0].Top, Is.GreaterThan(bounds[2].Top), "В столбике отказ должен стоять внизу, действие – сверху.");
-                    Assert.That(bounds.Select(static rect => rect.Width).Distinct().Count(), Is.EqualTo(1), "Кнопки столбика не на всю ширину.");
-                }
-                else
-                {
-                    Assert.That(bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(), Is.EqualTo(1), "Исходы в обычном окне не в один ряд.");
-                }
+                Assert.That(checkBounds.Left >= -0.5 && checkBounds.Right <= (view.ActualWidth + 0.5), Is.True, "Чекбокс запоминания выходит за край диалога.");
+                Assert.That(bigFont ? bounds[0].Top > bounds[1].Top : bounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count() == 1, Is.True, "Нарушено расположение кнопок исходов.");
+                Assert.That(bigFont ? checkBounds.Bottom <= (bounds[1].Top + 0.5) : checkBounds.Right <= (bounds[0].Left + 0.5), Is.True, "Нарушено положение чекбокса запоминания относительно кнопок.");
+                Assert.That(!bigFont || bounds.Select(static rect => rect.Width).Distinct().Count() == 1, Is.True, "Кнопки столбика не на всю ширину.");
             }
         }
         finally
         {
             modals.RequestCancel();
-            shell.FontScale = scale;
-            _window.Width = oldWidth;
-            _window.Height = oldHeight;
+            ThemeManager.Apply(AppThemes.LightKey);
+            (shell.StartupAdmin, shell.FontScale, _window.Width, _window.Height) = (oldMode, scale, oldWidth, oldHeight);
+            settings.Sections.Restore(oldSection);
             Settle();
         }
     }

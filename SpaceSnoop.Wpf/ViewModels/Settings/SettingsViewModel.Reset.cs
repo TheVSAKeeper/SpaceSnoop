@@ -45,6 +45,7 @@ public sealed partial class SettingsViewModel
     {
         OnPropertyChanged(nameof(SelectedThemeOption));
         OnPropertyChanged(nameof(SelectedStartupOption));
+        OnPropertyChanged(nameof(SelectedStartupAdminOption));
         OnPropertyChanged(nameof(SelectedDeleteModeOption));
         OnPropertyChanged(nameof(SelectedCompressionOption));
         OnPropertyChanged(nameof(SelectedGitFolderOption));

@@ -110,6 +110,8 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
 
     public IReadOnlyList<EnumOption<StartupPage>> StartupOptions => SettingsOptions.StartupPages;
 
+    public IReadOnlyList<EnumOption<StartupAdminMode>> StartupAdminOptions => SettingsOptions.StartupAdminModes;
+
     public IReadOnlyList<EnumOption<DeleteMode>> DeleteModeOptions => SettingsOptions.DeleteModes;
 
     public IReadOnlyList<EnumOption<CompressionLevel>> CompressionOptions => SettingsOptions.CompressionLevels;
@@ -142,6 +144,19 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
             if (value.Value != Shell.StartupPage)
             {
                 Shell.StartupPage = value.Value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public EnumOption<StartupAdminMode> SelectedStartupAdminOption
+    {
+        get => StartupAdminOptions.FirstOrDefault(o => o.Value == Shell.StartupAdmin) ?? StartupAdminOptions[0];
+        set
+        {
+            if (value.Value != Shell.StartupAdmin)
+            {
+                Shell.StartupAdmin = value.Value;
                 OnPropertyChanged();
             }
         }

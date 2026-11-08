@@ -21,6 +21,13 @@ public static class SettingsOptions
         new(StartupPage.Logs, "Логи"),
     ];
 
+    public static IReadOnlyList<EnumOption<StartupAdminMode>> StartupAdminModes { get; } =
+    [
+        new(StartupAdminMode.Ask, "Спрашивать"),
+        new(StartupAdminMode.WithoutAdmin, "Продолжать без прав"),
+        new(StartupAdminMode.AlwaysAdmin, "Всегда с правами"),
+    ];
+
     public static IReadOnlyList<EnumOption<DeleteMode>> DeleteModes { get; } =
     [
         new(DeleteMode.RecycleBin, "В корзину"),

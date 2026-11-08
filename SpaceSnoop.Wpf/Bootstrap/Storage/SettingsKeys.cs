@@ -6,6 +6,7 @@ public static class SettingsKeys
     public const string FontScale = "wpf.shell.font_scale";
     public const string EnableToastNotifications = "wpf.notifications.toast";
     public const string StartupPage = "wpf.shell.startup_page";
+    public const string StartupAdmin = "wpf.startup.admin";
     public const string WarnIfNotAdmin = "wpf.startup.admin_warning";
     public const string WelcomePending = "wpf.startup.welcome_pending";
     public const string LastPage = "wpf.shell.last_page";
