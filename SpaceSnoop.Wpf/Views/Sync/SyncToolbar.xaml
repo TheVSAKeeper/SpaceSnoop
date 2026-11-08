@@ -34,24 +34,6 @@
                 </Style.Triggers>
             </Style>
 
-            <Storyboard x:Key="LabelShow">
-                <DoubleAnimation Storyboard.TargetProperty="(FrameworkElement.LayoutTransform).(ScaleTransform.ScaleX)"
-                                 To="1"
-                                 Duration="0:0:0.18" />
-                <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                 To="1"
-                                 Duration="0:0:0.18" />
-            </Storyboard>
-
-            <Storyboard x:Key="LabelHide">
-                <DoubleAnimation Storyboard.TargetProperty="(FrameworkElement.LayoutTransform).(ScaleTransform.ScaleX)"
-                                 To="0"
-                                 Duration="0:0:0.18" />
-                <DoubleAnimation Storyboard.TargetProperty="Opacity"
-                                 To="0"
-                                 Duration="0:0:0.18" />
-            </Storyboard>
-
             <Style x:Key="SyncDeleteMark"
                    TargetType="iconPacks:PackIconLucide">
                 <Setter Property="Width"
@@ -73,32 +55,20 @@
                 </Style.Triggers>
             </Style>
 
-            <Style x:Key="CompareLabel"
-                   TargetType="TextBlock">
+            <Style x:Key="CompareButton"
+                   TargetType="Button"
+                   BasedOn="{StaticResource Button.Primary}">
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding Ledger.SyncIsPrimary}"
                                  Value="True">
-                        <DataTrigger.EnterActions>
-                            <BeginStoryboard Storyboard="{StaticResource LabelHide}" />
-                        </DataTrigger.EnterActions>
-                        <DataTrigger.ExitActions>
-                            <BeginStoryboard Storyboard="{StaticResource LabelShow}" />
-                        </DataTrigger.ExitActions>
-                    </DataTrigger>
-                </Style.Triggers>
-            </Style>
-
-            <Style x:Key="SyncLabel"
-                   TargetType="TextBlock">
-                <Style.Triggers>
-                    <DataTrigger Binding="{Binding Ledger.SyncIsPrimary}"
-                                 Value="True">
-                        <DataTrigger.EnterActions>
-                            <BeginStoryboard Storyboard="{StaticResource LabelShow}" />
-                        </DataTrigger.EnterActions>
-                        <DataTrigger.ExitActions>
-                            <BeginStoryboard Storyboard="{StaticResource LabelHide}" />
-                        </DataTrigger.ExitActions>
+                        <Setter Property="Background"
+                                Value="{DynamicResource Bg.SurfaceAlt}" />
+                        <Setter Property="Foreground"
+                                Value="{DynamicResource Fg.Primary}" />
+                        <Setter Property="BorderBrush"
+                                Value="{DynamicResource Border.Subtle}" />
+                        <Setter Property="FontWeight"
+                                Value="Normal" />
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
@@ -113,7 +83,7 @@
 
             <views:StretchWrapPanel Margin="0,12,0,0"
                                     ItemWidth="240">
-                <Button Style="{StaticResource Button.Secondary}"
+                <Button Style="{StaticResource CompareButton}"
                         Command="{Binding Operations.CompareCommand}"
                         VerticalAlignment="Center"
                         Margin="0,0,8,8"
@@ -126,11 +96,7 @@
                                                   VerticalAlignment="Center" />
                         <TextBlock Text="Сравнить"
                                    Padding="6,0,0,0"
-                                   Style="{StaticResource CompareLabel}">
-                            <TextBlock.LayoutTransform>
-                                <ScaleTransform ScaleX="1" />
-                            </TextBlock.LayoutTransform>
-                        </TextBlock>
+                                   VerticalAlignment="Center" />
                     </StackPanel>
                 </Button>
                 <Button Style="{StaticResource Button.Primary}"
@@ -147,12 +113,7 @@
                                                   VerticalAlignment="Center" />
                         <TextBlock Text="Синхронизировать"
                                    Padding="6,0,0,0"
-                                   Opacity="0"
-                                   Style="{StaticResource SyncLabel}">
-                            <TextBlock.LayoutTransform>
-                                <ScaleTransform ScaleX="0" />
-                            </TextBlock.LayoutTransform>
-                        </TextBlock>
+                                   VerticalAlignment="Center" />
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
                                                   Style="{StaticResource SyncDeleteMark}" />
                     </StackPanel>
