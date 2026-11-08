@@ -21,6 +21,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     private int _parallelism = 1;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsIndeterminate))]
     private bool _isScanning;
 
     [ObservableProperty]
@@ -67,7 +68,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
     public PerformanceTraversal? Traversal { get; private set; }
 
-    public bool IsIndeterminate => !_progressFraction.HasValue;
+    public bool IsIndeterminate => (IsScanning || _progress is not null) && !_progressFraction.HasValue;
 
     public double ProgressValue => _progressFraction ?? 0;
 

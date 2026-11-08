@@ -270,7 +270,7 @@
             <StackPanel Orientation="Horizontal"
                         Margin="0,12,0,0"
                         Visibility="{Binding IsRunning, Converter={StaticResource BoolToVisibility}, FallbackValue=Collapsed}">
-                <ProgressBar IsIndeterminate="True"
+                <ProgressBar IsIndeterminate="{Binding IsRunning}"
                              Width="120"
                              Height="4"
                              VerticalAlignment="Center"

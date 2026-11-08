@@ -105,6 +105,35 @@ public class ScanProgressTests
     }
 
     [Test]
+    public void Полоса_хода_неопределённа_только_во_время_скана_без_известной_доли()
+    {
+        var directory = Directory.CreateTempSubdirectory("spacesnoop-indeterminate");
+
+        try
+        {
+            var viewModel = new ScanProgressViewModel(new(TestDiagnostics.Monitor()), new FakeUiDispatcher());
+            var beforeBegin = viewModel.IsIndeterminate;
+
+            viewModel.Begin(directory, directory.FullName, 1);
+            var whileScanningSubfolder = viewModel.IsIndeterminate;
+
+            viewModel.Finish();
+            var afterFinish = viewModel.IsIndeterminate;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(beforeBegin, Is.False);
+                Assert.That(whileScanningSubfolder, Is.True);
+                Assert.That(afterFinish, Is.False);
+            }
+        }
+        finally
+        {
+            directory.Delete(true);
+        }
+    }
+
+    [Test]
     public void Строка_фазы_идёт_мимо_пути_и_не_переприсваивается_на_каждом_тике()
     {
         var dispatcher = new FakeUiDispatcher();

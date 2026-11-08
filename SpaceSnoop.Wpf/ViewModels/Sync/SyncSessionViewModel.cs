@@ -21,7 +21,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     private readonly Stopwatch _clock = new();
 
     private CancellationTokenSource? _cts;
-    private bool _isIndeterminate = true;
+    private bool _isIndeterminate;
     private double _progressValue;
     private double _progressMax = 1;
 
@@ -107,6 +107,10 @@ public sealed partial class SyncSessionViewModel : ObservableObject
             ProgressMax = total;
             IsIndeterminate = false;
         }
+        else
+        {
+            IsIndeterminate = true;
+        }
 
         Advance(shape, update, elapsed);
     }
@@ -114,7 +118,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     internal void ClearBusyForAutomation()
     {
         IsBusy = false;
-        IsIndeterminate = true;
+        IsIndeterminate = false;
         ProgressValue = 0;
         StatusCaption = null;
         ProgressDetail = null;
@@ -218,7 +222,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
         finally
         {
             IsBusy = false;
-            IsIndeterminate = true;
+            IsIndeterminate = false;
             ProgressValue = 0;
             _performance.Release(_reported);
             _cts?.Dispose();
