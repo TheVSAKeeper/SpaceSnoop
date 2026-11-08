@@ -262,6 +262,44 @@ public class MftLinksTests
     }
 
     [Test]
+    public void Причины_отрыва_различают_удалённого_родителя_устаревшее_поколение_и_каскад_а_переподвес_убирает_образец()
+    {
+        var table = Table();
+        table.Entries[35] = Leaf("спасённый.bin", 60, 1, 128);
+        table.Alternates[35] = [new(Target, 7, "внутри.bin")];
+        table.Entries[36] = Leaf("удалённый-родитель.bin", 61, 1, 256);
+        table.Entries[37] = Leaf("устаревший-родитель.bin", Target, 3, 512);
+        table.Entries[40] = Folder("оторванный", 63, 1, 5);
+        table.Entries[41] = Leaf("каскадный.bin", 40, 5, 1024);
+
+        var links = MftLinks.Build(table, CancellationToken.None);
+        links.Rehome(table, Root, CancellationToken.None);
+        links.DropUnreachable(table, CancellationToken.None);
+        var report = MftScanner.FormatReport(table.Statistics, 0);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(table.Statistics.Rehomed, Is.EqualTo(1));
+            Assert.That(table.Statistics.MissingParents, Is.EqualTo(3));
+            Assert.That(table.Statistics.StaleParents, Is.EqualTo(1));
+            Assert.That(table.Statistics.Unreachable, Is.EqualTo(1));
+            Assert.That(table.Statistics.Detached, Is.EqualTo(4));
+            Assert.That(
+                table.Statistics.DetachedSamples.Select(static x => x.Text),
+                Is.EqualTo(
+                    new[]
+                    {
+                        "40->63[свободна]", "37->20[поколение 3!=7]", "36->61[свободна]", "41->40[ветка]",
+                    }));
+
+            Assert.That(report, Does.Contain("без записи родителя 3"));
+            Assert.That(report, Does.Contain("устаревших ссылок на родителя 1"));
+            Assert.That(report, Does.Contain("в оторванных ветках 1"));
+            Assert.That(report, Does.Contain("примеры: 40->63[свободна]"));
+        }
+    }
+
+    [Test]
     public void Пропущенная_ссылка_переподвесом_не_воскресает()
     {
         var table = Table();

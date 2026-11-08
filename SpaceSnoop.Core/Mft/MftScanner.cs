@@ -59,11 +59,33 @@ public sealed class MftScanner(ILogger<MftScanner>? logger = null)
             statistics.StaleParents,
             statistics.Rehomed,
             MftReader.ResolveThreads(letter),
-            $"записей {statistics.RecordsScanned:N0}, занято {statistics.RecordsInUse:N0}, расширений {statistics.Extensions:N0}, " + $"с несколькими именами {statistics.HardLinkedFiles:N0}, пропущено ссылок {statistics.SkippedLinks:N0}, " + $"безымянных {statistics.Nameless:N0}, оторванных {statistics.Detached:N0}, повреждённых {statistics.Damaged:N0}, " + $"неполных {statistics.Partial:N0}, без размера {totals.UnknownSizeFiles:N0}, " + $"устаревших ссылок на родителя {statistics.StaleParents:N0}, переподвешено {statistics.Rehomed:N0}");
+            FormatReport(statistics, totals.UnknownSizeFiles));
 
         _log.MftScanCompleted(directory.FullName, table.Entries.Length, result.ExtraNames, result.ExtraNameBytes, result.Report);
 
         return result;
+    }
+
+    internal static string FormatReport(MftStatistics statistics, long unknownSizeFiles)
+    {
+        var report =
+            $"записей {statistics.RecordsScanned:N0}, занято {statistics.RecordsInUse:N0}, расширений {statistics.Extensions:N0}, "
+            + $"с несколькими именами {statistics.HardLinkedFiles:N0}, пропущено ссылок {statistics.SkippedLinks:N0}, "
+            + $"безымянных {statistics.Nameless:N0}, оторванных {statistics.Detached:N0}, повреждённых {statistics.Damaged:N0}, "
+            + $"неполных {statistics.Partial:N0}, без размера {unknownSizeFiles:N0}, "
+            + $"устаревших ссылок на родителя {statistics.StaleParents:N0}, переподвешено {statistics.Rehomed:N0}";
+
+        if (statistics.Detached > 0 || statistics.MissingParents > 0 || statistics.Unreachable > 0)
+        {
+            report += $", без записи родителя {statistics.MissingParents:N0}, в оторванных ветках {statistics.Unreachable:N0}";
+        }
+
+        if (statistics.DetachedSamples.Count > 0)
+        {
+            report += $" (примеры: {string.Join(", ", statistics.DetachedSamples.Select(static sample => sample.Text))})";
+        }
+
+        return report;
     }
 
     internal static int Locate(MftTable table, MftLinks links, DirectoryInfo directory, char letter)

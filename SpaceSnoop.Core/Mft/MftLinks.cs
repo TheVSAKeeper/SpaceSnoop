@@ -40,7 +40,7 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
                 continue;
             }
 
-            if (!IsValidParent(entries, entry.Parent, entry.ParentSequence, table.Statistics))
+            if (!IsValidParent(entries, index, entry.Parent, entry.ParentSequence, table.Statistics))
             {
                 table.Statistics.Detached++;
 
@@ -82,7 +82,7 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
 
             foreach (var candidate in names)
             {
-                if (!IsValidParent(entries, candidate.Parent, candidate.ParentSequence, null)
+                if (!IsValidParent(entries, index, candidate.Parent, candidate.ParentSequence, null)
                     || !IsUnder(entries, candidate.Parent, start)
                     || (entries[index].IsDirectory && !CanAttachDirectory(entries, index, candidate.Parent)))
                 {
@@ -93,7 +93,7 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
 
                 if (dropped)
                 {
-                    Restore(table.Statistics, in entry);
+                    Restore(table.Statistics, index, in entry);
                 }
 
                 Detach(index, entry.Parent);
@@ -156,6 +156,8 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
             }
 
             table.Statistics.Detached++;
+            table.Statistics.Unreachable++;
+            table.Statistics.RecordDetached(index, entry.Parent, "ветка");
 
             if (!entry.IsDirectory)
             {
@@ -191,9 +193,10 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
         return false;
     }
 
-    private static void Restore(MftStatistics statistics, in MftEntry entry)
+    private static void Restore(MftStatistics statistics, int record, in MftEntry entry)
     {
         statistics.Detached--;
+        statistics.RemoveDetached(record);
 
         if (entry.IsDirectory)
         {
@@ -204,21 +207,39 @@ internal sealed class MftLinks(int[] firstChild, int[] nextSibling)
         statistics.OrphanBytes -= entry.Size;
     }
 
-    private static bool IsValidParent(MftEntry[] entries, int parent, ushort parentSequence, MftStatistics? statistics)
+    private static bool IsValidParent(MftEntry[] entries, int record, int parent, ushort parentSequence, MftStatistics? statistics)
     {
-        if (parent < 0 || parent >= entries.Length || !entries[parent].Exists)
+        if (parent < 0 || parent >= entries.Length || !entries[parent].Present)
         {
+            if (statistics is not null)
+            {
+                statistics.MissingParents++;
+                statistics.RecordDetached(record, parent, "свободна");
+            }
+
             return false;
         }
 
-        if (MftLayout.SameGeneration(entries[parent].Sequence, parentSequence))
+        if (!MftLayout.SameGeneration(entries[parent].Sequence, parentSequence))
         {
-            return entries[parent].IsDirectory;
+            if (statistics is not null)
+            {
+                statistics.StaleParents++;
+                statistics.RecordDetached(record, parent, $"поколение {parentSequence}!={entries[parent].Sequence}");
+            }
+
+            return false;
+        }
+
+        if (entries[parent].Exists && entries[parent].IsDirectory)
+        {
+            return true;
         }
 
         if (statistics is not null)
         {
-            statistics.StaleParents++;
+            statistics.Unreachable++;
+            statistics.RecordDetached(record, parent, entries[parent].IsDirectory ? "ветка" : "не каталог");
         }
 
         return false;
