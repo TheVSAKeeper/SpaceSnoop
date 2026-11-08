@@ -78,15 +78,15 @@
                             VerticalAlignment="Center"
                             Margin="0,0,8,0">
                     <Border Style="{StaticResource EndpointChip}"
-                            Background="{DynamicResource State.SuccessSoft}"
-                            BorderBrush="{DynamicResource State.Success}"
+                            Background="{DynamicResource Accent.Soft}"
+                            BorderBrush="{DynamicResource Sync.LeftOnly}"
                             ToolTip="Родитель-источник">
                         <TextBlock Text="Л"
                                    FontWeight="Bold"
                                    FontSize="{DynamicResource Font.Size.XS}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
-                                   Foreground="{DynamicResource State.SuccessText}" />
+                                   Foreground="{DynamicResource Sync.LeftOnly}" />
                     </Border>
 
                     <Button HorizontalAlignment="Center"
@@ -133,14 +133,14 @@
 
                     <Border Style="{StaticResource EndpointChip}"
                             Background="{DynamicResource State.InfoSoft}"
-                            BorderBrush="{DynamicResource State.Info}"
+                            BorderBrush="{DynamicResource Sync.RightOnly}"
                             ToolTip="Родитель-приёмник">
                         <TextBlock Text="П"
                                    FontWeight="Bold"
                                    FontSize="{DynamicResource Font.Size.XS}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center"
-                                   Foreground="{DynamicResource State.InfoText}" />
+                                   Foreground="{DynamicResource Sync.RightOnly}" />
                     </Border>
                 </StackPanel>
 

@@ -128,14 +128,14 @@
                     Style="{StaticResource EndpointChip}"
                     Margin="8,0,0,0"
                     Background="{DynamicResource State.InfoSoft}"
-                    BorderBrush="{DynamicResource State.Info}"
+                    BorderBrush="{DynamicResource Sync.RightOnly}"
                     ToolTip="Правая сторона">
                 <TextBlock Text="П"
                            FontWeight="Bold"
                            FontSize="{DynamicResource Font.Size.XS}"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Center"
-                           Foreground="{DynamicResource State.InfoText}" />
+                           Foreground="{DynamicResource Sync.RightOnly}" />
             </Border>
             <Button DockPanel.Dock="Left"
                     Style="{StaticResource Button.Secondary}"

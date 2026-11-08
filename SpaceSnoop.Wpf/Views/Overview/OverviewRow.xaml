@@ -30,12 +30,12 @@
                 <DataTrigger Binding="{Binding NewerIsLeft}"
                              Value="True">
                     <Setter Property="Foreground"
-                            Value="{DynamicResource State.SuccessText}" />
+                            Value="{DynamicResource Sync.LeftOnly}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding NewerIsRight}"
                              Value="True">
                     <Setter Property="Foreground"
-                            Value="{DynamicResource State.InfoText}" />
+                            Value="{DynamicResource Sync.RightOnly}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
@@ -50,12 +50,12 @@
                 <DataTrigger Binding="{Binding NewerIsLeft}"
                              Value="True">
                     <Setter Property="Foreground"
-                            Value="{DynamicResource State.SuccessText}" />
+                            Value="{DynamicResource Sync.LeftOnly}" />
                 </DataTrigger>
                 <DataTrigger Binding="{Binding NewerIsRight}"
                              Value="True">
                     <Setter Property="Foreground"
-                            Value="{DynamicResource State.InfoText}" />
+                            Value="{DynamicResource Sync.RightOnly}" />
                 </DataTrigger>
             </Style.Triggers>
         </Style>
