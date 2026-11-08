@@ -1,9 +1,11 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Diagnostics;
 using KeepShell.Testing;
+using SpaceSnoop.Core;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.Diagnostics;
+using SpaceSnoop.Wpf.ViewModels.Scan;
 using System.Text.Json;
 using Tomlyn.Model;
 
@@ -161,6 +163,49 @@ public class DiagnosticsBundleTests
             Assert.That(parsed.RootElement[0].GetProperty("Left").GetString(), Is.EqualTo(@"C:\…\" + leftLeaf));
             Assert.That(parsed.RootElement[0].GetProperty("Right").GetString(), Is.EqualTo(@"\\server\share\…\" + rightLeaf));
             Assert.That(parsed.RootElement[0].GetProperty("Enabled").GetBoolean(), Is.False);
+        }
+    }
+
+    [Test]
+    public void Пакет_сохраняет_неполноту_Mft_и_фактические_потоки_движка_через_сводку_и_карточку()
+    {
+        File.WriteAllBytes(Path.Combine(_root, "sample.bin"), new byte[128]);
+        var tree = new DiskSpaceCalculator().Calculate(new(_root));
+        var summary = new ScanSummaryViewModel();
+        using var monitor = TestDiagnostics.Monitor();
+        var operations = new PerformanceOperations(monitor);
+        var card = new ScanOperationsCard(operations, new FakeUiDispatcher());
+
+        var mftRun = summary.Apply(
+            tree,
+            TimeSpan.FromSeconds(2),
+            new(100, 0, 16),
+            notes: new(true, 8, 0, 1, 55, 0, 0));
+
+        operations.ReportRun(mftRun);
+
+        var source = new SpaceSnoopBundleSource(new MemorySettings(), operations, Path.Combine(_root, "missing.toml"));
+        var entries = Build(Secrets(null), [], source.Collect().ToList());
+        using var parsed = JsonDocument.Parse(Text(entries, SpaceSnoopBundleSource.OperationsEntry));
+        var lastRun = parsed.RootElement.GetProperty("lastRun");
+        var notes = lastRun.GetProperty("notes");
+
+        var walkRun = summary.Apply(
+            tree,
+            TimeSpan.FromSeconds(2),
+            new(100, 0, 16),
+            notes: ScanNotes.ForTraversal(16));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(card.State, Is.EqualTo(DiagnosticsCardState.Warning));
+            Assert.That(card.Rows.Single(static row => row.Key == "Неполнота $MFT").Value, Is.EqualTo("1 объект"));
+            Assert.That(card.Rows.Single(static row => row.Key == "Обход").Hint, Does.Contain("8 потоков").And.Contain("неполных в $MFT: 1 объект"));
+            Assert.That(lastRun.GetProperty("traversal").GetProperty("parallelism").GetInt32(), Is.EqualTo(8));
+            Assert.That(notes.GetProperty("engine").GetString(), Is.EqualTo("mft"));
+            Assert.That(notes.GetProperty("droppedObjects").GetInt64(), Is.EqualTo(1));
+            Assert.That(notes.GetProperty("droppedBytes").GetInt64(), Is.EqualTo(55));
+            Assert.That(walkRun.Traversal?.Parallelism, Is.EqualTo(16));
         }
     }
 

@@ -103,7 +103,24 @@ public sealed partial class ScanSummaryViewModel : ObservableObject
         Refresh(result);
         ResultElapsedText = PerformanceText.Elapsed(elapsed);
 
-        var run = new PerformanceOperation("Сканирование", result.TotalFileCount, result.TotalSize, elapsed, Traversal: traversal, LogicalBytes: true);
+        if (traversal is not null && notes.Parallelism > 0)
+        {
+            traversal = traversal with
+            {
+                Parallelism = notes.Parallelism,
+            };
+        }
+
+        ScanNotes? operationNotes = notes.Parallelism > 0 ? notes : null;
+        var run = new PerformanceOperation(
+            "Сканирование",
+            result.TotalFileCount,
+            result.TotalSize,
+            elapsed,
+            Traversal: traversal,
+            LogicalBytes: true,
+            Notes: operationNotes);
+
         ResultRateText = PerformanceText.Rate(run) ?? NoValue;
 
         return run;

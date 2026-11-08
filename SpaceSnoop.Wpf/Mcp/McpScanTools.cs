@@ -66,7 +66,7 @@ internal sealed class McpScanTools(
                         probe.ReportPhase(BackgroundScanProbe.OperationName);
                         var outcome = runner.Run(directory, parallelism, probe.Progress, cancellationToken);
 
-                        var walked = probe.Finish(releaseMeasurement: false);
+                        var walked = probe.Finish(false, outcome.Notes);
                         phases.WalkMs = (long)walked.Elapsed.TotalMilliseconds;
 
                         var stopwatch = Stopwatch.StartNew();

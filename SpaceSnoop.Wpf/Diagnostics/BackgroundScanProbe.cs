@@ -31,11 +31,12 @@ internal sealed class BackgroundScanProbe : IDisposable
         Publish();
     }
 
-    public PerformanceOperation Finish(bool releaseMeasurement = true)
+    public PerformanceOperation Finish(bool releaseMeasurement = true, ScanNotes? notes = null)
     {
         Stop(releaseMeasurement);
 
-        var run = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, _parallelism);
+        var parallelism = notes is { Parallelism: > 0 } applied ? applied.Parallelism : _parallelism;
+        var run = Describe(Progress.CreateSnapshot(), _stopwatch.Elapsed, null, parallelism, notes);
         _operations.ReportRun(run);
 
         return run;
@@ -88,7 +89,12 @@ internal sealed class BackgroundScanProbe : IDisposable
         }
     }
 
-    internal static PerformanceOperation Describe(ScanProgressSnapshot snapshot, TimeSpan elapsed, long? totalBytes, int parallelism)
+    internal static PerformanceOperation Describe(
+        ScanProgressSnapshot snapshot,
+        TimeSpan elapsed,
+        long? totalBytes,
+        int parallelism,
+        ScanNotes? notes = null)
     {
         return new(
             OperationName,
@@ -98,7 +104,8 @@ internal sealed class BackgroundScanProbe : IDisposable
             TotalBytes: totalBytes,
             Basis: totalBytes.HasValue ? EtaBasis.Bytes : EtaBasis.None,
             Traversal: new(snapshot.DirectoriesScanned, snapshot.DirectoriesFailed, Math.Max(1, parallelism)),
-            LogicalBytes: true);
+            LogicalBytes: true,
+            Notes: notes);
     }
 
     internal bool Publish()

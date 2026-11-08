@@ -30,10 +30,22 @@ public sealed partial class ScanViewModel : IScanAutomation
             return null;
         }
 
-        var options = new ScanExportOptions(depth, LastScanParallelism > 1, LastScanParallelism);
+        var notes = LastScanNotes;
+        var engine = notes.Parallelism > 0 ? notes.Engine : "directories";
+        var options = new ScanExportOptions(depth, LastScanParallelism > 1, LastScanParallelism, engine);
+        var exportNotes = ScanExportNotes.From(
+            notes.ExtraNameBytes,
+            notes.DroppedObjects,
+            notes.DroppedBytes,
+            notes.UnknownSizeFiles,
+            notes.PartialRecords);
+
         var path = root.AbsolutePath;
 
-        return () => ScanExport.Build(root, path, options, AppInfo.Version, entryLimit);
+        return () => ScanExport.Build(root, path, options, AppInfo.Version, entryLimit) with
+        {
+            Notes = exportNotes,
+        };
     }
 
     internal void SelectPathForAutomation(string path)

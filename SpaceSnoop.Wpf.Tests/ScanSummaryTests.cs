@@ -1,4 +1,5 @@
 ﻿using SpaceSnoop.Core;
+using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels.Scan;
 
 namespace SpaceSnoop.Wpf.Tests;
@@ -73,6 +74,22 @@ public class ScanSummaryTests
             Assert.That(summary.HasUnreadNote, Is.True);
             Assert.That(summary.CanRestartAsAdmin, Is.False);
             Assert.That(summary.UnreadNoteHint, Does.Contain("даже с правами администратора"));
+        }
+    }
+
+    [Test]
+    public void Сводка_скана_передаёт_потоки_и_заметки_движка_в_операцию()
+    {
+        var tree = new DiskSpaceCalculator().Calculate(new(_root));
+        var summary = new ScanSummaryViewModel();
+        var notes = new ScanNotes(true, 1, 0, 3, 4096, 0, 0);
+
+        var run = summary.Apply(tree, TimeSpan.FromSeconds(2), new(10, 0, 16), notes: notes);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(run.Traversal, Is.EqualTo(new PerformanceTraversal(10, 0, 1)));
+            Assert.That(run.Notes, Is.EqualTo(notes));
         }
     }
 

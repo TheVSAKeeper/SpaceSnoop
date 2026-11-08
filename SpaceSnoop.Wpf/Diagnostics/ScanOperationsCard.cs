@@ -9,14 +9,19 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
 
     private readonly IUiTimer _timer;
 
+    private bool _active;
+
     private PerformanceOperationTile _tile;
 
     public string Title => _tile.Caption;
 
     public DiagnosticsCardState State =>
-        _operations.Current is null && _operations.Last is null
-            ? DiagnosticsCardState.Unknown
-            : DiagnosticsCardState.Ok;
+        (_operations.Current ?? _operations.Last) switch
+        {
+            null => DiagnosticsCardState.Unknown,
+            { Traversal.FailedDirectories: > 0 } or { Notes.HasDrops: true } => DiagnosticsCardState.Warning,
+            _ => DiagnosticsCardState.Ok,
+        };
 
     public IReadOnlyList<DiagnosticsCardRow> Rows { get; private set; } = [];
 
@@ -36,6 +41,8 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
 
     public void SetActive(bool active)
     {
+        _active = active;
+
         if (!active)
         {
             _timer.Stop();
@@ -44,7 +51,7 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
         }
 
         Refresh();
-        _timer.Start();
+        SyncTimer();
     }
 
     [RelayCommand(CanExecute = nameof(CanClearRun))]
@@ -61,6 +68,19 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
     private void OnOperationsChanged(object? sender, EventArgs e)
     {
         Refresh();
+        SyncTimer();
+    }
+
+    private void SyncTimer()
+    {
+        if (_active && _operations.Current is not null)
+        {
+            _timer.Start();
+
+            return;
+        }
+
+        _timer.Stop();
     }
 
     private void Refresh()
@@ -100,6 +120,16 @@ public sealed partial class ScanOperationsCard : ObservableObject, IDiagnosticsC
                 new("Обход", traversal)
                 {
                     Hint = _tile.TraversalDetail,
+                });
+        }
+
+        if ((_operations.Current ?? _operations.Last)?.Notes is { HasDrops: true } notes
+            && ScanDropNote.Describe(notes.DroppedObjects, notes.UnknownSizeFiles, notes.PartialRecords) is { } drops)
+        {
+            rows.Add(
+                new("Неполнота $MFT", drops)
+                {
+                    Hint = ScanDropNote.Explain(notes.DroppedObjects, notes.DroppedBytes, notes.UnknownSizeFiles, notes.PartialRecords),
                 });
         }
 

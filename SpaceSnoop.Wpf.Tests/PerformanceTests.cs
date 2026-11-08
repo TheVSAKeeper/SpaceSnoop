@@ -2,6 +2,7 @@
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Diagnostics;
+using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using System.Globalization;
 
@@ -308,30 +309,67 @@ public class PerformanceTests
     }
 
     [Test]
+    public void Карточка_диагностики_отмечает_предупреждением_пропуски_и_неполноту_Mft()
+    {
+        var operations = new PerformanceOperations(TestDiagnostics.Monitor());
+        var card = new ScanOperationsCard(operations, new FakeUiDispatcher());
+        var notes = new ScanNotes(true, 1, 0, 3, 4096, 0, 0);
+
+        operations.ReportRun(
+            new(
+                "Сканирование",
+                900,
+                1000,
+                TimeSpan.FromSeconds(4),
+                Traversal: new(120, 0, 1),
+                Notes: notes));
+
+        var mftRow = card.Rows.Single(static row => row.Key == "Неполнота $MFT");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(card.State, Is.EqualTo(DiagnosticsCardState.Warning));
+            Assert.That(mftRow.Value, Is.EqualTo("3 объекта"));
+            Assert.That(mftRow.Hint, Does.Contain("нет в дереве: 3 объекта"));
+            Assert.That(
+                PerformanceText.TraversalDetail(operations.Last),
+                Is.EqualTo("1 поток · неполных в $MFT: 3 объекта"));
+        });
+    }
+
+    [Test]
     public void Карточка_диагностики_считает_только_на_открытой_странице()
     {
         var dispatcher = new FakeUiDispatcher();
         var operations = new PerformanceOperations(TestDiagnostics.Monitor());
         var card = new ScanOperationsCard(operations, dispatcher);
+        var operation = new PerformanceOperation("Сканирование", 1000, 2048, TimeSpan.FromSeconds(2));
 
         var timer = dispatcher.Timers[0];
         var idle = card.State;
 
         card.SetActive(true);
-        var started = timer.IsRunning;
+        var runningWhenIdle = timer.IsRunning;
 
-        operations.TryReport(new("Сканирование", 1000, 2048, TimeSpan.FromSeconds(2)), null);
+        operations.TryReport(operation, null);
+        var started = timer.IsRunning;
         timer.Tick();
 
         var title = card.Title;
         var rows = card.Rows;
 
+        operations.Release(operation);
+        var stoppedOnRelease = !timer.IsRunning;
+
+        operations.TryReport(operation, null);
         card.SetActive(false);
 
         Assert.Multiple(() =>
         {
             Assert.That(idle, Is.EqualTo(DiagnosticsCardState.Unknown));
+            Assert.That(runningWhenIdle, Is.False);
             Assert.That(started, Is.True);
+            Assert.That(stoppedOnRelease, Is.True);
             Assert.That(title, Is.EqualTo("Сейчас идёт: Сканирование"));
             Assert.That(card.State, Is.EqualTo(DiagnosticsCardState.Ok));
             Assert.That(

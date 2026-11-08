@@ -142,11 +142,28 @@ public static class PerformanceText
             return null;
         }
 
-        var threads = Plural.Format(traversal.Parallelism, "поток", "потока", "потоков");
+        var parts = new List<string>(3)
+        {
+            Plural.Format(traversal.Parallelism, "поток", "потока", "потоков"),
+        };
 
-        return traversal.FailedDirectories > 0
-            ? $"{threads} · {Directories(traversal.FailedDirectories)} без доступа"
-            : $"{threads} · пропусков нет";
+        if (traversal.FailedDirectories > 0)
+        {
+            parts.Add($"{Directories(traversal.FailedDirectories)} без доступа");
+        }
+
+        if (operation.Notes is { HasDrops: true } notes
+            && ScanDropNote.Describe(notes.DroppedObjects, notes.UnknownSizeFiles, notes.PartialRecords) is { } drops)
+        {
+            parts.Add($"неполных в $MFT: {drops}");
+        }
+
+        if (parts.Count == 1)
+        {
+            parts.Add("пропусков нет");
+        }
+
+        return string.Join(" · ", parts);
     }
 
     public static string? Remaining(PerformanceOperation? operation)

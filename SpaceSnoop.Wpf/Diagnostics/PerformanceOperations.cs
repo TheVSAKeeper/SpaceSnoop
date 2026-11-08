@@ -34,6 +34,7 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
     public bool TryReport(PerformanceOperation operation, PerformanceOperation? own)
     {
         RefreshWindowVisibility();
+        bool started;
         lock (_gate)
         {
             if (_current is not null && !ReferenceEquals(_current, own))
@@ -41,12 +42,18 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
                 return false;
             }
 
+            started = _current is null;
             Volatile.Write(ref _current, operation);
             monitor.SetPhase(operation.Name);
             _frames ??= monitor.WatchFrames();
-
-            return true;
         }
+
+        if (started)
+        {
+            Notify();
+        }
+
+        return true;
     }
 
     public void Release(PerformanceOperation? own)
@@ -64,6 +71,8 @@ public sealed class PerformanceOperations(PerformanceMonitor monitor)
             _frames?.Dispose();
             _frames = null;
         }
+
+        Notify();
     }
 
     public void ReportRun(PerformanceOperation run)
