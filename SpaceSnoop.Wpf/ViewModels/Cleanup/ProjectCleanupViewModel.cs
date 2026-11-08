@@ -82,6 +82,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
     public string TotalText => SizeFormatter.Format(Artifacts.Sum(x => x.Bytes));
     public string SelectedText => SizeFormatter.Format(Artifacts.Where(x => x.IsSelected && x.CanSelect).Sum(x => x.Bytes));
     public string SelectionText => $"Выбрано строк: {Artifacts.Count(x => x.IsSelected && x.CanSelect)} из {Artifacts.Count}";
+    public bool HasSelectedBytes => Artifacts.Any(x => x.IsSelected && x.CanSelect && x.Bytes > 0);
 
     public string HiddenSelectionText => Artifacts.Any(x => x.IsSelected && x.CanSelect && !FilterArtifact(x))
         ? "Есть выбранные скрытые строки – они тоже попадут в подтверждение."
@@ -394,6 +395,7 @@ public sealed partial class ProjectCleanupViewModel : ObservableObject
         OnPropertyChanged(nameof(TotalText));
         OnPropertyChanged(nameof(SelectedText));
         OnPropertyChanged(nameof(SelectionText));
+        OnPropertyChanged(nameof(HasSelectedBytes));
         OnPropertyChanged(nameof(HiddenSelectionText));
         OnPropertyChanged(nameof(HasHiddenSelection));
         OnPropertyChanged(nameof(CanClean));

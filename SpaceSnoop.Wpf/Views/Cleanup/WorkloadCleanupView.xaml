@@ -37,12 +37,13 @@
                                 Command="{Binding OpenLogCommand}"
                                 Padding="12,6"
                                 Margin="0,0,8,8" />
-                        <Button Content="Отменить"
+                        <Button Content="Остановить"
                                 Style="{StaticResource Button.Ghost}"
                                 Command="{Binding CancelCommand}"
-                                IsEnabled="{Binding IsBusy}"
+                                AutomationProperties.Name="Остановить операцию"
                                 Padding="12,6"
-                                Margin="0,0,8,8" />
+                                Margin="0,0,8,8"
+                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
                     </WrapPanel>
                     <TextBlock Text="{Binding StatusText}"
                                TextWrapping="Wrap"
@@ -63,8 +64,9 @@
                                        Margin="0,4,0,0" />
                             <TextBlock Text="{Binding DisplayPlan.SdkVersion, StringFormat=Активный SDK: {0}}"
                                        Margin="0,4,0,0" />
-                            <Expander Header="Вывод CLI об установленных workloads"
-                                      Margin="0,8,0,0">
+                            <Expander Style="{StaticResource Expander.Section}"
+                                      Header="Вывод CLI об установленных workloads"
+                                      Margin="-6,4,0,0">
                                 <TextBox Text="{Binding DisplayPlan.InstalledWorkloads, Mode=OneWay}"
                                          IsReadOnly="True"
                                          TextWrapping="Wrap"

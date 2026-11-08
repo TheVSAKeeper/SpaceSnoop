@@ -16,6 +16,7 @@ public sealed partial class WorkloadCleanupViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
+    [NotifyPropertyChangedFor(nameof(CancelCommand))]
     [NotifyCanExecuteChangedFor(nameof(InspectCommand))]
     [NotifyCanExecuteChangedFor(nameof(CleanCommand))]
     private bool _isBusy;

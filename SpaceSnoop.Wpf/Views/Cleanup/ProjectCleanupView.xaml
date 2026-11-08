@@ -104,9 +104,10 @@
                                 Command="{Binding FindCommand}"
                                 Padding="12,6"
                                 Margin="0,0,10,6" />
-                        <Button Content="Отменить"
+                        <Button Content="Остановить"
                                 Style="{StaticResource Button.Ghost}"
                                 Command="{Binding CancelCommand}"
+                                AutomationProperties.Name="Остановить операцию"
                                 Padding="10,6"
                                 Margin="0,0,0,6"
                                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
@@ -162,34 +163,46 @@
                             <TextBlock Text="Выбрано"
                                        Style="{StaticResource Caption}" />
                             <TextBlock Text="{Binding SelectedText}"
-                                       Style="{StaticResource StatValue}"
-                                       FontSize="{DynamicResource Font.Size.L}"
-                                       Foreground="{DynamicResource Accent.Text}" />
+                                       FontSize="{DynamicResource Font.Size.L}">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock"
+                                           BasedOn="{StaticResource StatValue}">
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding HasSelectedBytes}"
+                                                         Value="True">
+                                                <Setter Property="Foreground"
+                                                        Value="{DynamicResource Accent.Text}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
                             <TextBlock Text="{Binding SelectionText}"
                                        Style="{StaticResource Caption}" />
                         </StackPanel>
-                        <StackPanel Grid.Row="1"
-                                    Grid.ColumnSpan="2"
-                                    HorizontalAlignment="Right"
-                                    Margin="0,8,0,8">
+                        <WrapPanel Grid.Row="1"
+                                   Grid.ColumnSpan="2"
+                                   VerticalAlignment="Center"
+                                   Margin="0,8,0,8">
                             <Button Content="Отправить выбранное в корзину"
                                     Style="{StaticResource Button.Base}"
                                     Command="{Binding CleanCommand}"
-                                    HorizontalAlignment="Left"
-                                    Padding="12,6" />
+                                    MinHeight="{DynamicResource Control.Height.Default}"
+                                    Padding="12,6"
+                                    Margin="0,0,8,4" />
+                            <Button Content="Выбрать все видимые bin/obj"
+                                    Style="{StaticResource Button.Ghost}"
+                                    Command="{Binding SelectBuildArtifactsCommand}"
+                                    ToolTip="Выбрать доступные bin/obj с учётом фильтра. Отчёты и нестандартные каталоги выбираются отдельно."
+                                    Padding="10,6"
+                                    Margin="0,0,8,4" />
                             <Button Content="Снять выбор"
                                     Style="{StaticResource Button.Ghost}"
                                     Command="{Binding ClearSelectionCommand}"
-                                    HorizontalAlignment="Left"
-                                    Padding="10,4" />
-                        </StackPanel>
+                                    Padding="10,6"
+                                    Margin="0,0,0,4" />
+                        </WrapPanel>
                     </Grid>
-                    <Button Content="Выбрать все видимые bin/obj"
-                            Style="{StaticResource Button.Ghost}"
-                            Command="{Binding SelectBuildArtifactsCommand}"
-                            HorizontalAlignment="Left"
-                            ToolTip="Выбрать доступные bin/obj с учётом фильтра. Отчёты и нестандартные каталоги выбираются отдельно."
-                            Margin="0,0,0,8" />
                     <TextBlock Text="Новые и изменившиеся файлы, а также пустые каталоги останутся."
                                TextWrapping="Wrap"
                                Style="{StaticResource Caption}"
@@ -220,7 +233,7 @@
                              ScrollViewer.CanContentScroll="True"
                              VirtualizingPanel.IsVirtualizing="True"
                              VirtualizingPanel.IsVirtualizingWhenGrouping="True"
-                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.VirtualizationMode="Standard"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              HorizontalContentAlignment="Stretch"
                              Grid.IsSharedSizeScope="True">
@@ -284,10 +297,11 @@
                                                        TextWrapping="Wrap"
                                                        Foreground="{DynamicResource State.ErrorText}"
                                                        Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
-                                            <Expander Header="Содержимое снимка"
+                                            <Expander Style="{StaticResource Expander.Section}"
+                                                      Header="Содержимое снимка"
                                                       IsExpanded="False"
                                                       IsEnabled="{Binding HasContents}"
-                                                      Margin="0,4,0,0">
+                                                      Margin="-6,2,0,-6">
                                                 <Border MaxHeight="220"
                                                         BorderBrush="{DynamicResource Border.Subtle}"
                                                         BorderThickness="1"

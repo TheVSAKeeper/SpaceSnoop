@@ -231,23 +231,29 @@
                                                       AutomationProperties.Name="{Binding Name}" />
                                             <StackPanel Grid.Column="1"
                                                         Margin="0,0,16,0">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="Auto" />
-                                                        <ColumnDefinition Width="*" />
-                                                    </Grid.ColumnDefinitions>
+                                                <WrapPanel VerticalAlignment="Center">
                                                     <iconPacks:PackIconLucide Kind="{Binding IconKind}"
                                                                               Width="16"
                                                                               Height="16"
                                                                               VerticalAlignment="Center"
                                                                               Margin="0,0,8,0"
                                                                               Foreground="{DynamicResource Fg.Muted}" />
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding Name}"
+                                                    <TextBlock Text="{Binding Name}"
                                                                FontWeight="Medium"
+                                                               VerticalAlignment="Center"
                                                                Foreground="{DynamicResource Fg.Primary}"
                                                                TextWrapping="Wrap" />
-                                                </Grid>
+                                                    <Border Background="{DynamicResource Accent.Soft}"
+                                                            CornerRadius="{DynamicResource Radius.S}"
+                                                            Padding="6,1"
+                                                            Margin="8,0,0,0"
+                                                            VerticalAlignment="Center"
+                                                            Visibility="{Binding IsRecommended, Converter={StaticResource BoolToVisibility}}">
+                                                        <TextBlock Text="Рекомендуется"
+                                                                   FontSize="{DynamicResource Font.Size.XS}"
+                                                                   Foreground="{DynamicResource Accent.Text}" />
+                                                    </Border>
+                                                </WrapPanel>
                                                 <TextBlock Text="{Binding Summary}"
                                                            Margin="0,4,0,0"
                                                            TextWrapping="Wrap">
@@ -260,7 +266,7 @@
                                                                 <DataTrigger Binding="{Binding IsRecommended}"
                                                                              Value="True">
                                                                     <Setter Property="Foreground"
-                                                                            Value="{DynamicResource Fg.Secondary}" />
+                                                                            Value="{DynamicResource Accent.Text}" />
                                                                 </DataTrigger>
                                                             </Style.Triggers>
                                                         </Style>

@@ -152,12 +152,13 @@
                                 Command="{Binding OpenLogCommand}"
                                 Padding="12,6"
                                 Margin="0,0,8,8" />
-                        <Button Content="Отменить"
+                        <Button Content="Остановить"
                                 Style="{StaticResource Button.Ghost}"
                                 Command="{Binding CancelCommand}"
-                                IsEnabled="{Binding CanCancel}"
+                                AutomationProperties.Name="Остановить операцию"
                                 Padding="12,6"
-                                Margin="0,0,8,8" />
+                                Margin="0,0,8,8"
+                                Visibility="{Binding CanCancel, Converter={StaticResource BoolToVisibility}}" />
                     </WrapPanel>
                     <DockPanel Margin="0,4,0,8">
                         <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.CircleAlert}"
