@@ -2,6 +2,7 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Overview"
+             xmlns:rootViews="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views.Overview"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
@@ -107,40 +108,29 @@
             <Border Style="{StaticResource Card.Inset}"
                     Margin="0,0,0,12"
                     Visibility="{Binding Rows.HasRows, Converter={StaticResource BoolToVisibility}}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"
-                                          MaxWidth="240" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
+                <StackPanel>
+                    <rootViews:StretchWrapPanel ItemWidth="280">
+                        <StackPanel rootViews:StretchWrapPanel.Stretch="True"
+                                    rootViews:StretchWrapPanel.StretchWidth="280"
+                                    VerticalAlignment="Center"
+                                    Margin="0,0,12,0">
+                            <TextBlock Text="Сравнение всех профилей"
+                                       FontWeight="{DynamicResource Font.Weight.SemiBold}"
+                                       FontSize="{DynamicResource Font.Size.L}"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Fg.Primary}" />
+                            <TextBlock Text="{Binding StatusCaption}"
+                                       Style="{StaticResource TextBlock.Subtle}"
+                                       TextWrapping="Wrap"
+                                       ToolTip="{Binding StatusCaption}"
+                                       Margin="0,4,0,0" />
+                        </StackPanel>
 
-                    <StackPanel Grid.Row="0"
-                                Grid.Column="0"
-                                VerticalAlignment="Center"
-                                Margin="0,0,12,0">
-                        <TextBlock Text="Сравнение всех профилей"
-                                   FontWeight="{DynamicResource Font.Weight.SemiBold}"
-                                   FontSize="{DynamicResource Font.Size.L}"
-                                   TextWrapping="Wrap"
-                                   Foreground="{DynamicResource Fg.Primary}" />
-                        <TextBlock Text="{Binding StatusCaption}"
-                                   Style="{StaticResource TextBlock.Subtle}"
-                                   TextTrimming="CharacterEllipsis"
-                                   Margin="0,4,0,0" />
-                    </StackPanel>
-
-                    <WrapPanel Grid.Row="0"
-                               Grid.Column="1"
-                               HorizontalAlignment="Right"
-                               VerticalAlignment="Center">
                         <Button Style="{StaticResource Button.Ghost}"
                                 Command="{Binding Batch.SkipCurrentCommand}"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="14,6"
+                                VerticalAlignment="Center"
                                 Margin="0,2,8,2"
                                 ToolTip="Пропустить текущий профиль и перейти к следующему"
                                 Visibility="{Binding Batch.IsBatchRunning, Converter={StaticResource BoolToVisibility}}">
@@ -160,12 +150,14 @@
                                 AutomationProperties.Name="Остановить операцию"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="14,6"
+                                VerticalAlignment="Center"
                                 Margin="0,2,8,2"
                                 Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
                         <Button Style="{StaticResource Button.Ghost}"
                                 Command="{Binding CycleAllDirectionsCommand}"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="14,6"
+                                VerticalAlignment="Center"
                                 Margin="0,2,8,2"
                                 ToolTip="Сменить направление синхронизации у всех профилей"
                                 AutomationProperties.Name="Сменить направление всем">
@@ -182,6 +174,7 @@
                                 Command="{Binding Batch.CompareAllCommand}"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="14,6"
+                                VerticalAlignment="Center"
                                 Margin="0,2,8,2">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconLucide
@@ -197,6 +190,7 @@
                                 Command="{Binding Batch.SyncAllCommand}"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="14,6"
+                                VerticalAlignment="Center"
                                 Margin="0,2,0,2"
                                 ToolTip="Синхронизировать все профили (удаления – в корзину)">
                             <StackPanel Orientation="Horizontal">
@@ -208,19 +202,16 @@
                                 <TextBlock Text="Синхронизировать всё" />
                             </StackPanel>
                         </Button>
-                    </WrapPanel>
+                    </rootViews:StretchWrapPanel>
 
-                    <ProgressBar Grid.Row="1"
-                                 Grid.Column="0"
-                                 Grid.ColumnSpan="2"
-                                 Height="6"
+                    <ProgressBar Height="6"
                                  Minimum="0"
                                  Maximum="{Binding ProgressMax}"
                                  Value="{Binding ProgressValue, Mode=OneWay}"
                                  IsIndeterminate="{Binding IsIndeterminate}"
                                  Margin="0,12,0,0"
                                  Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-                </Grid>
+                </StackPanel>
             </Border>
 
             <keepshell:EmptyState Icon="LayoutGrid"
