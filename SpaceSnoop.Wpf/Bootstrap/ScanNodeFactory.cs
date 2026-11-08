@@ -20,14 +20,14 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
 
     internal Func<SpaceBase, SpaceBase, ScanMarkSnapshot>? MarkSnapshot { get; set; }
 
-    public ScanNodeViewModel Create(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, ScanSortState sort)
+    public ScanNodeViewModel Create(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, ScanSortState sort, ScanNodeViewModel? parent = null)
     {
-        return new(space, siblingMax, parentTotal, root, null, sort, this);
+        return new(space, siblingMax, parentTotal, root, null, sort, this, parent);
     }
 
     public ScanNodeViewModel CreateRoot(SpaceBase space, ScanSortState sort)
     {
-        return new(space, space.TotalSize, space.TotalSize, space, DriveCapacity.TryRead(space.AbsolutePath), sort, this);
+        return new(space, space.TotalSize, space.TotalSize, space, DriveCapacity.TryRead(space.AbsolutePath), sort, this, null);
     }
 
     public void RequestArchive(ScanNodeViewModel node)

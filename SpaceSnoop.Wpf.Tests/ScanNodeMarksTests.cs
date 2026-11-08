@@ -100,6 +100,127 @@ public class ScanNodeMarksTests
         }
     }
 
+    [Test]
+    public void Пустая_папка_не_предлагает_массовых_действий_с_содержимым()
+    {
+        var emptySpace = new DirectorySpace(_tempDir, null, DateTime.Now, DateTime.Now);
+        var root = _factory.CreateRoot(emptySpace, new());
+        root.EnsureLoaded();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(root.CanMarkContentsDeleted, Is.False);
+            Assert.That(root.CanUnmarkContents, Is.False);
+        }
+    }
+
+    [Test]
+    public void Частичная_пометка_на_глубине_оставляет_доступными_допометку_и_снятие()
+    {
+        var space = new DirectorySpace(_tempDir, null, DateTime.Now, DateTime.Now);
+        var branch = new DirectorySpace("branch", space, DateTime.Now, DateTime.Now);
+        var nested = new DirectorySpace("nested", branch, DateTime.Now, DateTime.Now);
+        var firstFile = nested.AddFile(MakeFile("first", 32));
+        var secondFile = nested.AddFile(MakeFile("second", 48));
+        var rootSibling = space.AddFile(MakeFile("root-sibling", 16));
+        branch.Add(nested);
+        space.Add(branch);
+
+        var root = _factory.CreateRoot(space, new());
+        ScanNodeViewModel[] roots = [root];
+        _factory.MarksChanged += _ => _factory.MarksPresent = ScanTreeEditor.CollectMarked(roots).Count > 0;
+
+        root.EnsureLoaded();
+        var branchNode = root.Children.Single(static c => c.Space is DirectorySpace);
+        branchNode.EnsureLoaded();
+        var nestedNode = branchNode.Children.Single();
+        nestedNode.EnsureLoaded();
+        var firstFileNode = nestedNode.Children.Single(c => ReferenceEquals(c.Space, firstFile));
+
+        var rootNotified = false;
+        var branchNotified = false;
+        root.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScanNodeViewModel.CanUnmarkContents))
+            {
+                rootNotified = true;
+            }
+        };
+        branchNode.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ScanNodeViewModel.CanUnmarkContents))
+            {
+                branchNotified = true;
+            }
+        };
+
+        firstFileNode.MarkDeletedCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(rootNotified, Is.True);
+            Assert.That(branchNotified, Is.True);
+            Assert.That(nestedNode.CanMarkContentsDeleted, Is.True);
+            Assert.That(nestedNode.CanUnmarkContents, Is.True);
+            Assert.That(branchNode.CanMarkContentsDeleted, Is.True);
+            Assert.That(branchNode.CanUnmarkContents, Is.True);
+            Assert.That(root.CanMarkContentsDeleted, Is.True);
+            Assert.That(root.CanUnmarkContents, Is.True);
+        }
+
+        root.MarkContentsDeletedCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(secondFile.IsDeleted, Is.True);
+            Assert.That(rootSibling.IsDeleted, Is.True);
+            Assert.That(root.CanMarkContentsDeleted, Is.False);
+            Assert.That(root.CanUnmarkContents, Is.True);
+        }
+    }
+
+    [Test]
+    public void Узлы_ошибки_и_игнорирования_учитываются_в_массовой_пометке_содержимого()
+    {
+        var errorOnlySpace = new DirectorySpace(Path.Combine(_tempDir, "err-only"), null, DateTime.Now, DateTime.Now);
+        var failedSub = new DirectorySpace("denied", errorOnlySpace, DateTime.Now, DateTime.Now);
+        failedSub.Error();
+        errorOnlySpace.Add(failedSub);
+
+        var errorOnlyRoot = _factory.CreateRoot(errorOnlySpace, new());
+
+        var mixedSpace = new DirectorySpace(Path.Combine(_tempDir, "mixed"), null, DateTime.Now, DateTime.Now);
+        var mixedError = new DirectorySpace("broken", mixedSpace, DateTime.Now, DateTime.Now);
+        mixedError.Error();
+        var ignoredSub = new DirectorySpace("ignored", mixedSpace, DateTime.Now, DateTime.Now);
+        ignoredSub.AddFile(MakeFile("ignored-payload", 24));
+        mixedSpace.Add(mixedError);
+        mixedSpace.Add(ignoredSub);
+        _factory.Visibility.Ignore(ignoredSub);
+
+        var mixedRoot = _factory.CreateRoot(mixedSpace, new());
+        ScanNodeViewModel[] roots = [mixedRoot];
+        _factory.MarksChanged += _ => _factory.MarksPresent = ScanTreeEditor.CollectMarked(roots).Count > 0;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(errorOnlyRoot.CanMarkContentsDeleted, Is.False);
+            Assert.That(errorOnlyRoot.CanUnmarkContents, Is.False);
+            Assert.That(mixedRoot.CanMarkContentsDeleted, Is.True);
+            Assert.That(mixedRoot.CanUnmarkContents, Is.False);
+        }
+
+        mixedRoot.MarkContentsDeletedCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(mixedError.IsDeleted, Is.False);
+            Assert.That(ignoredSub.IsDeleted, Is.True);
+            Assert.That(mixedRoot.CanMarkContentsDeleted, Is.False);
+            Assert.That(mixedRoot.CanUnmarkContents, Is.True);
+        }
+    }
+
     private ScanNodeViewModel Arrange()
     {
         var space = new DirectorySpace(_tempDir, null, DateTime.Now, DateTime.Now);

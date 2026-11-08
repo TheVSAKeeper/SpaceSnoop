@@ -99,7 +99,7 @@
                         Command="{Binding Node.MarkContentsDeletedCommand}"
                         ToolTip="Пометить содержимое (папка останется)"
                         AutomationProperties.Name="Пометить содержимое"
-                        Visibility="{Binding IsDirectory, Converter={StaticResource BoolToVisibility}}">
+                        Visibility="{Binding Node.CanMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderX}"
                                               Width="16"
                                               Height="16"
@@ -110,7 +110,7 @@
                         Command="{Binding Node.UnmarkContentsCommand}"
                         ToolTip="Снять пометку с содержимого"
                         AutomationProperties.Name="Снять пометку с содержимого"
-                        Visibility="{Binding IsDirectory, Converter={StaticResource BoolToVisibility}}">
+                        Visibility="{Binding Node.CanUnmarkContents, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RotateCcw}"
                                               Width="16"
                                               Height="16"
@@ -209,7 +209,7 @@
                             </MenuItem>
 
                             <MenuItem Command="{Binding Node.MarkContentsDeletedCommand}"
-                                      Visibility="{Binding IsDirectory, Converter={StaticResource BoolToVisibility}}">
+                                      Visibility="{Binding Node.CanMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -222,7 +222,7 @@
                             </MenuItem>
 
                             <MenuItem Command="{Binding Node.UnmarkContentsCommand}"
-                                      Visibility="{Binding IsDirectory, Converter={StaticResource BoolToVisibility}}">
+                                      Visibility="{Binding Node.CanUnmarkContents, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"

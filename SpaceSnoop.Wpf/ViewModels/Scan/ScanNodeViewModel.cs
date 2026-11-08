@@ -6,6 +6,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     private readonly ScanSortState? _sort;
     private readonly ScanNodeFactory? _factory;
+    private readonly ScanNodeViewModel? _parent;
     private RangeObservableCollection<ScanNodeViewModel>? _children;
     private IReadOnlyList<ScanNodeViewModel>? _previewTiles;
     private bool _loaded;
@@ -135,7 +136,8 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     public bool CanAskAgent => Space is not null && _factory?.ChatEnabled == true;
 
-    public bool CanMarkContentsDeleted => IsDirectory && !HasMarkedContents;
+    public bool CanMarkContentsDeleted => Space is DirectorySpace dir
+        && EnumerateChildren(dir).Any(static child => child.State == SpaceState.Added);
 
     public bool CanUnmarkContents => IsDirectory && HasMarkedContents;
 
@@ -149,7 +151,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         && Space is DirectorySpace dir
         && EnumerateChildren(dir).Any(HasDeletedRecursive);
 
-    internal ScanNodeViewModel(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, DriveCapacity? drive, ScanSortState sort, ScanNodeFactory factory)
+    internal ScanNodeViewModel(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, DriveCapacity? drive, ScanSortState sort, ScanNodeFactory factory, ScanNodeViewModel? parent = null)
     {
         Space = space;
         Fraction = siblingMax;
@@ -158,6 +160,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         Drive = drive;
         _sort = sort;
         _factory = factory;
+        _parent = parent;
         _isMarkedDeleted = space.IsDeleted;
         _isIgnored = factory.Visibility.IsIgnored(space);
 
@@ -201,7 +204,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
             .OrderBy(static x => x, _sort)
             .Select(item =>
             {
-                var child = existing.GetValueOrDefault(item) ?? _factory!.Create(item, localMax, Weight, Root!, _sort);
+                var child = existing.GetValueOrDefault(item) ?? _factory!.Create(item, localMax, Weight, Root!, _sort, this);
                 child.Fraction = localMax;
                 child.Share = Weight;
                 return child;
@@ -394,98 +397,6 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         if (Space is not null)
         {
             _factory?.RequestAskAgent(this);
-        }
-    }
-
-    [RelayCommand]
-    private void MarkDeleted()
-    {
-        if (Space is null || Space.IsDeleted)
-        {
-            return;
-        }
-
-        var before = _factory?.CaptureMarks(Space, Root ?? Space);
-        Space.Delete();
-        ApplyMarkChange(before);
-    }
-
-    [RelayCommand]
-    private void UnmarkDeleted()
-    {
-        if (Space is null)
-        {
-            return;
-        }
-
-        var before = _factory?.CaptureMarks(Space, Root ?? Space);
-        RestoreRecursive(Space);
-        ApplyMarkChange(before);
-    }
-
-    [RelayCommand]
-    private void MarkContentsDeleted()
-    {
-        if (Space is not DirectorySpace dir)
-        {
-            return;
-        }
-
-        var before = _factory?.CaptureMarks(dir, Root ?? dir);
-
-        foreach (var child in EnumerateChildren(dir))
-        {
-            child.Delete();
-        }
-
-        ApplyMarkChange(before);
-    }
-
-    [RelayCommand]
-    private void UnmarkContents()
-    {
-        if (Space is not DirectorySpace dir)
-        {
-            return;
-        }
-
-        var before = _factory?.CaptureMarks(dir, Root ?? dir);
-
-        foreach (var child in EnumerateChildren(dir))
-        {
-            RestoreRecursive(child);
-        }
-
-        ApplyMarkChange(before);
-    }
-
-    private void ApplyMarkChange(ScanMarkSnapshot? before)
-    {
-        if (before is { } snapshot)
-        {
-            _factory?.RaiseMarksChanged(snapshot);
-        }
-
-        RefreshMarkRecursive();
-    }
-
-    private void RefreshMarkRecursive()
-    {
-        if (Space is not null)
-        {
-            IsMarkedDeleted = Space.IsDeleted;
-            OnPropertyChanged(nameof(CanMarkContentsDeleted));
-            OnPropertyChanged(nameof(CanUnmarkContents));
-        }
-
-        if (_children is null)
-        {
-            return;
-        }
-
-        foreach (var child in _children.Where(static child => !ReferenceEquals(child, Dummy)))
-        {
-            child.RefreshMarkRecursive();
         }
     }
 }
