@@ -137,6 +137,37 @@ internal static class ScanTreeEditor
         node.NotifyPropertiesChanged();
     }
 
+    internal static void RefreshNodeMarks(ScanNodeViewModel node, SpaceBase target)
+    {
+        if (node.Space is null)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(node.Space, target) || IsAncestorOf(node.Space, target))
+        {
+            node.RefreshOwnMarks();
+
+            foreach (var child in node.RealizedChildren)
+            {
+                RefreshNodeMarks(child, target);
+            }
+        }
+    }
+
+    private static bool IsAncestorOf(SpaceBase candidate, SpaceBase target)
+    {
+        for (var current = target.Parent; current is not null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, candidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     internal static bool RefreshNodeAfterAddition(ScanNodeViewModel node, DirectorySpace parent)
     {
         if (ReferenceEquals(node.Space, parent))

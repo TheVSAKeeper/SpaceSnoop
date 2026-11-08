@@ -957,6 +957,77 @@ public class DeleteDialogTests
         }
     }
 
+    [Test]
+    public async Task Исключение_строки_до_запуска_снимает_пометку_обновляет_сводку_и_не_удаляет_объект()
+    {
+        var items = Items(3, static _ => true);
+
+        foreach (var item in items)
+        {
+            item.Delete();
+        }
+
+        var unmarked = new List<SpaceBase>();
+        var dialog = Dialog(
+            new(),
+            items,
+            unmark: item =>
+            {
+                item.Restore();
+                unmarked.Add(item);
+            });
+
+        dialog.SelectNextCommand.Execute(null);
+        dialog.ExcludeCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unmarked, Is.EqualTo(new[] { items[1] }));
+            Assert.That(items[1].IsDeleted, Is.False);
+            Assert.That(dialog.Items.Select(static row => row.Space), Is.EqualTo(new[] { items[0], items[2] }));
+            Assert.That(dialog.SelectedItem?.Space, Is.SameAs(items[2]));
+            Assert.That(dialog.CountText, Is.EqualTo("0 / 2"));
+            Assert.That(dialog.IntroText, Does.Contain("2 объекта"));
+        }
+
+        await dialog.StartCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dialog.DeletedItems, Is.EqualTo(new[] { items[0], items[2] }));
+            Assert.That(Directory.Exists(items[0].AbsolutePath), Is.False);
+            Assert.That(Directory.Exists(items[1].AbsolutePath), Is.True);
+            Assert.That(Directory.Exists(items[2].AbsolutePath), Is.False);
+        }
+    }
+
+    [Test]
+    public void Исключение_всех_строк_блокирует_запуск_и_закрывает_диалог()
+    {
+        var items = Items(2, static _ => true);
+
+        foreach (var item in items)
+        {
+            item.Delete();
+        }
+
+        var dialog = Dialog(new(), items);
+        bool? closeResult = null;
+        dialog.RequestClose += (_, result) => closeResult = result;
+
+        dialog.ExcludeCommand.Execute(null);
+        dialog.ExcludeCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(items.Select(static item => item.IsDeleted), Is.All.False);
+            Assert.That(dialog.Items, Is.Empty);
+            Assert.That(dialog.StartCommand.CanExecute(null), Is.False);
+            Assert.That(dialog.ExcludeCommand.CanExecute(null), Is.False);
+            Assert.That(closeResult, Is.False);
+        }
+    }
+
     private static StrongBox<int> Watch(DeleteProgressDialogViewModel dialog)
     {
         var updates = new StrongBox<int>(0);
@@ -976,7 +1047,8 @@ public class DeleteDialogTests
         FakeUiDispatcher dispatcher,
         IReadOnlyList<SpaceBase> items,
         bool permanent = true,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        Action<SpaceBase>? unmark = null)
     {
         var monitor = TestDiagnostics.Monitor();
 
@@ -987,7 +1059,8 @@ public class DeleteDialogTests
             new(monitor),
             new(new MemorySettings()),
             dispatcher,
-            logger ?? NullLogger.Instance);
+            logger ?? NullLogger.Instance,
+            unmark);
     }
 
     private IReadOnlyList<SpaceBase> Items(int count, Func<int, bool> create)

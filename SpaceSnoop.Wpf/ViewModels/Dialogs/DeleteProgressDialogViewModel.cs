@@ -9,23 +9,29 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 {
     internal const int ProgressPollIntervalMs = 120;
 
-    private const double AutomationChunkSeconds = 12.4;
-
     internal static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(ProgressPollIntervalMs);
 
     private readonly bool _permanent;
-    private readonly long _totalBytes;
-    private readonly DeleteOperationDiagnostics _diagnostics;
+    private readonly PerformanceMonitor _monitor;
+    private readonly PerformanceOperations _operations;
+    private readonly ShellPreferences _preferences;
     private readonly IUiTimer _progressTimer;
     private readonly ILogger _logger;
+    private readonly Action<SpaceBase>? _unmark;
     private readonly string _runId = Guid.NewGuid().ToString("N")[..8];
 
+    private long _totalBytes;
+    private DeleteOperationDiagnostics _diagnostics;
     private CancellationToken _token;
     private DeleteProgressState? _progress;
     private long _freedBytes;
     private int _deleted;
     private int _failed;
     private int _processed;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ExcludeCommand))]
+    private DeleteRowViewModel? _selectedItem;
 
     [ObservableProperty]
     private string _freedText;
@@ -63,9 +69,11 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
     public string ActionVerb { get; }
 
-    public string IntroText { get; }
+    public string IntroText => $"Будут {ActionVerb}: {Plural.Format(Items.Count, "объект", "объекта", "объектов")} · {SizeFormatter.Format(_totalBytes)}";
 
-    public string CancelHint { get; }
+    public string CancelHint => _permanent
+        ? "Остановка сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
+        : $"Остановка сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
 
     public string CancelCaption => CancelPending ? "Остановка запрошена…" : "Остановить удаление";
 
@@ -86,72 +94,98 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         PerformanceOperations operations,
         ShellPreferences preferences,
         IUiDispatcher uiDispatcher,
-        ILogger logger)
+        ILogger logger,
+        Action<SpaceBase>? unmark = null)
     {
         _permanent = permanent;
+        _monitor = monitor;
+        _operations = operations;
+        _preferences = preferences;
         _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
         _logger = logger;
+        _unmark = unmark;
         Items = new(items.Select(static item => new DeleteRowViewModel(item)));
+        SelectedItem = Items.FirstOrDefault();
         _totalBytes = items.Sum(static item => item.TotalSize);
         _diagnostics = new(permanent, Items.Count, _totalBytes, monitor, operations, preferences);
 
         ActionVerb = permanent ? "удалены безвозвратно" : "перемещены в корзину";
-        IntroText = $"Будут {ActionVerb}: {Plural.Format(Items.Count, "объект", "объекта", "объектов")} · {SizeFormatter.Format(_totalBytes)}";
         CountText = $"0 / {Items.Count}";
-        CancelHint = permanent
-            ? "Остановка сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
-            : $"Остановка сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
 
         WidestSizeText = Items.Select(static row => row.SizeText).MaxBy(static text => text.Length) ?? string.Empty;
         _freedText = SizeFormatter.Format(0);
     }
 
-    internal void ShowRunningForAutomation(int done)
+    private bool CanMoveSelection()
     {
-        IsRunning = true;
-        StatusText = RunningStatus;
-        DiagnosticsText = "отклик 6 мс · пик 18 мс · 118 файлов/с · осталось 31 с";
-
-        for (var index = 0; index < Items.Count && index < done; index++)
-        {
-            _freedBytes += Items[index].Space.TotalSize;
-            ApplyTick(new(index, DeleteRowState.Done, null, 0, 0, 0));
-        }
-
-        ApplyAggregate(_freedBytes, done, 0);
-
-        if (done < Items.Count)
-        {
-            ApplyTick(new(done, DeleteRowState.Deleting, null, 0, 0, 0));
-            CurrentPath = Items[done].Path;
-        }
-
-        if (Items.Count > 0)
-        {
-            var started = Stopwatch.GetTimestamp() - (long)(Stopwatch.Frequency * AutomationChunkSeconds);
-            ApplyChunk(new(true, 1, 1, 0, Math.Min(Items.Count, ChunkSize) - 1, started));
-        }
+        return IsIdle && Items.Count > 1;
     }
 
-    internal void ShowFinishedForAutomation()
+    [RelayCommand(CanExecute = nameof(CanMoveSelection))]
+    private void SelectPrevious()
     {
-        ShowRunningForAutomation(Items.Count);
-        ClearPulse();
-
-        IsRunning = false;
-        IsFinished = true;
-        HasErrors = HasFailedItems;
-        StatusText = BuildSummary();
-        DiagnosticsText = null;
+        var currentIndex = SelectedItem is null ? 0 : Items.IndexOf(SelectedItem);
+        var nextIndex = Math.Max(0, currentIndex - 1);
+        SelectedItem = Items[nextIndex];
+        FollowIndex = nextIndex;
     }
 
-    internal void ClearForAutomation()
+    [RelayCommand(CanExecute = nameof(CanMoveSelection))]
+    private void SelectNext()
     {
-        IsRunning = false;
-        IsFinished = false;
-        DiagnosticsText = null;
-        CancelPending = false;
-        ClearPulse();
+        var currentIndex = SelectedItem is null ? -1 : Items.IndexOf(SelectedItem);
+        var nextIndex = Math.Min(Items.Count - 1, currentIndex + 1);
+        SelectedItem = Items[nextIndex];
+        FollowIndex = nextIndex;
+    }
+
+    private bool CanExclude(DeleteRowViewModel? row)
+    {
+        return IsIdle && (row is not null || SelectedItem is not null || Items.Count > 0);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanExclude))]
+    private void Exclude(DeleteRowViewModel? row)
+    {
+        var target = row ?? SelectedItem ?? Items.FirstOrDefault();
+
+        if (!IsIdle || target is null)
+        {
+            return;
+        }
+
+        var index = Items.IndexOf(target);
+
+        if (index < 0)
+        {
+            return;
+        }
+
+        if (_unmark is not null)
+        {
+            _unmark(target.Space);
+        }
+        else if (target.Space.IsDeleted)
+        {
+            target.Space.Restore();
+        }
+
+        Items.RemoveAt(index);
+        _totalBytes = Math.Max(0, _totalBytes - target.Space.TotalSize);
+        CountText = $"0 / {Items.Count}";
+        SelectedItem = Items.Count > 0 ? Items[Math.Min(index, Items.Count - 1)] : null;
+
+        OnPropertyChanged(nameof(IntroText));
+        OnPropertyChanged(nameof(CancelHint));
+        StartCommand.NotifyCanExecuteChanged();
+        ExcludeCommand.NotifyCanExecuteChanged();
+        SelectPreviousCommand.NotifyCanExecuteChanged();
+        SelectNextCommand.NotifyCanExecuteChanged();
+
+        if (Items.Count == 0)
+        {
+            CloseCommand.Execute(null);
+        }
     }
 
     internal static string? DescribeBatch(int firstIndex, int lastIndex, int total)
@@ -209,6 +243,10 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
     protected override void OnStarting()
     {
+        ExcludeCommand.NotifyCanExecuteChanged();
+        SelectPreviousCommand.NotifyCanExecuteChanged();
+        SelectNextCommand.NotifyCanExecuteChanged();
+        _diagnostics = new(_permanent, Items.Count, _totalBytes, _monitor, _operations, _preferences);
         _diagnostics.Start();
         _progressTimer.Start();
         _logger.DeletionStarted(_runId, Items.Count, SizeFormatter.Format(_totalBytes), _permanent);

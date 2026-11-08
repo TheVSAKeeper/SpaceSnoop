@@ -223,7 +223,7 @@ public sealed partial class ScanMarksViewModel : ObservableObject
 
         var permanent = _operations.DeleteMode == DeleteMode.Permanent;
         _logger.DeletionRequested(marked.Count, permanent);
-        var dialog = _deleteDialogFactory.Create(marked, permanent);
+        var dialog = _deleteDialogFactory.Create(marked, permanent, UnmarkFromDialog);
 
         if (!_operations.ConfirmBeforeDelete)
         {
@@ -240,5 +240,22 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         }
 
         ApplyDeletionResult(dialog.DeletedItems);
+    }
+
+    internal void UnmarkFromDialog(SpaceBase item)
+    {
+        if (!item.IsDeleted)
+        {
+            return;
+        }
+
+        item.Restore();
+
+        foreach (var root in _roots)
+        {
+            ScanTreeEditor.RefreshNodeMarks(root, item);
+        }
+
+        RecountMarked();
     }
 }

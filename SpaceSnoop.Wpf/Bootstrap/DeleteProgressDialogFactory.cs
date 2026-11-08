@@ -9,8 +9,11 @@ public sealed class DeleteProgressDialogFactory(
     IUiDispatcher uiDispatcher,
     ILogger<DeleteProgressDialogViewModel> logger)
 {
-    public DeleteProgressDialogViewModel Create(IReadOnlyList<SpaceBase> items, bool permanent)
+    public DeleteProgressDialogViewModel Create(
+        IReadOnlyList<SpaceBase> items,
+        bool permanent,
+        Action<SpaceBase>? unmark = null)
     {
-        return new(items, permanent, monitor, operations, preferences, uiDispatcher, logger);
+        return new(items, permanent, monitor, operations, preferences, uiDispatcher, logger, unmark);
     }
 }

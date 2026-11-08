@@ -13,6 +13,8 @@ internal sealed class NoopDialogs(bool showResult = false, bool confirmResult = 
 
     public string? LastWarningMessage { get; private set; }
 
+    public string? LastErrorMessage { get; private set; }
+
     public Task<bool> ShowAsync(IDialogViewModel viewModel)
     {
         ShowCount++;
@@ -48,5 +50,6 @@ internal sealed class NoopDialogs(bool showResult = false, bool confirmResult = 
 
     public void Error(string title, string message)
     {
+        LastErrorMessage = message;
     }
 }

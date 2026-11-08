@@ -182,6 +182,14 @@
                           behaviors:ListNavigation.FollowIndex="{Binding FollowIndex}"
                           VirtualizingPanel.IsVirtualizing="True"
                           VirtualizingPanel.VirtualizationMode="Recycling">
+                <ItemsControl.InputBindings>
+                    <KeyBinding Key="Delete"
+                                Command="{Binding ExcludeCommand}" />
+                    <KeyBinding Key="Up"
+                                Command="{Binding SelectPreviousCommand}" />
+                    <KeyBinding Key="Down"
+                                Command="{Binding SelectNextCommand}" />
+                </ItemsControl.InputBindings>
                 <ItemsControl.Template>
                     <ControlTemplate TargetType="ItemsControl">
                         <ScrollViewer Focusable="False"
@@ -204,6 +212,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
@@ -252,6 +261,30 @@
                                            FontSize="{DynamicResource Font.Size.Caption}"
                                            Foreground="{DynamicResource Fg.Muted}" />
                             </Grid>
+
+                            <Button Grid.Column="3"
+                                    Style="{StaticResource Button.Icon}"
+                                    Command="{Binding DataContext.ExcludeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                    CommandParameter="{Binding}"
+                                    Width="18"
+                                    Height="18"
+                                    MinWidth="0"
+                                    MinHeight="0"
+                                    Padding="0"
+                                    Margin="8,0,0,0"
+                                    VerticalAlignment="Center"
+                                    ToolTip="Исключить из списка удаления (Delete)"
+                                    AutomationProperties.Name="{Binding Name, StringFormat='Исключить из удаления: {0}'}"
+                                    Visibility="{Binding DataContext.IsIdle, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibility}}">
+                                <Button.InputBindings>
+                                    <KeyBinding Key="Delete"
+                                                Command="{Binding DataContext.ExcludeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" />
+                                </Button.InputBindings>
+                                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.X}"
+                                                          Width="12"
+                                                          Height="12" />
+                            </Button>
                         </Grid>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
