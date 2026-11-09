@@ -77,6 +77,27 @@ public sealed partial class ScanInspectorViewModel
         TryCopy(BuildDetails());
     }
 
+    [RelayCommand]
+    private void SelectChild(ScanInspectorChild? child)
+    {
+        if (child is null || Node is not { IsDirectory: true } current)
+        {
+            return;
+        }
+
+        current.EnsureLoaded();
+        current.IsExpanded = true;
+
+        var target = current.Children.FirstOrDefault(
+            candidate => candidate.IsDirectory == child.IsDirectory
+                && string.Equals(candidate.Name, child.Name, StringComparison.Ordinal));
+
+        if (target is not null)
+        {
+            ChildSelected?.Invoke(target);
+        }
+    }
+
     private void ApplyShares(ScanNodeViewModel node)
     {
         ShareOfParent = node.Share;

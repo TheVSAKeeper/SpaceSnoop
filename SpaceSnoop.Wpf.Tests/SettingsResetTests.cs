@@ -11,6 +11,8 @@ using SpaceSnoop.Wpf.ViewModels.Scan;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.ViewModels.Sync;
 using System.IO.Compression;
+using System.Runtime.CompilerServices;
+using System.Xml.Linq;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -489,6 +491,62 @@ public class SettingsResetTests
             Assert.That(scan.MaxParallelism, Is.EqualTo(Math.Min(ceiling, AppDefaults.ScanParallelismDefaultCeiling)));
             Assert.That(store.GetInt(SettingsKeys.ScanParallelism), Is.EqualTo(scan.DefaultParallelism));
         }
+    }
+
+    [Test]
+    public void Поиск_находит_раздел_по_любому_слову_из_видимых_подписей_его_строк()
+    {
+        var sections = SettingsViewModel.CreateSections();
+        var plans = Build(new MemorySettings()).Plans;
+        var cards = Directory.GetFiles(SettingsDirectory(), "Settings*Card.xaml");
+        var resetParameter = XName.Get("Form.ResetCommandParameter", "https://schemas.keepshell.dev/wpf");
+        var missing = new List<string>();
+
+        Assert.That(cards, Has.Length.EqualTo(sections.Items.Count));
+
+        foreach (var file in cards)
+        {
+            var document = XDocument.Load(file);
+            var sectionKey = document.Descendants()
+                .Select(element => element.Attribute(resetParameter)?.Value)
+                .First(static value => !string.IsNullOrEmpty(value))!;
+
+            var xamlLabels = document.Descendants()
+                .Select(static element => element.Name.LocalName switch
+                {
+                    "TextBlock" when element.Attribute("Style")?.Value is "{StaticResource Form.Label}" or "{StaticResource Form.SectionTitle}"
+                        => element.Attribute("Text")?.Value,
+                    "CheckBox" => element.Attribute("Content")?.Value,
+                    _ => null,
+                })
+                .Where(static text => !string.IsNullOrWhiteSpace(text) && !text.StartsWith('{'))
+                .Select(static text => text!);
+
+            var plan = plans[sectionKey];
+            var labels = xamlLabels.Concat(plan.Restored).Concat(plan.Untouched).Distinct(StringComparer.Ordinal);
+
+            foreach (var label in labels)
+            {
+                var words = label.Split([' ', ',', '–', '(', ')'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                foreach (var word in words)
+                {
+                    sections.Filter(word);
+
+                    if (!sections[sectionKey].IsVisible)
+                    {
+                        missing.Add($"{sectionKey}: подпись «{label}» не находится по слову «{word}»");
+                    }
+                }
+            }
+        }
+
+        Assert.That(missing, Is.Empty, () => string.Join(Environment.NewLine, missing));
+    }
+
+    private static string SettingsDirectory([CallerFilePath] string caller = "")
+    {
+        return Path.GetFullPath(Path.Combine(Path.GetDirectoryName(caller)!, "..", "SpaceSnoop.Wpf", "Views", "Settings"));
     }
 
     private static void SeedEverything(ISettingsStore store)

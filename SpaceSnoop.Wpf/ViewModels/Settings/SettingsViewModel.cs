@@ -270,13 +270,21 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
     public static SettingsSectionList CreateSections()
     {
         return new(
-            new SettingsSection("appearance", "Внешний вид", PackIconLucideKind.Palette, "тема оформления светлая тёмная tarkov как в системе windows масштаб шрифта размер текста заголовок страницы уведомления тосты производительность отклик память диагностика"),
-            new SettingsSection("startup", "Запуск", PackIconLucideKind.Power, "стартовая страница боковое меню навигация рейл свернуть права администратора предупреждение"),
+            new SettingsSection(
+                "appearance",
+                "Внешний вид",
+                PackIconLucideKind.Palette,
+                "тема оформления светлая тёмная tarkov как в системе windows масштаб шрифта размер текста показывать заголовок страницы показывать всплывающие уведомления тосты показывать производительность в строке состояния отклик память диагностика"),
+            new SettingsSection(
+                "startup",
+                "Запуск",
+                PackIconLucideKind.Power,
+                "стартовая страница свёрнутое боковое меню навигация рейл свернуть права администратора при запуске предупреждение"),
             new SettingsSection(
                 "scan",
                 "Сканирование",
                 PackIconLucideKind.HardDrive,
-                "многопоточный обход потоки параллелизм тепловая подсветка интенсивность проводник открытие файлов тип носителя ssd hdd mft таблица ntfs жёсткие ссылки движок администратор подкаталог диск целиком память повторный скан прежний результат освободить предупреждать спрашивать вернуть системе замирание",
+                "многопоточный обход число параллельных потоков потоки параллелизм учитывать учёт тип типа носителя ssd hdd читать чтение таблицу таблицы ntfs вместо обхода каталогов mft жёсткие ссылки движок администратор подкаталог только при сканировании диска целиком диск целиком освобождать освобождение прежний прежнего результат результата перед повторным сканом освободить предупреждать предупреждение перед повторным сканом повторный скан спрашивать возвращать возврат память памяти системе после скана вернуть замирание интенсивность тепловой подсветки тепловая подсветка выделять файлы в проводнике не запускать открытие файлов",
                 [
                     new("parallel", "Многопоточность"),
                     new("mft", "Таблица NTFS"),
@@ -287,18 +295,42 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
                 "sync",
                 "Синхронизация",
                 PackIconLucideKind.FolderSync,
-                "исключения glob паттерны автодополнение путей git репозиторий группировка служебных каталогов плоский вид перезапись затираемый файл корзина",
+                "автодополнение путей затираемый файл в корзину корзина перезапись git-папки .git git репозиторий исключения по умолчанию glob паттерны группировать группируемые каталоги плоский вид группировка служебных каталогов",
                 [
                     new("paths", "Ввод путей"),
                     new("recycle", "Корзина"),
                     new("exclusions", "Исключения и группировка"),
                 ]),
-            new SettingsSection("delete", "Удаление", PackIconLucideKind.Trash2, "корзина безвозвратно подтверждение помеченные элементы"),
-            new SettingsSection("archive", "Архивация", PackIconLucideKind.FileArchive, "zip сжатие уровень упаковать оригинал корзина"),
-            new SettingsSection("update", "Обновления", PackIconLucideKind.Download, "github релизы репозиторий версия проверка скачивание изменения changelog"),
-            new SettingsSection("storage", "Файлы и хранение", PackIconLucideKind.Folder, "расположение данных appdata portable settings.toml путь логи журналы"),
-            new SettingsSection("mcp", "Доступ для агентов", PackIconLucideKind.Plug, "mcp сервер порт токен подключение json cli адрес изменяющие операции агент"),
-            new SettingsSection("agent", "Агент-чат", PackIconLucideKind.MessageCircle, "шнырь claude codex opencode cli модель глубина рассуждений транскрипт согласие"));
+            new SettingsSection(
+                "delete",
+                "Удаление",
+                PackIconLucideKind.Trash2,
+                "спрашивать подтверждение перед удалением куда удалять помеченные элементы корзина безвозвратно"),
+            new SettingsSection(
+                "archive",
+                "Архивация",
+                PackIconLucideKind.FileArchive,
+                "уровень сжатия .zip zip сжатие упаковать после упаковки убирать оригинал в корзину"),
+            new SettingsSection(
+                "update",
+                "Обновления",
+                PackIconLucideKind.Download,
+                "репозиторий обновлений проверять обновления при запуске проверка автоматически автоматическое скачивать новую версию рядом с программой скачивание изменения github релизы changelog"),
+            new SettingsSection(
+                "storage",
+                "Файлы и хранение",
+                PackIconLucideKind.Folder,
+                "расположение данных хранить файлы приложения в папке appdata файл настроек portable settings.toml путь логи журналы"),
+            new SettingsSection(
+                "mcp",
+                "Доступ для агентов",
+                PackIconLucideKind.Plug,
+                "включить сервер разрешить изменяющие операции порт токен доступа подключение mcp json cli адрес агент"),
+            new SettingsSection(
+                "agent",
+                "Агент-чат",
+                PackIconLucideKind.MessageCircle,
+                "показывать страницу страница чата видимость истории согласие на отправку данных в claude code codex opencode дано записывать запись транскрипт транскрипта хода выбранный cli модель свой слаг модели глубина рассуждений путь к claude.exe codex.exe opencode.exe шнырь"));
     }
 
     private void OnSectionsPropertyChanged(object? sender, PropertyChangedEventArgs e)

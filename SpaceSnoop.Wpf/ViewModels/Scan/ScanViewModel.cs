@@ -167,6 +167,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         _filePicker = filePicker;
 
         Inspector = inspector;
+        Inspector.ChildSelected += OnInspectorChildSelected;
         Preferences = preferences;
         Preferences.PropertyChanged += OnPreferencesChanged;
         Inspector.Intensity = Preferences.Intensity;
@@ -284,6 +285,18 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     private void OnTreemapDrilledInto(ScanNodeViewModel node)
     {
         SelectedNode = node;
+    }
+
+    private void OnInspectorChildSelected(ScanNodeViewModel node)
+    {
+        if (ViewMode == ScanViewMode.Treemap
+            && node.ParentNode is { } parent
+            && !ReferenceEquals(Treemap.TreemapRoot, parent))
+        {
+            Treemap.DrillIntoCommand.Execute(parent);
+        }
+
+        SelectSingle(node);
     }
 
     private void OnPreferencesChanged(object? sender, PropertyChangedEventArgs e)

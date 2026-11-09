@@ -13,6 +13,7 @@ using SpaceSnoop.Wpf.Views;
 using SpaceSnoop.Wpf.Views.Scan;
 using System.Runtime.CompilerServices;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -530,6 +531,51 @@ public class ScanMultiSelectionTests
             Assert.That(firstFile.IsMarkedDeleted, Is.True);
             Assert.That(outsideFile.IsMarkedDeleted, Is.True);
             Assert.That(_scan.Marks.MarkedCount, Is.EqualTo(2));
+            Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+        }
+    }
+
+    [Test]
+    public void Щелчок_по_крупнейшему_в_инспекторе_выбирает_ребёнка_в_дереве_и_на_карте()
+    {
+        var (_, rootNode, branchNode, _, secondFile, _) = PopulateTree();
+        var treemap = Descendant<TreemapView>(Panel())!;
+
+        rootNode.IsExpanded = false;
+        _scan.SelectSingle(rootNode);
+        _host.Settle();
+
+        var details = Descendant<ScanInspectorDetails>(_window)!;
+        var branchChild = _scan.Inspector.TopChildren.First(static child => child.Name == "branch");
+        var branchButton = Descendants<Button>(details).Single(button => ReferenceEquals(button.DataContext, branchChild));
+        var branchGrid = Descendant<Grid>(branchButton)!;
+        var branchRowWidth = branchGrid.ActualWidth;
+        var inspectorWidth = details.ActualWidth;
+        branchButton.Command.Execute(branchButton.CommandParameter);
+        _host.Settle();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(AutomationProperties.GetName(treemap), Is.EqualTo("Карта диска"));
+            Assert.That(branchRowWidth, Is.EqualTo(inspectorWidth).Within(1));
+            Assert.That(rootNode.IsExpanded, Is.True);
+            Assert.That(_scan.SelectedNode, Is.SameAs(branchNode));
+            Assert.That(_scan.Inspector.Node, Is.SameAs(branchNode));
+        }
+
+        _scan.ViewMode = ScanViewMode.Treemap;
+        _scan.Treemap.SetRoot(rootNode);
+        _scan.SelectSingle(branchNode);
+        _host.Settle();
+
+        var fileChild = _scan.Inspector.TopChildren.First(static child => child.Name == "b.bin");
+        _scan.Inspector.SelectChildCommand.Execute(fileChild);
+        _host.Settle();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_scan.Treemap.TreemapRoot, Is.SameAs(branchNode));
+            Assert.That(_scan.SelectedNode, Is.SameAs(secondFile));
             Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
         }
     }

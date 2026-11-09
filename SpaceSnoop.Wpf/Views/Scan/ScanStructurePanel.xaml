@@ -333,6 +333,7 @@
                         ClipToBounds="True">
                     <Grid>
                         <controls:TreemapView x:Name="Treemap"
+                                              AutomationProperties.Name="Карта диска"
                                               ItemsSource="{Binding TreemapTiles}"
                                               Intensity="{Binding DataContext.Intensity, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                               SelectedItem="{Binding DataContext.SelectedNode, RelativeSource={RelativeSource AncestorType=UserControl}, Mode=TwoWay}"

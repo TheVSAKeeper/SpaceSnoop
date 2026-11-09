@@ -2,6 +2,8 @@
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.ViewModels.Scan;
+using SpaceSnoop.Wpf.Views.Scan;
+using System.Windows.Automation.Peers;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -206,6 +208,64 @@ public class ScanTreemapViewModelTests
             Assert.That(treemap.TreemapBreadcrumbs, Is.Empty);
             Assert.That(treemap.TreemapTiles, Is.Empty);
             Assert.That(treemap.HasTreemapTiles, Is.False);
+        }
+    }
+
+    [Test]
+    [Apartment(ApartmentState.STA)]
+    public void Экранный_диктор_видит_имя_карты_диска_и_перечень_крупнейших_плиток()
+    {
+        var (treemap, root) = Arrange();
+        treemap.SetRoot(root);
+
+        var view = new TreemapView
+        {
+            ItemsSource = treemap.TreemapTiles,
+        };
+
+        var peer = UIElementAutomationPeer.CreatePeerForElement(view);
+
+        Assert.That(peer, Is.Not.Null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(peer!.GetName(), Is.EqualTo("Карта диска"));
+            Assert.That(
+                peer.GetHelpText(),
+                Is.EqualTo(string.Join("; ", treemap.TreemapTiles.Select(static tile => $"{tile.Name} ({tile.SizeText})"))));
+
+            Assert.That(
+                peer.GetChildren()?.Select(static child => child.GetName()),
+                Is.EqualTo(treemap.TreemapTiles.Select(static tile => $"{tile.Name} ({tile.SizeText})")));
+        }
+    }
+
+    [Test]
+    public void Щелчок_по_строке_крупнейшего_в_инспекторе_раскрывает_родителя_и_выбирает_ребёнка()
+    {
+        var (_, root) = Arrange();
+        root.IsExpanded = false;
+
+        var inspector = new ScanInspectorViewModel(new MemorySettings(), new FakeClipboard());
+        var selected = new List<ScanNodeViewModel>();
+        inspector.ChildSelected += selected.Add;
+
+        inspector.Show(root);
+        var top = inspector.TopChildren.First(static child => child.Name == "big");
+        inspector.SelectChildCommand.Execute(top);
+
+        var big = root.Children.First(static child => child.Name == "big");
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(root.IsExpanded, Is.True);
+            Assert.That(
+                selected,
+                Is.EqualTo(
+                    new[]
+                    {
+                        big,
+                    }));
         }
     }
 

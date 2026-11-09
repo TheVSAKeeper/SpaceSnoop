@@ -119,6 +119,8 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     [ObservableProperty]
     private double _intensity = AppDefaults.IntensityDefault;
 
+    public event Action<ScanNodeViewModel>? ChildSelected;
+
     public RangeObservableCollection<ScanInspectorChild> TopChildren { get; } = [];
 
     public bool HasTopChildren => TopChildren.Count > 0;

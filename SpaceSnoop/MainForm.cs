@@ -128,9 +128,13 @@ public partial class MainForm : Form
             selectedSpace.SwapDelete();
             _colorService.UpdateNodesColor(_directoriesTreeView.Nodes);
         }
-        else
+        else if (selectedSpace is DirectorySpace)
         {
             Process.Start(new ProcessStartInfo(selectedSpace.AbsolutePath) { UseShellExecute = true });
+        }
+        else
+        {
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{selectedSpace.AbsolutePath}\"") { UseShellExecute = true });
         }
     }
 

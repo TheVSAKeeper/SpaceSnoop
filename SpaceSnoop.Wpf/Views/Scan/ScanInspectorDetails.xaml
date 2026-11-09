@@ -327,59 +327,65 @@
                           Margin="0,8,0,0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Grid Margin="0,3"
-                              ToolTip="{Binding ShareText}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="64" />
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
+                        <Button Style="{StaticResource TopChildButton}"
+                                Command="{Binding DataContext.SelectChildCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}"
+                                AutomationProperties.Name="{Binding Name}"
+                                ToolTip="{Binding ShareText}">
+                            <Grid Margin="0,3">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="64" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
 
-                            <Border x:Name="ChildBarTrack"
-                                    Grid.Column="0"
-                                    Height="10"
-                                    Background="{DynamicResource Bg.SurfaceMute}"
-                                    CornerRadius="{DynamicResource Radius.S}"
-                                    VerticalAlignment="Center"
-                                    Margin="0,0,8,0">
-                                <Rectangle HorizontalAlignment="Left"
-                                           Height="10"
-                                           RadiusX="4"
-                                           RadiusY="4">
-                                    <Rectangle.Width>
-                                        <MultiBinding Converter="{StaticResource FractionToWidth}">
-                                            <Binding Path="Fraction" />
-                                            <Binding Path="ActualWidth"
-                                                     ElementName="ChildBarTrack" />
-                                        </MultiBinding>
-                                    </Rectangle.Width>
-                                    <Rectangle.Fill>
-                                        <MultiBinding Converter="{StaticResource HeatBrush}">
-                                            <Binding Path="Fraction" />
-                                            <Binding Path="DataContext.Intensity"
-                                                     RelativeSource="{RelativeSource AncestorType=UserControl}" />
-                                        </MultiBinding>
-                                    </Rectangle.Fill>
-                                </Rectangle>
-                            </Border>
+                                <Border x:Name="ChildBarTrack"
+                                        Grid.Column="0"
+                                        Height="10"
+                                        Background="{DynamicResource Bg.SurfaceMute}"
+                                        CornerRadius="{DynamicResource Radius.S}"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,8,0">
+                                    <Rectangle HorizontalAlignment="Left"
+                                               Height="10"
+                                               RadiusX="4"
+                                               RadiusY="4">
+                                        <Rectangle.Width>
+                                            <MultiBinding Converter="{StaticResource FractionToWidth}">
+                                                <Binding Path="Fraction" />
+                                                <Binding Path="ActualWidth"
+                                                         ElementName="ChildBarTrack" />
+                                            </MultiBinding>
+                                        </Rectangle.Width>
+                                        <Rectangle.Fill>
+                                            <MultiBinding Converter="{StaticResource HeatBrush}">
+                                                <Binding Path="Fraction" />
+                                                <Binding Path="DataContext.Intensity"
+                                                         RelativeSource="{RelativeSource AncestorType=UserControl}" />
+                                            </MultiBinding>
+                                        </Rectangle.Fill>
+                                    </Rectangle>
+                                </Border>
 
-                            <iconPacks:PackIconLucide Grid.Column="1"
-                                                      Style="{StaticResource NodeIcon}"
-                                                      Margin="0,0,6,0" />
-                            <TextBlock Grid.Column="2"
-                                       Text="{Binding Name}"
-                                       VerticalAlignment="Center"
-                                       TextTrimming="CharacterEllipsis"
-                                       ToolTip="{Binding Name}" />
-                            <TextBlock Grid.Column="3"
-                                       Text="{Binding SizeText}"
-                                       Margin="8,0,0,0"
-                                       VerticalAlignment="Center"
-                                       FontFamily="{DynamicResource Font.Mono}"
-                                       FontSize="{DynamicResource Font.Size.Caption}"
-                                       Foreground="{DynamicResource Fg.Primary}" />
-                        </Grid>
+                                <iconPacks:PackIconLucide Grid.Column="1"
+                                                          Style="{StaticResource NodeIcon}"
+                                                          Margin="0,0,6,0" />
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding Name}"
+                                           VerticalAlignment="Center"
+                                           TextWrapping="NoWrap"
+                                           TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Name}" />
+                                <TextBlock Grid.Column="3"
+                                           Text="{Binding SizeText}"
+                                           Margin="8,0,0,0"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{DynamicResource Font.Mono}"
+                                           FontSize="{DynamicResource Font.Size.Caption}"
+                                           Foreground="{DynamicResource Fg.Primary}" />
+                            </Grid>
+                        </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>

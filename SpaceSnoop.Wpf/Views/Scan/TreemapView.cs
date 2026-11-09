@@ -4,6 +4,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -162,6 +163,11 @@ public sealed class TreemapView : FrameworkElement
     {
         _hover = null;
         _toolTip.IsOpen = false;
+    }
+
+    protected override AutomationPeer OnCreateAutomationPeer()
+    {
+        return new TreemapAutomationPeer(this);
     }
 
     protected override void OnRender(DrawingContext drawingContext)
@@ -745,5 +751,77 @@ public sealed class TreemapView : FrameworkElement
         return TryFindResource(resourceKey) is Brush brush ? new(brush, thickness) : null;
     }
 
+    private string DescribeTopTilesForAutomation()
+    {
+        return string.Join(
+            "; ",
+            Nodes()
+                .OrderByDescending(static node => node.Weight)
+                .Take(AppDefaults.TopChildrenLimit)
+                .Select(static node => $"{node.Name} ({node.SizeText})"));
+    }
+
     private readonly record struct TileStyle(Pen? Selection, Pen? Deleted, FontFamily? Mono, double Intensity, double Scale);
+
+    private sealed class TreemapAutomationPeer(TreemapView owner) : FrameworkElementAutomationPeer(owner)
+    {
+        protected override string GetNameCore()
+        {
+            var name = base.GetNameCore();
+            return string.IsNullOrEmpty(name) ? "Карта диска" : name;
+        }
+
+        protected override string GetClassNameCore()
+        {
+            return nameof(TreemapView);
+        }
+
+        protected override AutomationControlType GetAutomationControlTypeCore()
+        {
+            return AutomationControlType.Group;
+        }
+
+        protected override string GetHelpTextCore()
+        {
+            var help = base.GetHelpTextCore();
+            return string.IsNullOrEmpty(help) ? owner.DescribeTopTilesForAutomation() : help;
+        }
+
+        protected override List<AutomationPeer> GetChildrenCore()
+        {
+            return owner.Nodes()
+                .OrderByDescending(static node => node.Weight)
+                .Take(AppDefaults.TopChildrenLimit)
+                .Select(static node => (AutomationPeer)new TreemapTileAutomationPeer(node))
+                .ToList();
+        }
+    }
+
+    private sealed class TreemapTileAutomationPeer(ScanNodeViewModel node) : UIElementAutomationPeer(new UIElement())
+    {
+        protected override string GetNameCore()
+        {
+            return $"{node.Name} ({node.SizeText})";
+        }
+
+        protected override string GetClassNameCore()
+        {
+            return nameof(ScanNodeViewModel);
+        }
+
+        protected override AutomationControlType GetAutomationControlTypeCore()
+        {
+            return AutomationControlType.ListItem;
+        }
+
+        protected override bool IsControlElementCore()
+        {
+            return true;
+        }
+
+        protected override bool IsContentElementCore()
+        {
+            return true;
+        }
+    }
 }
