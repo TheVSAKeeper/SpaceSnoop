@@ -29,6 +29,8 @@ public static class SyncRoots
         UnresolvedLink = 3,
     }
 
+    private static readonly char[] Separators = [Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar];
+
     public static bool Overlap(string left, string right)
     {
         return Refusal(left, right) is not null;
@@ -165,10 +167,52 @@ public static class SyncRoots
     {
         var a = Trim(left);
         var b = Trim(right);
+        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
 
-        return string.Equals(a, b, StringComparison.OrdinalIgnoreCase)
-            || b.StartsWith(a + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-            || a.StartsWith(b + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        return (shorter.Length == longer.Length
+                || longer[shorter.Length] == Path.DirectorySeparatorChar
+                || longer[shorter.Length] == Path.AltDirectorySeparatorChar)
+            && SamePath(shorter, longer[..shorter.Length]);
+    }
+
+    private static bool SamePath(string left, string right)
+    {
+        if (string.Equals(left, right, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var start = Path.GetPathRoot(right)?.Length ?? 0;
+
+        while (start < right.Length && (right[start] == Path.DirectorySeparatorChar || right[start] == Path.AltDirectorySeparatorChar))
+        {
+            start++;
+        }
+
+        while (start < right.Length)
+        {
+            var end = right.IndexOfAny(Separators, start);
+
+            if (end < 0)
+            {
+                end = right.Length;
+            }
+
+            if (!left.AsSpan(start, end - start).SequenceEqual(right.AsSpan(start, end - start))
+                && PathCase.IsCaseSensitive(right[..start]))
+            {
+                return false;
+            }
+
+            start = end + 1;
+        }
+
+        return true;
     }
 
     private static string Trim(string path)

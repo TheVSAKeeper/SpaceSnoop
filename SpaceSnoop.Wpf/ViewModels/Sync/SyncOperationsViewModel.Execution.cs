@@ -110,13 +110,10 @@ public sealed partial class SyncOperationsViewModel
         var afterSync = _planState.AfterSync(report, _session.LastOperationCancelled || external.IsCancellationRequested);
         var same = ReferenceEquals(Result, result);
 
-        if (same)
-        {
-            ApplyPlanState(afterSync);
-        }
-        else if (Result is { } replaced
-            && await Task.Run(() => SharesRoot(replaced, result), CancellationToken.None)
-            && ReferenceEquals(Result, replaced))
+        if (same
+            || (Result is { } replaced
+                && await Task.Run(() => SharesRoot(replaced, result), CancellationToken.None)
+                && ReferenceEquals(Result, replaced)))
         {
             ApplyPlanState(afterSync);
         }

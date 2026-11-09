@@ -67,6 +67,7 @@ public static class AppStorage
         string[] files =
         [
             TomlSettingsFile.PrimaryFileName,
+            TomlSettingsFile.LegacyFileName,
             AppInfo.DeletionLogFileName,
             ChatHistoryStore.FileName,
         ];

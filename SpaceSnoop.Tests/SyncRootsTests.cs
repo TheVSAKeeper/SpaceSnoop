@@ -4,6 +4,7 @@ using SpaceSnoop.Core;
 using SpaceSnoop.Core.Domain;
 using SpaceSnoop.Core.UseCases;
 using System.Buffers.Binary;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -151,6 +152,32 @@ public class SyncRootsTests
         Assert.That(SyncRoots.Overlap(left, right), Is.EqualTo(overlap));
     }
 
+    [TestCase(false, true, TestName = "Корни Foo и foo в обычном каталоге считаются перекрывающимися")]
+    [TestCase(true, false, TestName = "Корни Foo и foo в регистрозависимом каталоге не считаются перекрывающимися")]
+    public void Регистр_имени_корня_учитывает_регистрозависимость_родительского_каталога(bool caseSensitive, bool overlap)
+    {
+        var parent = Directory.CreateDirectory(Path.Combine(_tempDir, "cased")).FullName;
+
+        if (caseSensitive)
+        {
+            Assume.That(TryEnableCaseSensitivity(parent), "fsutil не включает регистрозависимость каталога на этой машине");
+        }
+
+        var upper = Directory.CreateDirectory(Path.Combine(parent, "Foo")).FullName;
+        var lower = Path.Combine(parent, "foo");
+
+        if (caseSensitive)
+        {
+            Directory.CreateDirectory(lower);
+        }
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(SyncRoots.Overlap(upper, lower), Is.EqualTo(overlap));
+            Assert.That(SyncRoots.Overlap(upper, Path.Combine(lower, "sub")), Is.EqualTo(overlap));
+        }
+    }
+
     [Test]
     public void Сравнение_отказывает_на_вложенных_корнях()
     {
@@ -216,6 +243,34 @@ public class SyncRootsTests
 
         _links.Add(path);
         return path;
+    }
+
+    private static bool TryEnableCaseSensitivity(string directory)
+    {
+        try
+        {
+            using var process = Process.Start(
+                new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                });
+
+            if (process is null)
+            {
+                return false;
+            }
+
+            process.WaitForExit(10_000);
+
+            return process.HasExited && process.ExitCode == 0;
+        }
+        catch (Win32Exception)
+        {
+            return false;
+        }
     }
 
     private static string? LetterlessVolume()

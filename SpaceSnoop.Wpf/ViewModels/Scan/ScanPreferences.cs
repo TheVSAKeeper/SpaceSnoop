@@ -93,18 +93,11 @@ public sealed partial class ScanPreferences : ObservableObject
             return MaxParallelism;
         }
 
-        var requested = MaxParallelism;
-
-        try
-        {
-            return await Task.Run(() => StorageMedia.LimitParallelism(path, requested))
-                .WaitAsync(TimeSpan.FromMilliseconds(AppDefaults.StorageMediaTimeoutMs))
-                .ConfigureAwait(false);
-        }
-        catch (TimeoutException)
-        {
-            return requested;
-        }
+        return await StorageMedia.LimitParallelismAsync(
+                path,
+                MaxParallelism,
+                TimeSpan.FromMilliseconds(AppDefaults.StorageMediaTimeoutMs))
+            .ConfigureAwait(false);
     }
 
     partial void OnUseMultithreadingChanged(bool value)

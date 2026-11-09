@@ -20,6 +20,7 @@ public class AppStorageTests
             Directory.CreateDirectory(Path.Combine(source, AppStorage.LogsFolderName));
 
             File.WriteAllText(Path.Combine(source, TomlSettingsFile.PrimaryFileName), "theme = \"dark\"");
+            File.WriteAllText(Path.Combine(source, TomlSettingsFile.LegacyFileName), "wpf.shell.font_scale 1.25");
             File.WriteAllText(Path.Combine(source, AppInfo.DeletionLogFileName), "deleted");
             File.WriteAllText(Path.Combine(source, AppInfo.SyncLogFileName), "synced");
             File.WriteAllText(Path.Combine(source, AppStorage.LogsFolderName, "wpf-1.log"), "log");
@@ -29,10 +30,12 @@ public class AppStorageTests
             Assert.Multiple(() =>
             {
                 Assert.That(File.ReadAllText(Path.Combine(destination, TomlSettingsFile.PrimaryFileName)), Is.EqualTo("theme = \"dark\""));
+                Assert.That(File.ReadAllText(Path.Combine(destination, TomlSettingsFile.LegacyFileName)), Is.EqualTo("wpf.shell.font_scale 1.25"));
                 Assert.That(File.Exists(Path.Combine(destination, AppInfo.DeletionLogFileName)), Is.True);
                 Assert.That(File.Exists(Path.Combine(destination, AppStorage.LogsFolderName, "wpf-1.log")), Is.True);
 
                 Assert.That(File.Exists(Path.Combine(source, TomlSettingsFile.PrimaryFileName)), Is.False);
+                Assert.That(File.Exists(Path.Combine(source, TomlSettingsFile.LegacyFileName)), Is.False);
                 Assert.That(File.Exists(Path.Combine(source, AppInfo.SyncLogFileName)), Is.False);
                 Assert.That(File.Exists(Path.Combine(source, AppStorage.LogsFolderName, "wpf-1.log")), Is.False);
             });

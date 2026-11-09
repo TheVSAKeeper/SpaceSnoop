@@ -1,5 +1,4 @@
 ﻿using Microsoft.Win32.SafeHandles;
-using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Security;
 
@@ -21,16 +20,75 @@ public static class StorageMedia
     private const uint FILE_SHARE_WRITE = 0x00000002;
     private const uint OPEN_EXISTING = 3;
 
+    private static readonly Lock Gate = new();
+
     // TODO: кэш живёт до конца процесса и не переспрашивает драйвер, поэтому съёмный носитель,
     // подменённый под той же буквой, отвечает типом прежнего. Апгрейд – сброс по событию
     // подключения тома, когда появится сценарий со съёмными дисками.
-    private static readonly ConcurrentDictionary<string, StorageKind> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Task<StorageKind>> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Task<StorageKind> None = Task.FromResult(StorageKind.None);
+
+    internal static Func<string, StorageKind> Probe { get; set; } = Query;
 
     public static StorageKind Detect(string path)
     {
+        return Start(path).GetAwaiter().GetResult();
+    }
+
+    public static int LimitParallelism(string path, int requested)
+    {
+        return Detect(path) == StorageKind.Rotational ? 1 : requested;
+    }
+
+    public static async Task<int> LimitParallelismAsync(string path, int requested, TimeSpan timeout)
+    {
+        try
+        {
+            var kind = await Start(path).WaitAsync(timeout).ConfigureAwait(false);
+            return kind == StorageKind.Rotational ? 1 : requested;
+        }
+        catch (TimeoutException)
+        {
+            return requested;
+        }
+    }
+
+    internal static void ResetCache()
+    {
+        lock (Gate)
+        {
+            Cache.Clear();
+        }
+    }
+
+    private static Task<StorageKind> Start(string path)
+    {
+        var letter = VolumeLetter(path);
+
+        if (letter is null)
+        {
+            return None;
+        }
+
+        var probe = Probe;
+
+        lock (Gate)
+        {
+            if (!Cache.TryGetValue(letter, out var task))
+            {
+                task = Task.Run(() => probe(letter));
+                Cache[letter] = task;
+            }
+
+            return task;
+        }
+    }
+
+    private static string? VolumeLetter(string path)
+    {
         if (string.IsNullOrWhiteSpace(path))
         {
-            return StorageKind.None;
+            return null;
         }
 
         string? root;
@@ -41,22 +99,15 @@ public static class StorageMedia
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException or SecurityException)
         {
-            return StorageKind.None;
+            return null;
         }
 
         if (string.IsNullOrEmpty(root) || root.StartsWith(@"\\", StringComparison.Ordinal))
         {
-            return StorageKind.None;
+            return null;
         }
 
-        var letter = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-        return Cache.GetOrAdd(letter, static x => Query(x));
-    }
-
-    public static int LimitParallelism(string path, int requested)
-    {
-        return Detect(path) == StorageKind.Rotational ? 1 : requested;
+        return root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
     }
 
     private static StorageKind Query(string letter)
