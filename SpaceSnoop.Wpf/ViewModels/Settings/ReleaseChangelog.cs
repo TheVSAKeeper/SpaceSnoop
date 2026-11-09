@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using MahApps.Metro.IconPacks;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace SpaceSnoop.Wpf.ViewModels.Settings;
@@ -35,7 +36,7 @@ internal static partial class ReleaseChangelog
         return text.Replace("\n", Environment.NewLine, StringComparison.Ordinal).Trim();
     }
 
-    internal static IReadOnlyList<ReleaseChangeViewModel> ExtractChangeItems(string? body)
+    internal static IReadOnlyList<ReleaseChangeGroupViewModel> ExtractChangeGroups(string? body)
     {
         var changes = ExtractChanges(body);
 
@@ -44,7 +45,18 @@ internal static partial class ReleaseChangelog
             return [];
         }
 
-        var items = new List<(string Summary, List<string> Details)>();
+        var groups = new List<(string? Title, List<(string Summary, List<string> Details)> Items)>();
+        string? currentTitle = null;
+        var currentItems = new List<(string Summary, List<string> Details)>();
+
+        void FlushGroup()
+        {
+            if (currentItems.Count > 0)
+            {
+                groups.Add((currentTitle, currentItems));
+                currentItems = [];
+            }
+        }
 
         foreach (var line in changes.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
         {
@@ -53,9 +65,22 @@ internal static partial class ReleaseChangelog
                 continue;
             }
 
+            if (line.StartsWith("### ", StringComparison.Ordinal))
+            {
+                var heading = line[4..].Trim();
+
+                if (heading.Length > 0)
+                {
+                    FlushGroup();
+                    currentTitle = heading;
+                }
+
+                continue;
+            }
+
             if (line.StartsWith("- ", StringComparison.Ordinal) || line.StartsWith("* ", StringComparison.Ordinal))
             {
-                items.Add((line[2..].Trim(), []));
+                currentItems.Add((line[2..].Trim(), []));
                 continue;
             }
 
@@ -66,17 +91,28 @@ internal static partial class ReleaseChangelog
                 continue;
             }
 
-            if (items.Count == 0)
+            if (currentItems.Count == 0)
             {
-                items.Add((detail, []));
+                currentItems.Add((detail, []));
             }
             else
             {
-                items[^1].Details.Add(detail);
+                currentItems[^1].Details.Add(detail);
             }
         }
 
-        return items.Select(static item => new ReleaseChangeViewModel(item.Summary, item.Details)).ToList();
+        FlushGroup();
+
+        return groups
+            .Select(static group => new ReleaseChangeGroupViewModel(
+                group.Title,
+                group.Items.Select(item => new ReleaseChangeViewModel(item.Summary, item.Details, group.Title)).ToList()))
+            .ToList();
+    }
+
+    internal static IReadOnlyList<ReleaseChangeViewModel> ExtractChangeItems(string? body)
+    {
+        return ExtractChangeGroups(body).SelectMany(static group => group.Items).ToList();
     }
 
     internal static string BuildReleaseNotes(JsonElement releases)
@@ -123,13 +159,36 @@ internal static partial class ReleaseChangelog
         return entries;
     }
 
+    internal static IReadOnlyList<ReleaseNoteViewModel> BuildPendingEntries(JsonElement releases, string? currentVersion = null)
+    {
+        var current = currentVersion ?? AppInfo.Version;
+        var entries = new List<ReleaseNoteViewModel>();
+
+        foreach (var release in releases.EnumerateArray())
+        {
+            var tag = StringProperty(release, "tag_name");
+
+            if (!UpdateCheck.IsNewer(tag, current))
+            {
+                continue;
+            }
+
+            if (BuildChangelogEntry(release) is { } entry)
+            {
+                entries.Add(entry);
+            }
+        }
+
+        return entries;
+    }
+
     internal static string BuildChangelog(IReadOnlyList<ReleaseNoteViewModel> entries)
     {
         return string.Join(
             $"{Environment.NewLine}{Environment.NewLine}",
             entries
                 .Select(static entry =>
-                    $"## {entry.Title} · {entry.PublishedDate}{Environment.NewLine}{string.Join(Environment.NewLine, entry.Changes.Select(static change => FormatChange(change)))}"));
+                    $"## {entry.Title} · {entry.PublishedDate}{Environment.NewLine}{string.Join(Environment.NewLine, entry.ChangeGroups.Select(static group => FormatGroup(group)))}"));
     }
 
     internal static string? ExtractCompareUrl(string? body)
@@ -143,6 +202,117 @@ internal static partial class ReleaseChangelog
         return match.Success ? match.Value.TrimEnd('.') : null;
     }
 
+    internal static IReadOnlyList<ConfirmLine> BuildUpdateLines(IReadOnlyList<ReleaseNoteViewModel> entries, string fallbackNotes)
+    {
+        var lines = new List<ConfirmLine>();
+
+        if (entries.Count > 0)
+        {
+            for (var index = 0; index < entries.Count; index++)
+            {
+                if (index > 0)
+                {
+                    lines.Add(new ConfirmGapLine());
+                }
+
+                var entry = entries[index];
+
+                if (entries.Count > 1)
+                {
+                    lines.Add(new ConfirmTextLine($"{entry.Title} · {entry.PublishedDate}", ConfirmTextTone.Strong));
+                }
+
+                AppendGroups(lines, entry.ChangeGroups);
+            }
+
+            return lines;
+        }
+
+        var groups = ExtractChangeGroups(fallbackNotes);
+
+        if (groups.Count > 0)
+        {
+            AppendGroups(lines, groups);
+            return lines;
+        }
+
+        lines.Add(new ConfirmTextLine("Список изменений не указан.", ConfirmTextTone.Muted));
+        return lines;
+    }
+
+    internal static ConfirmDialogViewModel BuildUpdateDialog(
+        string? latestTag,
+        string? assetName,
+        string? assetUrl,
+        IReadOnlyList<ReleaseNoteViewModel> entries,
+        string fallbackNotes)
+    {
+        var hasAsset = assetUrl is not null && !string.IsNullOrWhiteSpace(assetName);
+        var summary = hasAsset
+            ? $"Доступна версия {latestTag} (установлена {AppInfo.Version}). Файл «{assetName}» будет сохранён рядом с программой."
+            : $"Доступна версия {latestTag} (установлена {AppInfo.Version}).";
+
+        IReadOnlyList<ConfirmChoice> choices = hasAsset
+            ?
+            [
+                new("Не сейчас", ConfirmChoiceKind.Dismissive),
+                new("Открыть на GitHub", ConfirmChoiceKind.Secondary),
+                new("Скачать", ConfirmChoiceKind.Primary),
+            ]
+            :
+            [
+                new("Не сейчас", ConfirmChoiceKind.Dismissive),
+                new("Открыть на GitHub", ConfirmChoiceKind.Primary),
+            ];
+
+        return new(
+            "Доступно обновление",
+            PackIconLucideKind.Download,
+            BuildUpdateLines(entries, fallbackNotes),
+            choices)
+        {
+            Summary = summary,
+        };
+    }
+
+    internal static ConfirmDialogViewModel BuildDownloadedDialog(string targetPath)
+    {
+        return new(
+            "Обновление скачано",
+            PackIconLucideKind.Download,
+            [
+                new ConfirmTextLine("Файл сохранён рядом с программой:"),
+                new ConfirmTextLine(targetPath, ConfirmTextTone.Muted),
+            ],
+            [
+                new("Не сейчас", ConfirmChoiceKind.Dismissive),
+                new("Показать в проводнике", ConfirmChoiceKind.Primary),
+            ]);
+    }
+
+    private static void AppendGroups(List<ConfirmLine> lines, IReadOnlyList<ReleaseChangeGroupViewModel> groups)
+    {
+        for (var groupIndex = 0; groupIndex < groups.Count; groupIndex++)
+        {
+            var group = groups[groupIndex];
+
+            if (group.HasTitle)
+            {
+                if (groupIndex > 0)
+                {
+                    lines.Add(new ConfirmGapLine());
+                }
+
+                lines.Add(new ConfirmTextLine(group.Title!, ConfirmTextTone.Strong));
+            }
+
+            foreach (var item in group.Items)
+            {
+                lines.Add(new ConfirmBulletLine(item.Summary, item.Details));
+            }
+        }
+    }
+
     private static string RemoveSection(string text, string heading)
     {
         var start = text.IndexOf(heading, StringComparison.OrdinalIgnoreCase);
@@ -154,6 +324,19 @@ internal static partial class ReleaseChangelog
 
         var end = text.IndexOf("\n## ", start + heading.Length, StringComparison.Ordinal);
         return (end < 0 ? text[..start] : text[..start] + text[(end + 1)..]).Trim();
+    }
+
+    private static string FormatGroup(ReleaseChangeGroupViewModel group)
+    {
+        var lines = new List<string>();
+
+        if (group.HasTitle)
+        {
+            lines.Add($"### {group.Title}");
+        }
+
+        lines.AddRange(group.Items.Select(static change => FormatChange(change)));
+        return string.Join(Environment.NewLine, lines);
     }
 
     private static string FormatChange(ReleaseChangeViewModel change)
@@ -181,10 +364,18 @@ internal static partial class ReleaseChangelog
         }
 
         var publishedDate = string.IsNullOrWhiteSpace(date) || date.Length < 10 ? "без даты" : date[..10];
-        var changes = ExtractChangeItems(body);
+        var groups = ExtractChangeGroups(body);
+        var changes = groups.SelectMany(static group => group.Items).ToList();
+
+        if (changes.Count == 0)
+        {
+            changes = [new("Изменения не описаны.", [])];
+            groups = [new(null, changes)];
+        }
+
         var compareUrl = ExtractCompareUrl(body);
 
-        return new(title, publishedDate, changes.Count == 0 ? [new("Изменения не описаны.", [])] : changes, compareUrl ?? StringProperty(release, "html_url"));
+        return new(title, publishedDate, changes, compareUrl ?? StringProperty(release, "html_url"), groups);
     }
 
     private static string? StringProperty(JsonElement owner, string name)
@@ -196,6 +387,20 @@ internal static partial class ReleaseChangelog
     private static partial Regex CompareUrlRegex();
 }
 
-public sealed record ReleaseNoteViewModel(string Title, string PublishedDate, IReadOnlyList<ReleaseChangeViewModel> Changes, string? CompareUrl);
+public sealed record ReleaseNoteViewModel(
+    string Title,
+    string PublishedDate,
+    IReadOnlyList<ReleaseChangeViewModel> Changes,
+    string? CompareUrl,
+    IReadOnlyList<ReleaseChangeGroupViewModel>? Groups = null)
+{
+    public IReadOnlyList<ReleaseChangeGroupViewModel> ChangeGroups =>
+        Groups is { Count: > 0 } ? Groups : [new(null, Changes)];
+}
 
-public sealed record ReleaseChangeViewModel(string Summary, IReadOnlyList<string> Details);
+public sealed record ReleaseChangeGroupViewModel(string? Title, IReadOnlyList<ReleaseChangeViewModel> Items)
+{
+    public bool HasTitle => !string.IsNullOrWhiteSpace(Title);
+}
+
+public sealed record ReleaseChangeViewModel(string Summary, IReadOnlyList<string> Details, string? Section = null);

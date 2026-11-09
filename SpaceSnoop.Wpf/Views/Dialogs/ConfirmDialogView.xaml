@@ -98,6 +98,40 @@
             <TextBlock Text="{Binding Body}"
                        Style="{StaticResource Confirm.Text}" />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ConfirmBulletLine}">
+            <Grid Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border Grid.Column="0"
+                        Width="5"
+                        Height="5"
+                        CornerRadius="3"
+                        Margin="0,7,8,0"
+                        VerticalAlignment="Top"
+                        Background="{DynamicResource Accent.Primary}" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock Text="{Binding Summary}"
+                               TextWrapping="Wrap"
+                               FontSize="{DynamicResource Font.Size.S}"
+                               Foreground="{DynamicResource Fg.Primary}" />
+                    <ItemsControl ItemsSource="{Binding DetailLines}"
+                                  Margin="0,2,0,0"
+                                  Visibility="{Binding HasDetails, Converter={StaticResource BoolToVisibility}}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Text="{Binding}"
+                                           TextWrapping="Wrap"
+                                           Margin="0,0,0,2"
+                                           FontSize="{DynamicResource Font.Size.S}"
+                                           Foreground="{DynamicResource Fg.Secondary}" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Grid>
+        </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ConfirmMetricLine}">
             <Grid Margin="0,0,0,3">
                 <Grid.ColumnDefinitions>

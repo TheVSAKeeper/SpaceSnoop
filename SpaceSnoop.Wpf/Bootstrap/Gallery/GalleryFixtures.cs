@@ -101,6 +101,34 @@ public static class GalleryFixtures
         ];
     }
 
+    public static IReadOnlyList<ReleaseNoteViewModel> Changelog()
+    {
+        IReadOnlyList<ReleaseChangeGroupViewModel> groups =
+        [
+            new(
+                "Сканирование и дерево",
+                [
+                    new("В дереве сканирования можно выделять сразу несколько папок и файлов и помечать их клавишами Delete и Пробел.", [], "Сканирование и дерево"),
+                    new("Выгрузку результата сканирования в JSON можно остановить по кнопке или клавише Escape.", [], "Сканирование и дерево"),
+                ]),
+            new(
+                "Интерфейс и обновления",
+                [
+                    new("На странице «О программе» карточки возможностей переходят в разделы приложения, а проверка обновлений доступна прямо в шапке.", [], "Интерфейс и обновления"),
+                ]),
+        ];
+
+        return
+        [
+            new(
+                $"v{AppInfo.Version}",
+                "2026-11-09",
+                groups.SelectMany(static group => group.Items).ToList(),
+                $"{AppInfo.ReleasesUrl}/tag/v{AppInfo.Version}",
+                groups),
+        ];
+    }
+
     private static void WriteTree(string root)
     {
         Write(Path.Combine(root, "docs", "README.md"), 11_800, Base.AddHours(-4));

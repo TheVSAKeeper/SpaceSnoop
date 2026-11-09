@@ -48,6 +48,17 @@ public sealed record ConfirmTextLine(string Body, ConfirmTextTone Tone = Confirm
     public override string PlainText => Body;
 }
 
+public sealed record ConfirmBulletLine(string Summary, IReadOnlyList<string>? Details = null) : ConfirmLine
+{
+    public IReadOnlyList<string> DetailLines => Details ?? [];
+
+    public bool HasDetails => Details is { Count: > 0 };
+
+    public override string PlainText => HasDetails
+        ? $"- {Summary}{Environment.NewLine}{string.Join(Environment.NewLine, DetailLines.Select(static line => $"  {line}"))}"
+        : $"- {Summary}";
+}
+
 public sealed record ConfirmMetricLine(
     string Caption,
     string Count,
