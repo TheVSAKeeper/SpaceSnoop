@@ -11,8 +11,9 @@ public sealed partial class ScanViewModel
     public void IgnoreSelected()
     {
         var spaces = ActiveTopLevelNodes()
-            .Where(static n => n.CanIgnore && n.Space is not null)
-            .Select(static n => n.Space!)
+            .Where(static n => n.CanIgnore)
+            .Select(static n => n.Space)
+            .OfType<SpaceBase>()
             .ToList();
 
         if (spaces.Count == 0)
@@ -32,8 +33,9 @@ public sealed partial class ScanViewModel
     public void UnignoreSelected()
     {
         var spaces = ActiveTopLevelNodes()
-            .Where(static n => n.IsIgnored && n.Space is not null)
-            .Select(static n => n.Space!)
+            .Where(static n => n.IsIgnored)
+            .Select(static n => n.Space)
+            .OfType<SpaceBase>()
             .ToList();
 
         if (spaces.Count == 0)

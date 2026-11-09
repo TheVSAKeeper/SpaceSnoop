@@ -1,6 +1,7 @@
 ﻿using KeepShell.Bootstrap;
 using KeepShell.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using SpaceSnoop.Core;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Storage;
 using SpaceSnoop.Wpf.ViewModels.Scan;
@@ -160,16 +161,35 @@ public class ScanTipsPageTests
     [Test]
     public async Task Отменённый_скан_совета_не_даёт()
     {
-        var run = _scan.StartCommand.ExecuteAsync(null);
-        Assert.That(_scan.IsScanning, Is.True, "Скан должен идти к моменту отмены.");
-
-        _scan.StopCommand.Execute(null);
-        await run;
-
-        using (Assert.EnterMultipleScope())
+        var originalProbe = StorageMedia.Probe;
+        using var release = new ManualResetEventSlim();
+        StorageMedia.ResetCache();
+        StorageMedia.Probe = _ =>
         {
-            Assert.That(_scan.ScanWasCancelled, Is.True);
-            Assert.That(_scan.Tips.IsVisible, Is.False);
+            release.Wait(TimeSpan.FromSeconds(5));
+            return StorageKind.SolidState;
+        };
+
+        try
+        {
+            var run = _scan.StartCommand.ExecuteAsync(null);
+            Assert.That(_scan.IsScanning, Is.True, "Скан должен идти к моменту отмены.");
+
+            _scan.StopCommand.Execute(null);
+            release.Set();
+            await run;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(_scan.ScanWasCancelled, Is.True);
+                Assert.That(_scan.Tips.IsVisible, Is.False);
+            }
+        }
+        finally
+        {
+            release.Set();
+            StorageMedia.Probe = originalProbe;
+            StorageMedia.ResetCache();
         }
     }
 

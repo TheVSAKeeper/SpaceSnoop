@@ -134,7 +134,8 @@ public partial class MainForm : Form
         }
         else
         {
-            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{selectedSpace.AbsolutePath}\"") { UseShellExecute = true });
+            var explorerPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+            Process.Start(new ProcessStartInfo(explorerPath, $"/select,\"{selectedSpace.AbsolutePath}\"") { UseShellExecute = true });
         }
     }
 

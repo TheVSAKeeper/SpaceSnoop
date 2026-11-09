@@ -55,6 +55,7 @@ public sealed partial class ScanViewModel
             _logger.ScanStarted(path, parallelism > 1, parallelism);
 
             var outcome = await RunTraversalAsync(directory, parallelism, progress, token);
+            token.ThrowIfCancellationRequested();
 
             var elapsed = Progress.Finish(releaseMeasurement: false);
             var applied = Stopwatch.StartNew();

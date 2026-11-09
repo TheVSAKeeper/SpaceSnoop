@@ -98,39 +98,40 @@ public partial class ScanStructurePanel : UserControl
             return false;
         }
 
-        if (modifiers == ModifierKeys.None)
+        switch (modifiers, key)
         {
-            if (key == Key.Delete)
-            {
+            case (ModifierKeys.None, Key.Delete):
                 vm.MarkSelectedDeleted();
                 return true;
-            }
 
-            if (key == Key.Space)
-            {
+            case (ModifierKeys.None, Key.Space):
                 vm.ToggleSelectedDeleted();
                 return true;
-            }
+
+            case (ModifierKeys.Control, Key.A):
+                vm.SelectAllVisible();
+                return true;
+
+            case (ModifierKeys.Shift, Key.Up):
+                MoveRangeAndFocus(vm, -1);
+                return true;
+
+            case (ModifierKeys.Shift, Key.Down):
+                MoveRangeAndFocus(vm, 1);
+                return true;
+
+            default:
+                return false;
         }
-        else if (modifiers == ModifierKeys.Control && key == Key.A)
+    }
+
+    private void MoveRangeAndFocus(ScanViewModel vm, int delta)
+    {
+        if (vm.MoveRangeSelection(delta) is { } target && FindContainer(Tree, target) is { } container)
         {
-            vm.SelectAllVisible();
-            return true;
+            container.BringIntoView();
+            FocusTreeItemWithoutSelectionReset(container);
         }
-        else if (modifiers == ModifierKeys.Shift && key is Key.Up or Key.Down)
-        {
-            var target = vm.MoveRangeSelection(key == Key.Up ? -1 : 1);
-
-            if (target is not null && FindContainer(target) is { } container)
-            {
-                container.BringIntoView();
-                FocusTreeItemWithoutSelectionReset(container);
-            }
-
-            return true;
-        }
-
-        return false;
     }
 
     private void OnTreeSelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
@@ -182,7 +183,7 @@ public partial class ScanStructurePanel : UserControl
             }
 
             if (DataContext is ScanViewModel { SelectedNode: { } primary }
-                && FindContainer(primary) is { IsSelected: false } primaryItem)
+                && FindContainer(Tree, primary) is { IsSelected: false } primaryItem)
             {
                 primaryItem.SetCurrentValue(TreeViewItem.IsSelectedProperty, true);
             }
@@ -193,7 +194,7 @@ public partial class ScanStructurePanel : UserControl
         }
     }
 
-    private TreeViewItem? FindContainer(ScanNodeViewModel target)
+    private static TreeViewItem? FindContainer(ItemsControl host, ScanNodeViewModel target)
     {
         var chain = new Stack<ScanNodeViewModel>();
 
@@ -202,7 +203,6 @@ public partial class ScanStructurePanel : UserControl
             chain.Push(current);
         }
 
-        ItemsControl host = Tree;
         TreeViewItem? found = null;
 
         while (chain.TryPop(out var step))
