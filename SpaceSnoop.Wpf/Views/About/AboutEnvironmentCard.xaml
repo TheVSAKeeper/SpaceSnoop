@@ -53,25 +53,9 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
                 <StackPanel Grid.Row="0"
-                            Grid.Column="0"
-                            Orientation="Horizontal"
-                            Margin="0,0,0,10">
-                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Tag}"
-                                              Style="{StaticResource About.MetaIcon}" />
-                    <TextBlock Text="Версия"
-                               Style="{StaticResource About.MetaLabel}" />
-                </StackPanel>
-                <TextBlock Grid.Row="0"
-                           Grid.Column="1"
-                           Text="{Binding Version}"
-                           Style="{StaticResource About.MetaValue}"
-                           Margin="20,0,0,10" />
-
-                <StackPanel Grid.Row="1"
                             Grid.Column="0"
                             Orientation="Horizontal"
                             Margin="0,0,0,10">
@@ -80,14 +64,14 @@
                     <TextBlock Text="Сборка"
                                Style="{StaticResource About.MetaLabel}" />
                 </StackPanel>
-                <TextBlock Grid.Row="1"
+                <TextBlock Grid.Row="0"
                            Grid.Column="1"
                            Text="{Binding BuildInfo}"
                            ToolTip="{Binding BuildInfoTooltip}"
-                           Style="{StaticResource About.MetaValue}"
+                           Style="{StaticResource About.MetaValueMono}"
                            Margin="20,0,0,10" />
 
-                <StackPanel Grid.Row="2"
+                <StackPanel Grid.Row="1"
                             Grid.Column="0"
                             Orientation="Horizontal"
                             Margin="0,0,0,10">
@@ -96,13 +80,13 @@
                     <TextBlock Text="Платформа"
                                Style="{StaticResource About.MetaLabel}" />
                 </StackPanel>
-                <TextBlock Grid.Row="2"
+                <TextBlock Grid.Row="1"
                            Grid.Column="1"
                            Text="{Binding DotNetVersion}"
                            Style="{StaticResource About.MetaValue}"
                            Margin="20,0,0,10" />
 
-                <StackPanel Grid.Row="3"
+                <StackPanel Grid.Row="2"
                             Grid.Column="0"
                             Orientation="Horizontal"
                             Margin="0,0,0,10">
@@ -111,13 +95,13 @@
                     <TextBlock Text="Операционная система"
                                Style="{StaticResource About.MetaLabel}" />
                 </StackPanel>
-                <TextBlock Grid.Row="3"
+                <TextBlock Grid.Row="2"
                            Grid.Column="1"
                            Text="{Binding OperatingSystem}"
                            Style="{StaticResource About.MetaValue}"
                            Margin="20,0,0,10" />
 
-                <StackPanel Grid.Row="4"
+                <StackPanel Grid.Row="3"
                             Grid.Column="0"
                             Orientation="Horizontal">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Cpu}"
@@ -125,7 +109,7 @@
                     <TextBlock Text="Архитектура процесса"
                                Style="{StaticResource About.MetaLabel}" />
                 </StackPanel>
-                <TextBlock Grid.Row="4"
+                <TextBlock Grid.Row="3"
                            Grid.Column="1"
                            Text="{Binding Architecture}"
                            Style="{StaticResource About.MetaValue}"
@@ -138,22 +122,27 @@
                     Background="{DynamicResource Bg.SurfaceMute}"
                     BorderBrush="{DynamicResource Border.Subtle}"
                     BorderThickness="1">
-                <StackPanel Orientation="Horizontal">
-                    <iconPacks:PackIconLucide Width="16"
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <iconPacks:PackIconLucide Grid.Column="0"
+                                              Width="16"
                                               Height="16"
                                               VerticalAlignment="Center"
                                               Margin="0,0,10,0">
                         <iconPacks:PackIconLucide.Style>
                             <Style TargetType="iconPacks:PackIconLucide">
                                 <Setter Property="Kind"
-                                        Value="Shield" />
+                                        Value="{x:Static iconPacks:PackIconLucideKind.Shield}" />
                                 <Setter Property="Foreground"
                                         Value="{DynamicResource State.WarningText}" />
                                 <Style.Triggers>
                                     <DataTrigger Binding="{Binding IsElevated}"
                                                  Value="True">
                                         <Setter Property="Kind"
-                                                Value="ShieldCheck" />
+                                                Value="{x:Static iconPacks:PackIconLucideKind.ShieldCheck}" />
                                         <Setter Property="Foreground"
                                                 Value="{DynamicResource State.SuccessText}" />
                                     </DataTrigger>
@@ -161,9 +150,11 @@
                             </Style>
                         </iconPacks:PackIconLucide.Style>
                     </iconPacks:PackIconLucide>
-                    <TextBlock Text="{Binding ElevationCaption}"
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding ElevationCaption}"
+                               TextWrapping="Wrap"
                                Style="{StaticResource About.MetaLabel}" />
-                </StackPanel>
+                </Grid>
             </Border>
         </StackPanel>
     </Border>

@@ -38,7 +38,7 @@ namespace SpaceSnoop.Wpf.Tests;
 [TestFixture]
 [Apartment(ApartmentState.STA)]
 [NonParallelizable]
-public class BindingSmokeTests
+public partial class BindingSmokeTests
 {
     private const double SettingsCardsProbeHeight = 240;
     private const double SmallWindowWidth = 880;

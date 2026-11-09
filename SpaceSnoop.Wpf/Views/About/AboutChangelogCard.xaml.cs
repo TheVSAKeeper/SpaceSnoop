@@ -1,8 +1,8 @@
 ﻿namespace SpaceSnoop.Wpf.Views.About;
 
-public partial class AboutRepositoryCard : UserControl
+public partial class AboutChangelogCard : UserControl
 {
-    public AboutRepositoryCard()
+    public AboutChangelogCard()
     {
         InitializeComponent();
     }

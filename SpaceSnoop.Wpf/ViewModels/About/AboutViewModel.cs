@@ -7,6 +7,8 @@ namespace SpaceSnoop.Wpf.ViewModels.About;
 public sealed partial class AboutViewModel(
     ErrorReportService errorReports,
     AppUpdateViewModel updater,
+    IAppNavigator navigator,
+    ToastNotifier notifier,
     IClipboardService clipboard,
     IShellLauncher shell,
     ILogger<AboutViewModel> logger)
@@ -30,14 +32,6 @@ public sealed partial class AboutViewModel(
 
     public string Tagline => "Шнырь по твоим накопителям – покажет, где залёг весь хлам";
 
-    public string Description =>
-        "Исследуй бескрайние просторы своих накопителей и почувствуй себя археологом: SpaceSnoop "
-        + "откопает древние артефакты среди данных и покажет занятое место деревом, где жирные папки "
-        + "краснеют от стыда под тепловой подсветкой, или картой, где тяжёлые ветки видно плитками. "
-        + "А ещё сведёт две папки лицом к лицу и синхронизирует их, выметет системные корзины Windows "
-        + "и всё, что отъел Docker, а если копаться самому лень – спроси Шныря, он посмотрит сам. "
-        + "Дай накопителям дышать полной грудью – убери весь хлам!";
-
     public string DotNetVersion => RuntimeInformation.FrameworkDescription;
 
     public string OperatingSystem => RuntimeInformation.OSDescription;
@@ -57,15 +51,29 @@ public sealed partial class AboutViewModel(
     public AppUpdateViewModel Updater => updater;
 
     [RelayCommand]
+    private void OpenSection(string? sectionKey)
+    {
+        if (string.IsNullOrWhiteSpace(sectionKey))
+        {
+            return;
+        }
+
+        if (!navigator.TryNavigate(sectionKey) && string.Equals(sectionKey, SectionKey.Chat, StringComparison.OrdinalIgnoreCase))
+        {
+            navigator.TryNavigate(SectionKey.Settings);
+        }
+    }
+
+    [RelayCommand]
     private void OpenRepository()
     {
-        OpenUrl(AppInfo.RepositoryUrl);
+        OpenUrl(updater.RepositoryUrl);
     }
 
     [RelayCommand]
     private void OpenReleases()
     {
-        OpenUrl(AppInfo.ReleasesUrl);
+        OpenUrl(updater.ReleasesUrl);
     }
 
     [RelayCommand]
@@ -83,13 +91,24 @@ public sealed partial class AboutViewModel(
         try
         {
             var payload = errorReports.Build(null, "Отчёт из раздела «О программе»");
+            var copied = clipboard.TrySetText(payload.LogClipboard);
 
-            clipboard.TrySetText(payload.LogClipboard);
-            shell.Open(payload.IssueUrl);
+            if (!shell.Open(payload.IssueUrl))
+            {
+                notifier.Notify("Не удалось открыть форму отчёта в браузере.", StatusSeverity.Warning);
+                return;
+            }
+
+            notifier.Notify(
+                copied
+                    ? "Хвост журнала скопирован в буфер обмена – вставьте его в открывшуюся форму."
+                    : "Форма отчёта открыта, но скопировать журнал в буфер обмена не удалось.",
+                copied ? StatusSeverity.Info : StatusSeverity.Warning);
         }
         catch (Exception ex)
         {
             logger.ReportFormFailed(ex);
+            notifier.Notify("Не удалось подготовить отчёт об ошибке.", StatusSeverity.Error);
         }
     }
 
@@ -105,7 +124,13 @@ public sealed partial class AboutViewModel(
             .Append($"Права: {(IsElevated ? "Администратор" : "Обычный режим")}")
             .ToString();
 
-        clipboard.TrySetText(text);
+        if (clipboard.TrySetText(text))
+        {
+            notifier.Notify("Сведения об окружении скопированы в буфер обмена.", StatusSeverity.Success);
+            return;
+        }
+
+        notifier.Notify("Не удалось скопировать сведения об окружении в буфер обмена.", StatusSeverity.Warning);
     }
 
     private void OpenUrl(string url)

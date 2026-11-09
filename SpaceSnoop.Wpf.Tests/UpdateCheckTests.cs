@@ -1,4 +1,15 @@
-﻿using SpaceSnoop.Wpf.Bootstrap;
+﻿using KeepShell.Services;
+using KeepShell.Services.Platform;
+using KeepShell.Testing;
+using KeepShell.ViewModels;
+using Microsoft.Extensions.Logging.Abstractions;
+using SpaceSnoop.Core;
+using SpaceSnoop.Core.Domain;
+using SpaceSnoop.Wpf.Bootstrap;
+using SpaceSnoop.Wpf.Bootstrap.Schedule;
+using SpaceSnoop.Wpf.ViewModels;
+using SpaceSnoop.Wpf.ViewModels.About;
+using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using SpaceSnoop.Wpf.ViewModels.Settings;
 using System.Net;
 using System.Text.Json;
@@ -324,11 +335,202 @@ public class UpdateCheckTests
         Assert.That(ReleaseChangelog.ExtractChangeItems(body), Is.Empty);
     }
 
+    [Test]
+    public void Подзаголовки_разделов_группируют_изменения_и_не_склеиваются_в_подробности_предыдущего_пункта()
+    {
+        var body = """
+            ## Изменения
+
+            ### Сканирование и дерево
+
+            - В дереве можно выделять сразу несколько папок и файлов.
+            - Выгрузку результата сканирования в JSON можно остановить по кнопке или клавише Escape.
+
+            ### Очистка и разработка
+
+            - В «Очистке» появился раздел «Разработка».
+            """;
+
+        var groups = ReleaseChangelog.ExtractChangeGroups(body);
+        var items = ReleaseChangelog.ExtractChangeItems(body);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(groups, Has.Count.EqualTo(2));
+            Assert.That(groups[0].Title, Is.EqualTo("Сканирование и дерево"));
+            Assert.That(groups[0].Items, Has.Count.EqualTo(2));
+            Assert.That(groups[0].Items[0].Details, Is.Empty);
+            Assert.That(groups[0].Items[1].Details, Is.Empty);
+
+            Assert.That(groups[1].Title, Is.EqualTo("Очистка и разработка"));
+            Assert.That(groups[1].Items, Has.Count.EqualTo(1));
+            Assert.That(groups[1].Items[0].Summary, Is.EqualTo("В «Очистке» появился раздел «Разработка»."));
+
+            Assert.That(items, Has.Count.EqualTo(3));
+            Assert.That(items.Select(static item => item.Section), Is.EqualTo(["Сканирование и дерево", "Сканирование и дерево", "Очистка и разработка"]));
+        }
+    }
+
+    [Test]
+    public void Модальное_окно_обновления_строит_группы_и_пункты_без_обрезки_по_длине_и_с_глагольными_кнопками()
+    {
+        var settings = new MemorySettings();
+        var preferences = new UpdatePreferences(settings);
+        var updater = new AppUpdateViewModel(preferences, settings, new NoopDialogs(), new StubShellLauncher(), NullLogger<AppUpdateViewModel>.Instance);
+
+        var longParagraph = new string('А', 900);
+        const string tailItem = "Выгрузку результата сканирования в JSON теперь можно остановить по кнопке или клавише Escape.";
+
+        var body = $"""
+            ## Изменения
+
+            ### Сканирование и дерево
+
+            - {longParagraph}
+            - {longParagraph}
+
+            ### Интерфейс и настройки
+
+            - {tailItem}
+            """;
+
+        var groups = ReleaseChangelog.ExtractChangeGroups(body);
+        IReadOnlyList<ReleaseNoteViewModel> entries =
+        [
+            new("v99.9.0", "2026-11-09", groups.SelectMany(static g => g.Items).ToList(), "https://github.com/x/y/compare/v99.8.0...v99.9.0", groups),
+        ];
+
+        updater.ApplyPendingForAutomation("v99.9.0", "SpaceSnoop-v99.9.0.exe", "https://github.com/x/y/releases/download/v99.9.0/SpaceSnoop-v99.9.0.exe", "https://github.com/x/y/releases/tag/v99.9.0", entries);
+        var withAsset = updater.BuildUpdateDialog();
+
+        updater.ApplyPendingForAutomation("v99.9.0", null, null, "https://github.com/x/y/releases/tag/v99.9.0", entries);
+        var withoutAsset = updater.BuildUpdateDialog();
+
+        var plainText = ConfirmDialogViewModel.AsText(withAsset.Lines);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(withAsset.Title, Is.EqualTo("Доступно обновление"));
+            Assert.That(withAsset.Choices.Select(static choice => choice.Caption), Is.EqualTo(["Не сейчас", "Открыть на GitHub", "Скачать"]));
+            Assert.That(withoutAsset.Choices.Select(static choice => choice.Caption), Is.EqualTo(["Не сейчас", "Открыть на GitHub"]));
+            Assert.That(plainText, Does.Contain("Сканирование и дерево"));
+            Assert.That(plainText, Does.Contain("Интерфейс и настройки"));
+            Assert.That(plainText, Does.Contain(tailItem));
+            Assert.That(plainText, Does.Not.Contain("JSON те…"));
+        }
+    }
+
+    [Test]
+    public void Копирование_сведений_и_навигация_на_странице_О_программе_уведомляют_и_переходят_в_раздел()
+    {
+        var settings = new MemorySettings();
+        var preferences = new UpdatePreferences(settings)
+        {
+            Repository = "custom/spacesnoop",
+        };
+        var shell = new StubShellLauncher();
+        var clipboard = new StubClipboardService { Succeeds = true };
+        var navigator = new StubAppNavigator();
+        var toasts = new ToastHostViewModel();
+        var notifier = new ToastNotifier(toasts, new ShellPreferences(settings));
+        var updater = new AppUpdateViewModel(preferences, settings, new NoopDialogs(), shell, NullLogger<AppUpdateViewModel>.Instance);
+        var errorReports = new ErrorReportService(new() { IssueRepo = () => AppInfo.RepoSlug }, new(), NullLogger<ErrorReportService>.Instance);
+
+        var about = new AboutViewModel(errorReports, updater, navigator, notifier, clipboard, shell, NullLogger<AboutViewModel>.Instance);
+
+        about.CopyDiagnosticsCommand.Execute(null);
+        var firstToast = toasts.Toasts.LastOrDefault();
+
+        clipboard.Succeeds = false;
+        about.CopyDiagnosticsCommand.Execute(null);
+        var secondToast = toasts.Toasts.LastOrDefault();
+
+        about.OpenSectionCommand.Execute(SectionKey.Cleanup);
+        var firstSection = navigator.CurrentSectionKey;
+
+        navigator.RefuseChat = true;
+        about.OpenSectionCommand.Execute(SectionKey.Chat);
+        var fallbackSection = navigator.CurrentSectionKey;
+
+        about.OpenRepositoryCommand.Execute(null);
+        about.OpenReleasesCommand.Execute(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(clipboard.LastText, Does.Contain(AppInfo.Version));
+            Assert.That(firstToast?.Severity, Is.EqualTo(StatusSeverity.Success));
+            Assert.That(secondToast?.Severity, Is.EqualTo(StatusSeverity.Warning));
+            Assert.That(firstSection, Is.EqualTo(SectionKey.Cleanup));
+            Assert.That(fallbackSection, Is.EqualTo(SectionKey.Settings));
+            Assert.That(shell.OpenedUrls, Is.EqualTo(["https://github.com/custom/spacesnoop", "https://github.com/custom/spacesnoop/releases"]));
+        }
+    }
+
     private sealed class PercentCollector(List<int> sink) : IProgress<int>
     {
         public void Report(int value)
         {
             sink.Add(value);
+        }
+    }
+
+    private sealed class StubShellLauncher : IShellLauncher
+    {
+        public List<string> OpenedUrls { get; } = [];
+
+        public bool Open(string pathOrUrl)
+        {
+            OpenedUrls.Add(pathOrUrl);
+            return true;
+        }
+
+        public bool Reveal(string path)
+        {
+            return true;
+        }
+
+        public bool Start(string executable, params string[] arguments)
+        {
+            return true;
+        }
+    }
+
+    private sealed class StubClipboardService : IClipboardService
+    {
+        public bool Succeeds { get; set; } = true;
+
+        public string? LastText { get; private set; }
+
+        public bool TrySetText(string? text)
+        {
+            LastText = text;
+            return Succeeds;
+        }
+    }
+
+    private sealed class StubAppNavigator : IAppNavigator
+    {
+        public bool RefuseChat { get; set; }
+
+        public string? CurrentSectionKey { get; private set; }
+
+        public bool TryNavigate(string sectionKey)
+        {
+            if (RefuseChat && string.Equals(sectionKey, SectionKey.Chat, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            CurrentSectionKey = sectionKey;
+            return true;
+        }
+
+        public void OpenSync(SyncProfile profile, ComparisonResult? comparison)
+        {
+        }
+
+        public void AskAgent(string question)
+        {
         }
     }
 }

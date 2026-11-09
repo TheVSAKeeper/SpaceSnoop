@@ -155,6 +155,11 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
             return false;
         }
 
+        if (ReferenceEquals(item, _chatItem) && !Sections.Contains(_chatItem))
+        {
+            return false;
+        }
+
         if (IsNavigationLocked && !ReferenceEquals(item, _scanItem))
         {
             return false;
