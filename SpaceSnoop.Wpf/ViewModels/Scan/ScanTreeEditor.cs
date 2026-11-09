@@ -144,7 +144,13 @@ internal static class ScanTreeEditor
             return;
         }
 
-        if (ReferenceEquals(node.Space, target) || IsAncestorOf(node.Space, target))
+        if (ReferenceEquals(node.Space, target))
+        {
+            node.RefreshMarks();
+            return;
+        }
+
+        if (IsAncestorOf(node.Space, target))
         {
             node.RefreshOwnMarks();
 
@@ -155,17 +161,43 @@ internal static class ScanTreeEditor
         }
     }
 
-    private static bool IsAncestorOf(SpaceBase candidate, SpaceBase target)
+    internal static List<ScanNodeViewModel> FilterTopLevelNodes(IEnumerable<ScanNodeViewModel> nodes)
     {
-        for (var current = target.Parent; current is not null; current = current.Parent)
+        var materialized = nodes.Where(static n => n.Space is not null).ToList();
+
+        if (materialized.Count <= 1)
         {
-            if (ReferenceEquals(current, candidate))
-            {
-                return true;
-            }
+            return materialized;
         }
 
-        return false;
+        var selectedSpaces = materialized.Select(static n => n.Space!).ToHashSet<SpaceBase>(ReferenceEqualityComparer.Instance);
+        var seen = new HashSet<SpaceBase>(ReferenceEqualityComparer.Instance);
+
+        return materialized
+            .Where(node => !HasAncestorInSet(node.Space!, selectedSpaces) && seen.Add(node.Space!))
+            .ToList();
+    }
+
+    internal static List<(SpaceBase Root, SpaceBase Scope)> FilterTopLevelScopes(IEnumerable<(SpaceBase Root, SpaceBase Scope)> candidates)
+    {
+        var list = candidates.ToList();
+
+        if (list.Count <= 1)
+        {
+            return list;
+        }
+
+        var scopeSet = list.Select(static item => item.Scope).ToHashSet<SpaceBase>(ReferenceEqualityComparer.Instance);
+        var seen = new HashSet<SpaceBase>(ReferenceEqualityComparer.Instance);
+
+        return list
+            .Where(item => !HasAncestorInSet(item.Scope, scopeSet) && seen.Add(item.Scope))
+            .ToList();
+    }
+
+    internal static bool IsSelfOrDescendantOfAny(SpaceBase space, IReadOnlySet<SpaceBase> targets)
+    {
+        return targets.Contains(space) || HasAncestorInSet(space, targets);
     }
 
     internal static bool RefreshNodeAfterAddition(ScanNodeViewModel node, DirectorySpace parent)
@@ -357,6 +389,32 @@ internal static class ScanTreeEditor
         var normalized = NormalizePath(path);
 
         return roots.Any(root => IsRootOf(root, normalized) && !KeepsMarks(root, marksPresent));
+    }
+
+    private static bool HasAncestorInSet(SpaceBase space, IReadOnlySet<SpaceBase> set)
+    {
+        for (var parent = space.Parent; parent is not null; parent = parent.Parent)
+        {
+            if (set.Contains(parent))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsAncestorOf(SpaceBase candidate, SpaceBase target)
+    {
+        for (var current = target.Parent; current is not null; current = current.Parent)
+        {
+            if (ReferenceEquals(current, candidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool HasMarkedAncestor(SpaceBase space)

@@ -151,7 +151,7 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         _reloadDrives();
     }
 
-    private ScanMarkSnapshot CaptureMarks(SpaceBase root, SpaceBase space)
+    internal ScanMarkScopeSnapshot CaptureScopeMarks(SpaceBase root, SpaceBase space)
     {
         var scope = ScanTreeEditor.FindMarkScope(root, space);
 
@@ -172,23 +172,70 @@ public sealed partial class ScanMarksViewModel : ObservableObject
                 (_markedBytes - others.Sum(static item => item.TotalSize)) / occurrences);
         }
 
-        return ScanTreeEditor.CaptureMarks(root, scope, _nodeFactory.MarksPresent);
+        var snapshot = ScanTreeEditor.CaptureMarks(root, scope, _nodeFactory.MarksPresent);
+        return new(snapshot.Root, snapshot.Scope, snapshot.Count, snapshot.Bytes);
     }
 
-    private void RecountMarked(ScanMarkSnapshot before)
+    internal void UnmarkFromDialog(SpaceBase item)
     {
-        var occurrences = _roots.Count(root => ReferenceEquals(root.Space, before.Root));
-
-        if (occurrences == 0)
+        if (!item.IsDeleted)
         {
             return;
         }
 
-        var marked = ScanTreeEditor.CollectMarked(before.Scope);
-        var bytes = marked.Sum(static item => item.TotalSize);
+        item.Restore();
+
+        foreach (var root in _roots)
+        {
+            ScanTreeEditor.RefreshNodeMarks(root, item);
+        }
+
+        RecountMarked();
+    }
+
+    private ScanMarkSnapshot CaptureMarks(SpaceBase root, SpaceBase space)
+    {
+        var scope = CaptureScopeMarks(root, space);
+        return new(scope.Root, scope.Scope, scope.Count, scope.Bytes);
+    }
+
+    private void RecountMarked(ScanMarkSnapshot before)
+    {
+        var scopes = before.Scopes;
+
+        if (scopes.Count == 0)
+        {
+            return;
+        }
+
+        var deltaCount = 0;
+        var deltaBytes = 0L;
+        var anyOccurrence = false;
+
+        foreach (var item in scopes)
+        {
+            var occurrences = _roots.Count(root => ReferenceEquals(root.Space, item.Root));
+
+            if (occurrences == 0)
+            {
+                continue;
+            }
+
+            anyOccurrence = true;
+            var marked = ScanTreeEditor.CollectMarked(item.Scope);
+            var bytes = marked.Sum(static entry => entry.TotalSize);
+            deltaCount += (marked.Count - item.Count) * occurrences;
+            deltaBytes += (bytes - item.Bytes) * occurrences;
+        }
+
+        if (!anyOccurrence)
+        {
+            return;
+        }
+
         ApplyMarkedTotals(
-            MarkedCount + ((marked.Count - before.Count) * occurrences),
-            _markedBytes + ((bytes - before.Bytes) * occurrences));
+            MarkedCount + deltaCount,
+            _markedBytes + deltaBytes);
     }
 
     private void Recount(List<SpaceBase> marked)
@@ -240,22 +287,5 @@ public sealed partial class ScanMarksViewModel : ObservableObject
         }
 
         ApplyDeletionResult(dialog.DeletedItems);
-    }
-
-    internal void UnmarkFromDialog(SpaceBase item)
-    {
-        if (!item.IsDeleted)
-        {
-            return;
-        }
-
-        item.Restore();
-
-        foreach (var root in _roots)
-        {
-            ScanTreeEditor.RefreshNodeMarks(root, item);
-        }
-
-        RecountMarked();
     }
 }

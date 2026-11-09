@@ -1,5 +1,4 @@
 ﻿using System.Globalization;
-using System.Text;
 
 namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
@@ -19,12 +18,25 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
     private bool _collapsedForCompact;
     private bool _reopenedAfterCompact;
     private bool _showedIgnored;
+    private IReadOnlyList<ScanNodeViewModel> _selectedTopNodes = [];
 
     [ObservableProperty]
     private ScanNodeViewModel? _node;
 
     [ObservableProperty]
     private bool _hasSelection;
+
+    [ObservableProperty]
+    private bool _isMultiSelection;
+
+    [ObservableProperty]
+    private bool _isSingleSelection = true;
+
+    [ObservableProperty]
+    private bool _showCounts;
+
+    [ObservableProperty]
+    private bool _showDates;
 
     [ObservableProperty]
     private string _title = string.Empty;
@@ -181,14 +193,19 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
             ExpandAutomatically();
         }
 
+        _selectedTopNodes = [node];
         Node = node;
         _showedIgnored = node.IsIgnored;
         HasSelection = true;
+        IsMultiSelection = false;
+        IsSingleSelection = true;
 
         var space = node.Space;
         Title = node.Name;
         Path = node.AbsolutePath;
         IsDirectory = node.IsDirectory;
+        ShowCounts = node.IsDirectory;
+        ShowDates = true;
         KindText = node.KindText;
 
         TotalSizeText = node.SizeText;
@@ -216,10 +233,74 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
         }
     }
 
+    public void Show(IReadOnlyList<ScanNodeViewModel> nodes, ScanNodeViewModel? activeNode = null)
+    {
+        if (nodes.Count == 0)
+        {
+            Clear();
+            return;
+        }
+
+        if (nodes.Count == 1)
+        {
+            Show(nodes[0]);
+            return;
+        }
+
+        if (!_autoExpanded && !_compact)
+        {
+            _autoExpanded = true;
+            ExpandAutomatically();
+        }
+
+        var topNodes = ScanTreeEditor.FilterTopLevelNodes(nodes);
+        _selectedTopNodes = topNodes;
+        Node = activeNode ?? nodes[^1];
+        HasSelection = true;
+        IsMultiSelection = true;
+        IsSingleSelection = false;
+
+        var dirCount = nodes.Count(static n => n.IsDirectory);
+        var fileCount = nodes.Count - dirCount;
+        Title = $"{nodes.Count:N0} {Plural.Word(nodes.Count, "объект", "объекта", "объектов")}";
+        KindText = ResolveMultiSelectionKind(dirCount, fileCount);
+        IsDirectory = dirCount > 0;
+        ShowCounts = true;
+        ShowDates = false;
+        FileCountText = fileCount.ToString("N0");
+        DirCountText = dirCount.ToString("N0");
+        Path = topNodes.Count <= 4
+            ? string.Join(Environment.NewLine, topNodes.Select(static n => n.AbsolutePath))
+            : $"{string.Join(Environment.NewLine, topNodes.Take(4).Select(static n => n.AbsolutePath))}{Environment.NewLine}…ещё {topNodes.Count - 4:N0}";
+
+        TotalSizeText = SizeFormatter.Format(CalculateCombinedBytes(topNodes));
+        HasOwnSize = false;
+        OwnSizeText = string.Empty;
+        ShareOfParent = 0;
+        ShareOfParentText = string.Empty;
+        ShareOfRoot = 0;
+        ShareOfRootText = string.Empty;
+        DriveShare = 0;
+        DriveShareText = string.Empty;
+        DriveShareHint = string.Empty;
+        ShowParentShare = false;
+        ShowRootShare = false;
+        ShowDriveShare = false;
+        HasShares = false;
+        CreationDateText = string.Empty;
+        LastAccessText = string.Empty;
+        ClearTopChildren();
+    }
+
     public void Clear()
     {
+        _selectedTopNodes = [];
         Node = null;
         HasSelection = false;
+        IsMultiSelection = false;
+        IsSingleSelection = true;
+        ShowCounts = false;
+        ShowDates = false;
         Title = string.Empty;
         Path = string.Empty;
         IsDirectory = false;
@@ -301,135 +382,4 @@ public sealed partial class ScanInspectorViewModel : ObservableObject
             write();
         }
     }
-
-    private void TryCopy(string? value)
-    {
-        _clipboard.TrySetText(value ?? string.Empty);
-    }
-
-    [RelayCommand]
-    private void CopyPath()
-    {
-        if (!HasSelection)
-        {
-            return;
-        }
-
-        TryCopy(Path);
-    }
-
-    [RelayCommand]
-    private void CopyDetails()
-    {
-        if (!HasSelection)
-        {
-            return;
-        }
-
-        TryCopy(BuildDetails());
-    }
-
-    private void ApplyShares(ScanNodeViewModel node)
-    {
-        ShareOfParent = node.Share;
-        ShareOfParentText = ShareFormatter.Format(node.Share);
-        ShareOfRoot = node.ShareOfRoot;
-        ShareOfRootText = ShareFormatter.Format(node.ShareOfRoot);
-
-        ShowParentShare = !node.IsRoot;
-        ShowRootShare = ShowParentShare && !string.Equals(ShareOfParentText, ShareOfRootText, StringComparison.Ordinal);
-
-        ApplyDriveShare(node);
-
-        HasShares = ShowParentShare || ShowRootShare || ShowDriveShare;
-    }
-
-    private void ApplyDriveShare(ScanNodeViewModel node)
-    {
-        ShowDriveShare = node.ShowsDriveShare;
-        DriveShare = node.DriveShare;
-        DriveShareText = ShowDriveShare ? ShareFormatter.Format(node.DriveShare) : string.Empty;
-        DriveShareHint = node.DriveHint;
-    }
-
-    private void BuildTopChildren(DirectorySpace dir, ScanNodeViewModel node)
-    {
-        var children = dir.SubDirectories
-            .Cast<SpaceBase>()
-            .Concat(dir.Files)
-            .Where(node.IsVisible)
-            .OrderByDescending(node.VisibleSize)
-            .ToList();
-
-        var max = children.Count > 0 ? node.VisibleSize(children[0]) : 0;
-
-        var top = children
-            .Take(AppDefaults.TopChildrenLimit)
-            .Select(child => new ScanInspectorChild(
-                child.Name,
-                SizeFormatter.Format(node.VisibleSize(child)),
-                ShareFormatter.Format(node.Weight > 0 ? node.VisibleSize(child) / node.Weight : 0),
-                max > 0 ? Math.Clamp((double)node.VisibleSize(child) / max, 0, 1) : 0,
-                child is DirectorySpace));
-
-        TopChildren.ReplaceAll(top);
-
-        MoreChildrenCount = Math.Max(0, children.Count - AppDefaults.TopChildrenLimit);
-        HasMoreChildren = MoreChildrenCount > 0;
-        MoreChildrenText = HasMoreChildren ? $"…ещё {MoreChildrenCount}" : string.Empty;
-
-        OnPropertyChanged(nameof(HasTopChildren));
-    }
-
-    private void ClearTopChildren()
-    {
-        TopChildren.ReplaceAll([]);
-        MoreChildrenCount = 0;
-        HasMoreChildren = false;
-        MoreChildrenText = string.Empty;
-        OnPropertyChanged(nameof(HasTopChildren));
-    }
-
-    private string BuildDetails()
-    {
-        var builder = new StringBuilder();
-
-        builder.AppendLine($"Название: {Title}");
-        builder.AppendLine($"Путь: {Path}");
-        builder.AppendLine($"Тип: {KindText}");
-        builder.AppendLine($"Общий размер: {TotalSizeText}");
-
-        if (HasOwnSize)
-        {
-            builder.AppendLine($"Свои файлы: {OwnSizeText}");
-        }
-
-        if (ShowParentShare)
-        {
-            builder.AppendLine($"Доля родителя: {ShareOfParentText}");
-        }
-
-        if (ShowRootShare)
-        {
-            builder.AppendLine($"Доля корня: {ShareOfRootText}");
-        }
-
-        if (ShowDriveShare)
-        {
-            builder.AppendLine($"Доля диска: {DriveShareText} ({DriveShareHint})");
-        }
-
-        if (IsDirectory)
-        {
-            builder.AppendLine($"Файлов: {FileCountText}");
-            builder.AppendLine($"Подкаталогов: {DirCountText}");
-        }
-
-        builder.AppendLine($"Создан: {CreationDateText}");
-        builder.AppendLine($"Последний доступ: {LastAccessText}");
-
-        return builder.ToString();
-    }
 }
-
-public sealed record ScanInspectorChild(string Name, string SizeText, string ShareText, double Fraction, bool IsDirectory);

@@ -28,7 +28,8 @@
                    Margin="0,0,0,4" />
 
         <Button Style="{StaticResource InspectorAction}"
-                Command="{Binding Node.OpenInExplorerCommand}">
+                Command="{Binding Node.OpenInExplorerCommand}"
+                Visibility="{Binding IsSingleSelection, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ExternalLink}"
                                           Width="15"
@@ -43,11 +44,12 @@
 
         <Border BorderBrush="{DynamicResource Border.Subtle}"
                 BorderThickness="0,1,0,0"
-                Margin="0,8,0,8" />
+                Margin="0,8,0,8"
+                Visibility="{Binding IsSingleSelection, Converter={StaticResource BoolToVisibility}}" />
 
         <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.IgnoreCommand}"
-                Visibility="{Binding Node.CanIgnore, Converter={StaticResource BoolToVisibility}}"
+                Visibility="{Binding Node.CanIgnoreSelection, Converter={StaticResource BoolToVisibility}}"
                 ToolTip="Не учитывать размер в долях, подсветке и карте">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}"
@@ -61,14 +63,14 @@
         </Button>
         <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.UnignoreCommand}"
-                Visibility="{Binding Node.IsIgnored, Converter={StaticResource BoolToVisibility}}">
+                Visibility="{Binding Node.CanUnignoreSelection, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Eye}"
                                           Width="15"
                                           Height="15"
                                           Margin="0,0,8,0"
                                           VerticalAlignment="Center" />
-                <TextBlock Text="{Binding Node.UnignoreCaption}"
+                <TextBlock Text="{Binding Node.EffectiveUnignoreCaption}"
                            VerticalAlignment="Center"
                            TextWrapping="Wrap" />
             </StackPanel>
@@ -77,7 +79,7 @@
         <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.MarkDeletedCommand}"
                 ToolTip="Пометить узел и всё вложенное на удаление"
-                Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource InverseBoolToVisibility}}">
+                Visibility="{Binding Node.CanMarkDeletedSelection, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
                                           Width="15"
@@ -93,7 +95,7 @@
         <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.UnmarkDeletedCommand}"
                 ToolTip="Снять пометку с узла и всего вложенного"
-                Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource BoolToVisibility}}">
+                Visibility="{Binding Node.CanUnmarkDeletedSelection, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RotateCcw}"
                                           Width="15"
@@ -109,7 +111,7 @@
         <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.MarkContentsDeletedCommand}"
                 ToolTip="Пометить на удаление всё вложенное; сама папка останется"
-                Visibility="{Binding Node.CanMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
+                Visibility="{Binding Node.CanShowMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderX}"
                                           Width="15"
@@ -125,7 +127,7 @@
         <Button Style="{StaticResource InspectorAction}"
                 Command="{Binding Node.UnmarkContentsCommand}"
                 ToolTip="Снять пометку со всего содержимого папки"
-                Visibility="{Binding Node.CanUnmarkContents, Converter={StaticResource BoolToVisibility}}">
+                Visibility="{Binding Node.CanShowUnmarkContents, Converter={StaticResource BoolToVisibility}}">
             <StackPanel Orientation="Horizontal">
                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RotateCcw}"
                                           Width="15"
@@ -153,8 +155,21 @@
                                               Height="15"
                                               VerticalAlignment="Center"
                                               Margin="0,0,8,0" />
-                    <TextBlock Text="Путь"
-                               VerticalAlignment="Center" />
+                    <TextBlock VerticalAlignment="Center">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Text"
+                                        Value="Путь" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsMultiSelection}"
+                                                 Value="True">
+                                        <Setter Property="Text"
+                                                Value="Пути" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </StackPanel>
             </Button>
 

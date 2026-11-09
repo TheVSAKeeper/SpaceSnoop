@@ -70,6 +70,30 @@ public sealed class ScanVisibility
         return true;
     }
 
+    internal List<SpaceBase> IgnoreMany(IEnumerable<SpaceBase> spaces)
+    {
+        var added = new List<SpaceBase>();
+
+        foreach (var space in spaces)
+        {
+            if (IsIgnored(space))
+            {
+                continue;
+            }
+
+            _ignored.RemoveWhere(item => IsWithin(item, space));
+            _ignored.Add(space);
+            added.Add(space);
+        }
+
+        if (added.Count > 0)
+        {
+            Rebuild();
+        }
+
+        return added;
+    }
+
     internal SpaceBase? IgnoredAncestor(SpaceBase space)
     {
         return Ancestors(space).FirstOrDefault(_ignored.Contains);
@@ -86,6 +110,26 @@ public sealed class ScanVisibility
         }
 
         return marked;
+    }
+
+    internal List<SpaceBase> RestoreMany(IEnumerable<SpaceBase> spaces)
+    {
+        var restored = new List<SpaceBase>();
+
+        foreach (var space in spaces)
+        {
+            if (IgnoredAncestor(space) is { } marked && _ignored.Remove(marked))
+            {
+                restored.Add(marked);
+            }
+        }
+
+        if (restored.Count > 0)
+        {
+            Rebuild();
+        }
+
+        return restored;
     }
 
     internal void Clear()

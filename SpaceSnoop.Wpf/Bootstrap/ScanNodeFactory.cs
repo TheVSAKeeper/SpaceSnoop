@@ -6,6 +6,7 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
     public event Action<ScanNodeViewModel>? AskAgentRequested;
     public event Action<ScanNodeViewModel>? IgnoreRequested;
     public event Action<ScanNodeViewModel>? UnignoreRequested;
+    public event Action<ScanNodeViewModel>? CopyPathRequested;
     internal event Action<ScanMarkSnapshot>? MarksChanged;
 
     public bool MarksPresent { get; set; }
@@ -20,6 +21,22 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
 
     internal Func<SpaceBase, SpaceBase, ScanMarkSnapshot>? MarkSnapshot { get; set; }
 
+    internal Func<int>? SelectionCount { get; set; }
+
+    internal Func<string>? SelectionSummary { get; set; }
+
+    internal Func<bool>? CanIgnoreSelected { get; set; }
+
+    internal Func<bool>? CanUnignoreSelected { get; set; }
+
+    internal Func<bool>? CanMarkSelectedDeleted { get; set; }
+
+    internal Func<bool>? CanUnmarkSelectedDeleted { get; set; }
+
+    internal Action? MarkSelectedDeleted { get; set; }
+
+    internal Action? UnmarkSelectedDeleted { get; set; }
+
     public ScanNodeViewModel Create(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, ScanSortState sort, ScanNodeViewModel? parent = null)
     {
         return new(space, siblingMax, parentTotal, root, null, sort, this, parent);
@@ -27,7 +44,7 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
 
     public ScanNodeViewModel CreateRoot(SpaceBase space, ScanSortState sort)
     {
-        return new(space, space.TotalSize, space.TotalSize, space, DriveCapacity.TryRead(space.AbsolutePath), sort, this, null);
+        return new(space, space.TotalSize, space.TotalSize, space, DriveCapacity.TryRead(space.AbsolutePath), sort, this);
     }
 
     public void RequestArchive(ScanNodeViewModel node)
@@ -48,6 +65,11 @@ public sealed class ScanNodeFactory(ScanPreferences preferences, AgentPreference
     public void RequestUnignore(ScanNodeViewModel node)
     {
         UnignoreRequested?.Invoke(node);
+    }
+
+    public void RequestCopyPath(ScanNodeViewModel node)
+    {
+        CopyPathRequested?.Invoke(node);
     }
 
     internal ScanMarkSnapshot CaptureMarks(SpaceBase space, SpaceBase root)

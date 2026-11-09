@@ -7,8 +7,56 @@ public sealed partial class ScanViewModel
     public string ResetIgnoredCaption => $"Снять игнорирование ({_nodeFactory.Visibility.Count})";
     internal bool IsRefreshingVisibility { get; private set; }
 
+    [RelayCommand]
+    public void IgnoreSelected()
+    {
+        var spaces = ActiveTopLevelNodes()
+            .Where(static n => n.CanIgnore && n.Space is not null)
+            .Select(static n => n.Space!)
+            .ToList();
+
+        if (spaces.Count == 0)
+        {
+            return;
+        }
+
+        var added = _nodeFactory.Visibility.IgnoreMany(spaces);
+
+        if (added.Count > 0)
+        {
+            RefreshVisibility(AffectedPaths(added));
+        }
+    }
+
+    [RelayCommand]
+    public void UnignoreSelected()
+    {
+        var spaces = ActiveTopLevelNodes()
+            .Where(static n => n.IsIgnored && n.Space is not null)
+            .Select(static n => n.Space!)
+            .ToList();
+
+        if (spaces.Count == 0)
+        {
+            return;
+        }
+
+        var restored = _nodeFactory.Visibility.RestoreMany(spaces);
+
+        if (restored.Count > 0)
+        {
+            RefreshVisibility(AffectedPaths(restored));
+        }
+    }
+
     private void OnIgnoreRequested(ScanNodeViewModel node)
     {
+        if (node.IsSelected && _selectedNodes.Count > 1)
+        {
+            IgnoreSelected();
+            return;
+        }
+
         if (!node.CanIgnore || node.Space is not { } space || !Roots.Any(root => ReferenceEquals(root.Space, node.Root)))
         {
             return;
@@ -22,6 +70,12 @@ public sealed partial class ScanViewModel
 
     private void OnUnignoreRequested(ScanNodeViewModel node)
     {
+        if (node.IsSelected && _selectedNodes.Count > 1)
+        {
+            UnignoreSelected();
+            return;
+        }
+
         if (node.Space is { } space
             && Roots.Any(root => ReferenceEquals(root.Space, node.Root))
             && _nodeFactory.Visibility.Restore(space) is { } restored)
@@ -32,11 +86,19 @@ public sealed partial class ScanViewModel
 
     private static IReadOnlySet<SpaceBase> AffectedPath(SpaceBase space)
     {
+        return AffectedPaths([space]);
+    }
+
+    private static IReadOnlySet<SpaceBase> AffectedPaths(IEnumerable<SpaceBase> spaces)
+    {
         var affected = new HashSet<SpaceBase>();
 
-        for (var current = space; current is not null; current = current.Parent)
+        foreach (var space in spaces)
         {
-            affected.Add(current);
+            for (var current = space; current is not null; current = current.Parent)
+            {
+                affected.Add(current);
+            }
         }
 
         return affected;
@@ -66,9 +128,14 @@ public sealed partial class ScanViewModel
             IsRefreshingVisibility = false;
         }
 
-        if (SelectedNode is { } node)
+        if (_selectedNodes.Count > 1)
+        {
+            UpdateSelectionSummaryAndInspector(SelectedNode);
+        }
+        else if (SelectedNode is { } node)
         {
             Inspector.RefreshVisibility(node, affected);
+            node.RefreshSelectionState();
         }
 
         Treemap.RefreshVisibility(_nodeFactory.Visibility, affected);

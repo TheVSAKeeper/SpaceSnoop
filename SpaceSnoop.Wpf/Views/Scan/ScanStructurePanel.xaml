@@ -250,7 +250,9 @@
                       BorderThickness="0"
                       Margin="0,4,0,0"
                       Foreground="{DynamicResource Fg.Primary}"
+                      PreviewMouseLeftButtonDown="OnTreeLeftButtonDown"
                       PreviewMouseRightButtonDown="OnTreeRightButtonDown"
+                      PreviewKeyDown="OnTreeKeyDown"
                       SelectedItemChanged="OnTreeSelectedItemChanged"
                       ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                       ItemTemplate="{StaticResource ScanTreeRow}"
@@ -263,7 +265,7 @@
                         <Setter Property="IsExpanded"
                                 Value="{Binding IsExpanded, Mode=TwoWay}" />
                         <Setter Property="IsSelected"
-                                Value="{Binding IsSelected, Mode=OneWay}" />
+                                Value="{Binding IsPrimarySelected, Mode=OneWay}" />
                         <Setter Property="Padding"
                                 Value="2,2" />
                         <Setter Property="ContextMenu"

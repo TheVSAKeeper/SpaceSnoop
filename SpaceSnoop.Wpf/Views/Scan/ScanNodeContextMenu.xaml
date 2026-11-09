@@ -18,8 +18,27 @@
             </Style>
         </ContextMenu.Resources>
 
+        <MenuItem IsEnabled="False"
+                  Visibility="{Binding PlacementTarget.DataContext.IsMultiSelected, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
+            <MenuItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
+                                              Kind="{x:Static iconPacks:PackIconLucideKind.Layers}"
+                                              Foreground="{DynamicResource Accent.Text}" />
+                    <TextBlock
+                        Text="{Binding PlacementTarget.DataContext.SelectionSummaryText, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource Fg.Primary}"
+                        VerticalAlignment="Center" />
+                </StackPanel>
+            </MenuItem.Header>
+        </MenuItem>
+        <Separator
+            Visibility="{Binding PlacementTarget.DataContext.IsMultiSelected, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}" />
+
         <MenuItem
-            Command="{Binding PlacementTarget.DataContext.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+            Command="{Binding PlacementTarget.DataContext.OpenInExplorerCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+            Visibility="{Binding PlacementTarget.DataContext.IsSingleSelection, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -34,7 +53,7 @@
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.AskAgentCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
             ToolTip="Открыть чат с готовым вопросом об этом узле"
-            Visibility="{Binding PlacementTarget.DataContext.CanAskAgent, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
+            Visibility="{Binding PlacementTarget.DataContext.CanShowAskAgent, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -47,8 +66,22 @@
         </MenuItem>
 
         <MenuItem
+            Command="{Binding PlacementTarget.DataContext.CopyPathCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+            ToolTip="Скопировать путь в буфер обмена">
+            <MenuItem.Header>
+                <StackPanel Orientation="Horizontal">
+                    <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
+                                              Kind="{x:Static iconPacks:PackIconLucideKind.Copy}" />
+                    <TextBlock
+                        Text="{Binding PlacementTarget.DataContext.CopyPathCaption, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                        VerticalAlignment="Center" />
+                </StackPanel>
+            </MenuItem.Header>
+        </MenuItem>
+
+        <MenuItem
             Command="{Binding PlacementTarget.DataContext.IgnoreCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-            Visibility="{Binding PlacementTarget.DataContext.CanIgnore, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}"
+            Visibility="{Binding PlacementTarget.DataContext.CanIgnoreSelection, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}"
             ToolTip="Не учитывать размер узла и его содержимого в долях, подсветке и карте. Узел останется в дереве.">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
@@ -61,14 +94,14 @@
         </MenuItem>
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.UnignoreCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
-            Visibility="{Binding PlacementTarget.DataContext.IsIgnored, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}"
+            Visibility="{Binding PlacementTarget.DataContext.CanUnignoreSelection, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}"
             ToolTip="Снять пометку игнорирования и снова учитывать размер">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
                                               Kind="{x:Static iconPacks:PackIconLucideKind.Eye}" />
                     <TextBlock
-                        Text="{Binding PlacementTarget.DataContext.UnignoreCaption, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                        Text="{Binding PlacementTarget.DataContext.EffectiveUnignoreCaption, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                         VerticalAlignment="Center" />
                 </StackPanel>
             </MenuItem.Header>
@@ -79,7 +112,7 @@
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.MarkDeletedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
             ToolTip="Пометить узел и всё вложенное на удаление"
-            Visibility="{Binding PlacementTarget.DataContext.IsMarkedDeleted, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource InverseBoolToVisibility}}">
+            Visibility="{Binding PlacementTarget.DataContext.CanMarkDeletedSelection, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -93,7 +126,7 @@
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.UnmarkDeletedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
             ToolTip="Снять пометку с узла и всего вложенного"
-            Visibility="{Binding PlacementTarget.DataContext.IsMarkedDeleted, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
+            Visibility="{Binding PlacementTarget.DataContext.CanUnmarkDeletedSelection, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -106,11 +139,11 @@
         </MenuItem>
 
         <Separator
-            Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}" />
+            Visibility="{Binding PlacementTarget.DataContext.CanShowDirectorySingleActions, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}" />
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.MarkContentsDeletedCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
             ToolTip="Пометить на удаление всё вложенное; сама папка останется"
-            Visibility="{Binding PlacementTarget.DataContext.CanMarkContentsDeleted, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
+            Visibility="{Binding PlacementTarget.DataContext.CanShowMarkContentsDeleted, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -124,7 +157,7 @@
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.UnmarkContentsCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
             ToolTip="Снять пометку со всего содержимого папки"
-            Visibility="{Binding PlacementTarget.DataContext.CanUnmarkContents, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
+            Visibility="{Binding PlacementTarget.DataContext.CanShowUnmarkContents, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -137,11 +170,11 @@
         </MenuItem>
 
         <Separator
-            Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}" />
+            Visibility="{Binding PlacementTarget.DataContext.CanShowDirectorySingleActions, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}" />
         <MenuItem
             Command="{Binding PlacementTarget.DataContext.ArchiveToZipCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
             ToolTip="Упаковать папку в .zip; после проверки архива оригинал можно убрать в корзину (см. Настройки)"
-            Visibility="{Binding PlacementTarget.DataContext.IsDirectory, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
+            Visibility="{Binding PlacementTarget.DataContext.CanShowDirectorySingleActions, RelativeSource={RelativeSource AncestorType=ContextMenu}, Converter={StaticResource BoolToVisibility}}">
             <MenuItem.Header>
                 <StackPanel Orientation="Horizontal">
                     <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"

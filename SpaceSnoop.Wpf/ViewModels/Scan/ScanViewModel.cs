@@ -21,7 +21,6 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
     private CancellationTokenSource? _cts;
     private int _scanVersion;
     private bool _suppressPersist;
-    private ScanNodeViewModel? _highlighted;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTarget))]
@@ -188,6 +187,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
                 BrowseCommand.NotifyCanExecuteChanged();
             }
         };
+
         Tips = new(settings, () => FirstRun.IsVisible && ShowTargetPicker);
 
         Treemap = new(Roots);
@@ -247,6 +247,8 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
             _nodeFactory.Visibility.RemoveDeleted(deleted);
             RefreshVisibility(affected);
         };
+
+        InitializeSelectionWiring();
 
         Roots.CollectionChanged += (_, _) =>
         {
@@ -327,24 +329,22 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
         Persist(() => _settings.SetValue(SettingsKeys.ScanLastDrive, value));
     }
 
-    partial void OnSelectedNodeChanged(ScanNodeViewModel? value)
+    partial void OnSelectedNodeChanged(ScanNodeViewModel? oldValue, ScanNodeViewModel? newValue)
     {
+        if (IsUpdatingSelection)
+        {
+            oldValue?.IsPrimarySelected = false;
+            newValue?.IsPrimarySelected = true;
+            return;
+        }
+
         IsUpdatingSelection = true;
 
         try
         {
-            _highlighted?.IsSelected = false;
-            _highlighted = value;
-
-            if (value is null)
-            {
-                Inspector.Clear();
-            }
-            else
-            {
-                value.IsSelected = true;
-                Inspector.Show(value);
-            }
+            oldValue?.IsPrimarySelected = false;
+            newValue?.IsPrimarySelected = true;
+            ApplySelection(newValue is null ? [] : [newValue], newValue, true);
         }
         finally
         {

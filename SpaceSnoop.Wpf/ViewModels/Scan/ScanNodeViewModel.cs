@@ -6,7 +6,6 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     private readonly ScanSortState? _sort;
     private readonly ScanNodeFactory? _factory;
-    private readonly ScanNodeViewModel? _parent;
     private RangeObservableCollection<ScanNodeViewModel>? _children;
     private IReadOnlyList<ScanNodeViewModel>? _previewTiles;
     private bool _loaded;
@@ -19,6 +18,9 @@ public sealed partial class ScanNodeViewModel : ObservableObject
 
     [ObservableProperty]
     private bool _isSelected;
+
+    [ObservableProperty]
+    private bool _isPrimarySelected;
 
     public RangeObservableCollection<ScanNodeViewModel> Children => _children ??= [];
 
@@ -151,7 +153,15 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         && Space is DirectorySpace dir
         && EnumerateChildren(dir).Any(HasDeletedRecursive);
 
-    internal ScanNodeViewModel(SpaceBase space, double siblingMax, double parentTotal, SpaceBase root, DriveCapacity? drive, ScanSortState sort, ScanNodeFactory factory, ScanNodeViewModel? parent = null)
+    internal ScanNodeViewModel(
+        SpaceBase space,
+        double siblingMax,
+        double parentTotal,
+        SpaceBase root,
+        DriveCapacity? drive,
+        ScanSortState sort,
+        ScanNodeFactory factory,
+        ScanNodeViewModel? parent = null)
     {
         Space = space;
         Fraction = siblingMax;
@@ -160,7 +170,7 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         Drive = drive;
         _sort = sort;
         _factory = factory;
-        _parent = parent;
+        ParentNode = parent;
         _isMarkedDeleted = space.IsDeleted;
         _isIgnored = factory.Visibility.IsIgnored(space);
 
@@ -397,6 +407,15 @@ public sealed partial class ScanNodeViewModel : ObservableObject
         if (Space is not null)
         {
             _factory?.RequestAskAgent(this);
+        }
+    }
+
+    [RelayCommand]
+    private void CopyPath()
+    {
+        if (Space is not null)
+        {
+            _factory?.RequestCopyPath(this);
         }
     }
 }

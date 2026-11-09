@@ -66,7 +66,8 @@
                 <Button Style="{StaticResource RailAction}"
                         Command="{Binding Node.OpenInExplorerCommand}"
                         ToolTip="Открыть в проводнике"
-                        AutomationProperties.Name="Открыть в проводнике">
+                        AutomationProperties.Name="Открыть в проводнике"
+                        Visibility="{Binding IsSingleSelection, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ExternalLink}"
                                               Width="16"
                                               Height="16"
@@ -74,10 +75,30 @@
                 </Button>
 
                 <Button Style="{StaticResource RailAction}"
+                        Command="{Binding Node.IgnoreCommand}"
+                        ToolTip="Игнорировать"
+                        AutomationProperties.Name="Игнорировать"
+                        Visibility="{Binding Node.CanIgnoreSelection, Converter={StaticResource BoolToVisibility}}">
+                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}"
+                                              Width="16"
+                                              Height="16" />
+                </Button>
+
+                <Button Style="{StaticResource RailAction}"
+                        Command="{Binding Node.UnignoreCommand}"
+                        ToolTip="{Binding Node.EffectiveUnignoreCaption}"
+                        AutomationProperties.Name="Снять игнорирование"
+                        Visibility="{Binding Node.CanUnignoreSelection, Converter={StaticResource BoolToVisibility}}">
+                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Eye}"
+                                              Width="16"
+                                              Height="16" />
+                </Button>
+
+                <Button Style="{StaticResource RailAction}"
                         Command="{Binding Node.MarkDeletedCommand}"
                         ToolTip="Пометить на удаление"
                         AutomationProperties.Name="Пометить на удаление"
-                        Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource InverseBoolToVisibility}}">
+                        Visibility="{Binding Node.CanMarkDeletedSelection, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Trash2}"
                                               Width="16"
                                               Height="16"
@@ -88,7 +109,7 @@
                         Command="{Binding Node.UnmarkDeletedCommand}"
                         ToolTip="Снять пометку на удаление"
                         AutomationProperties.Name="Снять пометку на удаление"
-                        Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource BoolToVisibility}}">
+                        Visibility="{Binding Node.CanUnmarkDeletedSelection, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RotateCcw}"
                                               Width="16"
                                               Height="16"
@@ -99,7 +120,7 @@
                         Command="{Binding Node.MarkContentsDeletedCommand}"
                         ToolTip="Пометить содержимое (папка останется)"
                         AutomationProperties.Name="Пометить содержимое"
-                        Visibility="{Binding Node.CanMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
+                        Visibility="{Binding Node.CanShowMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderX}"
                                               Width="16"
                                               Height="16"
@@ -110,7 +131,7 @@
                         Command="{Binding Node.UnmarkContentsCommand}"
                         ToolTip="Снять пометку с содержимого"
                         AutomationProperties.Name="Снять пометку с содержимого"
-                        Visibility="{Binding Node.CanUnmarkContents, Converter={StaticResource BoolToVisibility}}">
+                        Visibility="{Binding Node.CanShowUnmarkContents, Converter={StaticResource BoolToVisibility}}">
                     <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RotateCcw}"
                                               Width="16"
                                               Height="16"
@@ -168,7 +189,8 @@
                                 </Style>
                             </ContextMenu.Resources>
 
-                            <MenuItem Command="{Binding Node.OpenInExplorerCommand}">
+                            <MenuItem Command="{Binding Node.OpenInExplorerCommand}"
+                                      Visibility="{Binding IsSingleSelection, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -180,10 +202,35 @@
                                 </MenuItem.Header>
                             </MenuItem>
 
-                            <Separator />
+                            <Separator
+                                Visibility="{Binding IsSingleSelection, Converter={StaticResource BoolToVisibility}}" />
+
+                            <MenuItem Command="{Binding Node.IgnoreCommand}"
+                                      Visibility="{Binding Node.CanIgnoreSelection, Converter={StaticResource BoolToVisibility}}">
+                                <MenuItem.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
+                                                                  Kind="{x:Static iconPacks:PackIconLucideKind.EyeOff}" />
+                                        <TextBlock Text="Игнорировать"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </MenuItem.Header>
+                            </MenuItem>
+
+                            <MenuItem Command="{Binding Node.UnignoreCommand}"
+                                      Visibility="{Binding Node.CanUnignoreSelection, Converter={StaticResource BoolToVisibility}}">
+                                <MenuItem.Header>
+                                    <StackPanel Orientation="Horizontal">
+                                        <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
+                                                                  Kind="{x:Static iconPacks:PackIconLucideKind.Eye}" />
+                                        <TextBlock Text="{Binding Node.EffectiveUnignoreCaption}"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </MenuItem.Header>
+                            </MenuItem>
 
                             <MenuItem Command="{Binding Node.MarkDeletedCommand}"
-                                      Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource InverseBoolToVisibility}}">
+                                      Visibility="{Binding Node.CanMarkDeletedSelection, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -196,7 +243,7 @@
                             </MenuItem>
 
                             <MenuItem Command="{Binding Node.UnmarkDeletedCommand}"
-                                      Visibility="{Binding Node.IsMarkedDeleted, Converter={StaticResource BoolToVisibility}}">
+                                      Visibility="{Binding Node.CanUnmarkDeletedSelection, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -209,7 +256,7 @@
                             </MenuItem>
 
                             <MenuItem Command="{Binding Node.MarkContentsDeletedCommand}"
-                                      Visibility="{Binding Node.CanMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
+                                      Visibility="{Binding Node.CanShowMarkContentsDeleted, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -222,7 +269,7 @@
                             </MenuItem>
 
                             <MenuItem Command="{Binding Node.UnmarkContentsCommand}"
-                                      Visibility="{Binding Node.CanUnmarkContents, Converter={StaticResource BoolToVisibility}}">
+                                      Visibility="{Binding Node.CanShowUnmarkContents, Converter={StaticResource BoolToVisibility}}">
                                 <MenuItem.Header>
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
@@ -241,8 +288,9 @@
                                     <StackPanel Orientation="Horizontal">
                                         <iconPacks:PackIconLucide Style="{StaticResource MenuGlyph}"
                                                                   Kind="{x:Static iconPacks:PackIconLucideKind.Copy}" />
-                                        <TextBlock Text="Копировать путь"
-                                                   VerticalAlignment="Center" />
+                                        <TextBlock
+                                            Text="{Binding Node.CopyPathCaption, FallbackValue='Копировать путь'}"
+                                            VerticalAlignment="Center" />
                                     </StackPanel>
                                 </MenuItem.Header>
                             </MenuItem>
