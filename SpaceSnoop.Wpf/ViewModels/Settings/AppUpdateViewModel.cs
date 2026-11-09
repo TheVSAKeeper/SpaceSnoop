@@ -25,26 +25,34 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PillText))]
+    [NotifyPropertyChangedFor(nameof(ActionText))]
     private bool _hasPendingUpdate;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PillText))]
+    [NotifyPropertyChangedFor(nameof(ActionText))]
     private bool _isDownloading;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PillText))]
+    [NotifyPropertyChangedFor(nameof(ActionText))]
     private int _downloadPercent;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PillText))]
+    [NotifyPropertyChangedFor(nameof(ActionText))]
     private string _versionLabel = string.Empty;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasCheckStatus))]
     private string _checkStatus = string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasReleaseNotes))]
     private string _releaseNotes = string.Empty;
+
+    [ObservableProperty]
+    private IReadOnlyList<ReleaseNoteViewModel> _pendingEntries = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasChangelog))]
@@ -68,11 +76,24 @@ public sealed partial class AppUpdateViewModel : ObservableObject
         _ => $"Доступна версия {VersionLabel}",
     };
 
+    public string ActionText => (IsDownloading, _downloadedPath) switch
+    {
+        (true, _) => $"Загрузка {DownloadPercent}%",
+        (false, not null) => "Показать в проводнике",
+        _ => "Что нового и скачать",
+    };
+
+    public bool HasCheckStatus => !string.IsNullOrWhiteSpace(CheckStatus);
+
     public bool HasReleaseNotes => !string.IsNullOrWhiteSpace(ReleaseNotes);
 
     public bool HasChangelog => ChangelogEntries.Count > 0 || !string.IsNullOrWhiteSpace(Changelog);
 
     public bool HasChangelogStatus => !string.IsNullOrWhiteSpace(ChangelogStatus);
+
+    public string RepositoryUrl => $"https://github.com/{Repository}";
+
+    public string ReleasesUrl => $"https://github.com/{Repository}/releases";
 
     private string Repository => string.IsNullOrWhiteSpace(_preferences.Repository) ? AppInfo.RepoSlug : _preferences.Repository.Trim();
 
@@ -103,13 +124,60 @@ public sealed partial class AppUpdateViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public async Task LoadChangelog()
+    public Task LoadChangelog()
     {
-        if (HasChangelog || IsChangelogLoading)
-        {
-            return;
-        }
+        return HasChangelog || IsChangelogLoading ? Task.CompletedTask : FetchChangelogAsync();
+    }
 
+    [RelayCommand]
+    public Task ReloadChangelog()
+    {
+        return IsChangelogLoading ? Task.CompletedTask : FetchChangelogAsync();
+    }
+
+    [RelayCommand]
+    public void OpenReleases()
+    {
+        _shell.Open(ReleasesUrl);
+    }
+
+    internal static bool ChecksOnStartup(bool checkOnStartup, bool welcomePending)
+    {
+        return checkOnStartup && !welcomePending;
+    }
+
+    internal static bool IsRateLimited(Exception exception)
+    {
+        return exception is HttpRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests };
+    }
+
+    internal ConfirmDialogViewModel BuildUpdateDialog()
+    {
+        return ReleaseChangelog.BuildUpdateDialog(_latestTag, _assetName, _assetUrl, PendingEntries, ReleaseNotes);
+    }
+
+    internal void ApplyPendingForAutomation(string tag, string? assetName, string? assetUrl, string? releaseUrl, IReadOnlyList<ReleaseNoteViewModel> entries)
+    {
+        _latestTag = tag;
+        _assetName = assetName;
+        _assetUrl = assetUrl;
+        _releaseUrl = releaseUrl;
+        _downloadedPath = null;
+        VersionLabel = tag;
+        CheckStatus = $"Доступна версия {tag}";
+        PendingEntries = entries;
+        ReleaseNotes = ReleaseChangelog.BuildChangelog(entries);
+        HasPendingUpdate = true;
+    }
+
+    internal void ApplyChangelogForAutomation(IReadOnlyList<ReleaseNoteViewModel> entries)
+    {
+        CheckStatus = $"Установлена последняя версия ({AppInfo.Version})";
+        ApplyChangelog(entries);
+    }
+
+    private async Task FetchChangelogAsync()
+    {
         try
         {
             IsChangelogLoading = true;
@@ -135,19 +203,17 @@ public sealed partial class AppUpdateViewModel : ObservableObject
         }
     }
 
-    internal static bool ChecksOnStartup(bool checkOnStartup, bool welcomePending)
-    {
-        return checkOnStartup && !welcomePending;
-    }
-
-    internal static bool IsRateLimited(Exception exception)
-    {
-        return exception is HttpRequestException { StatusCode: HttpStatusCode.Forbidden or HttpStatusCode.TooManyRequests };
-    }
-
     private void OnPreferencesChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(UpdatePreferences.Repository) && _started)
+        if (e.PropertyName != nameof(UpdatePreferences.Repository))
+        {
+            return;
+        }
+
+        OnPropertyChanged(nameof(RepositoryUrl));
+        OnPropertyChanged(nameof(ReleasesUrl));
+
+        if (_started)
         {
             _ = CheckAsync();
         }
@@ -201,12 +267,13 @@ public sealed partial class AppUpdateViewModel : ObservableObject
             _latestTag = latest.TryGetProperty("tag_name", out var tag) ? tag.GetString() : null;
             _releaseUrl = latest.TryGetProperty("html_url", out var url) ? url.GetString() : null;
             ReleaseNotes = ReleaseChangelog.BuildReleaseNotes(releases);
+            PendingEntries = ReleaseChangelog.BuildPendingEntries(releases);
             ApplyChangelog(ReleaseChangelog.BuildChangelogEntries(releases));
 
             if (!UpdateCheck.IsNewer(_latestTag, AppInfo.Version))
             {
                 CheckStatus = $"Установлена последняя версия ({AppInfo.Version})";
-                _logger.UpdateUpToDate(AppInfo.Version, _latestTag ?? "—");
+                _logger.UpdateUpToDate(AppInfo.Version, _latestTag ?? "–");
                 return;
             }
 
@@ -216,6 +283,7 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
             if (dismissed && !announce)
             {
+                CheckStatus = $"Доступна версия {_latestTag}";
                 return;
             }
 
@@ -254,6 +322,8 @@ public sealed partial class AppUpdateViewModel : ObservableObject
         DownloadPercent = 0;
         VersionLabel = string.Empty;
         ReleaseNotes = string.Empty;
+        PendingEntries = [];
+        OnPropertyChanged(nameof(ActionText));
     }
 
     private void ResolveAsset(JsonElement root)
@@ -300,24 +370,20 @@ public sealed partial class AppUpdateViewModel : ObservableObject
             return;
         }
 
-        if (_assetUrl is not null)
+        var dialog = BuildUpdateDialog();
+
+        if (!await _dialogs.ShowAsync(dialog))
         {
-            var message = $"Доступна версия {_latestTag}.{Environment.NewLine}{ReleaseNotesBlock()}{Environment.NewLine}Скачать «{_assetName}» рядом с программой?";
-
-            if (_dialogs.Confirm("Доступно обновление", message))
-            {
-                await DownloadAsync(announce: true);
-            }
-
             return;
         }
 
-        var browse = $"Доступна версия {_latestTag}.{Environment.NewLine}{ReleaseNotesBlock()}{Environment.NewLine}Открыть страницу загрузки в браузере?";
-
-        if (_dialogs.Confirm("Доступно обновление", browse))
+        if (dialog.Chosen?.IsPrimary == true && _assetUrl is not null)
         {
-            _shell.Open(_releaseUrl ?? AppInfo.ReleasesUrl);
+            await DownloadAsync(announce: true);
+            return;
         }
+
+        _shell.Open(_releaseUrl ?? ReleasesUrl);
     }
 
     [RelayCommand]
@@ -363,9 +429,10 @@ public sealed partial class AppUpdateViewModel : ObservableObject
 
             _downloadedPath = target;
             OnPropertyChanged(nameof(PillText));
+            OnPropertyChanged(nameof(ActionText));
             _logger.UpdateDownloaded(target);
 
-            if (announce && _dialogs.Confirm("Обновление скачано", $"Файл сохранён рядом с программой:{Environment.NewLine}{target}{Environment.NewLine}{Environment.NewLine}Открыть папку?"))
+            if (announce && await _dialogs.ShowAsync(ReleaseChangelog.BuildDownloadedDialog(target)))
             {
                 _shell.Reveal(target);
             }
@@ -388,16 +455,5 @@ public sealed partial class AppUpdateViewModel : ObservableObject
         {
             IsDownloading = false;
         }
-    }
-
-    private string ReleaseNotesBlock()
-    {
-        if (string.IsNullOrWhiteSpace(ReleaseNotes))
-        {
-            return Environment.NewLine;
-        }
-
-        var notes = ReleaseNotes.Length <= 1200 ? ReleaseNotes : ReleaseNotes[..1200] + "…";
-        return $"{Environment.NewLine}Изменения:{Environment.NewLine}{notes}{Environment.NewLine}";
     }
 }

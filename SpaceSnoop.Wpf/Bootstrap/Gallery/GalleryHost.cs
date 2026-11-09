@@ -109,6 +109,8 @@ internal sealed class GalleryHost : IGalleryHost
         sync.Setup.LeftPath = fixture.Left;
         sync.Setup.RightPath = fixture.Right;
         await sync.Operations.CompareFromAutomationAsync(CancellationToken.None).ConfigureAwait(true);
+
+        services.GetRequiredService<AppUpdateViewModel>().ApplyChangelogForAutomation(GalleryFixtures.Changelog());
     }
 
     private async Task<GalleryShot> CapturePageAsync(string page, GalleryContext context)

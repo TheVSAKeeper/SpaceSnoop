@@ -430,6 +430,7 @@ public partial class App : Application
                 ISettingsStore settings = new SettingsStore(settingsPath);
                 _settings = settings;
                 SyncProfileStore.Save(settings, GalleryFixtures.Profiles(fixture));
+                settings.SetBool(SettingsKeys.UpdateCheckOnStartup, false);
                 settings.SetDouble(SettingsKeys.FontScale, options.Arguments.FontScale);
 
                 ThemeManager.Apply(AppThemes.LightKey);
