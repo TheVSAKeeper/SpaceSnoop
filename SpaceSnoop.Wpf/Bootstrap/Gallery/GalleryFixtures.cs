@@ -40,8 +40,8 @@ public static class GalleryFixtures
 
     public static GalleryFixture Create()
     {
-        var root = Path.Combine(Path.GetTempPath(), FolderName);
-        Reset(root);
+        var root = Path.Combine(Path.GetTempPath(), FolderName, Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
 
         var left = Path.Combine(root, "проект");
         var right = Path.Combine(root, "бэкап");
@@ -99,16 +99,6 @@ public static class GalleryFixtures
                 SkipInBatch = true,
             },
         ];
-    }
-
-    private static void Reset(string root)
-    {
-        if (Directory.Exists(root) && string.Equals(Path.GetFileName(root), FolderName, StringComparison.Ordinal))
-        {
-            Directory.Delete(root, true);
-        }
-
-        Directory.CreateDirectory(root);
     }
 
     private static void WriteTree(string root)

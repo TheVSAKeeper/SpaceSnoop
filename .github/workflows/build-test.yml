@@ -40,9 +40,30 @@ jobs:
           --no-build
           --logger trx
           --results-directory TestResults
-          --collect "XPlat Code Coverage"
+          --collect "Code Coverage;Format=xml"
           --blame-hang
           --blame-hang-timeout 60s
+
+      - name: Verify coverage assemblies
+        run: |
+          $reports = @(Get-ChildItem -Path TestResults -Recurse -Filter *.xml)
+          if ($reports.Count -eq 0) {
+            throw "Coverage XML reports were not generated in TestResults."
+          }
+
+          $modules = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+          foreach ($report in $reports) {
+            [xml]$xml = Get-Content -LiteralPath $report.FullName
+            foreach ($module in $xml.SelectNodes('//module[@name]')) {
+              [void]$modules.Add($module.GetAttribute('name'))
+            }
+          }
+
+          foreach ($required in @('SpaceSnoop.Core.dll', 'SpaceSnoop.Wpf.dll')) {
+            if (-not $modules.Contains($required)) {
+              throw "Coverage report is missing required assembly: $required"
+            }
+          }
 
       - name: Publish smoke
         run: >

@@ -1,6 +1,11 @@
-﻿using KeepShell.Testing;
+﻿using KeepShell.Bootstrap;
+using KeepShell.Services.Platform;
+using KeepShell.Testing;
+using Microsoft.Extensions.Logging;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Gallery;
+using SpaceSnoop.Wpf.Bootstrap.Schedule;
+using SpaceSnoop.Wpf.Bootstrap.Storage;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -239,5 +244,79 @@ public class GalleryOptionsTests
             Assert.That(options.Pages, Is.EqualTo(SectionKey.All));
             Assert.That(options.Themes, Is.EqualTo(GalleryOptions.DefaultThemes));
         });
+    }
+
+    [Test]
+    public async Task Параллельные_запуски_галереи_получают_разные_корни_с_собственными_настройками_и_логами()
+    {
+        GalleryFixture? first = null;
+        GalleryFixture? second = null;
+
+        try
+        {
+            var created = await Task.WhenAll(
+                Task.Run(CreateIsolatedGalleryFixture),
+                Task.Run(CreateIsolatedGalleryFixture));
+
+            first = created[0];
+            second = created[1];
+
+            WriteIsolatedGalleryLog(first);
+            WriteIsolatedGalleryLog(second);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.Root, Is.Not.EqualTo(second.Root));
+                Assert.That(File.Exists(Path.Combine(first.Root, TomlSettingsFile.PrimaryFileName)), Is.True);
+                Assert.That(File.Exists(Path.Combine(second.Root, TomlSettingsFile.PrimaryFileName)), Is.True);
+                Assert.That(Directory.GetFiles(Path.Combine(first.Root, AppStorage.LogsFolderName), "wpf-*.log"), Is.Not.Empty);
+                Assert.That(Directory.GetFiles(Path.Combine(second.Root, AppStorage.LogsFolderName), "wpf-*.log"), Is.Not.Empty);
+            });
+        }
+        finally
+        {
+            DeleteIfExists(first?.Root);
+            DeleteIfExists(second?.Root);
+        }
+    }
+
+    private static GalleryFixture CreateIsolatedGalleryFixture()
+    {
+        var fixture = GalleryFixtures.Create();
+        var settingsPath = Path.Combine(fixture.Root, TomlSettingsFile.PrimaryFileName);
+
+        ISettingsStore settings = new SettingsStore(settingsPath);
+
+        try
+        {
+            SyncProfileStore.Save(settings, GalleryFixtures.Profiles(fixture));
+            settings.SetDouble(SettingsKeys.FontScale, 1.25);
+        }
+        finally
+        {
+            settings.Close();
+        }
+
+        return fixture;
+    }
+
+    private static void WriteIsolatedGalleryLog(GalleryFixture fixture)
+    {
+        using var logging = KeepShellLogging.Bootstrap(
+            new()
+            {
+                LogsDirectory = Path.Combine(fixture.Root, AppStorage.LogsFolderName),
+                FileNamePrefix = AppInfo.LogFilePrefix,
+            });
+
+        logging.CreateLogger<GalleryOptionsTests>().LogInformation("Проверка изолированного журнала галереи");
+    }
+
+    private static void DeleteIfExists(string? root)
+    {
+        if (root is not null && Directory.Exists(root))
+        {
+            Directory.Delete(root, true);
+        }
     }
 }

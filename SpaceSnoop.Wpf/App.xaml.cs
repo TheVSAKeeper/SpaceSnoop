@@ -168,6 +168,7 @@ public partial class App : Application
         var syncIndex = Array.FindIndex(e.Args, static arg => string.Equals(arg, AppInfo.SyncArgument, StringComparison.OrdinalIgnoreCase));
         var galleryIndex = Array.FindIndex(e.Args, static arg => string.Equals(arg, AppInfo.GalleryArgument, StringComparison.OrdinalIgnoreCase));
 
+        GalleryFixture? galleryFixture = null;
         string logsDirectory;
 
         try
@@ -175,7 +176,14 @@ public partial class App : Application
             AppResources.InstallInto(this);
             ToolTipOwnerWatch.Install();
 
-            var candidate = Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName);
+            if (galleryIndex >= 0)
+            {
+                galleryFixture = GalleryFixtures.Create();
+            }
+
+            var candidate = galleryFixture is not null
+                ? Path.Combine(galleryFixture.Root, AppStorage.LogsFolderName)
+                : Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName);
 
             _logging = KeepShellLogging.Bootstrap(
                 new()
@@ -202,7 +210,7 @@ public partial class App : Application
 
         if (galleryIndex >= 0)
         {
-            RunGallery(e.Args.Skip(galleryIndex + 1));
+            RunGallery(e.Args.Skip(galleryIndex + 1), galleryFixture);
             return;
         }
 
@@ -402,7 +410,7 @@ public partial class App : Application
         }
     }
 
-    private void RunGallery(IEnumerable<string> args)
+    private void RunGallery(IEnumerable<string> args, GalleryFixture? preparedFixture)
     {
         ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
@@ -417,7 +425,7 @@ public partial class App : Application
 
             try
             {
-                var fixture = GalleryFixtures.Create();
+                var fixture = preparedFixture ?? GalleryFixtures.Create();
                 var settingsPath = Path.Combine(fixture.Root, TomlSettingsFile.PrimaryFileName);
                 ISettingsStore settings = new SettingsStore(settingsPath);
                 _settings = settings;
