@@ -1,4 +1,5 @@
 ﻿using SpaceSnoop.Core.Cleanup;
+using System.ComponentModel;
 using System.Diagnostics;
 
 namespace SpaceSnoop.Tests;
@@ -538,6 +539,114 @@ public class CleanupServiceTests
         }
     }
 
+    [Test]
+    public void MultiPath_OverlappingParentAndChildRootsRefusedAsUnsafe()
+    {
+        var parent = Path.Combine(_tempDir, "overlap_parent");
+        var child = Path.Combine(parent, "child");
+        Directory.CreateDirectory(child);
+        var file = Path.Combine(child, "item.bin");
+        WriteAged(file, "1234");
+
+        var service = new CleanupService();
+
+        var parentFirst = new CleanupTarget
+        {
+            Id = "OverlapParentFirst",
+            Name = "Перекрывающиеся корни",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Paths = [parent, child],
+            MinimumAge = TimeSpan.Zero,
+        };
+
+        var childFirst = parentFirst with
+        {
+            Id = "OverlapChildFirst",
+            Paths = [child, parent],
+        };
+
+        var parentFirstMeasure = service.Measure(parentFirst, CancellationToken.None);
+        var parentFirstReport = service.Clean(parentFirst, null, CancellationToken.None);
+        var childFirstMeasure = service.Measure(childFirst, CancellationToken.None);
+        var childFirstReport = service.Clean(childFirst, null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(parentFirstMeasure.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
+            Assert.That(parentFirstMeasure.Files, Is.Zero);
+            Assert.That(parentFirstMeasure.Bytes, Is.Zero);
+            Assert.That(parentFirstReport.Deleted, Is.Zero);
+            Assert.That(parentFirstReport.Skipped, Is.EqualTo(1));
+            Assert.That(childFirstMeasure.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
+            Assert.That(childFirstMeasure.Files, Is.Zero);
+            Assert.That(childFirstMeasure.Bytes, Is.Zero);
+            Assert.That(childFirstReport.Deleted, Is.Zero);
+            Assert.That(childFirstReport.Skipped, Is.EqualTo(1));
+            Assert.That(Directory.Exists(parent), Is.True);
+            Assert.That(Directory.Exists(child), Is.True);
+            Assert.That(File.Exists(file), Is.True);
+        }
+    }
+
+    [TestCase(false, 1, 4, TestName = "Корни Cache и cache в обычном каталоге дедуплицируются без повторного счёта")]
+    [TestCase(true, 2, 10, TestName = "Корни Cache и cache в регистрозависимом каталоге измеряются и очищаются раздельно")]
+    public void MultiPath_SiblingRootsRespectParentDirectoryCaseSensitivity(bool caseSensitive, int expectedFiles, long expectedBytes)
+    {
+        var parent = Directory.CreateDirectory(Path.Combine(_tempDir, "cased_roots")).FullName;
+
+        if (caseSensitive)
+        {
+            Assume.That(TryEnableCaseSensitivity(parent), "fsutil не включает регистрозависимость каталога на этой машине");
+        }
+
+        var upper = Directory.CreateDirectory(Path.Combine(parent, "Cache")).FullName;
+        var lower = Path.Combine(parent, "cache");
+        var upperFile = Path.Combine(upper, "upper.bin");
+        WriteAged(upperFile, "1234");
+
+        var lowerFile = Path.Combine(lower, "lower.bin");
+
+        if (caseSensitive)
+        {
+            Directory.CreateDirectory(lower);
+            WriteAged(lowerFile, "123456");
+        }
+
+        var target = new CleanupTarget
+        {
+            Id = "CaseRoots",
+            Name = "Регистр корней",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Paths = [upper, lower],
+            MinimumAge = TimeSpan.Zero,
+        };
+
+        var service = new CleanupService();
+        var measurement = service.Measure(target, CancellationToken.None);
+        var report = service.Clean(target, null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Available));
+            Assert.That(measurement.Files, Is.EqualTo(expectedFiles));
+            Assert.That(measurement.Bytes, Is.EqualTo(expectedBytes));
+            Assert.That(report.Deleted, Is.EqualTo(expectedFiles));
+            Assert.That(report.FreedBytes, Is.EqualTo(expectedBytes));
+            Assert.That(report.Skipped, Is.Zero);
+            Assert.That(report.Errors, Is.Empty);
+            Assert.That(Directory.Exists(upper), Is.True);
+            Assert.That(File.Exists(upperFile), Is.False);
+
+            if (caseSensitive)
+            {
+                Assert.That(Directory.Exists(lower), Is.True);
+                Assert.That(File.Exists(lowerFile), Is.False);
+            }
+        }
+    }
+
     private static void RemoveTree(string path)
     {
         if (!Directory.Exists(path))
@@ -603,5 +712,33 @@ public class CleanupServiceTests
         process.WaitForExit();
 
         return process.ExitCode == 0;
+    }
+
+    private static bool TryEnableCaseSensitivity(string directory)
+    {
+        try
+        {
+            using var process = Process.Start(
+                new ProcessStartInfo("fsutil", ["file", "setCaseSensitiveInfo", directory, "enable"])
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                });
+
+            if (process is null)
+            {
+                return false;
+            }
+
+            process.WaitForExit(10_000);
+
+            return process.HasExited && process.ExitCode == 0;
+        }
+        catch (Win32Exception)
+        {
+            return false;
+        }
     }
 }

@@ -92,6 +92,72 @@ public static class SyncRoots
         return final.StartsWith(LongPrefix, StringComparison.Ordinal) ? final[LongPrefix.Length..] : final;
     }
 
+    internal static string? Normalize(string path)
+    {
+        try
+        {
+            return string.IsNullOrWhiteSpace(path)
+                ? null
+                : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path.Trim()));
+        }
+        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
+        {
+            return null;
+        }
+    }
+
+    internal static bool Nested(string left, string right)
+    {
+        var a = Trim(left);
+        var b = Trim(right);
+        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
+
+        return (shorter.Length == longer.Length
+                || longer[shorter.Length] == Path.DirectorySeparatorChar
+                || longer[shorter.Length] == Path.AltDirectorySeparatorChar)
+            && SamePath(shorter, longer[..shorter.Length]);
+    }
+
+    internal static bool SamePath(string left, string right)
+    {
+        if (string.Equals(left, right, StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        if (!string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var start = Path.GetPathRoot(right)?.Length ?? 0;
+
+        while (start < right.Length && (right[start] == Path.DirectorySeparatorChar || right[start] == Path.AltDirectorySeparatorChar))
+        {
+            start++;
+        }
+
+        while (start < right.Length)
+        {
+            var end = right.IndexOfAny(Separators, start);
+
+            if (end < 0)
+            {
+                end = right.Length;
+            }
+
+            if (!left.AsSpan(start, end - start).SequenceEqual(right.AsSpan(start, end - start))
+                && PathCase.IsCaseSensitive(right[..start]))
+            {
+                return false;
+            }
+
+            start = end + 1;
+        }
+
+        return true;
+    }
+
     // TODO: компонент, который не открылся и атрибуты которого не читаются (сетевой сбой, спящий том), сравнивается по GetFullPath –
     // ссылку в нём не видно; при первом таком случае с перекрытием – отказывать, пока сторона не разрешилась
     private static Final Resolve(string fullPath, uint volumeName)
@@ -147,72 +213,6 @@ public static class SyncRoots
         {
             return false;
         }
-    }
-
-    private static string? Normalize(string path)
-    {
-        try
-        {
-            return string.IsNullOrWhiteSpace(path)
-                ? null
-                : Path.TrimEndingDirectorySeparator(Path.GetFullPath(path.Trim()));
-        }
-        catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
-        {
-            return null;
-        }
-    }
-
-    private static bool Nested(string left, string right)
-    {
-        var a = Trim(left);
-        var b = Trim(right);
-        var (shorter, longer) = a.Length <= b.Length ? (a, b) : (b, a);
-
-        return (shorter.Length == longer.Length
-                || longer[shorter.Length] == Path.DirectorySeparatorChar
-                || longer[shorter.Length] == Path.AltDirectorySeparatorChar)
-            && SamePath(shorter, longer[..shorter.Length]);
-    }
-
-    private static bool SamePath(string left, string right)
-    {
-        if (string.Equals(left, right, StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        if (!string.Equals(left, right, StringComparison.OrdinalIgnoreCase))
-        {
-            return false;
-        }
-
-        var start = Path.GetPathRoot(right)?.Length ?? 0;
-
-        while (start < right.Length && (right[start] == Path.DirectorySeparatorChar || right[start] == Path.AltDirectorySeparatorChar))
-        {
-            start++;
-        }
-
-        while (start < right.Length)
-        {
-            var end = right.IndexOfAny(Separators, start);
-
-            if (end < 0)
-            {
-                end = right.Length;
-            }
-
-            if (!left.AsSpan(start, end - start).SequenceEqual(right.AsSpan(start, end - start))
-                && PathCase.IsCaseSensitive(right[..start]))
-            {
-                return false;
-            }
-
-            start = end + 1;
-        }
-
-        return true;
     }
 
     private static string Trim(string path)

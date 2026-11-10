@@ -108,14 +108,37 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
         }
 
         var existing = new List<string>(candidates.Count);
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var canonicals = new List<string>(candidates.Count);
 
         foreach (var path in candidates)
         {
-            if (string.IsNullOrWhiteSpace(path))
+            if (SyncRoots.Normalize(path) is not { } canonical)
             {
                 return new(CleanupAvailability.Unsafe, default, [], [], target.Path);
             }
+
+            var duplicate = false;
+
+            foreach (var seen in canonicals)
+            {
+                if (SyncRoots.SamePath(seen, canonical))
+                {
+                    duplicate = true;
+                    break;
+                }
+
+                if (SyncRoots.Nested(seen, canonical))
+                {
+                    return new(CleanupAvailability.Unsafe, default, [], [], path);
+                }
+            }
+
+            if (duplicate)
+            {
+                continue;
+            }
+
+            canonicals.Add(canonical);
 
             if (!Directory.Exists(path))
             {
@@ -127,12 +150,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
                 return new(CleanupAvailability.Unsafe, default, [], [], path);
             }
 
-            var canonical = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
-
-            if (seen.Add(canonical))
-            {
-                existing.Add(path);
-            }
+            existing.Add(path);
         }
 
         if (existing.Count == 0)
