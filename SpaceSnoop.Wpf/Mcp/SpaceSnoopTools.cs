@@ -137,11 +137,11 @@ public sealed class SpaceSnoopTools
 
     [McpServerTool(Name = "cleanup_scan")]
     [Description(
-        "Замеряет системные корзины Windows со страницы «Очистка»: временные файлы, кэш обновлений и эскизов, Prefetch, дампы, корзина. Только чтение – ничего не удаляет; запускает очистку человек кнопкой на странице. Два итога отвечают на разные вопросы и складывать их не надо: total* – сколько всего лежит в замеренных целях, reclaimable* – сколько из этого вернёт очистка. Расходятся они на целях, которые очистить нельзя (нужны права администратора, каталога нет, Windows.old удаляется штатным средством Windows); причину называет availabilityHint каждой цели, а cleanable отвечает, попала ли она в reclaimable*. К каталогам применяется порог возраста файла из настроек – файлы моложе него не считаются и не удаляются, потому что их может держать живой процесс; к корзине порог не применяется, она считается целиком. Замер без targets обходит все цели и на машине с Windows.old идёт долго. Очистка удаляет безвозвратно, мимо корзины, – в отличие от сканирования и синхронизации.")]
+        "Замеряет системные корзины Windows со страницы «Очистка»: временные файлы, кэш обновлений и эскизов, Prefetch, кэши шейдеров, дампы и отчёты об ошибках, корзина. Только чтение – ничего не удаляет; запускает очистку человек кнопкой на странице. Два итога отвечают на разные вопросы и складывать их не надо: total* – сколько всего лежит в замеренных целях, reclaimable* – сколько из этого вернёт очистка. Расходятся они на целях, которые очистить нельзя (нужны права администратора, каталога нет, Windows.old удаляется штатным средством Windows); причину называет availabilityHint каждой цели, а cleanable отвечает, попала ли она в reclaimable*. К каталогам применяется порог возраста файла из настроек – файлы моложе него не считаются и не удаляются, потому что их может держать живой процесс; к корзине порог не применяется, она считается целиком. Замер без targets обходит все цели и на машине с Windows.old идёт долго. Очистка удаляет безвозвратно, мимо корзины, – в отличие от сканирования и синхронизации.")]
     public static Task<string> CleanupScanAsync(
         McpBridge bridge,
         [Description(
-            "Идентификаторы целей (TempFiles, SystemTemp, WindowsUpdate, Prefetch, Thumbnails, RecycleBin, ErrorReports, OldWindowsInstallation); не заданы – замеряются все")]
+            "Идентификаторы целей (TempFiles, SystemTemp, WindowsUpdate, DeliveryOptimization, Prefetch, Thumbnails, DirectXShaderCache, GpuShaderCache, RecycleBin, ErrorReports, WindowsErrorReporting, LiveKernelReports, OldWindowsInstallation); не заданы – замеряются все")]
         string[]? targets = null,
         CancellationToken cancellationToken = default)
     {
@@ -153,7 +153,8 @@ public sealed class SpaceSnoopTools
         "Очищает названные системные корзины Windows. Удаление безвозвратное, мимо корзины, поэтому запуск проходит через живое подтверждение: приложение показывает человеку модальное окно со списком целей и объёмом и ждёт ответа не дольше двух минут. Отказ, молчание и занятое окно возвращают ошибку, а не пустой отчёт. dryRun=true (по умолчанию) ничего не удаляет – замеряет цели и отдаёт план. Цели, которые очистить нельзя, из плана и из запуска выпадают; причину называет availabilityHint в cleanup_scan. К каталогам применяется порог возраста файла из настроек, к корзине он не применяется – она чистится целиком.")]
     public static Task<string> CleanupRunAsync(
         McpBridge bridge,
-        [Description("Идентификаторы целей (TempFiles, SystemTemp, WindowsUpdate, Prefetch, Thumbnails, RecycleBin, ErrorReports); хотя бы одна обязательна")]
+        [Description(
+            "Идентификаторы целей (TempFiles, SystemTemp, WindowsUpdate, DeliveryOptimization, Prefetch, Thumbnails, DirectXShaderCache, GpuShaderCache, RecycleBin, ErrorReports, WindowsErrorReporting, LiveKernelReports); хотя бы одна обязательна")]
         string[] targets,
         [Description("Только план: замерить и показать, что удалилось бы, ничего не удаляя")]
         bool dryRun = true,

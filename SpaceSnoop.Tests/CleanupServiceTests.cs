@@ -340,6 +340,204 @@ public class CleanupServiceTests
         }
     }
 
+    [Test]
+    public void Catalog_ContainsExpectedTargetsAndPaths()
+    {
+        var age = TimeSpan.FromHours(12);
+        var catalog = CleanupCatalog.BuildDefault(age);
+        var ids = catalog.Select(static x => x.Id).ToArray();
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                ids,
+                Is.EqualTo(
+                [
+                    "TempFiles",
+                    "SystemTemp",
+                    "WindowsUpdate",
+                    "DeliveryOptimization",
+                    "Prefetch",
+                    "Thumbnails",
+                    "DirectXShaderCache",
+                    "GpuShaderCache",
+                    "RecycleBin",
+                    "ErrorReports",
+                    "WindowsErrorReporting",
+                    "LiveKernelReports",
+                    "OldWindowsInstallation",
+                ]));
+
+            var gpu = catalog.Single(static x => x.Id == "GpuShaderCache");
+            var wer = catalog.Single(static x => x.Id == "WindowsErrorReporting");
+            var kernel = catalog.Single(static x => x.Id == "LiveKernelReports");
+
+            Assert.That(gpu.Paths, Has.Count.EqualTo(11));
+            Assert.That(gpu.Path, Is.EqualTo(gpu.Paths[0]));
+            Assert.That(gpu.MinimumAge, Is.EqualTo(age));
+            Assert.That(wer.Paths, Has.Count.EqualTo(3));
+            Assert.That(kernel.SearchPattern, Is.EqualTo("*.dmp"));
+        }
+    }
+
+    [Test]
+    public void MultiPath_MeasuresAndCleansExistingDirectoriesAndResolvesFirstExistingPath()
+    {
+        var missing = Path.Combine(_targetDir, "missing");
+        var first = Path.Combine(_targetDir, "first");
+        var second = Path.Combine(_targetDir, "second");
+        var sub = Path.Combine(second, "nested");
+        Directory.CreateDirectory(first);
+        Directory.CreateDirectory(sub);
+        WriteAged(Path.Combine(first, "a.bin"), "12345");
+        WriteAged(Path.Combine(sub, "b.bin"), "1234567");
+
+        var target = new CleanupTarget
+        {
+            Id = "Multi",
+            Name = "Многопутевая цель",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Paths = [missing, first, second],
+            MinimumAge = TimeSpan.Zero,
+        };
+
+        var service = new CleanupService();
+        var measurement = service.Measure(target, CancellationToken.None);
+        var report = service.Clean(target, null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(target.Path, Is.EqualTo(missing));
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Available));
+            Assert.That(measurement.ResolvedPath, Is.EqualTo(first));
+            Assert.That(measurement.Files, Is.EqualTo(2));
+            Assert.That(measurement.Bytes, Is.EqualTo(12));
+            Assert.That(report.Deleted, Is.EqualTo(2));
+            Assert.That(report.FreedBytes, Is.EqualTo(12));
+            Assert.That(report.Skipped, Is.Zero);
+            Assert.That(Directory.Exists(first), Is.True);
+            Assert.That(Directory.Exists(second), Is.True);
+            Assert.That(Directory.Exists(sub), Is.False);
+        }
+    }
+
+    [Test]
+    public void MultiPath_UnsafeCandidateRefusesEntireTarget()
+    {
+        var safe = Path.Combine(_targetDir, "safe");
+        Directory.CreateDirectory(safe);
+        var file = Path.Combine(safe, "keep.bin");
+        WriteAged(file, "123456");
+
+        var target = new CleanupTarget
+        {
+            Id = "MultiUnsafe",
+            Name = "Небезопасный кандидат",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Paths = [safe, Path.GetPathRoot(_targetDir)!],
+            MinimumAge = TimeSpan.Zero,
+        };
+
+        var service = new CleanupService();
+        var measurement = service.Measure(target, CancellationToken.None);
+        var report = service.Clean(target, null, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Unsafe));
+            Assert.That(measurement.Files, Is.Zero);
+            Assert.That(report.Deleted, Is.Zero);
+            Assert.That(report.Skipped, Is.EqualTo(1));
+            Assert.That(File.Exists(file), Is.True);
+        }
+    }
+
+    [Test]
+    public void MultiPath_DeduplicatesCanonicalPaths()
+    {
+        var dir = Path.Combine(_targetDir, "dup");
+        Directory.CreateDirectory(dir);
+        WriteAged(Path.Combine(dir, "once.bin"), "1234");
+
+        var target = new CleanupTarget
+        {
+            Id = "MultiDup",
+            Name = "Дубли путей",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Paths = [dir, dir + Path.DirectorySeparatorChar],
+            MinimumAge = TimeSpan.Zero,
+        };
+
+        var measurement = new CleanupService().Measure(target, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Available));
+            Assert.That(measurement.Files, Is.EqualTo(1));
+            Assert.That(measurement.Bytes, Is.EqualTo(4));
+        }
+    }
+
+    [Test]
+    public void MultiPath_UnreadableCandidateReportedInMeasurementAndClean()
+    {
+        var open = Path.Combine(_targetDir, "open");
+        var closed = Path.Combine(_targetDir, "closed");
+        Directory.CreateDirectory(open);
+        Directory.CreateDirectory(closed);
+        WriteAged(Path.Combine(open, "ok.bin"), "1234");
+        TestAcl.DenyEnumeration(closed);
+
+        try
+        {
+            var service = new CleanupService();
+            var mixed = new CleanupTarget
+            {
+                Id = "MultiUnreadable",
+                Name = "Частично закрытая цель",
+                Description = "Тест",
+                Kind = CleanupTargetKind.Directory,
+                Paths = [closed, open],
+                MinimumAge = TimeSpan.Zero,
+            };
+
+            var measurement = service.Measure(mixed, CancellationToken.None);
+            var report = service.Clean(mixed, null, CancellationToken.None);
+
+            var allClosed = new CleanupTarget
+            {
+                Id = "AllClosed",
+                Name = "Полностью закрытая цель",
+                Description = "Тест",
+                Kind = CleanupTargetKind.Directory,
+                Paths = [closed],
+                MinimumAge = TimeSpan.Zero,
+            };
+
+            var deniedMeasurement = service.Measure(allClosed, CancellationToken.None);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(measurement.Availability, Is.EqualTo(CleanupAvailability.Available));
+                Assert.That(measurement.ResolvedPath, Is.EqualTo(open));
+                Assert.That(measurement.Files, Is.EqualTo(1));
+                Assert.That(measurement.Unreadable, Does.Contain(closed));
+                Assert.That(report.Deleted, Is.EqualTo(1));
+                Assert.That(report.Skipped, Is.EqualTo(1));
+                Assert.That(report.Errors, Has.Some.Contains(closed));
+                Assert.That(deniedMeasurement.Availability, Is.EqualTo(CleanupAvailability.NeedsAdmin));
+                Assert.That(deniedMeasurement.ResolvedPath, Is.EqualTo(closed));
+            }
+        }
+        finally
+        {
+            TestAcl.AllowEnumeration(closed);
+        }
+    }
+
     private static void RemoveTree(string path)
     {
         if (!Directory.Exists(path))

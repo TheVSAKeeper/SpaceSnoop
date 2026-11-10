@@ -247,13 +247,14 @@ internal sealed class McpCleanupTools(
     {
         var unreadable = measurement.Unreadable ?? [];
         var reported = unreadable.Take(AppDefaults.McpEntryLimitDefault).ToList();
+        var path = string.IsNullOrEmpty(measurement.ResolvedPath) ? target.Path : measurement.ResolvedPath;
 
         return new(
             target.Id,
             target.Name,
             target.Description,
             target.Kind,
-            target.Path,
+            path,
             measurement.Availability,
             CleanupText.Availability(measurement.Availability),
             measurement.Availability == CleanupAvailability.Available && measurement.Files > 0,

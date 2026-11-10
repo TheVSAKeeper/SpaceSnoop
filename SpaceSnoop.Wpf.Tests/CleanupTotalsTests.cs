@@ -67,6 +67,28 @@ public class CleanupTotalsTests
         Assert.That(row.Share, Is.Zero);
     }
 
+    [Test]
+    public void Разрешённый_путь_замера_обновляет_отображаемый_путь_строки()
+    {
+        CleanupTarget target = new()
+        {
+            Id = "GpuShaderCache",
+            Name = "Кэш шейдеров видеокарты",
+            Description = "Тест",
+            Kind = CleanupTargetKind.Directory,
+            Paths = [@"C:\Missing\NVIDIA\DXCache", @"C:\Existing\AMD\DxCache"],
+        };
+
+        var row = new CleanupTargetViewModel(target);
+        row.Apply(new(1024, 2, [], CleanupAvailability.Available, @"C:\Existing\AMD\DxCache"));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(row.Path, Is.EqualTo(@"C:\Existing\AMD\DxCache"));
+            Assert.That(row.CanClean, Is.True);
+        });
+    }
+
     private static CleanupTargetViewModel Row(string id, long bytes, int files, CleanupAvailability availability, bool selected)
     {
         CleanupTarget target = new()

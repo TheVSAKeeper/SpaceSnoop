@@ -52,6 +52,9 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 
+    [ObservableProperty]
+    private string _path;
+
     public CleanupTarget Model { get; }
 
     public PackIconLucideKind IconKind { get; }
@@ -66,8 +69,6 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     public bool ShowSystemTool => UsesSystemTool && Availability != CleanupAvailability.Missing;
 
     public bool IsAutomatic => Model.Supported;
-
-    public string Path => Model.Path;
 
     public bool HasPath => Model.Kind == CleanupTargetKind.Directory;
 
@@ -105,11 +106,17 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     public CleanupTargetViewModel(CleanupTarget target)
     {
         Model = target;
+        _path = target.Path;
         IconKind = IconFor(target.Id);
     }
 
     public void Apply(CleanupMeasurement measurement)
     {
+        if (!string.IsNullOrEmpty(measurement.ResolvedPath))
+        {
+            Path = measurement.ResolvedPath;
+        }
+
         Availability = measurement.Availability;
         SizeBytes = measurement.Bytes;
         Files = measurement.Files;
@@ -129,10 +136,15 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
             "TempFiles" => PackIconLucideKind.FileClock,
             "SystemTemp" => PackIconLucideKind.Cog,
             "WindowsUpdate" => PackIconLucideKind.Download,
+            "DeliveryOptimization" => PackIconLucideKind.Share2,
             "Prefetch" => PackIconLucideKind.Zap,
             "Thumbnails" => PackIconLucideKind.Image,
+            "DirectXShaderCache" => PackIconLucideKind.Sparkles,
+            "GpuShaderCache" => PackIconLucideKind.Cpu,
             "RecycleBin" => PackIconLucideKind.Trash2,
             "ErrorReports" => PackIconLucideKind.Bug,
+            "WindowsErrorReporting" => PackIconLucideKind.FileText,
+            "LiveKernelReports" => PackIconLucideKind.ShieldAlert,
             _ => PackIconLucideKind.HardDrive,
         };
     }

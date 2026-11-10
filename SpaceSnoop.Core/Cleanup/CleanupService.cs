@@ -9,7 +9,8 @@ public readonly record struct CleanupMeasurement(
     long Bytes,
     int Files,
     IReadOnlyList<string> Unreadable,
-    CleanupAvailability Availability);
+    CleanupAvailability Availability,
+    string? ResolvedPath = null);
 
 public readonly record struct CleanupReport(
     long FreedBytes,
@@ -36,26 +37,27 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
     {
         token.ThrowIfCancellationRequested();
 
-        var availability = Availability(target, out var content);
+        var resolution = Resolve(target);
 
         if (target.Kind == CleanupTargetKind.RecycleBin)
         {
-            return new(content.Bytes, (int)Math.Min(content.Items, int.MaxValue), [], availability);
+            return new(resolution.RecycleBin.Bytes, (int)Math.Min(resolution.RecycleBin.Items, int.MaxValue), [], resolution.Availability);
         }
 
-        if (availability is not (CleanupAvailability.Available or CleanupAvailability.Unsupported))
+        if (resolution.Availability is not (CleanupAvailability.Available or CleanupAvailability.Unsupported))
         {
-            return new(0, 0, [], availability);
+            return new(0, 0, [], resolution.Availability, resolution.ResolvedPath);
         }
 
         long total = 0;
         var count = 0;
-        var unreadable = new List<string>();
+        var unreadable = new List<string>(resolution.UnreadableRoots);
 
         Walk(
             target,
+            resolution.ReadableRoots,
             token,
-            file =>
+            (_, file) =>
             {
                 total += file.Length;
                 count++;
@@ -63,67 +65,118 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
             unreadable,
             null);
 
-        return new(total, count, unreadable, availability);
+        return new(total, count, unreadable, resolution.Availability, resolution.ResolvedPath);
     }
 
     public CleanupReport Clean(CleanupTarget target, IProgress<OperationProgress>? progress, CancellationToken token)
     {
-        var availability = Availability(target, out var content);
+        var resolution = Resolve(target);
 
-        if (availability != CleanupAvailability.Available)
+        if (resolution.Availability != CleanupAvailability.Available)
         {
-            _logger.CleanupTargetUnavailable(target.Id, availability);
+            _logger.CleanupTargetUnavailable(target.Id, resolution.Availability);
 
-            return new(0, 0, 1, [Describe(target, availability)]);
+            return new(0, 0, 1, [Describe(target, resolution.Availability)]);
         }
 
         _logger.CleanupStarted(target.Id);
 
         var report = target.Kind == CleanupTargetKind.RecycleBin
-            ? EmptyRecycleBin(content, progress, token)
-            : CleanDirectory(target, progress, token);
+            ? EmptyRecycleBin(resolution.RecycleBin, progress, token)
+            : CleanDirectory(target, resolution, progress, token);
 
         _logger.CleanupFinished(target.Id, report.Deleted, report.FreedBytes);
 
         return report;
     }
 
-    private static CleanupAvailability Availability(CleanupTarget target, out RecycleBinContent content)
+    private TargetResolution Resolve(CleanupTarget target)
     {
-        content = default;
-
         if (target.Kind == CleanupTargetKind.RecycleBin)
         {
-            content = RecycleBin.Query();
+            var content = RecycleBin.Query();
+            var availability = content.Ok ? CleanupAvailability.Available : CleanupAvailability.Failed;
 
-            return content.Ok ? CleanupAvailability.Available : CleanupAvailability.Failed;
-        }
-
-        if (!Directory.Exists(target.Path))
-        {
-            return CleanupAvailability.Missing;
+            return new(availability, content, [], [], string.Empty);
         }
 
-        if (!IsSafeRoot(target.Path))
+        var candidates = target.Paths;
+
+        if (candidates.Count == 0)
         {
-            return CleanupAvailability.Unsafe;
+            return new(CleanupAvailability.Missing, default, [], [], target.Path);
         }
 
-        try
+        var existing = new List<string>(candidates.Count);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var path in candidates)
         {
-            using var probe = new DirectoryInfo(target.Path).EnumerateFileSystemInfos().GetEnumerator();
-            probe.MoveNext();
-        }
-        catch (Exception exception) when (exception is UnauthorizedAccessException or SecurityException)
-        {
-            return CleanupAvailability.NeedsAdmin;
-        }
-        catch (IOException)
-        {
-            return CleanupAvailability.Missing;
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return new(CleanupAvailability.Unsafe, default, [], [], target.Path);
+            }
+
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+
+            if (!IsSafeRoot(path))
+            {
+                return new(CleanupAvailability.Unsafe, default, [], [], path);
+            }
+
+            var canonical = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
+
+            if (seen.Add(canonical))
+            {
+                existing.Add(path);
+            }
         }
 
-        return target.Supported ? CleanupAvailability.Available : CleanupAvailability.Unsupported;
+        if (existing.Count == 0)
+        {
+            return new(CleanupAvailability.Missing, default, [], [], target.Path);
+        }
+
+        var readable = new List<string>(existing.Count);
+        var unreadable = new List<string>();
+        var needsAdmin = false;
+
+        foreach (var path in existing)
+        {
+            try
+            {
+                using var probe = new DirectoryInfo(path).EnumerateFileSystemInfos().GetEnumerator();
+                probe.MoveNext();
+                readable.Add(path);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+            {
+                if (exception is UnauthorizedAccessException or SecurityException)
+                {
+                    needsAdmin = true;
+                }
+
+                if (unreadable.Count < CleanupDefaults.MaxReportedErrors)
+                {
+                    _logger.CleanupDirectorySkipped(exception, path);
+                }
+
+                unreadable.Add(path);
+            }
+        }
+
+        if (readable.Count == 0 && needsAdmin)
+        {
+            return new(CleanupAvailability.NeedsAdmin, default, [], unreadable, existing[0]);
+        }
+
+        var resolved = target.Supported ? CleanupAvailability.Available : CleanupAvailability.Unsupported;
+        var primary = readable.Count > 0 ? readable[0] : existing[0];
+
+        return new(resolved, default, readable, unreadable, primary);
     }
 
     private static string Describe(CleanupTarget target, CleanupAvailability availability)
@@ -178,33 +231,38 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
 
     private void Walk(
         CleanupTarget target,
+        IReadOnlyList<string> roots,
         CancellationToken token,
-        Action<FileInfo> onFile,
+        Action<string, FileInfo> onFile,
         List<string> unreadable,
         List<string>? directories)
     {
         var now = DateTime.UtcNow;
         var stack = new Stack<DirectoryInfo>();
-        stack.Push(new(target.Path));
 
-        while (stack.Count > 0)
+        foreach (var root in roots)
         {
-            token.ThrowIfCancellationRequested();
+            stack.Push(new(root));
 
-            var directory = stack.Pop();
+            while (stack.Count > 0)
+            {
+                token.ThrowIfCancellationRequested();
 
-            try
-            {
-                ReadDirectory(directory, target, now, onFile, stack, directories, token);
-            }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
-            {
-                if (unreadable.Count < CleanupDefaults.MaxReportedErrors)
+                var directory = stack.Pop();
+
+                try
                 {
-                    _logger.CleanupDirectorySkipped(exception, directory.FullName);
+                    ReadDirectory(directory, target, now, x => onFile(root, x), stack, directories, token);
                 }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+                {
+                    if (unreadable.Count < CleanupDefaults.MaxReportedErrors)
+                    {
+                        _logger.CleanupDirectorySkipped(exception, directory.FullName);
+                    }
 
-                unreadable.Add(directory.FullName);
+                    unreadable.Add(directory.FullName);
+                }
             }
         }
     }
@@ -279,16 +337,20 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
         return new(content.Bytes, items, 0, []);
     }
 
-    private CleanupReport CleanDirectory(CleanupTarget target, IProgress<OperationProgress>? progress, CancellationToken token)
+    private CleanupReport CleanDirectory(
+        CleanupTarget target,
+        TargetResolution resolution,
+        IProgress<OperationProgress>? progress,
+        CancellationToken token)
     {
-        var files = new List<FileInfo>();
+        var files = new List<WalkedFile>();
         var directories = new List<string>();
-        var unreadable = new List<string>();
+        var unreadable = new List<string>(resolution.UnreadableRoots);
         var errors = new List<string>();
 
         try
         {
-            Walk(target, token, files.Add, unreadable, directories);
+            Walk(target, resolution.ReadableRoots, token, (root, file) => files.Add(new(root, file)), unreadable, directories);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -324,7 +386,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
 
     private (long Freed, int Deleted, int Skipped, bool Cancelled) DeleteFiles(
         CleanupTarget target,
-        List<FileInfo> files,
+        List<WalkedFile> files,
         List<string> errors,
         IProgress<OperationProgress>? progress,
         CancellationToken token)
@@ -334,7 +396,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
         var skipped = 0;
         var now = DateTime.UtcNow;
 
-        foreach (var file in files)
+        foreach (var (root, file) in files)
         {
             if (token.IsCancellationRequested)
             {
@@ -364,7 +426,7 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
 
             freed += length;
             deleted++;
-            progress?.Report(new(deleted, Relative(target.Path, file.FullName), freed));
+            progress?.Report(new(deleted, Relative(root, file.FullName), freed));
         }
 
         return (freed, deleted, skipped, false);
@@ -441,4 +503,13 @@ public sealed class CleanupService(ILogger<CleanupService>? logger = null)
     {
         return Path.GetRelativePath(root, path);
     }
+
+    private readonly record struct TargetResolution(
+        CleanupAvailability Availability,
+        RecycleBinContent RecycleBin,
+        IReadOnlyList<string> ReadableRoots,
+        IReadOnlyList<string> UnreadableRoots,
+        string ResolvedPath);
+
+    private readonly record struct WalkedFile(string Root, FileInfo File);
 }
