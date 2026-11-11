@@ -34,11 +34,11 @@ public sealed partial class ChatMessageViewModel : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUsage), nameof(UsageText))]
-    private double _costUsd;
+    private double? _costUsd;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasUsage), nameof(UsageText))]
-    private long _tokens;
+    private long? _tokens;
 
     public ChatRole Role { get; }
 

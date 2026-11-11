@@ -34,39 +34,30 @@ public class AgentTranscriptTests
     }
 
     [Test]
-    public void Запуск_описывается_без_секретов_но_с_аргументами()
+    public void Наблюдатель_пакета_пишет_вид_события_в_формате_приложения()
     {
-        var request = new AgentRequest
+        var store = Store(enabled: true);
+        using (var transcript = store.Begin(AgentBackendKind.Antigravity, "секретный-токен"))
         {
-            Prompt = "куда делось место",
-            Model = "gpt-5.6-luna",
-            Mcp = new("spacesnoop", "http://127.0.0.1:7654/mcp", "секретный-токен", ["scan_directory"], []),
-        };
+            KeepShell.Agents.IAgentTranscript observer = transcript!;
+            observer.Write(KeepShell.Agents.AgentTranscriptKind.Launch, "Antigravity: секретный-токен");
+            observer.Write(KeepShell.Agents.AgentTranscriptKind.Exit, "exit 0");
+        }
 
-        var launch = new AgentLaunch
-        {
-            Arguments = ["exec", "-", "--json"],
-            Environment = new Dictionary<string, string>
-            {
-                ["SPACESNOOP_MCP_TOKEN"] = "секретный-токен",
-            },
-        };
-
-        var text = AgentBackendBase.DescribeLaunch("Codex", new(@"C:\codex.exe", "0.145.0"), request, launch);
-
+        var lines = File.ReadAllLines(SingleFile(store));
         Assert.Multiple(() =>
         {
-            Assert.That(text, Does.Contain("модель: gpt-5.6-luna"));
-            Assert.That(text, Does.Contain("продолжение сессии: –"));
-            Assert.That(text, Does.Contain("инструменты: scan_directory"));
-            Assert.That(text, Does.Contain("аргументы: exec - --json"));
-            Assert.That(text, Does.Not.Contain("секретный-токен"));
+            Assert.That(JsonDocument.Parse(lines[0]).RootElement.GetProperty("kind").GetString(), Is.EqualTo("launch"));
+            Assert.That(JsonDocument.Parse(lines[1]).RootElement.GetProperty("kind").GetString(), Is.EqualTo("exit"));
+            Assert.That(lines[0], Does.Contain("<токен>"));
+            Assert.That(lines[0], Does.Not.Contain("секретный-токен"));
         });
     }
 
     [TestCase(AgentBackendKind.Claude, "claude")]
     [TestCase(AgentBackendKind.Codex, "codex")]
     [TestCase(AgentBackendKind.OpenCode, "opencode")]
+    [TestCase(AgentBackendKind.Antigravity, "antigravity")]
     public void Имя_файла_называет_время_и_бэкенд(AgentBackendKind backend, string expected)
     {
         var name = AgentTranscriptStore.FileName(backend, new(2026, 7, 27, 16, 38, 54, 123, TimeSpan.Zero));

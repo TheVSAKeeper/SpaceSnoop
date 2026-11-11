@@ -94,11 +94,7 @@ public class AgentModelSelectorTests
 
     private static AgentModelSelector Selector(AgentPreferences preferences)
     {
-        var backends = new AgentBackends(
-            preferences,
-            new(preferences, NullLogger<ClaudeAgentBackend>.Instance),
-            new(preferences, NullLogger<CodexAgentBackend>.Instance),
-            new(preferences, NullLogger<OpenCodeAgentBackend>.Instance));
+        var backends = new AgentBackends(preferences, NullLoggerFactory.Instance);
 
         return new(preferences, backends, NullLogger<AgentModelSelector>.Instance);
     }

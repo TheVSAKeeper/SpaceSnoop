@@ -142,9 +142,6 @@ public partial class App : Application
             provider.GetRequiredService<AgentPreferences>(),
             provider.GetRequiredService<ILogger<AgentTranscriptStore>>()));
 
-        services.AddSingleton<ClaudeAgentBackend>();
-        services.AddSingleton<CodexAgentBackend>();
-        services.AddSingleton<OpenCodeAgentBackend>();
         services.AddSingleton<AgentBackends>();
 
         services.AddSingleton<McpPreferences>();

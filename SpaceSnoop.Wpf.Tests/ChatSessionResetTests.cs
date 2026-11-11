@@ -64,6 +64,24 @@ public class ChatSessionResetTests
     }
 
     [Test]
+    public void История_с_None_возобновляет_сессию_только_в_Claude()
+    {
+        var history = History(out _, out var preferences, out _);
+        File.WriteAllText(Path.Combine(_directory, ChatHistoryStore.FileName), """
+            {"version":1,"conversations":[{"id":"old","backend":"None","sessionId":"old-session","messages":[{"role":"User","text":"Вопрос"}]}]}
+            """);
+        history.LoadHistory();
+        history.SelectConversationCommand.Execute(history.Conversations[0]);
+        Assert.That(history.SessionId, Is.EqualTo("old-session"));
+
+        history.NewConversationCommand.Execute(null);
+        preferences.Backend = AgentBackendKind.Codex;
+        history.SelectConversationCommand.Execute(history.Conversations[0]);
+
+        Assert.That(history.SessionId, Is.Null);
+    }
+
+    [Test]
     public void Сброс_сессии_посреди_хода_помечает_её_брошенной()
     {
         var history = History();
@@ -153,11 +171,7 @@ public class ChatSessionResetTests
 
         preferences = new(settings);
 
-        backends = new(
-            preferences,
-            new(preferences, NullLogger<ClaudeAgentBackend>.Instance),
-            new(preferences, NullLogger<CodexAgentBackend>.Instance),
-            new(preferences, NullLogger<OpenCodeAgentBackend>.Instance));
+        backends = new(preferences, Path.Combine(_directory, "agents"));
 
         var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, Path.Combine(_directory, ChatHistoryStore.FileName));
 

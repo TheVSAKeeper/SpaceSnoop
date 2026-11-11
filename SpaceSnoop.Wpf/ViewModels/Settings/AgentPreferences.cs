@@ -42,6 +42,11 @@ public sealed partial class AgentPreferences : ObservableObject
             HistoryVisible = _settings.GetBool(SettingsKeys.AgentHistoryVisible);
             Transcript = _settings.GetBool(SettingsKeys.AgentTranscript);
             Backend = _settings.GetEnum(SettingsKeys.AgentBackend, AppDefaults.AgentBackendDefault);
+            if (!AgentBackendChoice.Order.Contains(Backend))
+            {
+                Backend = AppDefaults.AgentBackendDefault;
+                _settings.SetEnum(SettingsKeys.AgentBackend, Backend);
+            }
             Consent = ConsentFor(Backend);
             Model = ModelFor(Backend);
             Effort = EffortFor(Backend);

@@ -75,11 +75,11 @@
                         AutomationProperties.Name="{Binding AutomationName}" />
             </Grid>
             <TextBlock Style="{StaticResource Form.CheckHint}"
-                       Text="Для разбора странных ответов: ход целиком ложится в logs/chat." />
+                       Text="Для разбора странных ответов: журнал хода сохраняется в logs/chat." />
             <Expander Style="{StaticResource Setting.Details}"
                       Header="Что попадает в транскрипт">
                 <TextBlock Style="{StaticResource Setting.DetailsBody}"
-                           Text="Всё, что уходит в CLI и приходит от него, пишется отдельным файлом на ход, кнопка на сообщении его открывает. Токен доступа затирается, остальное сохраняется как есть – вопрос, состояние окна и ответы инструментов. Хранятся последние 20 ходов." />
+                           Text="Сведения о запуске, ответы CLI и итоговый текст пишутся отдельным файлом на ход, кнопка на сообщении его открывает. Токен доступа затирается, остальные данные, в том числе пути, сохраняются как есть. Хранятся последние 20 ходов." />
             </Expander>
 
             <TextBlock Text="CLI"
@@ -112,18 +112,6 @@
             </Grid>
             <TextBlock Style="{StaticResource Form.Hint}"
                        Text="Согласие выше, модель и путь ниже относятся к выбранному CLI – у каждого свои." />
-
-            <StackPanel Visibility="{Binding AgentShellWarning, Converter={StaticResource BoolToVisibility}}">
-                <TextBlock Style="{StaticResource Form.Hint}"
-                           Foreground="{DynamicResource State.WarningText}"
-                           Text="У codex есть собственная оболочка системы, отключить её нечем: агент может выполнять команды с правами приложения." />
-                <Expander Style="{StaticResource Setting.Details}"
-                          Header="Чем ограничен codex">
-                    <TextBlock Style="{StaticResource Setting.DetailsBody}"
-                               Foreground="{DynamicResource State.WarningText}"
-                               Text="Приложение обычно запущено от администратора, значит команды выполняются с его правами. Инструменты приложения при этом работают только с полным доступом – в песочнице codex не может дозваться разрешения и гасит вызов сам. Из-за оболочки запрет отдельных инструментов для codex остаётся подсказкой, а не преградой: настоящий барьер один для обоих CLI – галка «Разрешить изменяющие операции» в разделе «Доступ для агентов», её проверяет сам сервер." />
-                </Expander>
-            </StackPanel>
 
             <TextBlock Text="Модель"
                        Style="{StaticResource Form.Label}"

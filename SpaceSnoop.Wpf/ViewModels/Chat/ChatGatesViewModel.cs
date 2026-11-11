@@ -59,7 +59,7 @@ public sealed partial class ChatGatesViewModel : ObservableObject
         : $"{Backend.DisplayName} не найден";
 
     public string CliMissingText => BackendChoice is { NothingFound: true }
-        ? "Чат работает через уже установленный на этой машине CLI агента – по вашей подписке, без ключей в настройках. Приложение поддерживает три таких CLI и не нашло ни одного. Поставьте любой из них, войдите в свою подписку и проверьте снова:"
+        ? "Чат работает через уже установленный на этой машине CLI агента – по вашей подписке, без ключей в настройках. Приложение поддерживает Claude Code, Codex, OpenCode и Antigravity и не нашло ни одного. Поставьте любой из них, войдите в свою подписку и проверьте снова:"
         : $"Чат работает через уже установленный на этой машине CLI {Backend.DisplayName} – по вашей подписке, без ключей в настройках. Установите CLI и войдите в свою подписку, затем проверьте снова: {Backend.MissingCliHint}";
 
     public bool ShowInstallHints => BackendChoice is { NothingFound: true };
@@ -296,7 +296,17 @@ public sealed partial class ChatGatesViewModel : ObservableObject
     {
         try
         {
-            return backend.Detect();
+            var cli = backend.Detect();
+            if (cli is null)
+            {
+                _logger.AgentCliMissing(backend.DisplayName);
+            }
+            else
+            {
+                _logger.AgentCliDetected(cli.ExecutablePath, cli.Version);
+            }
+
+            return cli;
         }
         catch (Exception exception)
         {

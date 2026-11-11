@@ -10,7 +10,7 @@ public readonly record struct AgentBackendProbe(AgentBackendKind Kind, AgentCliI
 public sealed record AgentBackendChoice
 {
     public static ImmutableArray<AgentBackendKind> Order { get; } =
-        [AgentBackendKind.Claude, AgentBackendKind.Codex, AgentBackendKind.OpenCode];
+        [AgentBackendKind.Claude, AgentBackendKind.Codex, AgentBackendKind.OpenCode, AgentBackendKind.Antigravity];
 
     public required AgentBackendKind Current { get; init; }
 

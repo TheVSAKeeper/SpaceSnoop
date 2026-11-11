@@ -39,10 +39,10 @@ public static class McpConnectSnippets
     private static string Codex(string url, string token)
     {
         return $$"""
-            # Токен – в переменную окружения: {{AgentBackendBase.TokenVariable}}={{token}}
+            # Токен – в переменную окружения: SPACESNOOP_MCP_TOKEN={{token}}
             [mcp_servers.{{AgentPrompt.ServerName}}]
             url = "{{url}}"
-            bearer_token_env_var = "{{AgentBackendBase.TokenVariable}}"
+            bearer_token_env_var = "SPACESNOOP_MCP_TOKEN"
             """;
     }
 

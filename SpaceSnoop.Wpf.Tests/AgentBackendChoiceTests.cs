@@ -77,6 +77,14 @@ public class AgentBackendChoiceTests
     }
 
     [Test]
+    public void Antigravity_предлагается_когда_другие_CLI_не_найдены()
+    {
+        var choice = AgentBackendChoice.From(AgentBackendKind.Claude,
+            [Missing(AgentBackendKind.Claude), Found(AgentBackendKind.Antigravity)]);
+        Assert.That(choice.Suggested, Is.EqualTo(AgentBackendKind.Antigravity));
+    }
+
+    [Test]
     public void Пустая_версия_считается_найденным_CLI()
     {
         var choice = AgentBackendChoice.From(

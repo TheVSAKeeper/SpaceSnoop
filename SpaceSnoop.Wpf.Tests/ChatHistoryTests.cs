@@ -113,6 +113,22 @@ public class ChatHistoryTests
     }
 
     [Test]
+    public void История_без_поля_backend_сохраняет_прежний_Claude_по_умолчанию()
+    {
+        File.WriteAllText(_path, """
+            {"version":1,"conversations":[{"id":"old","sessionId":"old-session","messages":[{"role":"User","text":"Вопрос"}]}]}
+            """);
+        var store = new ChatHistoryStore(NullLogger<ChatHistoryStore>.Instance, _path);
+        var record = store.Load().Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(record.Backend, Is.EqualTo(AppDefaults.AgentBackendDefault));
+            Assert.That(record.SessionId, Is.EqualTo("old-session"));
+        });
+    }
+
+    [Test]
     public void Сообщение_восстанавливается_с_бейджами_инструментов_и_расходом()
     {
         var source = new ChatMessageViewModel(ChatRole.Assistant, "Нашёл виновника")

@@ -13,7 +13,7 @@ public sealed record ChatConversationRecord
 
     public string Title { get; init; } = string.Empty;
 
-    public AgentBackendKind Backend { get; init; }
+    public AgentBackendKind Backend { get; init; } = AppDefaults.AgentBackendDefault;
 
     public string? SessionId { get; init; }
 
@@ -34,9 +34,9 @@ public sealed record ChatMessageRecord
 
     public bool IsCancelled { get; init; }
 
-    public double CostUsd { get; init; }
+    public double? CostUsd { get; init; }
 
-    public long Tokens { get; init; }
+    public long? Tokens { get; init; }
 
     public string? TranscriptPath { get; init; }
 

@@ -3,6 +3,7 @@ using MahApps.Metro.IconPacks;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Diagnostics;
 
 namespace SpaceSnoop.Wpf.ViewModels.Chat;
 
@@ -311,22 +312,37 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
     private async Task RunTurnAsync(string prompt)
     {
         var turn = PrepareTurn(prompt);
+        var stopwatch = Stopwatch.StartNew();
+        _logger.AgentTurnStarted(turn.Backend.DisplayName, turn.Request.Mcp?.AllowedTools.Count ?? 0, turn.Request.ResumeSessionId is { Length: > 0 });
 
         try
         {
+            _backends.PrepareWorkspace(turn.Backend.Kind);
             await foreach (var turnEvent in turn.Backend.RunAsync(turn.Request, turn.Token).WithCancellation(turn.Token))
             {
                 ApplyTurnEvent(turn.Assistant, turnEvent);
+                if (turnEvent.Kind == AgentEventKind.Completed)
+                {
+                    _logger.AgentTurnCompleted(stopwatch.ElapsedMilliseconds, turnEvent.CostUsd, turnEvent.Tokens);
+                }
             }
+        }
+        catch (OperationCanceledException) when (turn.Token.IsCancellationRequested)
+        {
+            turn.Assistant.IsCancelled = true;
+            _logger.AgentTurnCancelled();
         }
         catch (OperationCanceledException)
         {
-            turn.Assistant.IsCancelled = true;
+            turn.Assistant.IsError = true;
+            turn.Assistant.Append("CLI не ответил вовремя. Повторите запрос.");
+            _logger.AgentTurnFailed(null, turn.Assistant.Text);
         }
         catch (Exception exception)
         {
             turn.Assistant.IsError = true;
             turn.Assistant.Append(turn.Assistant.Text.Length > 0 ? $"\n\n{exception.Message}" : exception.Message);
+            _logger.AgentTurnFailed(exception, exception.Message);
         }
         finally
         {
@@ -373,6 +389,7 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
 
         var request = new AgentRequest
         {
+            ToolPolicy = AgentToolPolicy.ApplicationMcp,
             Prompt = prompt,
             Context = _bridge.DescribeContext(),
             ResumeSessionId = History.SessionId,
@@ -412,9 +429,16 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
             case AgentEventKind.ToolCall:
                 assistant.DropPreamble();
                 assistant.ToolCalls.Add(ChatToolCall.From(turnEvent));
+                _logger.AgentToolInvoked(turnEvent.ToolName ?? string.Empty);
                 break;
 
             case AgentEventKind.Completed:
+                if (!string.IsNullOrWhiteSpace(turnEvent.Text))
+                {
+                    assistant.DropPreamble();
+                    assistant.Append(turnEvent.Text);
+                }
+
                 if (!History.SessionDropped)
                 {
                     History.SessionId = turnEvent.SessionId ?? History.SessionId;
@@ -427,6 +451,7 @@ public sealed partial class ChatViewModel : ObservableObject, IPageHeader
             case AgentEventKind.Failed:
                 assistant.IsError = true;
                 assistant.Append(assistant.Text.Length > 0 ? $"\n\n{turnEvent.Text}" : turnEvent.Text);
+                _logger.AgentTurnFailed(null, turnEvent.Text);
                 break;
         }
     }

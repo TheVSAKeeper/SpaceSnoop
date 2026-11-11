@@ -8,7 +8,7 @@ public static class ChatAnswer
 
     private static readonly SearchValues<char> SentenceEnd = SearchValues.Create(".!?…");
 
-    // TODO: обрыв распознаётся по концу текста – ни claude, ни codex, ни opencode не сообщают в потоке
+    // TODO: обрыв распознаётся по концу текста – ни claude, ни codex, ни opencode, ни agy не сообщают в потоке
     // причину остановки хода. Брать причину из потока, как только её начнёт присылать хоть один CLI.
     public static bool LooksTruncated(string text)
     {

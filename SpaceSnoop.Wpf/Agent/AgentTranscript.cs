@@ -17,7 +17,7 @@ public enum AgentTranscriptKind
     Message = 6,
 }
 
-public interface IAgentTranscript : IDisposable
+public interface IAgentTranscript : KeepShell.Agents.IAgentTranscript, IDisposable
 {
     string Path { get; }
 
@@ -66,7 +66,8 @@ public sealed class AgentTranscript : IAgentTranscript
 
             try
             {
-                writer.WriteLine(JsonSerializer.Serialize(new Line(DateTimeOffset.Now, kind, AgentBackendBase.RedactToken(text, _token)), Options));
+                var safe = string.IsNullOrEmpty(_token) ? text : text.Replace(_token, "<токен>", StringComparison.Ordinal);
+                writer.WriteLine(JsonSerializer.Serialize(new Line(DateTimeOffset.Now, kind, safe), Options));
             }
             catch (Exception exception) when (exception is IOException or ObjectDisposedException or UnauthorizedAccessException)
             {
@@ -82,6 +83,18 @@ public sealed class AgentTranscript : IAgentTranscript
         {
             Close();
         }
+    }
+
+    void KeepShell.Agents.IAgentTranscript.Write(KeepShell.Agents.AgentTranscriptKind kind, string text)
+    {
+        Write(kind switch
+        {
+            KeepShell.Agents.AgentTranscriptKind.Launch => AgentTranscriptKind.Launch,
+            KeepShell.Agents.AgentTranscriptKind.Stdout => AgentTranscriptKind.Stdout,
+            KeepShell.Agents.AgentTranscriptKind.Stderr => AgentTranscriptKind.Stderr,
+            KeepShell.Agents.AgentTranscriptKind.Exit => AgentTranscriptKind.Exit,
+            _ => throw new ArgumentOutOfRangeException(nameof(kind)),
+        }, text);
     }
 
     private void Close()

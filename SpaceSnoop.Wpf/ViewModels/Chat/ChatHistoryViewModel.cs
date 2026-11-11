@@ -197,7 +197,8 @@ public sealed partial class ChatHistoryViewModel : ObservableObject
 
         _conversationId = record.Id;
         _startedUtc = record.StartedUtc;
-        SessionId = record.Backend == _backends.Current.Kind ? record.SessionId : null;
+        var backend = record.Backend == AgentBackendKind.None ? AppDefaults.AgentBackendDefault : record.Backend;
+        SessionId = backend == _backends.Current.Kind ? record.SessionId : null;
         ResumedFromDisk = SessionId is { Length: > 0 };
         CurrentConversation = conversation;
         _notifyMessagesChanged();

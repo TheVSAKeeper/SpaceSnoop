@@ -79,8 +79,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
 
     public string AgentModelHint => _agentBackends.Current.ModelHint;
 
-    public bool AgentShellWarning => _agentBackends.Current.HasBuiltInShell;
-
     public bool McpElevatedWarning => Mcp.Enabled && AdminElevation.IsElevated;
 
     public IReadOnlyList<SegmentOption> McpConnectFormats { get; } =
@@ -330,7 +328,7 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
                 "agent",
                 "Агент-чат",
                 PackIconLucideKind.MessageCircle,
-                "показывать страницу страница чата видимость истории согласие на отправку данных в claude code codex opencode дано записывать запись транскрипт транскрипта хода выбранный cli модель свой слаг модели глубина рассуждений путь к claude.exe codex.exe opencode.exe шнырь"));
+                "показывать страницу страница чата видимость истории согласие на отправку данных в claude code codex opencode antigravity agy дано записывать запись транскрипт транскрипта хода выбранный cli модель свой слаг модели глубина рассуждений путь к claude.exe codex.exe opencode.exe agy.exe шнырь"));
     }
 
     private void OnSectionsPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -371,7 +369,6 @@ public sealed partial class SettingsViewModel : ObservableObject, IPageHeader
     {
         OnPropertyChanged(nameof(SelectedAgentBackendIndex));
         OnPropertyChanged(nameof(AgentCliPathLabel));
-        OnPropertyChanged(nameof(AgentShellWarning));
         OnPropertyChanged(nameof(AgentModelHint));
         OnPropertyChanged(nameof(AgentConsentLabel));
         OnPropertyChanged(nameof(AgentConsentHint));

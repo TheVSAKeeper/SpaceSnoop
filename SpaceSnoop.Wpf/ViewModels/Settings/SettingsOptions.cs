@@ -52,8 +52,9 @@ public static class SettingsOptions
     public static IReadOnlyList<SegmentOption> AgentBackends { get; } =
     [
         new(PackIconLucideKind.Bot, "Claude Code", "CLI claude – встроенные инструменты отключаются целиком, у агента только инструменты приложения"),
-        new(PackIconLucideKind.SquareTerminal, "Codex", "CLI codex – помимо инструментов приложения агент получает оболочку системы, отключить её нечем"),
+        new(PackIconLucideKind.SquareTerminal, "Codex", "CLI codex – встроенная оболочка отключена, у агента только инструменты приложения"),
         new(PackIconLucideKind.SquareCode, "OpenCode", "CLI opencode – работает по локально настроенной авторизации, встроенные инструменты отключены, у агента только инструменты приложения"),
+        new(PackIconLucideKind.Bot, "Antigravity", "CLI agy – доступ к инструментам приложения задаёт SpaceSnoop; встроенные инструменты и другие MCP-серверы зависят от настроек CLI"),
     ];
 
     public static string LabelOf<T>(IReadOnlyList<EnumOption<T>> options, T value)

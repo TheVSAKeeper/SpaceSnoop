@@ -1,6 +1,9 @@
 ﻿global using CommunityToolkit.Mvvm.ComponentModel;
 global using CommunityToolkit.Mvvm.Input;
 global using KeepShell.Automation;
+global using KeepShell.Agents;
+global using IAgentTranscript = SpaceSnoop.Wpf.Agent.IAgentTranscript;
+global using AgentTranscriptKind = SpaceSnoop.Wpf.Agent.AgentTranscriptKind;
 global using KeepShell.Bootstrap;
 global using KeepShell.Services.Platform;
 global using KeepShell.ViewModels;

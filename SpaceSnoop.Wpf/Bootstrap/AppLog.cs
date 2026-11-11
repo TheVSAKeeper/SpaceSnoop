@@ -473,7 +473,7 @@ internal static partial class AppLog
     public static partial void AgentTurnStarted(this ILogger logger, string backend, int tools, bool resume);
 
     [LoggerMessage(EventId = 2103, Level = LogLevel.Information, Message = "Ход агента завершён за {ElapsedMs} мс, стоимость {CostUsd} $, токенов {Tokens}")]
-    public static partial void AgentTurnCompleted(this ILogger logger, long elapsedMs, double costUsd, long tokens);
+    public static partial void AgentTurnCompleted(this ILogger logger, long elapsedMs, double? costUsd, long? tokens);
 
     [LoggerMessage(EventId = 2104, Level = LogLevel.Error, Message = "Ход агента оборвался: {Reason}")]
     public static partial void AgentTurnFailed(this ILogger logger, Exception? exception, string reason);
@@ -489,12 +489,6 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 2108, Level = LogLevel.Information, Message = "Ход агента получил изменяющие инструменты: {Tools}")]
     public static partial void AgentMutationsGranted(this ILogger logger, string tools);
-
-    [LoggerMessage(EventId = 2109, Level = LogLevel.Warning, Message = "MCP-сервер «{Name}» агенту не подключился (статус «{Status}») – его инструменты будут недоступны")]
-    public static partial void AgentMcpServerUnavailable(this ILogger logger, string name, string status);
-
-    [LoggerMessage(EventId = 2110, Level = LogLevel.Warning, Message = "Агент сообщил об ошибке в потоке: {Message}")]
-    public static partial void AgentStreamError(this ILogger logger, string message);
 
     [LoggerMessage(EventId = 2111, Level = LogLevel.Information, Message = "Бэкенд агента переключён на «{Backend}»")]
     public static partial void AgentBackendChanged(this ILogger logger, string backend);
@@ -537,15 +531,6 @@ internal static partial class AppLog
 
     [LoggerMessage(EventId = 2126, Level = LogLevel.Debug, Message = "Переход на страницу «{Page}» отложен до конца хода агента")]
     public static partial void AgentNavigationDeferred(this ILogger logger, string page);
-
-    [LoggerMessage(EventId = 2127, Level = LogLevel.Debug, Message = "Процесс CLI агента не остановлен – возможно, он уже завершился")]
-    public static partial void AgentProcessKillFailed(this ILogger logger, Exception exception);
-
-    [LoggerMessage(EventId = 2128, Level = LogLevel.Debug, Message = "Временный файл хода агента не удалён: {Path}")]
-    public static partial void AgentTempFileLeft(this ILogger logger, Exception exception, string path);
-
-    [LoggerMessage(EventId = 2129, Level = LogLevel.Debug, Message = "Чтение stderr CLI агента оборвано – хвост вывода неполон")]
-    public static partial void AgentStderrReadFailed(this ILogger logger, Exception exception);
 
     [LoggerMessage(EventId = 2200, Level = LogLevel.Information, Message = "Снимок сохранён: {Path} ({Width}×{Height})")]
     public static partial void ViewCaptured(this ILogger logger, string path, int width, int height);

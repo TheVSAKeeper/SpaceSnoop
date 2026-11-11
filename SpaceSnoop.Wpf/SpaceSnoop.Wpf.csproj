@@ -24,6 +24,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SpaceSnoop.Core\SpaceSnoop.Core.csproj" />
     <PackageReference Include="KeepShell" Version="0.1.256" />
+    <PackageReference Include="KeepShell.Agents" Version="0.1.263" />
     <PackageReference Include="KeepShell.Automation" Version="0.1.256" />
     <PackageReference Include="KeepShell.Themes.Tarkov" Version="0.1.256" />
   </ItemGroup>

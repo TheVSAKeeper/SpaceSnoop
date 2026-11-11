@@ -31,6 +31,9 @@
 
   <ItemGroup>
     <Using Include="NUnit.Framework" />
+    <Using Include="KeepShell.Agents" />
+    <Using Include="SpaceSnoop.Wpf.Agent.IAgentTranscript" Alias="IAgentTranscript" />
+    <Using Include="SpaceSnoop.Wpf.Agent.AgentTranscriptKind" Alias="AgentTranscriptKind" />
   </ItemGroup>
 
   <ItemGroup>

@@ -77,6 +77,14 @@
           "Tomlyn": "2.4.0"
         }
       },
+      "KeepShell.Agents": {
+        "type": "Transitive",
+        "resolved": "0.1.263",
+        "contentHash": "nKDx4zahS8y35I29YQioVWGK9k37ksdUz95vsiRlWvnFs9jpCwQA0zRL7ex2xW6ZLTAK0KUa0GiHIDXQmKf86g==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        }
+      },
       "KeepShell.Automation": {
         "type": "Transitive",
         "resolved": "0.1.256",
@@ -355,6 +363,7 @@
         "dependencies": {
           "CommunityToolkit.Mvvm": "[8.4.2, )",
           "KeepShell": "[0.1.256, )",
+          "KeepShell.Agents": "[0.1.263, )",
           "KeepShell.Automation": "[0.1.256, )",
           "KeepShell.Themes.Tarkov": "[0.1.256, )",
           "MahApps.Metro.IconPacks.Lucide": "[6.2.1, )",
@@ -362,7 +371,7 @@
           "ModelContextProtocol.AspNetCore": "[1.4.1, )",
           "Serilog": "[4.3.1, )",
           "Serilog.Sinks.File": "[6.0.0, )",
-          "SpaceSnoop.Core": "[2.8.80, )",
+          "SpaceSnoop.Core": "[2.8.84, )",
           "Tomlyn": "[2.7.0, )"
         }
       }

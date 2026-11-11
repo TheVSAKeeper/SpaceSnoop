@@ -25,6 +25,15 @@
           "Tomlyn": "2.4.0"
         }
       },
+      "KeepShell.Agents": {
+        "type": "Direct",
+        "requested": "[0.1.263, )",
+        "resolved": "0.1.263",
+        "contentHash": "nKDx4zahS8y35I29YQioVWGK9k37ksdUz95vsiRlWvnFs9jpCwQA0zRL7ex2xW6ZLTAK0KUa0GiHIDXQmKf86g==",
+        "dependencies": {
+          "Microsoft.Extensions.Logging.Abstractions": "8.0.2"
+        }
+      },
       "KeepShell.Automation": {
         "type": "Direct",
         "requested": "[0.1.256, )",
