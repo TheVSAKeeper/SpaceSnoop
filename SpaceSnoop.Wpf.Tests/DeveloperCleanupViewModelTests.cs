@@ -57,6 +57,44 @@ public sealed class DeveloperCleanupViewModelTests
     }
 
     [Test]
+    public async Task Замер_NuGet_сохраняет_статус_и_остановку_после_смены_подвкладки()
+    {
+        var discovery = new TaskCompletionSource<NuGetCacheLocations>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var vm = new DeveloperCleanupViewModel(
+            new(token => discovery.Task.WaitAsync(token)),
+            new NoopDialogs(),
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(), CreateWorkloads(), CreateDotNetClean());
+        var run = vm.RefreshCommand.ExecuteAsync(null);
+        try
+        {
+            vm.SelectedAreaIndex = 1;
+            var captionChanges = 0;
+            vm.PropertyChanged += (_, args) => captionChanges += args.PropertyName == nameof(vm.StatusCaption) ? 1 : 0;
+            Assert.Multiple(() =>
+            {
+                Assert.That(vm.IsProjectsActive, Is.True);
+                Assert.That(vm.IsBusy, Is.True);
+                Assert.That(vm.StatusCaption, Does.Contain("NuGet"));
+                Assert.That(vm.StatusCaption, Does.Contain("измеряю"));
+                Assert.That(vm.CancelCommand, Is.Not.Null);
+                Assert.That(vm.Projects.FindCommand.CanExecute(null), Is.False);
+            });
+            vm.CancelCommand!.Execute(null);
+            await run;
+            Assert.That(vm.IsBusy, Is.False);
+            Assert.That(vm.StatusText, Does.Contain("отменён"));
+            Assert.That(captionChanges, Is.GreaterThan(0));
+        }
+        finally
+        {
+            discovery.TrySetResult(new("test-user", _paths));
+            await run;
+        }
+    }
+
+    [Test]
     public async Task Обновление_из_шапки_не_заменяет_план_во_время_подтверждения()
     {
         var dialogs = new PausedDialogs();
@@ -85,6 +123,7 @@ public sealed class DeveloperCleanupViewModelTests
             Assert.Multiple(() =>
             {
                 Assert.That(vm.IsBusy, Is.True);
+                Assert.That(vm.CancelCommand, Is.Null, "Подтверждение ещё не завершилось.");
                 Assert.That(vm.Caches, Is.EqualTo(rows));
                 Assert.That(vm.Caches.All(x => x.IsSelected), Is.True);
                 Assert.That(vm.ClearSelectionCommand.CanExecute(null), Is.False);

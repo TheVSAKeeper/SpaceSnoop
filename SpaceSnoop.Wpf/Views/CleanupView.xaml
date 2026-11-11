@@ -14,6 +14,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -21,20 +22,68 @@
                  Style="{StaticResource ListBox.Segmented}"
                  ItemsSource="{Binding Sections}"
                  SelectedIndex="{Binding SelectedSectionIndex}"
-                 IsEnabled="{Binding CanSwitchSection}"
                  HorizontalAlignment="Left"
                  Margin="0,0,0,12"
                  AutomationProperties.Name="Раздел очистки" />
 
-        <Grid Grid.Row="1">
+        <StackPanel Grid.Row="1">
+            <TextBlock Text="{Binding ElapsedText}"
+                       Style="{StaticResource Caption}"
+                       Margin="0,0,0,6"
+                       Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+            <ItemsControl x:Name="Operations"
+                          ItemsSource="{Binding Operations}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Style="{DynamicResource Card.Inset}"
+                                Padding="12,8"
+                                Margin="0,0,12,8"
+                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right"
+                                        Content="Остановить"
+                                        Margin="12,0,0,0"
+                                        Style="{DynamicResource Button.Ghost}"
+                                        Command="{Binding CancelCommand}">
+                                    <Button.Visibility>
+                                        <Binding Path="CancelCommand"
+                                                 Converter="{StaticResource NullToVisibility}" />
+                                    </Button.Visibility>
+                                </Button>
+                                <StackPanel>
+                                    <TextBlock Text="{Binding PageTitle}"
+                                               FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding StatusCaption}"
+                                               TextWrapping="Wrap"
+                                               Margin="0,2,0,6" />
+                                    <ProgressBar Height="4"
+                                                 Minimum="0"
+                                                 Maximum="{Binding ProgressMax}"
+                                                 Value="{Binding ProgressValue, Mode=OneWay}"
+                                                 IsIndeterminate="{Binding IsIndeterminate}" />
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <Grid Grid.Row="2">
             <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled"
                           Padding="0,0,12,0"
                           DataContext="{Binding Windows}"
                           Visibility="{Binding DataContext.IsWindowsActive, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel RequestBringIntoView="SuppressAutoScroll">
-                    <cleanup:CleanupToolbar />
-                    <cleanup:CleanupSummaryStrip />
+                    <Border Style="{StaticResource Card}"
+                            Padding="12"
+                            Margin="0,0,0,10">
+                        <StackPanel>
+                            <cleanup:CleanupToolbar />
+                            <cleanup:CleanupSummaryStrip />
+                        </StackPanel>
+                    </Border>
                     <cleanup:CleanupTargetList />
                 </StackPanel>
             </ScrollViewer>

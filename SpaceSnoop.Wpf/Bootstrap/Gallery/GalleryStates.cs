@@ -133,6 +133,7 @@ public static class GalleryStates
             switch (page)
             {
                 case SectionKey.Cleanup:
+                    services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 0;
                     (await SettleCleanupAsync(services).ConfigureAwait(true)).ResetForAutomation();
                     break;
 
@@ -197,6 +198,7 @@ public static class GalleryStates
             services.GetRequiredService<ProjectCleanupViewModel>().ResetForAutomation();
             services.GetRequiredService<WorkloadCleanupViewModel>().ResetForAutomation();
             services.GetRequiredService<DotNetCleanViewModel>().ResetForAutomation();
+            ResetCleanup(services);
             services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 0;
             return;
         }
@@ -471,6 +473,7 @@ public static class GalleryStates
 
     private static async Task ApplyCleanupAsync(IServiceProvider services)
     {
+        services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 0;
         var cleanup = await SettleCleanupAsync(services).ConfigureAwait(true);
 
         cleanup.ShowBusyForAutomation(CleanupMeasured);
@@ -487,7 +490,7 @@ public static class GalleryStates
         Keyboard.ClearFocus();
     }
 
-    private static async Task<CleanupViewModel> SettleCleanupAsync(IServiceProvider services)
+    internal static async Task<CleanupViewModel> SettleCleanupAsync(IServiceProvider services)
     {
         var cleanup = services.GetRequiredService<CleanupViewModel>();
 
@@ -501,18 +504,18 @@ public static class GalleryStates
 
     private static void ResetCleanup(IServiceProvider services)
     {
-        services.GetRequiredService<CleanupViewModel>().ClearBusyForAutomation();
+        services.GetRequiredService<CleanupViewModel>().ResetForAutomation();
     }
 
     private static async Task ApplyDockerAsync(IServiceProvider services)
     {
+        await SettleCleanupAsync(services).ConfigureAwait(true);
         var docker = services.GetRequiredService<DockerViewModel>();
 
         await docker.EnsureLoadedAsync().ConfigureAwait(true);
         await QuiesceAsync(() => docker.IsBusy, "опрос Docker").ConfigureAwait(true);
 
-        docker.IsBusy = true;
-        docker.StatusText = DockerViewModel.PollingStatus;
+        docker.ShowBusyForAutomation();
     }
 
     private static async Task QuiesceAsync(Func<bool> busy, string operation)
@@ -534,7 +537,9 @@ public static class GalleryStates
     {
         var docker = services.GetRequiredService<DockerViewModel>();
 
-        docker.IsBusy = false;
+        docker.ClearBusyForAutomation();
         docker.StatusText = null;
+        ResetCleanup(services);
+        services.GetRequiredService<CleanupPageViewModel>().SelectedSectionIndex = 0;
     }
 }

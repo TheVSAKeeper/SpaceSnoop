@@ -29,12 +29,19 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyPropertyChangedFor(nameof(CanClean))]
     [NotifyPropertyChangedFor(nameof(CancelCommand))]
+    [NotifyPropertyChangedFor(nameof(IsIndeterminate))]
     [NotifyCanExecuteChangedFor(nameof(CleanSelectedCommand))]
     private bool _isBusy;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusCaption))]
     private string? _statusText;
+
+    [ObservableProperty]
+    private double _progressValue;
+
+    [ObservableProperty]
+    private double _progressMax = 1;
 
     [ObservableProperty]
     private int _minAgeHours = AppDefaults.CleanupMinAgeHoursDefault;
@@ -60,7 +67,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
     public ObservableCollection<CleanupTargetViewModel> Targets { get; } = [];
 
-    public string PageTitle => "Очистка";
+    public string PageTitle => "Windows";
 
     public string PageDescription => "Временные файлы, кэши и корзина. Удаление безвозвратно, мимо корзины.";
 
@@ -70,11 +77,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
     public bool IsIdle => !IsBusy;
 
-    public bool IsIndeterminate => true;
-
-    public double ProgressValue => 0;
-
-    public double ProgressMax => 1;
+    public bool IsIndeterminate => _measureCts is null;
 
     public bool CanClean => !IsBusy && SelectedCount > 0 && SelectedFiles > 0;
 
@@ -243,7 +246,10 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             return;
         }
 
-        _measureCts = new();
+        using var cancellation = new CancellationTokenSource();
+        _measureCts = cancellation;
+        ProgressValue = 0;
+        ProgressMax = Targets.Count;
         IsBusy = true;
         StatusText = MeasuringStatus;
 
@@ -251,8 +257,10 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         {
             foreach (var row in Targets.ToList())
             {
-                _measureCts.Token.ThrowIfCancellationRequested();
-                await MeasureRowAsync(row, _measureCts.Token);
+                cancellation.Token.ThrowIfCancellationRequested();
+                StatusText = $"Замер {ProgressValue + 1} из {ProgressMax}: {row.Name}";
+                await MeasureRowAsync(row, cancellation.Token);
+                ProgressValue++;
             }
 
             StatusText = $"Найдено {SizeFormatter.Format(TotalBytes)}.";
@@ -263,7 +271,6 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         }
         finally
         {
-            _measureCts.Dispose();
             _measureCts = null;
             IsBusy = false;
             ApplyPendingRebuild();
@@ -297,14 +304,26 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             return;
         }
 
+        using var cancellation = new CancellationTokenSource();
+        _measureCts = cancellation;
+        ProgressValue = 0;
+        ProgressMax = 1;
         IsBusy = true;
+        StatusText = $"Замер: {row.Name}";
 
         try
         {
-            await MeasureRowAsync(row, CancellationToken.None);
+            await MeasureRowAsync(row, cancellation.Token);
+            ProgressValue = 1;
+            StatusText = $"{row.Name}: {(row.HasAvailabilityIssue ? row.AvailabilityText : row.SizeText)}.";
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Замер отменён.";
         }
         finally
         {
+            _measureCts = null;
             IsBusy = false;
             ApplyPendingRebuild();
         }

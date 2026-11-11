@@ -15,17 +15,24 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     private readonly ILogger<DockerViewModel> _logger;
 
     private bool _loadedOnce;
+    private Task? _loadTask;
+    private readonly object _refreshLock = new();
+    private CancellationTokenSource? _refreshCts;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRun))]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
+    [NotifyPropertyChangedFor(nameof(CancelCommand))]
+    [NotifyPropertyChangedFor(nameof(ShowUnavailable))]
     private bool _isBusy;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRun))]
-    private bool _isAvailable = true;
+    [NotifyPropertyChangedFor(nameof(ShowUnavailable))]
+    private bool _isAvailable;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowUnavailable))]
     private string? _unavailableReason;
 
     [ObservableProperty]
@@ -42,6 +49,8 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     public ObservableCollection<DockerGroupViewModel> Groups { get; } = [];
 
     public bool CanRun => !IsBusy && IsAvailable;
+
+    public bool ShowUnavailable => !IsBusy && !IsAvailable && !string.IsNullOrWhiteSpace(UnavailableReason);
 
     public bool IsIdle => !IsBusy;
 
@@ -66,7 +75,17 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
 
     public double ProgressMax => 1;
 
-    public ICommand? CancelCommand => Compact.CanCancel ? Compact.CancelCommand : null;
+    public ICommand? CancelCommand
+    {
+        get
+        {
+            lock (_refreshLock)
+            {
+                return Compact.CanCancel ? Compact.CancelCommand
+                    : _refreshCts is not null ? CancelRefreshCommand : null;
+            }
+        }
+    }
 
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
 
@@ -80,15 +99,18 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         Compact = new(this, docker, dialogs, uiDispatcher, logger);
     }
 
-    public async Task EnsureLoadedAsync()
+    public Task EnsureLoadedAsync()
     {
-        if (_loadedOnce)
+        lock (_refreshLock)
         {
-            return;
-        }
+            if (!_loadedOnce && !IsBusy && _refreshCts is null)
+            {
+                _loadedOnce = true;
+                _loadTask = RefreshAsync();
+            }
 
-        _loadedOnce = true;
-        await RefreshAsync();
+            return _loadTask ?? Task.CompletedTask;
+        }
     }
 
     internal void NotifyCancelChanged()
@@ -98,9 +120,15 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
 
     internal void ForgetSnapshot()
     {
+        lock (_refreshLock)
+        {
+            IsAvailable = false;
+            UnavailableReason = null;
+            _loadedOnce = false;
+            _loadTask = null;
+        }
         Buckets.Clear();
         Groups.Clear();
-        _loadedOnce = false;
     }
 
     private string ReclaimCaption(string title, string type)
@@ -118,23 +146,59 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        if (IsBusy)
+        CancellationTokenSource cancellation;
+        lock (_refreshLock)
         {
-            return;
+            if (IsBusy || _refreshCts is not null)
+            {
+                return;
+            }
+
+            cancellation = new();
+            _refreshCts = cancellation;
         }
 
-        IsBusy = true;
-        StatusText = PollingStatus;
         try
         {
+            _uiDispatcher.Invoke(() =>
+            {
+                IsBusy = true;
+                NotifyCancelChanged();
+                StatusText = "Измеряю файл данных Docker…";
+            });
             await Compact.RefreshDiskUsageAsync();
-            var snapshot = await _docker.GetSnapshotAsync(CancellationToken.None);
+            cancellation.Token.ThrowIfCancellationRequested();
+            _uiDispatcher.Invoke(() => StatusText = PollingStatus);
+            var snapshot = await _docker.GetSnapshotAsync(cancellation.Token);
+            cancellation.Token.ThrowIfCancellationRequested();
+            IReadOnlyList<DockerObject> inventory = [];
+            if (snapshot.Available)
+            {
+                _uiDispatcher.Invoke(() => StatusText = "Получаю образы, контейнеры и тома Docker…");
+                inventory = await _docker.GetInventoryAsync(cancellation.Token);
+            }
 
-            var inventory = snapshot.Available
-                ? await _docker.GetInventoryAsync(CancellationToken.None)
-                : [];
-
+            cancellation.Token.ThrowIfCancellationRequested();
             _uiDispatcher.Invoke(() => ApplySnapshot(snapshot, inventory));
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            lock (_refreshLock)
+            {
+                if (!IsAvailable)
+                {
+                    _loadedOnce = false;
+                    _loadTask = null;
+                }
+            }
+            _uiDispatcher.Invoke(() =>
+            {
+                StatusText = "Опрос Docker остановлен. Нажмите «Обновить», чтобы повторить.";
+                if (!IsAvailable)
+                {
+                    UnavailableReason = null;
+                }
+            });
         }
         catch (Exception ex)
         {
@@ -143,7 +207,25 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         }
         finally
         {
-            _uiDispatcher.Invoke(() => IsBusy = false);
+            lock (_refreshLock)
+            {
+                _refreshCts = null;
+                cancellation.Dispose();
+            }
+            _uiDispatcher.Invoke(() =>
+            {
+                IsBusy = false;
+                NotifyCancelChanged();
+            });
+        }
+    }
+
+    [RelayCommand]
+    private void CancelRefresh()
+    {
+        lock (_refreshLock)
+        {
+            _refreshCts?.Cancel();
         }
     }
 

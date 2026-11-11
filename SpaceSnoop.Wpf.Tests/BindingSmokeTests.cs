@@ -1348,6 +1348,252 @@ public partial class BindingSmokeTests
     }
 
     [Test]
+    public void Замер_Windows_не_блокирует_вкладки_и_остаётся_видимым_после_перехода()
+    {
+        Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        VisualTestHost.Run(() => GalleryStates.SettleCleanupAsync(_services));
+        page.Development.ShowForAutomation();
+        page.Windows.ShowBusyForAutomation([new(1200, 3, [], CleanupAvailability.Available)]);
+        try
+        {
+            Settle();
+            var view = Descendant<CleanupView>(_window)!;
+            var sections = Descendants<ListBox>(view).Single(x => AutomationProperties.GetName(x) == "Раздел очистки");
+            Assert.That(sections.IsEnabled, Is.True);
+            sections.SelectedIndex = 2;
+            Settle();
+            var areas = Descendants<ListBox>(view).Single(x => AutomationProperties.GetName(x) == "Область разработки");
+            Assert.That(areas.IsEnabled, Is.True);
+            areas.SelectedIndex = 1;
+            Settle();
+            var operations = (ItemsControl)view.FindName("Operations");
+            Assert.Multiple(() =>
+            {
+                Assert.That(page.IsDevelopmentActive, Is.True);
+                Assert.That(page.Development.IsProjectsActive, Is.True);
+                Assert.That(page.IsBusy, Is.True);
+                Assert.That(page.StatusCaption, Is.EqualTo(page.Windows.StatusCaption));
+                Assert.That(page.ProgressValue, Is.EqualTo(1));
+                Assert.That(page.ProgressMax, Is.EqualTo(page.Windows.Targets.Count));
+                Assert.That(Descendants<ProgressBar>(operations).Single(x => ReferenceEquals(x.DataContext, page.Windows)).IsIndeterminate, Is.False);
+                Assert.That(Descendants<TextBlock>(operations).Any(x => x.IsVisible && x.Text == page.Windows.StatusCaption), Is.True);
+                Assert.That(Descendants<Button>(operations).Any(x => x.IsVisible && ReferenceEquals(x.Command, page.CancelCommand)), Is.True);
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+        }
+        finally
+        {
+            page.Development.SelectedAreaIndex = 0;
+            page.SelectedSectionIndex = 0;
+            page.Windows.ResetForAutomation();
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Причина_недоступности_цели_переносится_в_узком_окне_с_крупным_шрифтом()
+    {
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        VisualTestHost.Run(() => GalleryStates.SettleCleanupAsync(_services));
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var (width, height, scale) = (_window.Width, _window.Height, preferences.FontScale);
+        try
+        {
+            Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);
+            page.SelectedSectionIndex = 0;
+            _window.Width = 900;
+            _window.Height = 600;
+            preferences.FontScale = 1.6;
+            page.Windows.ShowBusyForAutomation([new(0, 0, [], CleanupAvailability.Unsafe)]);
+            Settle();
+            var view = Descendant<CleanupTargetList>(_window)!;
+            var text = Descendants<TextBlock>(view).Single(x => x.IsVisible && x.Text == page.Windows.Targets[0].AvailabilityText);
+            Assert.Multiple(() =>
+            {
+                Assert.That(text.TextWrapping, Is.EqualTo(TextWrapping.Wrap));
+                Assert.That(text.ActualHeight, Is.GreaterThan(text.FontSize * 1.8));
+                Assert.That(text.ActualHeight + text.Margin.Top + text.Margin.Bottom, Is.EqualTo(text.DesiredSize.Height).Within(1));
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+        }
+        finally
+        {
+            page.Windows.ResetForAutomation();
+            (_window.Width, _window.Height, preferences.FontScale) = (width, height, scale);
+            Settle();
+        }
+    }
+
+    [Test]
+    public void Одиночный_замер_отсутствующего_каталога_сообщает_причину()
+    {
+        var vm = _services.GetRequiredService<CleanupViewModel>();
+        VisualTestHost.Run(() => GalleryStates.SettleCleanupAsync(_services));
+        var row = new CleanupTargetViewModel(new()
+        {
+            Id = "ReviewMissing",
+            Name = "Отсутствующий каталог",
+            Description = "Проверка статуса отсутствующего каталога",
+            Kind = CleanupTargetKind.Directory,
+            Path = Path.Combine(_fixture.Root, "missing-review-" + Guid.NewGuid().ToString("N")),
+        });
+        try
+        {
+            VisualTestHost.Run(() => vm.MeasureOneCommand.ExecuteAsync(row));
+            Assert.That(row.Availability, Is.EqualTo(CleanupAvailability.Missing));
+            Assert.That(vm.StatusText, Does.Contain(row.AvailabilityText).And.Not.Contain("0 байт"));
+        }
+        finally
+        {
+            vm.ResetForAutomation();
+        }
+    }
+
+    [Test]
+    public void Подстановка_замера_сбрасывает_хвост_и_формирует_итог_после_пересчёта()
+    {
+        var vm = _services.GetRequiredService<CleanupViewModel>();
+        VisualTestHost.Run(() => GalleryStates.SettleCleanupAsync(_services));
+        try
+        {
+            vm.ShowBusyForAutomation([.. vm.Targets.Select(_ => new CleanupMeasurement(100, 1, [], CleanupAvailability.Available))]);
+            Assert.That(vm.StatusText, Does.Contain(vm.TotalText));
+            vm.ShowBusyForAutomation([new(20, 1, [], CleanupAvailability.Available)]);
+            Assert.Multiple(() =>
+            {
+                Assert.That(vm.TotalBytes, Is.EqualTo(20));
+                Assert.That(vm.Targets.Skip(1).All(row => !row.IsMeasured), Is.True);
+                Assert.That(vm.Targets.Count(row => row.IsMeasuring), Is.EqualTo(1));
+            });
+        }
+        finally
+        {
+            vm.ResetForAutomation();
+        }
+    }
+
+    [Test]
+    public void Последовательные_сбросы_Очистки_не_запускают_замер_при_возврате_на_Windows()
+    {
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        VisualTestHost.Run(() => GalleryStates.SettleCleanupAsync(_services));
+        page.Development.ShowForAutomation();
+        try
+        {
+            for (var iteration = 0; iteration < 3; iteration++)
+            {
+                page.Windows.ShowBusyForAutomation([new(1200, 3, [], CleanupAvailability.Available)]);
+                page.SelectedSectionIndex = 2;
+                GalleryStates.ResetPage(SectionKey.Cleanup, GalleryStates.Busy, _services);
+                GalleryStates.ResetPage(SectionKey.Docker, GalleryStates.Busy, _services);
+                Settle();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(page.IsWindowsActive, Is.True);
+                    Assert.That(page.Windows.IsBusy, Is.False);
+                    Assert.That(page.Windows.CancelCommand, Is.Null);
+                    Assert.That(page.Windows.StatusText, Is.Null);
+                    Assert.That(page.Windows.Targets.All(row => !row.IsMeasuring && !row.IsMeasured), Is.True);
+                });
+                Одиночный_замер_отсутствующего_каталога_сообщает_причину();
+                Подстановка_замера_сбрасывает_хвост_и_формирует_итог_после_пересчёта();
+            }
+        }
+        finally
+        {
+            page.SelectedSectionIndex = 0;
+            page.Windows.ResetForAutomation();
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public void Подстановка_не_освобождает_источник_отмены_живого_замера(bool single)
+    {
+        var vm = _services.GetRequiredService<CleanupViewModel>();
+        VisualTestHost.Run(() => GalleryStates.SettleCleanupAsync(_services));
+        var row = new CleanupTargetViewModel(new()
+        {
+            Id = "ControlledMissing",
+            Name = "Каталог фикстуры",
+            Description = "Замер только пути фикстуры",
+            Kind = CleanupTargetKind.Directory,
+            Path = Path.Combine(_fixture.Root, "controlled-missing"),
+        });
+        vm.Targets.Clear();
+        vm.Targets.Add(row);
+        try
+        {
+            VisualTestHost.Run(async () =>
+            {
+                var run = single ? vm.MeasureOneCommand.ExecuteAsync(row) : vm.RefreshCommand.ExecuteAsync(null);
+                try
+                {
+                    Assert.That(vm.IsBusy, Is.True);
+                    Assert.Throws<InvalidOperationException>(() => vm.ShowBusyForAutomation([]));
+                    Assert.That(vm.CancelCommand, Is.Not.Null);
+                }
+                finally
+                {
+                    vm.CancelCommand?.Execute(null);
+                    await run;
+                }
+                Assert.That(vm.IsBusy, Is.False);
+            });
+        }
+        finally
+        {
+            vm.ResetForAutomation();
+        }
+    }
+
+    [TestCase(true)]
+    [TestCase(false)]
+    public void Сжатие_Docker_раскрывается_для_чтения_при_заблокированных_действиях(bool busy)
+    {
+        var page = _services.GetRequiredService<CleanupPageViewModel>();
+        Assert.That(_shell.TryNavigate(SectionKey.Docker), Is.True);
+        VisualTestHost.Run(() => page.Docker.EnsureLoadedAsync());
+        var wasAvailable = page.Docker.IsAvailable;
+        Expander? details = null;
+        try
+        {
+            if (busy)
+            {
+                page.Docker.ShowBusyForAutomation();
+            }
+            else
+            {
+                page.Docker.IsAvailable = false;
+            }
+            Settle();
+            var view = Descendant<SpaceSnoop.Wpf.Views.Docker.DockerCleanupView>(_window)!;
+            details = Descendants<Expander>(view).Single(x => Equals(x.Header, "Вернуть место на диск Windows"));
+            Assert.That(details.IsEnabled, Is.True);
+            details.IsExpanded = true;
+            Settle();
+            Assert.Multiple(() =>
+            {
+                Assert.That(Descendants<TextBlock>(details).Any(x => x.IsVisible && x.Text == page.Docker.Compact.DiskUsageText), Is.True);
+                Assert.That(Descendants<Button>(view).Where(x => x.Command is not null).All(x => !x.IsEnabled), Is.True);
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            });
+        }
+        finally
+        {
+            details?.SetCurrentValue(Expander.IsExpandedProperty, false);
+            if (busy)
+            {
+                page.Docker.ClearBusyForAutomation();
+            }
+            page.Docker.IsAvailable = wasAvailable;
+            page.SelectedSectionIndex = 0;
+            Settle();
+        }
+    }
+
+    [Test]
     public void Раздел_разработки_показывает_четыре_кэша_без_потери_биндингов()
     {
         Assert.That(_shell.TryNavigate(SectionKey.Cleanup), Is.True);

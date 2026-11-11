@@ -27,21 +27,11 @@
         </Style>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource Card.Inset}"
+    <Border Style="{StaticResource Card}"
+            Padding="12"
             Margin="0,0,0,2">
-        <StackPanel IsEnabled="{Binding CanRun}">
-            <StackPanel.Style>
-                <Style TargetType="StackPanel">
-                    <Style.Triggers>
-                        <Trigger Property="IsEnabled"
-                                 Value="False">
-                            <Setter Property="Opacity"
-                                    Value="0.4" />
-                        </Trigger>
-                    </Style.Triggers>
-                </Style>
-            </StackPanel.Style>
-            <TextBlock Text="Очистка"
+        <StackPanel>
+            <TextBlock Text="Очистка Docker"
                        Style="{StaticResource SectionTitle}" />
             <TextBlock Text="Каждая операция попросит подтверждение."
                        Style="{StaticResource TextBlock.Subtle}"
@@ -144,12 +134,9 @@
                 </StackPanel>
             </WrapPanel>
 
-            <Separator Margin="0,12"
-                       Background="{DynamicResource Border.Subtle}" />
-
-            <TextBlock Text="Вернуть место на диск"
-                       Style="{StaticResource Caption}"
-                       Margin="0,0,0,4" />
+            <Expander Style="{StaticResource Expander.Section}" Margin="0,6,0,0"
+                      Header="Вернуть место на диск Windows">
+            <StackPanel Margin="0,8,0,0">
             <TextBlock TextWrapping="Wrap"
                        Style="{StaticResource TextBlock.Subtle}"
                        Text="Очистка освобождает место внутри образа данных Docker, но сам файл VHDX не уменьшается. Кнопка остановит Docker Desktop и вернёт освободившееся системе." />
@@ -193,6 +180,8 @@
                                VerticalAlignment="Center" />
                 </StackPanel>
             </Button>
+            </StackPanel>
+            </Expander>
         </StackPanel>
     </Border>
 </UserControl>

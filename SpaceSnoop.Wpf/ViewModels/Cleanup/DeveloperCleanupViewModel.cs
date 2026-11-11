@@ -21,6 +21,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyPropertyChangedFor(nameof(CanClean))]
     [NotifyPropertyChangedFor(nameof(CancelCommand))]
+    [NotifyPropertyChangedFor(nameof(StatusCaption))]
     [NotifyCanExecuteChangedFor(nameof(RefreshCommand))]
     [NotifyCanExecuteChangedFor(nameof(CleanCommand))]
     [NotifyCanExecuteChangedFor(nameof(SelectRecommendedCommand))]
@@ -70,9 +71,13 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         : IsWorkloadsActive ? "Определить активный SDK и workloads заново"
         : IsDotNetCleanActive ? "Проверить SDK в каталоге доверенного проекта" : "Определить пути NuGet и измерить кэши заново";
 
-    public string? StatusCaption => Projects.IsBusy || IsProjectsActive ? Projects.StatusText
-        : Workloads.IsBusy || IsWorkloadsActive ? Workloads.StatusText
-        : DotNetClean.IsBusy || IsDotNetCleanActive ? DotNetClean.StatusText : StatusText;
+    public string? StatusCaption => IsNuGetBusy ? $"NuGet: {StatusText}"
+        : Projects.IsBusy ? $"Проекты: {Projects.StatusText}"
+        : Workloads.IsBusy ? $"Workloads: {Workloads.StatusText}"
+        : DotNetClean.IsBusy ? $"dotnet clean: {DotNetClean.StatusText}"
+        : IsProjectsActive ? Projects.StatusText
+        : IsWorkloadsActive ? Workloads.StatusText
+        : IsDotNetCleanActive ? DotNetClean.StatusText : StatusText;
 
     public bool IsIdle => !IsBusy;
     public bool IsIndeterminate => true;
@@ -82,7 +87,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
     public ICommand? CancelCommand => Projects.IsBusy ? Projects.CancelCommand
         : Workloads.IsBusy ? Workloads.CancelCommand
         : DotNetClean.IsBusy ? DotNetClean.CancelCommand
-        : IsNuGetBusy ? CancelOperationCommand : null;
+        : _operation.CanCancel ? CancelOperationCommand : null;
 
     public bool HasResult => !string.IsNullOrEmpty(ResultText);
     public bool HasCaches => Caches.Count > 0;
@@ -295,7 +300,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         _operation.Begin(value => IsNuGetBusy = value);
         try
         {
-            if (!await _operation.ConfirmAsync(_dialogs, confirmation))
+            var confirmationTask = _operation.ConfirmAsync(_dialogs, confirmation);
+            OnPropertyChanged(nameof(CancelCommand));
+            var confirmed = await confirmationTask;
+            OnPropertyChanged(nameof(CancelCommand));
+            if (!confirmed)
             {
                 return;
             }

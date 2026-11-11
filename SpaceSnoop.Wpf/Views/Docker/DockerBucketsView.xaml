@@ -18,13 +18,6 @@
             <Setter Property="Foreground"
                     Value="{DynamicResource Fg.Primary}" />
         </Style>
-        <Style x:Key="Docker.ColumnHeader"
-               TargetType="TextBlock">
-            <Setter Property="Foreground"
-                    Value="{DynamicResource Fg.Muted}" />
-            <Setter Property="FontSize"
-                    Value="{DynamicResource Font.Size.S}" />
-        </Style>
     </UserControl.Resources>
 
     <Border Style="{StaticResource Card}"
@@ -53,31 +46,6 @@
                 </Button>
             </Grid>
 
-            <Grid Margin="0,14,0,6">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="90" />
-                    <ColumnDefinition Width="110" />
-                    <ColumnDefinition Width="140" />
-                    <ColumnDefinition Width="150" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Text="Категория"
-                           Style="{StaticResource Docker.ColumnHeader}" />
-                <TextBlock Grid.Column="1"
-                           Text="Объектов"
-                           Style="{StaticResource Docker.ColumnHeader}"
-                           TextAlignment="Right" />
-                <TextBlock Grid.Column="2"
-                           Text="Размер"
-                           Style="{StaticResource Docker.ColumnHeader}"
-                           TextAlignment="Right" />
-                <TextBlock Grid.Column="4"
-                           Text="Можно вернуть"
-                           Style="{StaticResource Docker.ColumnHeader}"
-                           TextAlignment="Right" />
-            </Grid>
-
             <ItemsControl ItemsSource="{Binding Buckets}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -85,39 +53,35 @@
                                 BorderBrush="{DynamicResource Border.Subtle}"
                                 BorderThickness="0,1,0,0">
                             <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="90" />
-                                    <ColumnDefinition Width="110" />
-                                    <ColumnDefinition Width="140" />
-                                    <ColumnDefinition Width="150" />
+                                    <ColumnDefinition Width="*" /><ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="{Binding Title}"
-                                           Foreground="{DynamicResource Fg.Primary}"
-                                           VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="1"
-                                           Text="{Binding Count}"
-                                           Style="{StaticResource TextBlock.Mono}"
-                                           TextAlignment="Right"
-                                           VerticalAlignment="Center" />
-                                <TextBlock Grid.Column="2"
-                                           Text="{Binding SizeText}"
-                                           Style="{StaticResource TextBlock.Mono}"
-                                           TextAlignment="Right"
-                                           VerticalAlignment="Center" />
+                                <StackPanel Margin="0,0,12,0">
+                                    <TextBlock Text="{Binding Title}" FontWeight="Medium" TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Count, StringFormat='Объектов: {0:N0}'}"
+                                               Style="{StaticResource Caption}" TextWrapping="Wrap" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="{Binding SizeText}" Style="{StaticResource TextBlock.Mono}"
+                                               TextAlignment="Right" />
+                                    <TextBlock Text="{Binding ReclaimText, StringFormat='Можно вернуть: {0}'}"
+                                               Style="{StaticResource Caption}" TextAlignment="Right" TextWrapping="Wrap" />
+                                </StackPanel>
 
                                 <Border x:Name="BucketTrack"
-                                        Grid.Column="3"
-                                        Height="10"
-                                        Margin="16,0,16,0"
+                                        Grid.Row="1" Grid.ColumnSpan="2"
+                                        Height="4"
+                                        Margin="0,6,0,0"
                                         Background="{DynamicResource Bg.SurfaceMute}"
                                         CornerRadius="{DynamicResource Radius.S}"
                                         VerticalAlignment="Center"
                                         ToolTip="Длина полосы – доля от самой крупной категории, закрашенная часть – то, что можно вернуть">
                                     <Grid HorizontalAlignment="Left">
                                         <Rectangle HorizontalAlignment="Left"
-                                                   Height="10"
+                                                   Height="4"
                                                    RadiusX="4"
                                                    RadiusY="4"
                                                    Fill="{DynamicResource Border.Strong}">
@@ -130,7 +94,7 @@
                                             </Rectangle.Width>
                                         </Rectangle>
                                         <Rectangle HorizontalAlignment="Left"
-                                                   Height="10"
+                                                   Height="4"
                                                    RadiusX="4"
                                                    RadiusY="4"
                                                    Fill="{DynamicResource Accent.Primary}">
@@ -145,27 +109,6 @@
                                     </Grid>
                                 </Border>
 
-                                <TextBlock Grid.Column="4"
-                                           Text="{Binding ReclaimText}"
-                                           TextAlignment="Right"
-                                           VerticalAlignment="Center">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock"
-                                               BasedOn="{StaticResource TextBlock.Mono}">
-                                            <Setter Property="Foreground"
-                                                    Value="{DynamicResource Fg.Muted}" />
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasReclaim}"
-                                                             Value="True">
-                                                    <Setter Property="Foreground"
-                                                            Value="{DynamicResource Fg.Primary}" />
-                                                    <Setter Property="FontWeight"
-                                                            Value="SemiBold" />
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
                             </Grid>
                         </Border>
                     </DataTemplate>
@@ -175,6 +118,7 @@
             <TextBlock Text="{Binding TotalsText}"
                        Style="{StaticResource TextBlock.Subtle}"
                        Foreground="{DynamicResource Fg.Muted}"
+                       TextWrapping="Wrap"
                        Margin="0,12,0,0"
                        Visibility="{Binding StatusText, Converter={StaticResource NullToVisibility}}" />
         </StackPanel>

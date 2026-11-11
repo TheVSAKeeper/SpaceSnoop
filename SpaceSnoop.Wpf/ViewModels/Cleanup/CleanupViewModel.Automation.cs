@@ -2,15 +2,20 @@
 
 public sealed partial class CleanupViewModel
 {
+    private bool _automationBusy;
+
     bool ICleanupAutomation.IsBusy => IsBusy;
 
     bool ICleanupAutomation.IsModalBusy => _modals.HasActive;
 
     internal void ShowBusyForAutomation(IReadOnlyList<CleanupMeasurement> measured)
     {
+        ResetForAutomation();
+        _automationBusy = true;
         _measureCts = new();
+        ProgressMax = Targets.Count;
+        ProgressValue = Math.Min(measured.Count, Targets.Count);
         IsBusy = true;
-        StatusText = MeasuringStatus;
 
         for (var index = 0; index < Targets.Count; index++)
         {
@@ -24,18 +29,31 @@ public sealed partial class CleanupViewModel
         }
 
         UpdateTotals();
+        StatusText = measured.Count < Targets.Count
+            ? $"Замер {measured.Count + 1} из {Targets.Count}: {Targets[measured.Count].Name}"
+            : $"Найдено {SizeFormatter.Format(TotalBytes)}.";
     }
 
     internal void ResetForAutomation()
     {
         ClearBusyForAutomation();
         BuildTargets();
+        _loadedOnce = true;
     }
 
     internal void ClearBusyForAutomation()
     {
+        if (IsBusy && !_automationBusy)
+        {
+            throw new InvalidOperationException("Перед подстановкой дождитесь завершения замера или очистки.");
+        }
+
+        _measureCts?.Cancel();
         _measureCts?.Dispose();
         _measureCts = null;
+        _automationBusy = false;
+        ProgressValue = 0;
+        ProgressMax = 1;
         IsBusy = false;
         StatusText = null;
 

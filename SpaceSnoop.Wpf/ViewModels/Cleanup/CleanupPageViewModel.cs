@@ -1,13 +1,20 @@
 ﻿using MahApps.Metro.IconPacks;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.ViewModels.Cleanup;
 
 public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader, IPageRefresh, IPageStatus
 {
+    private readonly IUiTimer _activityTimer;
+    private readonly Stopwatch _activityWatch = new();
+
     [ObservableProperty]
     private int _selectedSectionIndex;
+
+    [ObservableProperty]
+    private string _elapsedText = string.Empty;
 
     public CleanupViewModel Windows { get; }
 
@@ -38,7 +45,7 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     public bool IsDevelopmentActive => SelectedSectionIndex == 2;
 
-    public bool CanSwitchSection => !Windows.IsBusy && !Docker.IsBusy && !Development.IsBusy;
+    public IReadOnlyList<IPageStatus> Operations { get; }
 
     public string PageTitle => "Очистка";
 
@@ -46,17 +53,20 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     public string? RefreshTooltip => ActiveRefresh.RefreshTooltip;
 
-    public string? StatusCaption => ActiveStatus.StatusCaption;
+    public string? StatusCaption => OperationStatus.StatusCaption;
 
-    public bool IsBusy => ActiveStatus.IsBusy;
+    public bool IsBusy => OperationStatus.IsBusy;
 
-    public bool IsIndeterminate => ActiveStatus.IsIndeterminate;
+    public bool IsIndeterminate => OperationStatus.IsIndeterminate;
 
-    public double ProgressValue => ActiveStatus.ProgressValue;
+    public double ProgressValue => OperationStatus.ProgressValue;
 
-    public double ProgressMax => ActiveStatus.ProgressMax;
+    public double ProgressMax => OperationStatus.ProgressMax;
 
-    public ICommand? CancelCommand => ActiveStatus.CancelCommand;
+    public ICommand? CancelCommand => OperationStatus.CancelCommand;
+
+    private IPageStatus OperationStatus => ActiveStatus.IsBusy ? ActiveStatus
+        : Operations.FirstOrDefault(operation => operation.IsBusy) ?? ActiveStatus;
 
     private IPageHeader ActiveHeader => SelectedSectionIndex switch { 1 => Docker, 2 => Development, _ => Windows };
 
@@ -66,11 +76,13 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     ICommand IPageRefresh.RefreshCommand => RefreshCommand;
 
-    public CleanupPageViewModel(CleanupViewModel windows, DockerViewModel docker, DeveloperCleanupViewModel development)
+    public CleanupPageViewModel(CleanupViewModel windows, DockerViewModel docker, DeveloperCleanupViewModel development, IUiDispatcher dispatcher)
     {
         Windows = windows;
         Docker = docker;
         Development = development;
+        Operations = [Windows, Docker, Development];
+        _activityTimer = dispatcher.CreateTimer(TimeSpan.FromSeconds(1), UpdateElapsed);
 
         Windows.PropertyChanged += OnSectionChanged;
         Docker.PropertyChanged += OnSectionChanged;
@@ -111,17 +123,24 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     private void OnSectionChanged(object? sender, PropertyChangedEventArgs args)
     {
-        OnPropertyChanged(nameof(CanSwitchSection));
-        var fromActive = ReferenceEquals(sender, ActiveStatus);
-
-        if (fromActive)
+        if (IsBusy && !_activityWatch.IsRunning)
         {
-            OnPropertyChanged(args.PropertyName);
-            if (args.PropertyName == nameof(IsBusy))
-            {
-                RefreshCommand.NotifyCanExecuteChanged();
-            }
+            _activityWatch.Restart();
+            UpdateElapsed();
+            _activityTimer.Start();
         }
+        else if (!IsBusy && _activityWatch.IsRunning)
+        {
+            _activityWatch.Stop();
+            _activityTimer.Stop();
+        }
+
+        NotifyProxied();
+    }
+
+    private void UpdateElapsed()
+    {
+        ElapsedText = $"Время фоновой работы: {_activityWatch.Elapsed:hh\\:mm\\:ss}";
     }
 
     private void NotifyProxied()
@@ -139,7 +158,7 @@ public sealed partial class CleanupPageViewModel : ObservableObject, IPageHeader
 
     private bool CanRefresh()
     {
-        return !IsBusy;
+        return !ActiveStatus.IsBusy && ActiveRefresh.RefreshCommand.CanExecute(null);
     }
 
     [RelayCommand(CanExecute = nameof(CanRefresh))]

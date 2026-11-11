@@ -19,7 +19,6 @@
                  Background="Transparent"
                  BorderThickness="0"
                  SelectedIndex="{Binding SelectedAreaIndex}"
-                 IsEnabled="{Binding IsIdle}"
                  HorizontalAlignment="Left"
                  Margin="0,0,0,12"
                  AutomationProperties.Name="Область разработки">
@@ -70,7 +69,7 @@
             </ListBox.ItemContainerStyle>
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <views:UniformRowPanel />
+                    <WrapPanel />
                 </ItemsPanelTemplate>
             </ListBox.ItemsPanel>
         </ListBox>
@@ -80,15 +79,15 @@
                       Padding="0,0,12,0"
                       Visibility="{Binding IsNuGetActive, Converter={StaticResource BoolToVisibility}}">
             <StackPanel>
-                <Border Style="{StaticResource Card}"
-                        Margin="0,0,0,10">
+                <Border Style="{StaticResource Card}" Padding="12" Margin="0,0,0,10">
+                    <StackPanel>
                     <WrapPanel>
                         <Button Style="{StaticResource Button.Secondary}"
                                 Command="{Binding RefreshCommand}"
                                 ToolTip="{Binding RefreshTooltip}"
                                 MinHeight="{DynamicResource Control.Height.Default}"
                                 Padding="12,6"
-                                Margin="0,0,12,0">
+                                Margin="0,0,12,8">
                             <StackPanel Orientation="Horizontal">
                                 <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.RefreshCw}"
                                                           Width="14"
@@ -102,32 +101,24 @@
                                 Style="{StaticResource Button.Ghost}"
                                 Command="{Binding SelectRecommendedCommand}"
                                 ToolTip="Выбрать только HTTP Cache и Plugins Cache"
-                                Padding="10,6" />
+                                Padding="10,6" Margin="0,0,0,8" />
                         <Button Content="Снять выбор"
                                 Style="{StaticResource Button.Ghost}"
                                 Command="{Binding ClearSelectionCommand}"
-                                Padding="10,6" />
+                                Padding="10,6" Margin="0,0,0,8" />
                     </WrapPanel>
-                </Border>
-                <Border Style="{StaticResource Card}"
-                        Margin="0,0,0,10"
+                <Border BorderBrush="{DynamicResource Border.Subtle}" BorderThickness="0,1,0,0" Padding="0,10,0,0"
                         Visibility="{Binding HasCaches, Converter={StaticResource BoolToVisibility}}">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" /><RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" /><ColumnDefinition Width="*" />
-                        </Grid.ColumnDefinitions>
-                        <StackPanel Margin="0,0,28,6">
+                    <views:UniformRowPanel>
+                        <WrapPanel VerticalAlignment="Center">
+                        <StackPanel Margin="0,0,28,0">
                             <TextBlock Text="Найдено"
                                        Style="{StaticResource Caption}" />
                             <TextBlock Text="{Binding TotalText}"
                                        Style="{StaticResource StatValue}"
                                        FontSize="{DynamicResource Font.Size.L}" />
                         </StackPanel>
-                        <StackPanel Grid.Column="1"
-                                    Margin="0,0,28,6">
+                        <StackPanel>
                             <TextBlock Text="Выбрано"
                                        Style="{StaticResource Caption}" />
                             <TextBlock Text="{Binding SelectedText}"
@@ -148,10 +139,10 @@
                             <TextBlock Text="{Binding SelectionText}"
                                        Style="{StaticResource Caption}" />
                         </StackPanel>
-                        <StackPanel Grid.Row="1"
-                                    Grid.ColumnSpan="2"
+                        </WrapPanel>
+                        <StackPanel
                                     HorizontalAlignment="Right"
-                                    Margin="0,8,0,0">
+                                    VerticalAlignment="Center" Margin="0,4,0,4">
                             <Button Style="{StaticResource Button.Base}"
                                     Command="{Binding CleanCommand}"
                                     HorizontalAlignment="Left"
@@ -169,7 +160,9 @@
                                 </StackPanel>
                             </Button>
                         </StackPanel>
-                    </Grid>
+                    </views:UniformRowPanel>
+                </Border>
+                    </StackPanel>
                 </Border>
                 <Border Style="{StaticResource Card.Inset}"
                         Margin="0,0,0,10"

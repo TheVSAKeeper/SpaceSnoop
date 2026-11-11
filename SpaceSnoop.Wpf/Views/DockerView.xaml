@@ -16,8 +16,8 @@
         <StackPanel RequestBringIntoView="SuppressAutoScroll">
             <docker:DockerUnavailableView />
             <docker:DockerBucketsView />
-            <docker:DockerGroupsView />
             <docker:DockerCleanupView x:Name="Cleanup" />
+            <docker:DockerGroupsView Margin="0,10,0,0" />
         </StackPanel>
     </ScrollViewer>
 </UserControl>
