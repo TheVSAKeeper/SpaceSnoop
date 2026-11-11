@@ -4,9 +4,22 @@ internal static class CleanupOutcomeText
 {
     public static string For(CleanupReport report)
     {
-        return report.Cancelled ? "Отменено"
-            : report.Errors.Count > 0 ? "Завершено с ошибками"
-            : report.Skipped > 0 ? "Завершено с пропусками" : "Завершено";
+        if (report.Cancelled)
+        {
+            return "Отменено";
+        }
+
+        if (report.Deleted == 0 && (report.Skipped > 0 || report.Errors.Count > 0))
+        {
+            return "Не удалось очистить";
+        }
+
+        if (report.Skipped > 0)
+        {
+            return "Завершено с пропусками";
+        }
+
+        return report.Errors.Count > 0 ? "Завершено с ошибками" : "Завершено";
     }
 
     public static string For(DotNetCliOutcome outcome)

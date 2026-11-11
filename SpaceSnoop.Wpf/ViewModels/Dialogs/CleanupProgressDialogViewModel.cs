@@ -34,6 +34,12 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
     [NotifyPropertyChangedFor(nameof(CanCancelStep))]
     private bool _isStepIndivisible;
 
+    [ObservableProperty]
+    private bool _isDetailsExpanded;
+
+    [ObservableProperty]
+    private bool _isFailureExpanded;
+
     public override string Title => "Очистка диска";
 
     public string ActionText => "Очистить";
@@ -49,6 +55,34 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
     public int Skipped { get; private set; }
 
     public string FirstError { get; private set; } = string.Empty;
+
+    public string ResultText => Failure is not null
+        ? StatusText
+        : Summarize(Deleted, FreedBytes, Cancelled, _cancelMissedIndivisible, Skipped, FirstError, false);
+
+    public string ResultHeading => Failure is not null
+        ? "Не удалось завершить очистку"
+        : CleanupOutcomeText.For(new CleanupReport(FreedBytes, Deleted, Skipped, _reportedErrors, Cancelled));
+
+    public string FreedText => SizeFormatter.Format(FreedBytes);
+
+    public string DeletedText => Deleted.ToString("N0");
+
+    public string SkippedText => Skipped.ToString("N0");
+
+    public bool HasSkipped => Skipped > 0;
+
+    public bool ShowIndivisibleResult => IsFinished && _cancelMissedIndivisible;
+
+    public string FailureText => Failure?.Message ?? string.Empty;
+
+    public IReadOnlyList<CleanupIssue> Issues { get; private set; } = [];
+
+    public bool HasErrorDetails => IsFinished && _reportedErrors.Count > 0;
+
+    public string ErrorDetailsText => string.Join(Environment.NewLine, _reportedErrors);
+
+    public string ErrorDetailsCaption => FormatErrorDetails(_reportedErrors.Count, Skipped);
 
     public bool WasCancelled => Cancelled;
 
@@ -81,13 +115,36 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         PlanText = $"≈ {SizeFormatter.Format(request.EstimatedBytes)} · ≈ {request.EstimatedFiles:N0} файлов";
     }
 
-    internal static string Summarize(int deleted, long freed, bool cancelled, bool binClearedDespiteCancel, int skipped, string firstError)
+    internal static string FormatErrorDetails(int shown, int skipped)
     {
-        var done = $"{(cancelled ? "Отменено" : "Готово")}: удалено {deleted:N0}, освобождено {SizeFormatter.Format(freed)}";
+        var text = $"В списке {shown:N0} {Plural.Word(shown, "причина", "причины", "причин")}.";
+        var omitted = Math.Max(0, skipped - shown);
+        if (omitted > 0)
+        {
+            text += $" Без подробностей: {omitted:N0} {Plural.Word(omitted, "пропуск", "пропуска", "пропусков")}.";
+        }
 
-        var text = skipped > 0 ? $"{done}. Пропущено {skipped:N0} – {firstError}"
-            : firstError.Length > 0 ? $"{done}. {firstError}"
-            : $"{done}.";
+        return text;
+    }
+
+    internal static string Summarize(int deleted, long freed, bool cancelled, bool binClearedDespiteCancel, int skipped, string firstError, bool includeFirstError = true)
+    {
+        IReadOnlyList<string> errors = firstError.Length > 0 ? [firstError] : [];
+        var outcome = CleanupOutcomeText.For(new CleanupReport(freed, deleted, skipped, errors, cancelled));
+        var text = $"{outcome}: удалено {deleted:N0}, освобождено {SizeFormatter.Format(freed)}";
+        if (skipped > 0)
+        {
+            text += $". Пропущено {skipped:N0}";
+        }
+
+        if (includeFirstError && firstError.Length > 0)
+        {
+            text += skipped > 0 ? $" – {firstError}" : $". {firstError}";
+        }
+        else
+        {
+            text += ".";
+        }
 
         return binClearedDespiteCancel
             ? $"{text.TrimEnd('.')}. Корзину Windows отмена не остановила: этот шаг не прерывается."
@@ -145,6 +202,20 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
 
     protected override void OnFinished()
     {
+        Issues = _reportedErrors.Select(CleanupIssue.From).ToArray();
+        OnPropertyChanged(nameof(ResultText));
+        OnPropertyChanged(nameof(ResultHeading));
+        OnPropertyChanged(nameof(FreedText));
+        OnPropertyChanged(nameof(DeletedText));
+        OnPropertyChanged(nameof(SkippedText));
+        OnPropertyChanged(nameof(HasSkipped));
+        OnPropertyChanged(nameof(ShowIndivisibleResult));
+        OnPropertyChanged(nameof(HasFailure));
+        OnPropertyChanged(nameof(FailureText));
+        OnPropertyChanged(nameof(Issues));
+        OnPropertyChanged(nameof(HasErrorDetails));
+        OnPropertyChanged(nameof(ErrorDetailsText));
+        OnPropertyChanged(nameof(ErrorDetailsCaption));
         _operations.ReportCleanup(new(_startedAtUtc, DateTime.UtcNow, Deleted, Skipped, FreedBytes, Cancelled, Failure?.Message, _reportedErrors.ToArray()));
         _operations.Release(_reported);
         _reported = null;
@@ -180,7 +251,8 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         FreedBytes += report.FreedBytes;
         Deleted += report.Deleted;
         Skipped += report.Skipped;
-        _reportedErrors.AddRange(report.Errors);
+        var available = Math.Max(0, AppDefaults.CleanupReportedErrorsLimit - _reportedErrors.Count);
+        _reportedErrors.AddRange(report.Errors.Take(available));
 
         if (FirstError.Length == 0 && report.Errors.Count > 0)
         {

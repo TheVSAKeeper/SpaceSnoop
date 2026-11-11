@@ -54,6 +54,7 @@ public static class AppDefaults
     public const int CleanupMinAgeHoursDefault = 24;
     public const int CleanupMinAgeHoursMin = 1;
     public const int CleanupMinAgeHoursMax = 720;
+    public const int CleanupReportedErrorsLimit = 50;
 
     public const StartupAdminMode StartupAdminDefault = StartupAdminMode.Ask;
     public const bool WelcomePendingDefault = false;

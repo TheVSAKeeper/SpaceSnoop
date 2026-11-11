@@ -288,6 +288,33 @@ public static class GalleryStates
         }
     }
 
+    internal static async Task<CleanupViewModel> SettleCleanupAsync(IServiceProvider services)
+    {
+        var cleanup = services.GetRequiredService<CleanupViewModel>();
+
+        await Dispatcher.Yield(DispatcherPriority.Loaded);
+
+        cleanup.CancelMeasureCommand.Execute(null);
+        await QuiesceAsync(() => cleanup.IsBusy, "замер очистки").ConfigureAwait(true);
+
+        return cleanup;
+    }
+
+    internal static async Task QuiesceAsync(Func<bool> busy, string operation)
+    {
+        for (var attempt = 0; attempt < AppDefaults.GalleryBusyAttempts && busy(); attempt++)
+        {
+            await Task.Delay(AppDefaults.GalleryBusyPollMs).ConfigureAwait(true);
+        }
+
+        if (busy())
+        {
+            var seconds = AppDefaults.GalleryBusyAttempts * AppDefaults.GalleryBusyPollMs / 1000d;
+
+            throw new TimeoutException($"Собственный {operation} не кончился за {seconds:0.#} с – подстановка легла бы поверх него.");
+        }
+    }
+
     private static void ApplyScan(IServiceProvider services, GalleryFixture fixture)
     {
         var scan = services.GetRequiredService<ScanViewModel>();
@@ -490,18 +517,6 @@ public static class GalleryStates
         Keyboard.ClearFocus();
     }
 
-    internal static async Task<CleanupViewModel> SettleCleanupAsync(IServiceProvider services)
-    {
-        var cleanup = services.GetRequiredService<CleanupViewModel>();
-
-        await Dispatcher.Yield(DispatcherPriority.Loaded);
-
-        cleanup.CancelMeasureCommand.Execute(null);
-        await QuiesceAsync(() => cleanup.IsBusy, "замер очистки").ConfigureAwait(true);
-
-        return cleanup;
-    }
-
     private static void ResetCleanup(IServiceProvider services)
     {
         services.GetRequiredService<CleanupViewModel>().ResetForAutomation();
@@ -516,21 +531,6 @@ public static class GalleryStates
         await QuiesceAsync(() => docker.IsBusy, "опрос Docker").ConfigureAwait(true);
 
         docker.ShowBusyForAutomation();
-    }
-
-    private static async Task QuiesceAsync(Func<bool> busy, string operation)
-    {
-        for (var attempt = 0; attempt < AppDefaults.GalleryBusyAttempts && busy(); attempt++)
-        {
-            await Task.Delay(AppDefaults.GalleryBusyPollMs).ConfigureAwait(true);
-        }
-
-        if (busy())
-        {
-            var seconds = AppDefaults.GalleryBusyAttempts * AppDefaults.GalleryBusyPollMs / 1000d;
-
-            throw new TimeoutException($"Собственный {operation} не кончился за {seconds:0.#} с – подстановка легла бы поверх него.");
-        }
     }
 
     private static void ResetDocker(IServiceProvider services)

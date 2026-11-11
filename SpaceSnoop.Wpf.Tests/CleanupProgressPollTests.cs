@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SpaceSnoop.Core;
 using SpaceSnoop.Core.Cleanup;
 using SpaceSnoop.Tests;
+using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Diagnostics;
 using SpaceSnoop.Wpf.ViewModels.Dialogs;
 using System.Runtime.CompilerServices;
@@ -43,11 +44,16 @@ public class CleanupProgressPollTests
         }
     }
 
-    [TestCase(false, false, 0, "", ExpectedResult = "Готово: {0}.")]
-    [TestCase(false, true, 0, "", ExpectedResult = "Готово: {0}. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
+    [TestCase(false, false, 0, "", ExpectedResult = "Завершено: {0}.")]
+    [TestCase(false, true, 0, "", ExpectedResult = "Завершено: {0}. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
     [TestCase(true, true, 0, "", ExpectedResult = "Отменено: {0}. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
-    [TestCase(false, true, 2, "Нет доступа", ExpectedResult = "Готово: {0}. Пропущено 2 – Нет доступа. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
-    [TestCase(false, false, 0, "Каталог не найден.", ExpectedResult = "Готово: {0}. Каталог не найден.")]
+    [TestCase(
+        false,
+        true,
+        2,
+        "Нет доступа",
+        ExpectedResult = "Завершено с пропусками: {0}. Пропущено 2 – Нет доступа. Корзину Windows отмена не остановила: этот шаг не прерывается.")]
+    [TestCase(false, false, 2, "", ExpectedResult = "Завершено с пропусками: {0}. Пропущено 2.")]
     [TestCase(true, false, 2, "Нет доступа", ExpectedResult = "Отменено: {0}. Пропущено 2 – Нет доступа")]
     [TestCase(true, false, 0, "Каталог не найден.", ExpectedResult = "Отменено: {0}. Каталог не найден.")]
     public string Итог_очистки_не_прячет_ошибку_за_фразой_про_отмену(bool cancelled, bool binCleared, int skipped, string firstError)
@@ -55,6 +61,27 @@ public class CleanupProgressPollTests
         var summary = CleanupProgressDialogViewModel.Summarize(5, 2048, cancelled, binCleared, skipped, firstError);
 
         return summary.Replace($"удалено {5:N0}, освобождено {SizeFormatter.Format(2048)}", "{0}");
+    }
+
+    [Test]
+    public async Task Недоступная_цель_без_удалённых_файлов_не_называется_частично_очищенной()
+    {
+        using var monitor = TestDiagnostics.Monitor();
+        var dialog = new CleanupProgressDialogViewModel(
+            new([Target(Path.Combine(_root, "missing"))], 1, 1),
+            new(),
+            new FakeUiDispatcher(),
+            NullLogger.Instance,
+            new(monitor));
+
+        await dialog.StartCommand.ExecuteAsync(null);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(dialog.Deleted, Is.Zero);
+            Assert.That(dialog.Skipped, Is.EqualTo(1));
+            Assert.That(dialog.ResultText, Does.StartWith("Не удалось очистить:"));
+            Assert.That(dialog.HasErrors, Is.True);
+        }
     }
 
     [Test]
@@ -117,6 +144,94 @@ public class CleanupProgressPollTests
         }
 
         operations.Release(scan);
+    }
+
+    [TestCase(1, 1, "В списке 1 причина.")]
+    [TestCase(2, 2, "В списке 2 причины.")]
+    [TestCase(5, 5, "В списке 5 причин.")]
+    [TestCase(11, 11, "В списке 11 причин.")]
+    [TestCase(21, 21, "В списке 21 причина.")]
+    [TestCase(50, 101, "В списке 50 причин. Без подробностей: 51 пропуск.")]
+    [TestCase(50, 102, "В списке 50 причин. Без подробностей: 52 пропуска.")]
+    [TestCase(50, 105, "В списке 50 причин. Без подробностей: 55 пропусков.")]
+    public void Подпись_причин_склоняет_числа_и_не_обещает_хронологический_порядок(int shown, int skipped, string expected)
+    {
+        Assert.That(CleanupProgressDialogViewModel.FormatErrorDetails(shown, skipped), Is.EqualTo(expected));
+    }
+
+    [TestCase("«C:\\Temp\\файл.tmp»: файл изменился после обхода", "файл.tmp", "Изменился после замера")]
+    [TestCase("«C:\\Temp\\каталог»: каталог не читается", "каталог", "Не удалось прочитать каталог")]
+    [TestCase("«C:\\Temp\\каталог\\»: каталог не удалён – ошибка ввода-вывода", "каталог", "Не удалось удалить каталог")]
+    [TestCase("«C:\\Temp\\файл.tmp»: The process cannot access the file 'C:\\Temp\\файл.tmp'", "файл.tmp", "Не удалось удалить")]
+    [TestCase("Новая причина без пути", "Ошибка очистки", "Не удалось очистить объект")]
+    public void Запись_пропуска_отделяет_имя_от_полного_сообщения(string raw, string name, string reason)
+    {
+        var issue = CleanupIssue.From(raw);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(issue.Name, Is.EqualTo(name));
+            Assert.That(issue.Reason, Is.EqualTo(reason));
+            Assert.That(issue.Details, Is.EqualTo(raw));
+        }
+    }
+
+    [TestCase(CleanupAvailability.None, "Не замерена")]
+    [TestCase(CleanupAvailability.Missing, "Каталога нет")]
+    [TestCase(CleanupAvailability.NeedsAdmin, "Нужны права администратора")]
+    [TestCase(CleanupAvailability.Unsupported, "Удаляется штатным средством Windows")]
+    [TestCase(CleanupAvailability.Unsafe, "Путь ведёт в корень тома или наружу по ссылке – очистка запрещена")]
+    [TestCase(CleanupAvailability.Failed, "Не удалось опросить")]
+    public void Запись_недоступной_цели_сохраняет_причину_Core(CleanupAvailability availability, string expected)
+    {
+        const string target = "Кэш Windows / NuGet";
+        var raw = $"«{target}»: {CleanupText.Availability(availability)}";
+        var issue = CleanupIssue.From(raw);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(issue.Name, Is.EqualTo(target));
+            Assert.That(issue.Reason, Is.EqualTo(expected));
+            Assert.That(issue.Details, Is.EqualTo(raw));
+        }
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task Пропуски_сохраняют_причины_и_показывают_общий_предел_списка(bool allTargets)
+    {
+        var files = allTargets
+            ? Directory.GetFiles(_root, "*", SearchOption.AllDirectories)
+            : Directory.GetFiles(Path.Combine(_root, "цель-0"));
+
+        var locked = files
+            .Select(path => File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            .ToList();
+
+        try
+        {
+            using var monitor = TestDiagnostics.Monitor();
+            var operations = new PerformanceOperations(monitor);
+            var dialog = CreateDialog(new(), operations);
+            await dialog.StartCommand.ExecuteAsync(null);
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(dialog.IsFinished, Is.True);
+                Assert.That(dialog.HasErrors, Is.True);
+                Assert.That(dialog.Deleted, Is.EqualTo(allTargets ? 0 : FilesPerTarget));
+                Assert.That(dialog.Skipped, Is.EqualTo(files.Length));
+                Assert.That(dialog.StatusText, Does.StartWith(allTargets ? "Не удалось очистить:" : "Завершено с пропусками:"));
+                Assert.That(dialog.HasErrorDetails, Is.True);
+                Assert.That(dialog.ErrorDetailsText.Split(Environment.NewLine), Has.Length.EqualTo(AppDefaults.CleanupReportedErrorsLimit));
+                Assert.That(operations.LastCleanup!.ReportedErrors, Has.Count.EqualTo(AppDefaults.CleanupReportedErrorsLimit));
+                Assert.That(
+                    dialog.ErrorDetailsCaption,
+                    Does.Contain($"В списке {AppDefaults.CleanupReportedErrorsLimit} причин")
+                        .And.Contain($"Без подробностей: {files.Length - AppDefaults.CleanupReportedErrorsLimit} пропусков"));
+            }
+        }
+        finally
+        {
+            locked.ForEach(stream => stream.Dispose());
+        }
     }
 
     [Test]
