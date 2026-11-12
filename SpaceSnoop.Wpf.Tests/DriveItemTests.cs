@@ -133,6 +133,29 @@ public class DriveItemTests
     }
 
     [Test]
+    public void Обновление_подключённого_тома_добавляет_новую_букву_и_не_дублирует_существующую()
+    {
+        var catalog = new DriveCatalog(NullLogger.Instance);
+        var taken = DriveInfo.GetDrives().Select(drive => char.ToUpperInvariant(drive.Name[0])).ToHashSet();
+        var free = Enumerable.Range('D', 'Z' - 'D' + 1).Select(code => (char)code).First(letter => !taken.Contains(letter));
+        var root = $@"{free}:\";
+
+        catalog.Select(root);
+        catalog.RefreshVolume(root);
+        var countAfterFirst = catalog.Volumes.Count;
+        var added = catalog.Volumes.Single(volume => string.Equals(volume.Path, root, StringComparison.OrdinalIgnoreCase));
+
+        catalog.RefreshVolume(root);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(added.IsSelected, Is.True);
+            Assert.That(catalog.Volumes, Has.Count.EqualTo(countAfterFirst));
+            Assert.That(catalog.Items.Count(item => string.Equals(item.Path, root, StringComparison.OrdinalIgnoreCase)), Is.EqualTo(1));
+        }
+    }
+
+    [Test]
     public async Task Опрос_томов_не_возвращается_в_контекст_вызывающего()
     {
         var catalog = new DriveCatalog(NullLogger.Instance);

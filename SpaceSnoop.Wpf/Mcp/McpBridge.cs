@@ -45,6 +45,7 @@ public sealed class McpBridge
         PerformanceOperations operations,
         CompareDirectoriesUseCase compare,
         IAppNavigator navigator,
+        NetworkDriveRestore networkDrives,
         ILogger<McpBridge> logger)
     {
         _navigator = new(navigator);
@@ -60,6 +61,7 @@ public sealed class McpBridge
             _navigator,
             _state,
             operations,
+            networkDrives,
             logger);
 
         Sync = new(sync, compare, preferences, notifier, _navigator, _state, logger);

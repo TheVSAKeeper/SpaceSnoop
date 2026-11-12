@@ -27,6 +27,7 @@ public class McpBridgeGuardTests
     private CleanupAutomationDouble _cleanup = null!;
     private PerformanceMonitor _monitor = null!;
     private PerformanceOperations _operations = null!;
+    private NetworkDriveRestore _networkDrives = null!;
     private McpBridge _bridge = null!;
 
     [SetUp]
@@ -43,6 +44,7 @@ public class McpBridgeGuardTests
         _cleanup = new();
         _monitor = TestDiagnostics.Monitor();
         _operations = new(_monitor);
+        _networkDrives = new();
 
         var scanPreferences = new ScanPreferences(settings);
 
@@ -62,12 +64,14 @@ public class McpBridgeGuardTests
             _operations,
             new(NullLogger<DirectoryComparer>.Instance),
             new FakeAppNavigator(),
+            _networkDrives,
             NullLogger<McpBridge>.Instance);
     }
 
     [TearDown]
     public void TearDown()
     {
+        _networkDrives.Dispose();
         _monitor.Dispose();
 
         if (Directory.Exists(_root))
@@ -357,6 +361,52 @@ public class McpBridgeGuardTests
 
             Assert.That(_sync.SyncCalls, Is.Zero);
         });
+    }
+
+    [Test]
+    public async Task Скан_MCP_дожидается_переподключения_своей_буквы_без_ответа_путь_не_найден()
+    {
+        var mounted = Path.Combine(_root, "mounted");
+        var letter = $"{char.ToUpperInvariant(Path.GetPathRoot(_root)![0])}:";
+        var otherLetter = letter == "Z:" ? "Y:" : "Z:";
+
+        using var entered = new ManualResetEventSlim();
+        using var allowFinish = new ManualResetEventSlim();
+        using var releaseOther = new ManualResetEventSlim();
+
+        _networkDrives.Start(
+            true,
+            () =>
+            [
+                new(letter, @"\\fast\share", null, null),
+                new(otherLetter, @"\\slow\share", null, null),
+            ],
+            () => [],
+            drive =>
+            {
+                if (drive.LocalName == letter)
+                {
+                    entered.Set();
+                    allowFinish.Wait(TimeSpan.FromSeconds(10));
+                    Directory.CreateDirectory(mounted);
+                    File.WriteAllText(Path.Combine(mounted, "ready.txt"), "данные");
+                    return 0;
+                }
+
+                releaseOther.Wait(TimeSpan.FromSeconds(10));
+                return 53;
+            },
+            NullLogger.Instance);
+
+        Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+        var scanTask = _bridge.Scan.ScanAsync(mounted, 2, 20, false, CancellationToken.None);
+        allowFinish.Set();
+
+        var json = await scanTask.WaitAsync(TimeSpan.FromSeconds(5));
+        releaseOther.Set();
+
+        Assert.That(json, Does.Contain("ready.txt"));
     }
 
     [Test]

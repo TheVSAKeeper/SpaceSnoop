@@ -56,6 +56,56 @@ public class NetworkDrivesTests
                 }));
     }
 
+    [Test]
+    public async Task Быстрая_буква_отдаётся_наблюдателю_до_завершения_медленной()
+    {
+        using var restore = new NetworkDriveRestore();
+        using var slowEntered = new ManualResetEventSlim();
+        using var releaseSlow = new ManualResetEventSlim();
+
+        restore.Start(
+            true,
+            () => [Drive("Z:", @"\\slow\share"), Drive("Y:", @"\\fast\share")],
+            () => [@"C:\"],
+            drive =>
+            {
+                if (drive.LocalName == "Z:")
+                {
+                    slowEntered.Set();
+                    releaseSlow.Wait(TimeSpan.FromSeconds(10));
+                }
+
+                return 0;
+            },
+            new CapturingLogger());
+
+        await using var enumerator = restore.WatchAsync().GetAsyncEnumerator();
+
+        var firstReady = await enumerator.MoveNextAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(5));
+        var first = enumerator.Current;
+        var secondTask = enumerator.MoveNextAsync().AsTask();
+
+        Assert.That(slowEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(firstReady, Is.True);
+            Assert.That(first.Drive.LocalName, Is.EqualTo("Y:"));
+            Assert.That(first.Succeeded, Is.True);
+            Assert.That(secondTask.IsCompleted, Is.False);
+        }
+
+        releaseSlow.Set();
+        var secondReady = await secondTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(secondReady, Is.True);
+            Assert.That(enumerator.Current.Drive.LocalName, Is.EqualTo("Z:"));
+            Assert.That(await enumerator.MoveNextAsync(), Is.False);
+        }
+    }
+
     [TestCase("ZZ", @"\\srv\share")]
     [TestCase("1", @"\\srv\share")]
     [TestCase("", @"\\srv\share")]
@@ -66,6 +116,46 @@ public class NetworkDrivesTests
         var drive = NetworkDrives.Parse(keyName, name => name == "RemotePath" ? remotePath : null);
 
         Assert.That(drive, Is.Null);
+    }
+
+    [Test]
+    public async Task Ожидание_пути_ждёт_только_свою_букву_и_уважает_таймаут()
+    {
+        using var restore = new NetworkDriveRestore();
+        using var targetEntered = new ManualResetEventSlim();
+        using var releaseTarget = new ManualResetEventSlim();
+        using var hungRelease = new ManualResetEventSlim();
+
+        restore.Start(
+            true,
+            () => [Drive("Z:", @"\\target\share"), Drive("X:", @"\\hung\share")],
+            () => [@"C:\"],
+            drive =>
+            {
+                if (drive.LocalName == "Z:")
+                {
+                    targetEntered.Set();
+                    releaseTarget.Wait(TimeSpan.FromSeconds(10));
+                    return 0;
+                }
+
+                hungRelease.Wait(TimeSpan.FromSeconds(10));
+                return BadNetPath;
+            },
+            new CapturingLogger());
+
+        Assert.That(targetEntered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+        await restore.WaitForPathAsync(@"C:\Windows", TimeSpan.FromSeconds(5));
+
+        var waiting = restore.WaitForPathAsync(@"z:\projects\demo", TimeSpan.FromSeconds(5));
+        Assert.That(waiting.IsCompleted, Is.False);
+
+        releaseTarget.Set();
+        await waiting.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await restore.WaitForPathAsync(@"X:\backup", TimeSpan.FromMilliseconds(40)).WaitAsync(TimeSpan.FromSeconds(2));
+        hungRelease.Set();
     }
 
     [Test]

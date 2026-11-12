@@ -6,7 +6,6 @@ using SpaceSnoop.Wpf.Views;
 using SpaceSnoop.Wpf.Views.Behaviors;
 using System.Diagnostics;
 using System.IO;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace SpaceSnoop.Wpf;
 
@@ -30,6 +29,7 @@ public partial class App : Application
         services.AddSingleton<DuplicateFinder>();
         services.AddSingleton<DockerService>();
         services.AddSingleton<ArchiveService>();
+        services.AddSingleton<NetworkDriveRestore>();
         services.AddSingleton<CleanupService>();
         services.AddSingleton(provider => new NuGetCleanupService(
             Path.Combine(AppStorage.DataDirectory, AppStorage.LogsFolderName),
@@ -285,6 +285,12 @@ public partial class App : Application
             _logging.CreateLogger<MachineProfile>().MachineProfileCaptured(string.Join(" · ", diagnostics.Machine.Describe()));
             _logging.CreateLogger<SpaceSnoopBundleSource>().DiagnosticsSessionStarted(SpaceSnoopBundleSource.SessionId, Environment.ProcessId, AppInfo.InformationalVersion);
 
+            var networkDrives = _services.GetRequiredService<NetworkDriveRestore>();
+            var scan = _services.GetRequiredService<ScanViewModel>();
+            var uiDispatcher = _services.GetRequiredService<IUiDispatcher>();
+            networkDrives.Start(AdminElevation.IsElevated, _logging.CreateLogger<DriveCatalog>());
+            _ = RestoreNetworkDrivesAsync(networkDrives, scan, uiDispatcher);
+
             _services.GetRequiredService<McpServerHost>().Apply();
             _services.GetRequiredService<SystemTheme>().Watch();
             monitor.Start();
@@ -294,7 +300,6 @@ public partial class App : Application
             splash.Dispose();
             splash = null;
 
-            _ = RestoreNetworkDrivesAsync(_services, _logging.CreateLogger<DriveCatalog>());
             _ = AskAboutAdministratorAsync(_services, elevationRefused);
         }
         catch (Exception ex)
@@ -350,17 +355,21 @@ public partial class App : Application
         };
     }
 
-    private static async Task RestoreNetworkDrivesAsync(ServiceProvider services, ILogger logger)
+    private static async Task RestoreNetworkDrivesAsync(NetworkDriveRestore networkDrives, ScanViewModel scan, IUiDispatcher uiDispatcher)
     {
         try
         {
-            var results = await NetworkDrives.RestoreAsync(AdminElevation.IsElevated, logger);
-
-            if (results.Any(result => result.Succeeded))
+            await foreach (var result in networkDrives.WatchAsync())
             {
-                var scan = services.GetRequiredService<ScanViewModel>();
-                services.GetRequiredService<IUiDispatcher>().Invoke(() => scan.RefreshDrivesCommand.Execute(null));
+                if (result.Succeeded)
+                {
+                    var rootPath = $"{result.Drive.LocalName}{Path.DirectorySeparatorChar}";
+                    uiDispatcher.Invoke(() => scan.Drives.RefreshVolume(rootPath));
+                }
             }
+        }
+        catch (OperationCanceledException)
+        {
         }
         catch (Exception ex)
         {

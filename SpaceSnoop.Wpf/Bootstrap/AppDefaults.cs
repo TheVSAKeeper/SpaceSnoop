@@ -98,6 +98,7 @@ public static class AppDefaults
     public const int McpEntryLimitDefault = 100;
     public const int McpDispatchTimeoutSeconds = 30;
     public const int McpConfirmTimeoutSeconds = 120;
+    public const int McpNetworkDriveTimeoutSeconds = 15;
     public const int McpShutdownTimeoutSeconds = 3;
 
     public const int VolumeSpaceTimeoutMs = 1500;

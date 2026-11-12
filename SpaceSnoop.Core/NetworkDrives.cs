@@ -76,7 +76,7 @@ public static class NetworkDrives
         return persistent.Where(drive => !taken.Contains(drive.LocalName[0])).ToList();
     }
 
-    private static DriveRestoreResult Restore(PersistentDrive drive, Func<PersistentDrive, int> connect, ILogger logger)
+    internal static DriveRestoreResult Restore(PersistentDrive drive, Func<PersistentDrive, int> connect, ILogger logger)
     {
         var code = connect(drive);
 
@@ -92,7 +92,7 @@ public static class NetworkDrives
         return new(drive, code);
     }
 
-    private static IReadOnlyList<PersistentDrive> ReadPersistent()
+    internal static IReadOnlyList<PersistentDrive> ReadPersistent()
     {
         using var network = Registry.CurrentUser.OpenSubKey(NetworkKey);
 
@@ -116,17 +116,12 @@ public static class NetworkDrives
         return drives;
     }
 
-    private static IEnumerable<string> PresentDriveNames()
+    internal static IEnumerable<string> PresentDriveNames()
     {
         return DriveInfo.GetDrives().Select(drive => drive.Name);
     }
 
-    private static string? NullIfEmpty(string? value)
-    {
-        return string.IsNullOrWhiteSpace(value) ? null : value;
-    }
-
-    private static int Connect(PersistentDrive drive)
+    internal static int Connect(PersistentDrive drive)
     {
         var resource = new NetResource
         {
@@ -141,6 +136,11 @@ public static class NetworkDrives
         return code == ErrorDeviceAlreadyRemembered
             ? WNetRestoreSingleConnection(IntPtr.Zero, drive.LocalName, false)
             : code;
+    }
+
+    private static string? NullIfEmpty(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     [DllImport("mpr.dll", CharSet = CharSet.Unicode)]

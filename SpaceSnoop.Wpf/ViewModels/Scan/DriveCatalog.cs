@@ -122,9 +122,38 @@ public sealed class DriveCatalog
         LoadDriveLabels();
     }
 
+    internal void RefreshVolume(string rootPath)
+    {
+        var existing = Volumes.FirstOrDefault(volume => ScanTreeEditor.SamePath(volume.Path, rootPath));
+
+        if (existing is not null)
+        {
+            existing.Invalidate();
+            LoadItem(existing);
+            return;
+        }
+
+        AddDrive(rootPath);
+
+        if (Volumes.FirstOrDefault(volume => ScanTreeEditor.SamePath(volume.Path, rootPath)) is { } added)
+        {
+            LoadItem(added);
+        }
+    }
+
     internal void LoadDriveLabels()
     {
         _ = Task.WhenAll(Items.Select(drive => drive.LoadAsync()))
+            .ContinueWith(
+                task => _logger.DriveSizesFailed(task.Exception!),
+                CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted,
+                TaskScheduler.Default);
+    }
+
+    private void LoadItem(DriveItem item)
+    {
+        _ = item.LoadAsync()
             .ContinueWith(
                 task => _logger.DriveSizesFailed(task.Exception!),
                 CancellationToken.None,

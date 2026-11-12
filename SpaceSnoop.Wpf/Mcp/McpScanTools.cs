@@ -15,12 +15,14 @@ internal sealed class McpScanTools(
     McpNavigator navigator,
     McpStateReader state,
     PerformanceOperations operations,
+    NetworkDriveRestore networkDrives,
     ILogger logger)
 {
     private const string BusyReason = "страница занята операцией";
     private const string ScanBusyMessage = "Страница «Сканирование» сейчас занята другой операцией.";
     private const string MarkTool = "mark_for_deletion";
     private const string ArchiveTool = "archive_directory";
+    private static readonly TimeSpan NetworkDriveTimeout = TimeSpan.FromSeconds(AppDefaults.McpNetworkDriveTimeoutSeconds);
 
     public async Task<string> ScanAsync(string path, int depth, int entryLimit, bool show, CancellationToken cancellationToken)
     {
@@ -30,13 +32,15 @@ internal sealed class McpScanTools(
 
         logger.McpToolInvoked("scan_directory", $"«{path}», глубина {depth}, записей до {entryLimit}, показать в окне {show}");
 
+        await networkDrives.WaitForPathAsync(path, NetworkDriveTimeout, cancellationToken).ConfigureAwait(false);
         path = McpGuards.ValidateScanPath(path, true);
 
         var parallelism = await scanPreferences.ResolveParallelismAsync(path).WaitAsync(cancellationToken).ConfigureAwait(false);
         var directory = new DirectoryInfo(path);
+        var estimatedBytes = await Task.Run(() => ScanProgressViewModel.EstimateTotalBytes(directory), cancellationToken).ConfigureAwait(false);
         using var probe = new BackgroundScanProbe(
             operations,
-            ScanProgressViewModel.EstimateTotalBytes(directory),
+            estimatedBytes,
             parallelism);
 
         try
@@ -183,6 +187,22 @@ internal sealed class McpScanTools(
     public async Task<string> OpenScanAsync(string? path, bool start, CancellationToken cancellationToken)
     {
         logger.McpToolInvoked("open_scan", $"«{path ?? "как есть"}», сканирование {start}");
+
+        var candidate = string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            candidate = path.Trim();
+        }
+        else if (start)
+        {
+            candidate = McpDispatch.Run(() => scan.SelectedDrive.Trim());
+        }
+
+        if (candidate.Length > 0)
+        {
+            await networkDrives.WaitForPathAsync(candidate, NetworkDriveTimeout, cancellationToken).ConfigureAwait(false);
+        }
 
         var run = McpDispatch.Run(() => PrepareScanNavigation(path, start, cancellationToken));
 
