@@ -166,7 +166,7 @@ public static class GalleryStates
                 break;
 
             case SectionKey.Scan:
-                ApplyScan(services, fixture);
+                await ApplyScanAsync(services, fixture).ConfigureAwait(true);
                 break;
 
             case SectionKey.Sync:
@@ -315,7 +315,7 @@ public static class GalleryStates
         }
     }
 
-    private static void ApplyScan(IServiceProvider services, GalleryFixture fixture)
+    private static async Task ApplyScanAsync(IServiceProvider services, GalleryFixture fixture)
     {
         var scan = services.GetRequiredService<ScanViewModel>();
         var target = Path.Combine(fixture.Left, GalleryFixtures.MediaFolder);
@@ -326,7 +326,8 @@ public static class GalleryStates
         scan.IsScanning = true;
 
         var volume = new DirectoryInfo(Directory.GetDirectoryRoot(target));
-        var progress = scan.Progress.Begin(volume, target, ScanParallelism);
+        var occupied = await Task.Run(() => ScanProgressViewModel.EstimateTotalBytes(volume)).ConfigureAwait(true);
+        var progress = scan.Progress.Begin(volume, target, ScanParallelism, occupied);
 
         scan.Progress.ShiftStartForAutomation(TimeSpan.FromSeconds(ScanElapsedSeconds));
         progress.SetTopLevelTotal(ScanBranchTotal);
@@ -341,14 +342,7 @@ public static class GalleryStates
             progress.EnterDirectory(target);
         }
 
-        progress.AddFiles(ScanFiles, ScannedBytes(volume));
-    }
-
-    private static long ScannedBytes(DirectoryInfo volume)
-    {
-        return ScanProgressViewModel.EstimateTotalBytes(volume) is { } occupied
-            ? (long)(occupied * ScanFraction)
-            : ScanBytesFallback;
+        progress.AddFiles(ScanFiles, occupied is > 0 ? (long)(occupied.Value * ScanFraction) : ScanBytesFallback);
     }
 
     private static void ResetScan(IServiceProvider services)

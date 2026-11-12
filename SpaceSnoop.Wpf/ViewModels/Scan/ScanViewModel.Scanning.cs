@@ -14,22 +14,11 @@ public sealed partial class ScanViewModel
 
         var directory = new DirectoryInfo(path);
 
-        if (!directory.Exists)
-        {
-            _dialogs.Warning("Сканирование", $"Каталог не найден: {path}");
-            return false;
-        }
-
-        if (DiskSpaceCalculator.DescribeRootRefusal(directory) is { } refusal)
-        {
-            _logger.ScanRootLinkRejected(path);
-            _dialogs.Warning("Сканирование", refusal);
-            return false;
-        }
-
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(external);
+        _cts = new();
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token, external);
         _scanVersion++;
-        var token = _cts.Token;
+        var stopToken = _cts.Token;
+        var token = runCts.Token;
         IsPickerOpen = false;
         IsScanning = true;
         ScanWasCancelled = false;
@@ -43,6 +32,33 @@ public sealed partial class ScanViewModel
         try
         {
             Progress.ReportPhase("Подготовка сканирования");
+
+            var (exists, refusal) = await Task.Run(
+                    () =>
+                    {
+                        if (!ScanTargetProbe.DirectoryExists(directory.FullName))
+                        {
+                            return (false, null);
+                        }
+
+                        return (true, ScanTargetProbe.RootRefusal(directory));
+                    },
+                    stopToken)
+                .WaitAsync(stopToken);
+
+            if (!exists)
+            {
+                _dialogs.Warning("Сканирование", $"Каталог не найден: {path}");
+                return false;
+            }
+
+            if (refusal is not null)
+            {
+                _logger.ScanRootLinkRejected(path);
+                _dialogs.Warning("Сканирование", refusal);
+                return false;
+            }
+
             released = ReleaseBeforeScan(directory);
             var parallelism = await Preferences.ResolveParallelismAsync(path).WaitAsync(token);
             var progress = Progress.Begin(directory, path, parallelism);

@@ -143,6 +143,54 @@ public class ScanPageNoticeTests
         }
     }
 
+    [Test]
+    public async Task Повторный_скан_сетевого_пути_проверяет_каталог_вне_потока_интерфейса()
+    {
+        const string uncPath = @"\\hung-server\share\folder";
+        var space = new DirectorySpace(uncPath, null, DateTime.Now, DateTime.Now);
+        _scan.ApplyScanResult(space, TimeSpan.FromSeconds(1), null, ScanNotes.ForTraversal(1));
+        _scan.SelectedDrive = uncPath;
+        _scan.Preferences.ReleaseBeforeRescan = true;
+        _scan.Preferences.ConfirmRescan = true;
+
+        var previousExists = ScanTargetProbe.DirectoryExists;
+        var uiThread = Environment.CurrentManagedThreadId;
+        var probeThread = 0;
+
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+
+        ScanTargetProbe.DirectoryExists = _ =>
+        {
+            Interlocked.Exchange(ref probeThread, Environment.CurrentManagedThreadId);
+            entered.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+            return false;
+        };
+
+        try
+        {
+            var run = _scan.StartCommand.ExecuteAsync(null);
+
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+            Assert.That(Volatile.Read(ref probeThread), Is.Not.EqualTo(uiThread));
+
+            release.Set();
+            await run.WaitAsync(TimeSpan.FromSeconds(5));
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(_dialogs.LastWarningMessage, Does.Contain(uncPath));
+                Assert.That(_scan.Roots, Has.Count.EqualTo(1));
+            }
+        }
+        finally
+        {
+            release.Set();
+            ScanTargetProbe.DirectoryExists = previousExists;
+        }
+    }
+
     [TestCase("target", true, TestName = "Скан новой цели накрывает дерево прежней")]
     [TestCase("other", false, TestName = "Скан той же цели дерево не накрывает")]
     public void Прежнее_дерево_во_время_скана(string scanning, bool stale)

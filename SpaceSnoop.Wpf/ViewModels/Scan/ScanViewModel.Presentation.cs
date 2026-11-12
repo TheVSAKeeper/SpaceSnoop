@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace SpaceSnoop.Wpf.ViewModels.Scan;
+﻿namespace SpaceSnoop.Wpf.ViewModels.Scan;
 
 public sealed partial class ScanViewModel
 {
@@ -47,7 +45,7 @@ public sealed partial class ScanViewModel
 
     private bool CanRescanCancelled()
     {
-        return !IsBusy && ScanWasCancelled && !string.IsNullOrWhiteSpace(CancelledPath);
+        return !IsBusy && !_isPreparing && ScanWasCancelled && !string.IsNullOrWhiteSpace(CancelledPath);
     }
 
     [RelayCommand(CanExecute = nameof(CanRescanCancelled))]
@@ -55,7 +53,29 @@ public sealed partial class ScanViewModel
     {
         var path = CancelledPath;
 
-        if (!Directory.Exists(path))
+        if (string.IsNullOrWhiteSpace(path) || _isPreparing)
+        {
+            return;
+        }
+
+        SetPreparing(true);
+        bool exists;
+
+        try
+        {
+            exists = await Task.Run(() => ScanTargetProbe.DirectoryExists(path), CancellationToken.None);
+        }
+        finally
+        {
+            SetPreparing(false);
+        }
+
+        if (IsBusy || !ScanWasCancelled || !string.Equals(CancelledPath, path, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (!exists)
         {
             ScanWasCancelled = false;
             _dialogs.Warning("Сканирование", $"Папка {path} не найдена: её удалили, переименовали или диск отключён. Выберите для сканирования другую папку.");
@@ -63,7 +83,7 @@ public sealed partial class ScanViewModel
         }
 
         SelectPathForAutomation(path);
-        await ScanAfterRescanPromptAsync(path);
+        await ScanAfterRescanPromptAsync(path, true);
     }
 
     [RelayCommand]

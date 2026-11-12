@@ -420,7 +420,7 @@ public sealed partial class ScanViewModel : ObservableObject, IPageHeader, IPage
 
     private bool CanStart()
     {
-        return !IsBusy && !FirstRun.IsVisible;
+        return !IsBusy && !_isPreparing && !FirstRun.IsVisible;
     }
 
     private bool CanStartTarget()

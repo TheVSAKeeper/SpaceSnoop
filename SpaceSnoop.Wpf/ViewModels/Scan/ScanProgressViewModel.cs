@@ -11,6 +11,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
     private readonly PerformanceOperations _operations;
     private readonly IUiTimer _progressTimer;
+    private readonly Lock _estimateGate = new();
 
     private ScanProgress? _progress;
     private PerformanceOperation? _reported;
@@ -19,6 +20,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     private double? _progressFraction;
     private long? _estimatedTotalBytes;
     private int _parallelism = 1;
+    private int _runId;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsIndeterminate))]
@@ -74,6 +76,10 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
     public double ProgressMax => 1;
 
+    internal static Func<string, long?> VolumeUsedReader { get; set; } = ReadVolumeUsedBytes;
+
+    internal Task PendingEstimate { get; private set; } = Task.CompletedTask;
+
     public ScanProgressViewModel(PerformanceOperations operations, IUiDispatcher uiDispatcher)
     {
         _operations = operations;
@@ -88,35 +94,19 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
     internal static long? EstimateTotalBytes(DirectoryInfo directory)
     {
-        try
-        {
-            var full = directory.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var root = directory.Root.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-            if (!string.Equals(full, root, StringComparison.OrdinalIgnoreCase))
-            {
-                return null;
-            }
-
-            var drive = new DriveInfo(directory.Root.FullName);
-
-            if (!drive.IsReady)
-            {
-                return null;
-            }
-
-            var used = drive.TotalSize - drive.TotalFreeSpace;
-            return used > 0 ? used : null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
-        {
-            return null;
-        }
+        return TryGetVolumeRoot(directory, out var root) ? VolumeUsedReader(root) : null;
     }
 
-    internal ScanProgress Begin(DirectoryInfo directory, string path, int parallelism)
+    internal ScanProgress Begin(DirectoryInfo directory, string path, int parallelism, long? estimatedTotalBytes = null)
     {
-        _estimatedTotalBytes = EstimateTotalBytes(directory);
+        int runId;
+
+        lock (_estimateGate)
+        {
+            runId = ++_runId;
+            _estimatedTotalBytes = estimatedTotalBytes;
+        }
+
         _parallelism = Math.Max(1, parallelism);
         _progress = new();
         _scanStarted = Stopwatch.GetTimestamp();
@@ -126,6 +116,16 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         ResetLiveProgress(path);
         _progressTimer.Start();
         UpdateLiveProgress();
+
+        if (estimatedTotalBytes is null && TryGetVolumeRoot(directory, out var volumeRoot))
+        {
+            var reader = VolumeUsedReader;
+            PendingEstimate = Task.Run(() => ProbeTotalBytes(runId, volumeRoot, reader));
+        }
+        else
+        {
+            PendingEstimate = Task.CompletedTask;
+        }
 
         return _progress;
     }
@@ -156,7 +156,14 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 
         _progress = null;
         _progressFraction = null;
-        _estimatedTotalBytes = null;
+
+        lock (_estimateGate)
+        {
+            _runId++;
+            _estimatedTotalBytes = null;
+        }
+
+        PendingEstimate = Task.CompletedTask;
 
         OnPropertyChanged(nameof(IsIndeterminate));
         OnPropertyChanged(nameof(ProgressValue));
@@ -184,6 +191,65 @@ public sealed partial class ScanProgressViewModel : ObservableObject
         var reported = _reported;
         _reported = null;
         return _operations.ReleaseAfterRenderAsync(reported);
+    }
+
+    private static bool TryGetVolumeRoot(DirectoryInfo directory, out string volumeRoot)
+    {
+        volumeRoot = string.Empty;
+
+        try
+        {
+            var full = directory.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var root = directory.Root.FullName.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (!string.Equals(full, root, StringComparison.OrdinalIgnoreCase)
+                || root.Length != 2
+                || !char.IsAsciiLetter(root[0])
+                || root[1] != ':')
+            {
+                return false;
+            }
+
+            volumeRoot = directory.Root.FullName;
+            return true;
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+    }
+
+    private static long? ReadVolumeUsedBytes(string volumeRoot)
+    {
+        try
+        {
+            var drive = new DriveInfo(volumeRoot);
+
+            if (!drive.IsReady)
+            {
+                return null;
+            }
+
+            var used = drive.TotalSize - drive.TotalFreeSpace;
+            return used > 0 ? used : null;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            return null;
+        }
+    }
+
+    private void ProbeTotalBytes(int runId, string volumeRoot, Func<string, long?> reader)
+    {
+        var used = reader(volumeRoot);
+
+        lock (_estimateGate)
+        {
+            if (runId == _runId && _progress is not null)
+            {
+                _estimatedTotalBytes = used;
+            }
+        }
     }
 
     private TimeSpan Elapsed()
@@ -257,8 +323,15 @@ public sealed partial class ScanProgressViewModel : ObservableObject
             ? $"{snapshot.TopLevelCompleted:N0} из {snapshot.TopLevelTotal:N0}"
             : string.Empty;
 
-        double? fraction = _estimatedTotalBytes is > 0
-            ? Math.Clamp((double)snapshot.BytesScanned / _estimatedTotalBytes.Value, 0d, 1d)
+        long? estimatedTotalBytes;
+
+        lock (_estimateGate)
+        {
+            estimatedTotalBytes = _estimatedTotalBytes;
+        }
+
+        double? fraction = estimatedTotalBytes is > 0
+            ? Math.Clamp((double)snapshot.BytesScanned / estimatedTotalBytes.Value, 0d, 1d)
             : null;
 
         var fractionChanged = !EqualityComparer<double?>.Default.Equals(_progressFraction, fraction);
@@ -271,7 +344,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
             snapshot.FilesScanned,
             snapshot.BytesScanned,
             elapsed,
-            TotalBytes: _estimatedTotalBytes,
+            TotalBytes: estimatedTotalBytes,
             Basis: EtaBasis.Bytes,
             Traversal: Describe(snapshot),
             LogicalBytes: true);

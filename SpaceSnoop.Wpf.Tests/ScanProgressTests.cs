@@ -5,6 +5,7 @@ using System.Globalization;
 namespace SpaceSnoop.Wpf.Tests;
 
 [TestFixture]
+[NonParallelizable]
 public class ScanProgressTests
 {
     private CultureInfo _culture = CultureInfo.CurrentCulture;
@@ -130,6 +131,62 @@ public class ScanProgressTests
         finally
         {
             directory.Delete(true);
+        }
+    }
+
+    [Test]
+    public async Task Старт_прогресса_на_букве_сетевого_диска_не_блокирует_вызывающий_поток_и_отбрасывает_поздний_замер()
+    {
+        var previous = ScanProgressViewModel.VolumeUsedReader;
+        var callerThread = Environment.CurrentManagedThreadId;
+        var readerThread = 0;
+
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+
+        ScanProgressViewModel.VolumeUsedReader = _ =>
+        {
+            Interlocked.Exchange(ref readerThread, Environment.CurrentManagedThreadId);
+            entered.Set();
+            release.Wait(TimeSpan.FromSeconds(10));
+            return 10_000L;
+        };
+
+        try
+        {
+            var dispatcher = new FakeUiDispatcher();
+            var viewModel = new ScanProgressViewModel(new(TestDiagnostics.Monitor()), dispatcher);
+            var timer = dispatcher.Timers.Single();
+
+            var progress = viewModel.Begin(new(@"Z:\"), @"Z:\", 1);
+            var pending = viewModel.PendingEstimate;
+
+            Assert.That(entered.Wait(TimeSpan.FromSeconds(5)), Is.True);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Volatile.Read(ref readerThread), Is.Not.EqualTo(callerThread));
+                Assert.That(viewModel.IsIndeterminate, Is.True);
+            }
+
+            release.Set();
+            await pending.WaitAsync(TimeSpan.FromSeconds(5));
+
+            progress.AddFiles(1, 5_000);
+            timer.Tick();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(viewModel.IsIndeterminate, Is.False);
+                Assert.That(viewModel.ScanPercentText, Is.EqualTo("50 %"));
+            }
+
+            viewModel.Finish();
+        }
+        finally
+        {
+            release.Set();
+            ScanProgressViewModel.VolumeUsedReader = previous;
         }
     }
 
