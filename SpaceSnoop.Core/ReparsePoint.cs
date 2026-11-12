@@ -49,6 +49,20 @@ internal static class ReparsePoint
             && Guid.TryParse(substituteName.AsSpan(VolumePrefix.Length, substituteName.Length - VolumePrefix.Length - VolumeSuffix.Length), out _);
     }
 
+    internal static string Extended(string path)
+    {
+        if (path.Length <= ShortPathLimit
+            || path.StartsWith(ExtendedPrefix, StringComparison.Ordinal)
+            || !Path.IsPathFullyQualified(path))
+        {
+            return path;
+        }
+
+        return path.StartsWith(UncPrefix, StringComparison.Ordinal)
+            ? ExtendedPrefix + "UNC" + path[1..]
+            : ExtendedPrefix + path;
+    }
+
     private static string? TryReadMountTarget(string path)
     {
         using var handle = CreateFile(Extended(path), 0, FileShareAll, IntPtr.Zero, OpenExisting, OpenReparsePointFlags, IntPtr.Zero);
@@ -93,20 +107,6 @@ internal static class ReparsePoint
 
         tag = data.dwReserved0;
         return true;
-    }
-
-    private static string Extended(string path)
-    {
-        if (path.Length <= ShortPathLimit
-            || path.StartsWith(ExtendedPrefix, StringComparison.Ordinal)
-            || !Path.IsPathFullyQualified(path))
-        {
-            return path;
-        }
-
-        return path.StartsWith(UncPrefix, StringComparison.Ordinal)
-            ? ExtendedPrefix + "UNC" + path[1..]
-            : ExtendedPrefix + path;
     }
 
     [DllImport("kernel32.dll", EntryPoint = "FindFirstFileW", CharSet = CharSet.Unicode, SetLastError = true)]

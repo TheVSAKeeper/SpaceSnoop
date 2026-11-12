@@ -1,5 +1,9 @@
-﻿using SpaceSnoop.Core;
+﻿using Microsoft.Win32.SafeHandles;
+using SpaceSnoop.Core;
+using System.Buffers.Binary;
+using System.Diagnostics;
 using System.IO.Compression;
+using System.Runtime.InteropServices;
 using System.Text;
 
 namespace SpaceSnoop.Tests;
@@ -26,10 +30,7 @@ public class ArchiveServiceTests
     [TearDown]
     public void TearDown()
     {
-        if (Directory.Exists(_tempDir))
-        {
-            Directory.Delete(_tempDir, true);
-        }
+        RemoveTree(_tempDir);
     }
 
     [Test]
@@ -224,6 +225,27 @@ public class ArchiveServiceTests
     }
 
     [Test]
+    public void VerifyCoverage_FailsWhenAlternateStreamAppearsAfterPacking()
+    {
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+
+        var file = Path.Combine(_sourceDir, "a.txt");
+        var modified = File.GetLastWriteTime(file);
+        WriteAlternateStream(file, "late", "added-after-pack");
+        File.SetLastWriteTime(file, modified);
+
+        var coverage = service.VerifyCoverage(_sourceDir, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"в архив не попал альтернативный поток NTFS «{file}:late»"));
+        }
+    }
+
+    [Test]
     public void VerifyCoverage_FailsWhenContentReplacedWithSameLengthAndTime()
     {
         var service = new ArchiveService();
@@ -282,6 +304,147 @@ public class ArchiveServiceTests
         finally
         {
             TestAcl.AllowEnumeration(locked);
+        }
+    }
+
+    [Test]
+    public void VerifyCoverage_FailsWhenDirectoryContainsDataReparseFile()
+    {
+        var reparseFile = Path.Combine(_sourceDir, "cloud.txt");
+        File.WriteAllText(reparseFile, "placeholder-bytes");
+        Assert.That(TryTagAsDataReparsePoint(reparseFile), Is.True);
+
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        var stats = service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var coverage = service.VerifyCoverage(_sourceDir, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stats.Count, Is.EqualTo(2));
+            Assert.That(
+                content.ReparsePoints,
+                Is.EqualTo(
+                    new[]
+                    {
+                        reparseFile,
+                    }));
+
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"в архив не попала точка повторного разбора «{reparseFile}»"));
+        }
+    }
+
+    [Test]
+    public void VerifyCoverage_FailsWhenDirectoryContainsJunctionAndDoesNotTreatParentAsEmpty()
+    {
+        var target = Path.Combine(_tempDir, "outside");
+        Directory.CreateDirectory(target);
+        File.WriteAllText(Path.Combine(target, "external.txt"), "external");
+
+        var linksOnly = Path.Combine(_sourceDir, "links-only");
+        Directory.CreateDirectory(linksOnly);
+        var junction = Path.Combine(linksOnly, "link");
+        Assert.That(TryCreateJunction(junction, target), Is.True);
+
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var coverage = service.VerifyCoverage(_sourceDir, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(content.EmptyDirectories, Does.Not.Contain(linksOnly));
+            Assert.That(
+                content.ReparsePoints,
+                Is.EqualTo(
+                    new[]
+                    {
+                        junction,
+                    }));
+
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"в архив не попала точка повторного разбора «{junction}»"));
+        }
+    }
+
+    [Test]
+    public void VerifyCoverage_FailsWhenDirectoryHasAlternateDataStream()
+    {
+        var nested = Path.Combine(_sourceDir, "nested");
+        WriteAlternateStream(nested, "meta", "dir-stream");
+
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var coverage = service.VerifyCoverage(_sourceDir, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(
+                content.AlternateStreams,
+                Is.EqualTo(
+                    new[]
+                    {
+                        $"{nested}:meta",
+                    }));
+
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"в архив не попал альтернативный поток NTFS «{nested}:meta»"));
+        }
+    }
+
+    [Test]
+    public void VerifyCoverage_FailsWhenFileHasAlternateDataStream()
+    {
+        var file = Path.Combine(_sourceDir, "a.txt");
+        WriteAlternateStream(file, "secret", "hidden-payload");
+
+        var service = new ArchiveService();
+        var content = service.Collect(_sourceDir, CancellationToken.None);
+        var stats = service.ZipFiles(_sourceDir, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var coverage = service.VerifyCoverage(_sourceDir, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(stats.Count, Is.EqualTo(2));
+            Assert.That(
+                content.AlternateStreams,
+                Is.EqualTo(
+                    new[]
+                    {
+                        $"{file}:secret",
+                    }));
+
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"в архив не попал альтернативный поток NTFS «{file}:secret»"));
+        }
+    }
+
+    [Test]
+    public void VerifyCoverage_FailsWhenRootDirectoryIsJunctionWithoutTraversingTarget()
+    {
+        var junctionRoot = Path.Combine(_tempDir, "root-link");
+        Assert.That(TryCreateJunction(junctionRoot, _sourceDir), Is.True);
+
+        var service = new ArchiveService();
+        var content = service.Collect(junctionRoot, CancellationToken.None);
+        service.ZipFiles(junctionRoot, content, _zipPath, CompressionLevel.Optimal, null, CancellationToken.None);
+        var coverage = service.VerifyCoverage(junctionRoot, _zipPath, CancellationToken.None);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(content.Files, Is.Empty);
+            Assert.That(
+                content.ReparsePoints,
+                Is.EqualTo(
+                    new[]
+                    {
+                        junctionRoot,
+                    }));
+
+            Assert.That(coverage.Ok, Is.False);
+            Assert.That(coverage.Detail, Is.EqualTo($"в архив не попала точка повторного разбора «{junctionRoot}»"));
         }
     }
 
@@ -603,4 +766,112 @@ public class ArchiveServiceTests
         Random.Shared.NextBytes(data);
         File.WriteAllBytes(path, data);
     }
+
+    private static void RemoveTree(string path)
+    {
+        if (!Directory.Exists(path))
+        {
+            return;
+        }
+
+        var directory = new DirectoryInfo(path);
+
+        if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
+        {
+            directory.Delete();
+            return;
+        }
+
+        foreach (var sub in directory.GetDirectories())
+        {
+            RemoveTree(sub.FullName);
+        }
+
+        directory.Delete(true);
+    }
+
+    private static bool TryTagAsDataReparsePoint(string path)
+    {
+        const uint fsctlSetReparsePoint = 0x0009_00A4;
+        const uint thirdPartyReparseTag = 0x0000_0042;
+        var buffer = new byte[24];
+        BinaryPrimitives.WriteUInt32LittleEndian(buffer, thirdPartyReparseTag);
+        Guid.NewGuid().TryWriteBytes(buffer.AsSpan(8));
+
+        try
+        {
+            using var handle = File.OpenHandle(path, FileMode.Open, FileAccess.ReadWrite);
+
+            if (!DeviceIoControl(handle, fsctlSetReparsePoint, buffer, buffer.Length, IntPtr.Zero, 0, out _, IntPtr.Zero))
+            {
+                return false;
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
+
+        return (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
+    }
+
+    private static bool TryCreateJunction(string path, string target)
+    {
+        var start = new ProcessStartInfo("cmd.exe", $"/c mklink /J \"{path}\" \"{target}\"")
+        {
+            CreateNoWindow = true,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+
+        using var process = Process.Start(start);
+
+        if (process is null)
+        {
+            return false;
+        }
+
+        process.WaitForExit();
+
+        return process.ExitCode == 0;
+    }
+
+    private static void WriteAlternateStream(string path, string streamName, string text)
+    {
+        using var handle = CreateFile(
+            $"{path}:{streamName}",
+            0x4000_0000u,
+            0x7u,
+            IntPtr.Zero,
+            2u,
+            0x0200_0000u,
+            IntPtr.Zero);
+
+        Assert.That(handle.IsInvalid, Is.False);
+
+        using var stream = new FileStream(handle, FileAccess.Write);
+        stream.Write(Encoding.UTF8.GetBytes(text));
+    }
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern bool DeviceIoControl(
+        SafeFileHandle hDevice,
+        uint dwIoControlCode,
+        byte[] lpInBuffer,
+        int nInBufferSize,
+        IntPtr lpOutBuffer,
+        int nOutBufferSize,
+        out int lpBytesReturned,
+        IntPtr lpOverlapped);
+
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFile(
+        string lpFileName,
+        uint dwDesiredAccess,
+        uint dwShareMode,
+        IntPtr lpSecurityAttributes,
+        uint dwCreationDisposition,
+        uint dwFlagsAndAttributes,
+        IntPtr hTemplateFile);
 }

@@ -1,8 +1,10 @@
 ﻿using Microsoft.VisualBasic.FileIO;
 using System.Buffers;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO.Compression;
 using System.IO.Hashing;
+using System.Runtime.InteropServices;
 using System.Security;
 
 namespace SpaceSnoop.Core;
@@ -17,7 +19,9 @@ public readonly record struct ArchiveContent(
     IReadOnlyList<string> Files,
     IReadOnlyList<string> EmptyDirectories,
     IReadOnlyList<string> Unreadable,
-    long Bytes);
+    long Bytes,
+    IReadOnlyList<string>? ReparsePoints = null,
+    IReadOnlyList<string>? AlternateStreams = null);
 
 internal sealed class ArchiveIndex
 {
@@ -74,17 +78,49 @@ public sealed class ArchiveService
     private const int BufferSize = 80 * 1024;
     private const int ZipMinYear = 1980;
     private const int ZipMaxYear = 2107;
+    private const int FindStreamInfoStandard = 0;
+    private const int ErrorInvalidFunction = 1;
+    private const int ErrorFileNotFound = 2;
+    private const int ErrorPathNotFound = 3;
+    private const int ErrorHandleEof = 38;
+    private const int ErrorNotSupported = 50;
+    private const int ErrorInvalidParameter = 87;
+    private const string DefaultDataStream = "::$DATA";
+    private const string DataStreamSuffix = ":$DATA";
     private const string CaseCollision = "в архиве не отличить по регистру путь";
+
+    private static readonly IntPtr InvalidHandle = new(-1);
 
     public ArchiveContent Collect(string root, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+
         var files = new List<string>();
         var emptyDirectories = new List<string>();
         var unreadable = new List<string>();
+        var reparsePoints = new List<string>();
+        var alternateStreams = new List<string>();
         long bytes = 0;
 
         var stack = new Stack<DirectoryInfo>();
-        stack.Push(new(root));
+        var rootDirectory = new DirectoryInfo(root);
+
+        try
+        {
+            if (IsReparsePoint(rootDirectory) && !ReparsePoint.IsMountedVolume(rootDirectory.FullName))
+            {
+                reparsePoints.Add(rootDirectory.FullName);
+                return new(files, emptyDirectories, unreadable, bytes, reparsePoints, alternateStreams);
+            }
+
+            stack.Push(rootDirectory);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
+        {
+            Debug.WriteLine(exception);
+            unreadable.Add(rootDirectory.FullName);
+            return new(files, emptyDirectories, unreadable, bytes, reparsePoints, alternateStreams);
+        }
 
         while (stack.Count > 0)
         {
@@ -94,7 +130,16 @@ public sealed class ArchiveService
 
             try
             {
-                ReadDirectory(directory, root, stack, files, emptyDirectories, ref bytes);
+                ReadDirectory(
+                    directory,
+                    root,
+                    stack,
+                    files,
+                    emptyDirectories,
+                    reparsePoints,
+                    alternateStreams,
+                    ref bytes,
+                    token);
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or SecurityException)
             {
@@ -103,7 +148,7 @@ public sealed class ArchiveService
             }
         }
 
-        return new(files, emptyDirectories, unreadable, bytes);
+        return new(files, emptyDirectories, unreadable, bytes, reparsePoints, alternateStreams);
     }
 
     public ZipStats ZipFiles(
@@ -259,6 +304,16 @@ public sealed class ArchiveService
             return new(false, Detail("каталог не читается", content.Unreadable[0], content.Unreadable.Count));
         }
 
+        if (content.ReparsePoints is { Count: > 0 } reparsePoints)
+        {
+            return new(false, Detail("в архив не попала точка повторного разбора", reparsePoints[0], reparsePoints.Count));
+        }
+
+        if (content.AlternateStreams is { Count: > 0 } alternateStreams)
+        {
+            return new(false, Detail("в архив не попал альтернативный поток NTFS", alternateStreams[0], alternateStreams.Count));
+        }
+
         var prefix = Prefix(root);
         var keys = new HashSet<string>(index.Names);
 
@@ -326,13 +381,28 @@ public sealed class ArchiveService
         Stack<DirectoryInfo> stack,
         List<string> files,
         List<string> emptyDirectories,
-        ref long bytes)
+        List<string> reparsePoints,
+        List<string> alternateStreams,
+        ref long bytes,
+        CancellationToken token)
     {
+        CollectAlternateStreams(directory.FullName, true, alternateStreams);
+
         var found = 0;
+        var skipped = 0;
 
         foreach (var file in directory.GetFiles())
         {
+            token.ThrowIfCancellationRequested();
+
             if (IsReparsePoint(file))
+            {
+                reparsePoints.Add(file.FullName);
+                skipped++;
+                continue;
+            }
+
+            if (!CollectAlternateStreams(file.FullName, false, alternateStreams))
             {
                 continue;
             }
@@ -346,8 +416,12 @@ public sealed class ArchiveService
 
         foreach (var sub in directory.GetDirectories())
         {
+            token.ThrowIfCancellationRequested();
+
             if (IsReparsePoint(sub))
             {
+                reparsePoints.Add(sub.FullName);
+                skipped++;
                 continue;
             }
 
@@ -355,10 +429,68 @@ public sealed class ArchiveService
             traversable++;
         }
 
-        if (found == 0 && traversable == 0 && !IsSameDirectory(directory.FullName, root))
+        if (found == 0 && traversable == 0 && skipped == 0 && !IsSameDirectory(directory.FullName, root))
         {
             emptyDirectories.Add(directory.FullName);
         }
+    }
+
+    private static bool CollectAlternateStreams(string path, bool isDirectory, List<string> alternateStreams)
+    {
+        var handle = FindFirstStream(ReparsePoint.Extended(path), FindStreamInfoStandard, out var data, 0);
+
+        if (handle == InvalidHandle)
+        {
+            var error = Marshal.GetLastWin32Error();
+
+            if (error is ErrorHandleEof or ErrorInvalidParameter or ErrorNotSupported or ErrorInvalidFunction)
+            {
+                return true;
+            }
+
+            if (!isDirectory && error is ErrorFileNotFound or ErrorPathNotFound)
+            {
+                return false;
+            }
+
+            throw new IOException(new Win32Exception(error).Message, HResultFromWin32(error));
+        }
+
+        try
+        {
+            do
+            {
+                if (!string.Equals(data.cStreamName, DefaultDataStream, StringComparison.OrdinalIgnoreCase))
+                {
+                    alternateStreams.Add(FormatStreamPath(path, data.cStreamName));
+                }
+            } while (FindNextStream(handle, out data));
+
+            var error = Marshal.GetLastWin32Error();
+
+            if (error != ErrorHandleEof)
+            {
+                throw new IOException(new Win32Exception(error).Message, HResultFromWin32(error));
+            }
+        }
+        finally
+        {
+            FindClose(handle);
+        }
+
+        return true;
+    }
+
+    private static int HResultFromWin32(int error)
+    {
+        return error <= 0 ? error : unchecked((int)((uint)(error & 0x0000_FFFF) | 0x8007_0000u));
+    }
+
+    private static string FormatStreamPath(string path, string streamName)
+    {
+        return streamName.EndsWith(DataStreamSuffix, StringComparison.OrdinalIgnoreCase) && streamName.Length > DataStreamSuffix.Length
+            ? path + streamName[..^DataStreamSuffix.Length]
+            : path + streamName;
     }
 
     private static FileStream CreateArchiveFile(string zipPath)
@@ -558,5 +690,31 @@ public sealed class ArchiveService
         return read == stamp.Length && crc.GetCurrentHashAsUInt32() == stamp.Crc32
             ? null
             : $"после упаковки изменилось содержимое файла «{path}»";
+    }
+
+    [DllImport("kernel32.dll", EntryPoint = "FindFirstStreamW", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindFirstStream(
+        string lpFileName,
+        int infoLevel,
+        out Win32FindStreamData lpFindStreamData,
+        uint dwFlags);
+
+    [DllImport("kernel32.dll", EntryPoint = "FindNextStreamW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindNextStream(
+        IntPtr hFindStream,
+        out Win32FindStreamData lpFindStreamData);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool FindClose(IntPtr hFindFile);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct Win32FindStreamData
+    {
+        public long StreamSize;
+
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 296)]
+        public string cStreamName;
     }
 }
