@@ -187,42 +187,79 @@ public class UpdateCheckTests
     }
 
     [Test]
-    public void Подбор_ассета_для_framework_dependent_берёт_exe_без_portable_и_classic()
+    public void Подбор_ассета_для_framework_dependent_берёт_exe_своего_рантайма_без_portable_и_classic()
     {
         string[] assets =
         [
             "SpaceSnoop-v2.9.0.exe",
             "SpaceSnoop-v2.9.0.zip",
             "SpaceSnoop-v2.9.0-portable.zip",
+            "SpaceSnoop-Net11-v2.9.0.exe",
+            "SpaceSnoop-Net11-v2.9.0.zip",
+            "SpaceSnoop-Net11-v2.9.0-portable.zip",
             "SpaceSnoop-Classic-v2.9.0.exe",
         ];
 
-        Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.EqualTo("SpaceSnoop-v2.9.0.exe"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.EqualTo("SpaceSnoop-v2.9.0.exe"));
+            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop-Net11", false), Is.EqualTo("SpaceSnoop-Net11-v2.9.0.exe"));
+        }
     }
 
     [Test]
-    public void Подбор_ассета_для_self_contained_берёт_portable_zip()
+    public void Подбор_ассета_для_self_contained_берёт_portable_zip_своего_рантайма()
     {
         string[] assets =
         [
             "SpaceSnoop-v2.9.0.exe",
             "SpaceSnoop-v2.9.0-portable.zip",
+            "SpaceSnoop-Net11-v2.9.0.exe",
+            "SpaceSnoop-Net11-v2.9.0-portable.zip",
             "SpaceSnoop-Classic-v2.9.0-portable.zip",
         ];
 
-        Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.EqualTo("SpaceSnoop-v2.9.0-portable.zip"));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.EqualTo("SpaceSnoop-v2.9.0-portable.zip"));
+            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop-Net11", true), Is.EqualTo("SpaceSnoop-Net11-v2.9.0-portable.zip"));
+        }
     }
 
     [Test]
-    public void Подбор_ассета_не_путает_classic_с_основной_редакцией()
+    public void Подбор_ассета_не_путает_соседние_редакции_между_собой()
     {
-        string[] assets = ["SpaceSnoop-Classic-v2.9.0.exe", "SpaceSnoop-Classic-v2.9.0-portable.zip"];
+        string[] classicAndNet11 =
+        [
+            "SpaceSnoop-Net11-v2.9.0.exe",
+            "SpaceSnoop-Net11-v2.9.0-portable.zip",
+            "SpaceSnoop-Classic-v2.9.0.exe",
+            "SpaceSnoop-Classic-v2.9.0-portable.zip",
+        ];
+        string[] net10Only =
+        [
+            "SpaceSnoop-v2.9.0.exe",
+            "SpaceSnoop-v2.9.0-portable.zip",
+        ];
 
         using (Assert.EnterMultipleScope())
         {
-            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", false), Is.Null);
-            Assert.That(UpdateCheck.PickAsset(assets, "SpaceSnoop", true), Is.Null);
+            Assert.That(UpdateCheck.PickAsset(classicAndNet11, "SpaceSnoop", false), Is.Null);
+            Assert.That(UpdateCheck.PickAsset(classicAndNet11, "SpaceSnoop", true), Is.Null);
+            Assert.That(UpdateCheck.PickAsset(net10Only, "SpaceSnoop-Net11", false), Is.Null);
+            Assert.That(UpdateCheck.PickAsset(net10Only, "SpaceSnoop-Net11", true), Is.Null);
         }
+    }
+
+    [Test]
+    public void Продукт_ассетов_соответствует_целевому_рантайму_сборки()
+    {
+#if NET11_0_OR_GREATER
+        const string expected = "SpaceSnoop-Net11";
+#else
+        const string expected = "SpaceSnoop";
+#endif
+        Assert.That(AppInfo.ReleaseAssetProduct, Is.EqualTo(expected));
     }
 
     [TestCase("v2.9.0", "2.8.16", true)]

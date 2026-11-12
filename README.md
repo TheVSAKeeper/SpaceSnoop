@@ -92,7 +92,7 @@ Claude Code, Codex или OpenCode. Через MCP он посмотрит ск�
 
 ## Начать работу
 
-1. Скачай **SpaceSnoop (WPF)** из [Releases](https://github.com/MaxNagibator/SpaceSnoop/releases). Portable содержит рантайм; обычному EXE нужен [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0).
+1. Скачай **SpaceSnoop** из [Releases](https://github.com/MaxNagibator/SpaceSnoop/releases): есть стабильная редакция на [.NET 10 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) (LTS) и редакция на [.NET 11 Desktop Runtime](https://dotnet.microsoft.com/download/dotnet/11.0) с Runtime Async 2 (процессоры с `x86-64-v2`). У каждой три варианта – `EXE`, `ZIP` и автономный `Portable` со встроенным рантаймом.
 2. Выбери диск или папку на странице «Сканирование». Для системных каталогов и чтения таблицы NTFS нужны права администратора; обычный обход работает и без них, но может быть неполным.
 3. Разбери крупные папки. Пометка ещё ничего не удаляет: проверь список и режим перед нажатием «Удалить».
 
@@ -114,15 +114,14 @@ Claude Code, Codex или OpenCode. Через MCP он посмотрит ск�
 и разреженные файлы могут давать расхождение с цифрами Windows.
 [Почему размеры различаются и как восстановить удалённое →](GUIDE.md#faq)
 
-## WPF или Classic
+## Редакции и архив Classic
 
-Две морды: новая на WPF и старая на WinForms. WPF умеет всё, что показано выше.
-**Classic** – если нужен просто скан, пометки, сравнение и синхронизация, а новое не любишь.
-Под капотом общая логика SpaceSnoop.Core. Обе – только для Windows.
+Основное приложение – на WPF, выпускается параллельно под **.NET 10 LTS** и **.NET 11 (Async 2)**.
+Классический WinForms-интерфейс (**Classic** – скан, пометки, сравнение и синхронизация без новых разделов) выведен в архив `classic/SpaceSnoop`; его финальный отдельный выпуск – [SpaceSnoop Classic v2.8.81](https://github.com/MaxNagibator/SpaceSnoop/releases/tag/classic-v2.8.81).
 
 ## Собрать из исходников
 
-Нужны Windows и .NET SDK **10.0.302**, закреплённый в `global.json`.
+Нужны Windows и .NET SDK **11.0.100**, закреплённый в `global.json`.
 KeepShell восстанавливается из каталога `packages`, остальные зависимости – из NuGet.
 
 ```powershell
@@ -130,7 +129,8 @@ dotnet restore SpaceSnoop.sln --locked-mode
 dotnet run --project SpaceSnoop.Wpf/SpaceSnoop.Wpf.csproj --no-restore
 ```
 
-Для Classic выбери `SpaceSnoop/SpaceSnoop.csproj`. Проверка решения: `dotnet test SpaceSnoop.sln --no-restore`.
+Сборка и запуск под .NET 11 (Runtime Async 2): `dotnet run --project SpaceSnoop.Wpf/SpaceSnoop.Wpf.csproj -p:UseNet11=true`.
+Архивный Classic собирается отдельно из `classic/SpaceSnoop/SpaceSnoop.csproj`. Проверка решения: `dotnet test SpaceSnoop.sln --no-restore`.
 
 ---
 

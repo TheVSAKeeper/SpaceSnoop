@@ -370,7 +370,7 @@ dotnet_diagnostic.T0043.severity = none
 # T0046: Move ILogger extension to ILoggerExtensions class (SonarAnalyzer.CSharp.Styling) – conflicts with the AppLog/CoreLog log-catalog pattern
 dotnet_diagnostic.T0046.severity = none
 
-[SpaceSnoop/**.cs]
+[classic/SpaceSnoop/**.cs]
 max_line_length = unset
 csharp_preserve_single_line_blocks = true
 csharp_preserve_single_line_statements = true

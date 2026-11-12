@@ -241,8 +241,8 @@ GitHub-issue с метаданными среды и хвостом лога –
 | WinForms | Оригинал | Скан, пометка/удаление в корзину, сравнение и синхронизация |
 | WPF      | Новая, на KeepShell | Всё то же + карта, быстрый скан по таблице NTFS, side-by-side diff, расписание и обзор, упаковка в .zip, поиск дубликатов, очистка Windows, Docker и среды разработки, полный JSON-экспорт, игнорирование узлов, чат с агентом и MCP-сервер, диагностика, темы, логи, настройки, обновления |
 
-WinForms – проверенная классика, работает. WPF – та же доменная логика (`SpaceSnoop.Core`), но современный
-каркас: темизация, навигация, инструменты, диалоги.
+WinForms – классическая версия, вынесена в архив `classic/SpaceSnoop` (финальный отдельный релиз – `classic-v2.8.81`). WPF – та же доменная логика (`SpaceSnoop.Core`), но современный
+каркас: темизация, навигация, инструменты, диалоги, а также сборки под .NET 10 LTS и .NET 11 (Runtime Async 2).
 
 ---
 
@@ -282,17 +282,24 @@ WinForms – проверенная классика, работает. WPF – 
 
 ## Сборка из исходников
 
-Нужна Windows и .NET SDK **10.0.302**: версия закреплена в `global.json`, автоматический переход на соседний SDK отключён. Пакеты KeepShell восстанавливаются из каталога `packages`, остальные зависимости – из NuGet.
+Нужна Windows и .NET SDK **11.0.100**: версия закреплена в `global.json`, автоматический переход на соседний SDK отключён. Пакеты KeepShell восстанавливаются из каталога `packages`, остальные зависимости – из NuGet.
 
 ```powershell
 dotnet restore SpaceSnoop.sln --locked-mode
 dotnet run --project SpaceSnoop.Wpf/SpaceSnoop.Wpf.csproj --no-restore
 ```
 
-Для Classic:
+Для сборки под .NET 11 с Runtime Async 2:
 
 ```powershell
-dotnet run --project SpaceSnoop/SpaceSnoop.csproj --no-restore
+dotnet run --project SpaceSnoop.Wpf/SpaceSnoop.Wpf.csproj -p:UseNet11=true
+```
+
+Для архивного Classic (вне основного решения):
+
+```powershell
+dotnet restore classic/SpaceSnoop/SpaceSnoop.csproj --locked-mode
+dotnet run --project classic/SpaceSnoop/SpaceSnoop.csproj --no-restore
 ```
 
 Проверка решения:

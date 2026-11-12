@@ -348,7 +348,7 @@ public sealed partial class AppUpdateViewModel : ObservableObject
             }
         }
 
-        _assetName = UpdateCheck.PickAsset(names, AppInfo.Name, UpdateCheck.IsSelfContained());
+        _assetName = UpdateCheck.PickAsset(names, AppInfo.ReleaseAssetProduct, UpdateCheck.IsSelfContained());
 
         if (_assetName is not null)
         {

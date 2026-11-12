@@ -377,7 +377,7 @@ public sealed class ProjectCleanupTests
         {
             var plan = await _service.ScanAsync(_root, default);
             Assert.That(plan.Artifacts.Single().CanClean, Is.False);
-            Assert.ThrowsAsync<IOException>(() => _service.ScanAsync(link, default));
+            await Assert.ThrowsAsync<IOException>(() => _service.ScanAsync(link, default));
             Assert.That(File.ReadAllText(outside), Is.EqualTo("data"));
         }
         finally
@@ -578,10 +578,10 @@ public sealed class ProjectCleanupTests
     }
 
     [Test]
-    public void Volume_and_home_roots_are_rejected()
+    public async Task Volume_and_home_roots_are_rejected()
     {
-        Assert.ThrowsAsync<IOException>(() => _service.ScanAsync(Path.GetPathRoot(_root)!, default));
-        Assert.ThrowsAsync<IOException>(() => _service.ScanAsync(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), default));
+        await Assert.ThrowsAsync<IOException>(() => _service.ScanAsync(Path.GetPathRoot(_root)!, default));
+        await Assert.ThrowsAsync<IOException>(() => _service.ScanAsync(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), default));
     }
 
     private string Write(string relative, string content = "data")

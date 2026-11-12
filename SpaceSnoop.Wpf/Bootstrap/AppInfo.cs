@@ -5,6 +5,11 @@ namespace SpaceSnoop.Wpf.Bootstrap;
 public static class AppInfo
 {
     public const string Name = "SpaceSnoop";
+#if NET11_0_OR_GREATER
+    public const string ReleaseAssetProduct = Name + "-Net11";
+#else
+    public const string ReleaseAssetProduct = Name;
+#endif
     public const string RepoSlug = "MaxNagibator/SpaceSnoop";
     public const string RepositoryUrl = "https://github.com/" + RepoSlug;
     public const string ReleasesUrl = RepositoryUrl + "/releases";

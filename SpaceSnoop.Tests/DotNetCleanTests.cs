@@ -49,9 +49,9 @@ public sealed class DotNetCleanTests
     [TestCase(@"\\server\share\project.csproj")]
     [TestCase(@"C:\projects\project.csproj:stream")]
     [TestCase(@"C:\projects\project.sln")]
-    public void Ambiguous_or_unsupported_project_is_rejected_before_process(string path)
+    public async Task Ambiguous_or_unsupported_project_is_rejected_before_process(string path)
     {
-        Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(path, new(), true, default));
+        await Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(path, new(), true, default));
         Assert.That(_calls, Is.Empty);
     }
 
@@ -222,9 +222,9 @@ public sealed class DotNetCleanTests
     }
 
     [Test]
-    public void No_process_or_path_access_before_explicit_trust()
+    public async Task No_process_or_path_access_before_explicit_trust()
     {
-        Assert.ThrowsAsync<InvalidOperationException>(() => _service.InspectAsync("invalid", new(), false, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => _service.InspectAsync("invalid", new(), false, default));
         Assert.That(_calls, Is.Empty);
     }
 
@@ -233,11 +233,11 @@ public sealed class DotNetCleanTests
     [TestCase("$(Property)")]
     [TestCase("Debug\nRelease")]
     [TestCase("")]
-    public void Options_reject_MSBuild_expressions_and_switches(string value)
+    public async Task Options_reject_MSBuild_expressions_and_switches(string value)
     {
-        Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(_project, new(value), true, default));
-        Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(_project, new("Debug", value), true, default));
-        Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(_project, new("Debug", null, value), true, default));
+        await Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(_project, new(value), true, default));
+        await Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(_project, new("Debug", value), true, default));
+        await Assert.ThrowsAsync<IOException>(() => _service.InspectAsync(_project, new("Debug", null, value), true, default));
         Assert.That(_calls, Is.Empty);
     }
 
@@ -261,7 +261,7 @@ public sealed class DotNetCleanTests
             "<Project><Target Name=\"Clean\"><WriteLinesToFile File=\"clean-owned-sentinel.txt\" Lines=\"executed\" Overwrite=\"true\" /></Target></Project>");
 
         var service = new DotNetCleanService(new(), LogPath, () => DateTime.UtcNow);
-        Assert.ThrowsAsync<InvalidOperationException>(() => service.InspectAsync(_project, new(), false, default));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.InspectAsync(_project, new(), false, default));
         Assert.That(File.Exists(sentinel), Is.False);
         var plan = await service.InspectAsync(_project, new(), true, default);
         Assert.That(File.Exists(sentinel), Is.False);

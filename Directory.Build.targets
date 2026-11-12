@@ -1,0 +1,7 @@
+﻿<Project>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net11.0-windows'">
+    <Features>$(Features);runtime-async=on</Features>
+    <RestorePackagesWithLockFile>false</RestorePackagesWithLockFile>
+    <NuGetLockFilePath>$(BaseIntermediateOutputPath)packages.net11.lock.json</NuGetLockFilePath>
+  </PropertyGroup>
+</Project>

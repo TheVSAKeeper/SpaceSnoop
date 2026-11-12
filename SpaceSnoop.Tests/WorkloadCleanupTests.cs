@@ -332,11 +332,11 @@ public sealed class WorkloadCleanupTests
     }
 
     [Test]
-    public void Ошибка_проверки_sdk_не_создаёт_план()
+    public async Task Ошибка_проверки_sdk_не_создаёт_план()
     {
         var service = CreateService([], versionExitCode: 5);
 
-        Assert.ThrowsAsync<WorkloadInspectionException>(() => service.InspectAsync(CancellationToken.None));
+        await Assert.ThrowsAsync<WorkloadInspectionException>(() => service.InspectAsync(CancellationToken.None));
     }
 
     [Test]

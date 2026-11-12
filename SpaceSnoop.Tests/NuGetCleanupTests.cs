@@ -65,7 +65,7 @@ public class NuGetCleanupTests
     }
 
     [Test]
-    public void Cancelled_discovery_does_not_resolve_or_start_dotnet()
+    public async Task Cancelled_discovery_does_not_resolve_or_start_dotnet()
     {
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
@@ -74,7 +74,7 @@ public class NuGetCleanupTests
             _ => throw new AssertionException("dotnet must not be searched after cancellation"),
             _ => throw new AssertionException("dotnet must not start after cancellation"));
 
-        Assert.ThrowsAsync<OperationCanceledException>(() =>
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
             NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, Path.Combine(_root, "discovery.log"), cancellation.Token));
     }
 
@@ -196,7 +196,7 @@ public class NuGetCleanupTests
         var log = Path.Combine(_root, "discovery.log");
         if (truncated)
         {
-            Assert.ThrowsAsync<InvalidOperationException>(() => NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, log, default));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, log, default));
         }
         else
         {
@@ -248,10 +248,10 @@ public class NuGetCleanupTests
     }
 
     [Test]
-    public void Missing_dotnet_is_reported_as_discovery_failure_without_starting_process()
+    public async Task Missing_dotnet_is_reported_as_discovery_failure_without_starting_process()
     {
         var cli = new DotNetCli(() => string.Empty, _ => false, _ => throw new AssertionException("dotnet must not start"));
-        var error = Assert.ThrowsAsync<InvalidOperationException>(() =>
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             NuGetCacheDiscovery.DiscoverAsync(cli, _root, _context, Path.Combine(_root, "discovery.log"), default));
 
         Assert.That(error!.InnerException, Is.TypeOf<Win32Exception>());

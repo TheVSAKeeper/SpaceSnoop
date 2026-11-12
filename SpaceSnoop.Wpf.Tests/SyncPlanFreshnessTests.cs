@@ -51,7 +51,7 @@ public class SyncPlanFreshnessTests
             Assert.That(File.Exists(Path.Combine(_root, "right", "a.txt")), Is.True);
         }
 
-        Assert.ThrowsAsync<SyncPlanStaleException>(() => ((ISyncAutomation)page).SyncFromAutomationAsync(CancellationToken.None));
+        await Assert.ThrowsAsync<SyncPlanStaleException>(() => ((ISyncAutomation)page).SyncFromAutomationAsync(CancellationToken.None));
     }
 
     [Test]
