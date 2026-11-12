@@ -23,7 +23,7 @@ public sealed partial class DockerCompactViewModel : ObservableObject
     private string? _diskPath;
 
     public bool CanCancel => _cts is not null && _cancellationAllowed;
-    public bool IsElevated { get; } = AdminElevation.IsElevated;
+    public bool IsElevated => _docker.IsElevated;
 
     internal DockerCompactViewModel(
         DockerViewModel owner,

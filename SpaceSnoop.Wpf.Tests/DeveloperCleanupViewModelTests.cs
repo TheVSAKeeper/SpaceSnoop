@@ -333,6 +333,55 @@ public sealed class DeveloperCleanupViewModelTests
         Assert.That(File.Exists(sentinel), Is.True);
     }
 
+    [Test]
+    public async Task Отменённая_первичная_загрузка_NuGet_повторяется_при_входе_а_успешная_кэшируется()
+    {
+        var pause = true;
+        var calls = 0;
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var blocked = new TaskCompletionSource<NuGetCacheLocations>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var vm = new DeveloperCleanupViewModel(
+            new(async token =>
+            {
+                Interlocked.Increment(ref calls);
+                if (pause)
+                {
+                    started.TrySetResult();
+                    return await blocked.Task.WaitAsync(token);
+                }
+
+                return new("test-user", _paths);
+            }),
+            new NoopDialogs(),
+            new FakeUiDispatcher(),
+            NullLogger<DeveloperCleanupViewModel>.Instance,
+            CreateProjects(),
+            CreateWorkloads(),
+            CreateDotNetClean());
+
+        var first = vm.EnsureLoadedAsync();
+        await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        vm.CancelCommand!.Execute(null);
+        await first;
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(vm.Caches, Is.Empty);
+            Assert.That(calls, Is.EqualTo(1));
+        }
+
+        pause = false;
+        await vm.EnsureLoadedAsync();
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(vm.Caches, Has.Count.EqualTo(4));
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        await vm.EnsureLoadedAsync();
+        Assert.That(calls, Is.EqualTo(2));
+    }
+
     private DeveloperCleanupViewModel Create(bool confirm = false)
     {
         return new(

@@ -120,7 +120,7 @@
                        Foreground="{DynamicResource Fg.Muted}"
                        TextWrapping="Wrap"
                        Margin="0,12,0,0"
-                       Visibility="{Binding StatusText, Converter={StaticResource NullToVisibility}}" />
+                       Visibility="{Binding TotalsText, Converter={StaticResource NullToVisibility}}" />
         </StackPanel>
     </Border>
 </UserControl>

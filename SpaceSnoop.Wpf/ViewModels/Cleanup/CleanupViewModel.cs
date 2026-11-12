@@ -1,7 +1,6 @@
 ﻿using KeepShell.Services;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.ViewModels.Cleanup;
@@ -20,6 +19,8 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
     private readonly ToastNotifier _notifier;
     private readonly ILogger<CleanupViewModel> _logger;
 
+    private Func<TimeSpan, IReadOnlyList<CleanupTarget>> _catalog = static minAge => CleanupCatalog.BuildDefault(minAge);
+    private Func<CleanupTarget, CancellationToken, Task<CleanupMeasurement>> _measure;
     private CancellationTokenSource? _measureCts;
     private bool _loadedOnce;
     private bool _suppressPersist;
@@ -103,6 +104,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         ILogger<CleanupViewModel> logger)
     {
         _service = service;
+        _measure = service.MeasureAsync;
         _dialogFactory = dialogFactory;
         _dialogs = dialogs;
         _modals = modals;
@@ -116,14 +118,23 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         BuildTargets();
     }
 
+    internal void UseTestBackend(
+        Func<TimeSpan, IReadOnlyList<CleanupTarget>> catalog,
+        Func<CleanupTarget, CancellationToken, Task<CleanupMeasurement>>? measure = null)
+    {
+        _catalog = catalog;
+        _measure = measure ?? _service.MeasureAsync;
+        StatusText = null;
+        BuildTargets();
+    }
+
     public async Task EnsureLoadedAsync()
     {
-        if (_loadedOnce)
+        if (_loadedOnce || IsBusy)
         {
             return;
         }
 
-        _loadedOnce = true;
         await RefreshAsync();
     }
 
@@ -145,6 +156,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             return;
         }
 
+        StatusText = null;
         BuildTargets();
     }
 
@@ -170,7 +182,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
         Targets.Clear();
 
-        foreach (var target in CleanupCatalog.BuildDefault(TimeSpan.FromHours(MinAgeHours)))
+        foreach (var target in _catalog(TimeSpan.FromHours(MinAgeHours)))
         {
             var row = new CleanupTargetViewModel(target)
             {
@@ -255,14 +267,16 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
         try
         {
-            foreach (var row in Targets.ToList())
+            while (true)
             {
-                cancellation.Token.ThrowIfCancellationRequested();
-                StatusText = $"Замер {ProgressValue + 1} из {ProgressMax}: {row.Name}";
-                await MeasureRowAsync(row, cancellation.Token);
-                ProgressValue++;
+                await MeasureTargetsPassAsync(cancellation.Token);
+                if (!ApplyPendingRebuild())
+                {
+                    break;
+                }
             }
 
+            _loadedOnce = true;
             StatusText = $"Найдено {SizeFormatter.Format(TotalBytes)}.";
         }
         catch (OperationCanceledException)
@@ -273,7 +287,29 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         {
             _measureCts = null;
             IsBusy = false;
-            ApplyPendingRebuild();
+            if (ApplyPendingRebuild() && !cancellation.IsCancellationRequested)
+            {
+                StatusText = null;
+            }
+        }
+    }
+
+    private async Task MeasureTargetsPassAsync(CancellationToken token)
+    {
+        ProgressValue = 0;
+        ProgressMax = Targets.Count;
+
+        foreach (var row in Targets.ToList())
+        {
+            token.ThrowIfCancellationRequested();
+            if (_rebuildPending)
+            {
+                return;
+            }
+
+            StatusText = $"Замер {ProgressValue + 1} из {ProgressMax}: {row.Name}";
+            await MeasureRowAsync(row, token);
+            ProgressValue++;
         }
     }
 
@@ -304,18 +340,37 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
             return;
         }
 
+        var targetId = row.Model.Id;
         using var cancellation = new CancellationTokenSource();
         _measureCts = cancellation;
         ProgressValue = 0;
         ProgressMax = 1;
         IsBusy = true;
-        StatusText = $"Замер: {row.Name}";
 
         try
         {
-            await MeasureRowAsync(row, cancellation.Token);
-            ProgressValue = 1;
-            StatusText = $"{row.Name}: {(row.HasAvailabilityIssue ? row.AvailabilityText : row.SizeText)}.";
+            var current = row;
+            while (true)
+            {
+                ProgressValue = 0;
+                StatusText = $"Замер: {current.Name}";
+                await MeasureRowAsync(current, cancellation.Token);
+                ProgressValue = 1;
+
+                if (!ApplyPendingRebuild())
+                {
+                    break;
+                }
+
+                current = Targets.FirstOrDefault(x => string.Equals(x.Model.Id, targetId, StringComparison.Ordinal));
+                if (current is null)
+                {
+                    StatusText = null;
+                    return;
+                }
+            }
+
+            StatusText = $"{current.Name}: {(current.HasAvailabilityIssue ? current.AvailabilityText : current.SizeText)}.";
         }
         catch (OperationCanceledException)
         {
@@ -325,7 +380,10 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         {
             _measureCts = null;
             IsBusy = false;
-            ApplyPendingRebuild();
+            if (ApplyPendingRebuild() && !cancellation.IsCancellationRequested)
+            {
+                StatusText = null;
+            }
         }
     }
 
@@ -335,7 +393,7 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
 
         try
         {
-            row.Apply(await _service.MeasureAsync(row.Model, token));
+            row.Apply(await _measure(row.Model, token));
         }
         catch (OperationCanceledException)
         {
@@ -343,152 +401,14 @@ public sealed partial class CleanupViewModel : ObservableObject, IPageHeader, IP
         }
         catch (Exception exception)
         {
-            _logger.CleanupMeasureFailed(exception.Unwrap(), row.Model.Id);
-            row.Apply(new(0, 0, [], CleanupAvailability.Missing));
+            var unwrapped = exception.Unwrap();
+            _logger.CleanupMeasureFailed(unwrapped, row.Model.Id);
+            row.Apply(new(0, 0, [], CleanupAvailability.Failed), unwrapped.Message);
         }
         finally
         {
             row.IsMeasuring = false;
             UpdateTotals();
         }
-    }
-
-    [RelayCommand]
-    private void OpenFolder(CleanupTargetViewModel? row)
-    {
-        if (row is not { HasPath: true, Path.Length: > 0 })
-        {
-            return;
-        }
-
-        if (!_shell.Open(row.Path))
-        {
-            _notifier.Notify($"Не удалось открыть «{row.Path}».", StatusSeverity.Warning);
-        }
-    }
-
-    [RelayCommand]
-    private void OpenSystemTool(CleanupTargetViewModel? row)
-    {
-        if (row is not { IsUnsupported: true })
-        {
-            return;
-        }
-
-        var drive = Path.GetPathRoot(row.Path)?.TrimEnd('\\');
-
-        var tool = Path.Combine(Environment.SystemDirectory, "cleanmgr.exe");
-
-        if (string.IsNullOrEmpty(drive) || !_shell.Start(tool, "/d", drive))
-        {
-            _notifier.Notify("Не удалось запустить «Очистку диска» Windows.", StatusSeverity.Warning);
-        }
-    }
-
-    [RelayCommand]
-    private void SelectAll()
-    {
-        foreach (var row in Targets)
-        {
-            row.IsSelected = row.CanClean;
-        }
-    }
-
-    [RelayCommand]
-    private void ClearSelection()
-    {
-        foreach (var row in Targets)
-        {
-            row.IsSelected = false;
-        }
-    }
-
-    [RelayCommand]
-    private Task CleanOneAsync(CleanupTargetViewModel? row)
-    {
-        return row is null || !row.CanClean || IsBusy
-            ? Task.CompletedTask
-            : RunCleanupAsync([row]);
-    }
-
-    [RelayCommand(CanExecute = nameof(CanClean))]
-    private Task CleanSelectedAsync()
-    {
-        return RunCleanupAsync(SelectedRows());
-    }
-
-    private async Task RunCleanupAsync(IReadOnlyList<CleanupTargetViewModel> rows)
-    {
-        if (rows.Count == 0)
-        {
-            return;
-        }
-
-        var bytes = rows.Sum(static x => x.SizeBytes);
-        var files = rows.Sum(static x => x.Files);
-        var confirm = CleanupConfirm.Build(rows, bytes, files, null);
-
-        if (!await _dialogs.ShowAsync(confirm))
-        {
-            return;
-        }
-
-        await RunConfirmedAsync(rows, bytes, files, CancellationToken.None, false);
-    }
-
-    private async Task<CleanupProgressDialogViewModel> RunConfirmedAsync(
-        IReadOnlyList<CleanupTargetViewModel> rows,
-        long bytes,
-        int files,
-        CancellationToken cancellationToken,
-        bool automated)
-    {
-        var dialog = _dialogFactory.Create(new([.. rows.Select(static x => x.Model)], bytes, files, cancellationToken));
-
-        IsBusy = true;
-
-        try
-        {
-            if (automated)
-            {
-                await RunDialogForAutomationAsync(dialog);
-            }
-            else
-            {
-                await _dialogs.ShowAsync(dialog);
-            }
-        }
-        finally
-        {
-            await dialog.StopAsync();
-            IsBusy = false;
-        }
-
-        _uiDispatcher.Invoke(() => _notifier.Notify(
-            dialog.StatusText,
-            dialog.HasErrors || dialog.WasCancelled || dialog.FreedBytes == 0 ? StatusSeverity.Warning : StatusSeverity.Success));
-
-        StatusText = dialog.StatusText;
-
-        IsBusy = true;
-
-        try
-        {
-            foreach (var row in rows)
-            {
-                await MeasureRowAsync(row, cancellationToken);
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            StatusText = $"{dialog.StatusText} Замер после очистки прерван.";
-        }
-        finally
-        {
-            IsBusy = false;
-            ApplyPendingRebuild();
-        }
-
-        return dialog;
     }
 }

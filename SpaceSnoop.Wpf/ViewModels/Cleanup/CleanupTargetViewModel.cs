@@ -55,6 +55,10 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
     [ObservableProperty]
     private string _path;
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(AvailabilityText))]
+    private string? _failureMessage;
+
     public CleanupTarget Model { get; }
 
     public PackIconLucideKind IconKind { get; }
@@ -101,7 +105,7 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
         ? $"{Files:N0} {Plural.Word(Files, "объект", "объекта", "объектов")}"
         : $"{Files:N0} {Plural.Word(Files, "файл", "файла", "файлов")}";
 
-    public string AvailabilityText => HasAvailabilityIssue ? CleanupText.Availability(Availability) : string.Empty;
+    public string AvailabilityText => FormatAvailabilityText();
 
     public CleanupTargetViewModel(CleanupTarget target)
     {
@@ -110,13 +114,14 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
         IconKind = IconFor(target.Id);
     }
 
-    public void Apply(CleanupMeasurement measurement)
+    public void Apply(CleanupMeasurement measurement, string? failureMessage = null)
     {
         if (!string.IsNullOrEmpty(measurement.ResolvedPath))
         {
             Path = measurement.ResolvedPath;
         }
 
+        FailureMessage = string.IsNullOrWhiteSpace(failureMessage) ? null : failureMessage.Trim();
         Availability = measurement.Availability;
         SizeBytes = measurement.Bytes;
         Files = measurement.Files;
@@ -127,6 +132,19 @@ public sealed partial class CleanupTargetViewModel : ObservableObject
         {
             IsSelected = false;
         }
+    }
+
+    private string FormatAvailabilityText()
+    {
+        if (!HasAvailabilityIssue)
+        {
+            return string.Empty;
+        }
+
+        var label = CleanupText.Availability(Availability);
+        return Availability == CleanupAvailability.Failed && !string.IsNullOrWhiteSpace(FailureMessage)
+            ? $"{label}: {FailureMessage}"
+            : label;
     }
 
     private static PackIconLucideKind IconFor(string id)

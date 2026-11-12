@@ -18,6 +18,8 @@ public sealed class DockerService
     private readonly DockerCompactOptions _compactOptions;
     private readonly Func<bool> _administratorCheck;
 
+    public bool IsElevated => _administratorCheck();
+
     public DockerService(
         IDockerProcessRunner? processRunner = null,
         IDockerFileSystem? fileSystem = null,

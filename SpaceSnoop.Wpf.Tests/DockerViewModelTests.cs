@@ -213,6 +213,44 @@ public sealed class DockerViewModelTests
         Assert.That(vm.CancelCommand, Is.Null);
     }
 
+    [Test]
+    public void Подсказка_сжатия_называет_причину_блокировки_без_ложного_требования_прав()
+    {
+        var unelevated = new DockerViewModel(
+            new(new PausedRunner(), new FakeFileSystem([]), new StaticSettingsProvider(new(BasePath, false, null)), administratorCheck: static () => false),
+            new NoopDialogs(),
+            new FakeUiDispatcher(),
+            NullLogger<DockerViewModel>.Instance);
+        var elevated = new DockerViewModel(
+            new(new PausedRunner(), new FakeFileSystem([]), new StaticSettingsProvider(new(BasePath, false, null)), administratorCheck: static () => true),
+            new NoopDialogs(),
+            new FakeUiDispatcher(),
+            NullLogger<DockerViewModel>.Instance);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(unelevated.Compact.IsElevated, Is.False);
+            Assert.That(unelevated.CompactHint, Is.EqualTo("Для сжатия диска Docker требуются права администратора"));
+
+            Assert.That(elevated.Compact.IsElevated, Is.True);
+            Assert.That(elevated.CanRun, Is.False);
+            Assert.That(elevated.CompactHint, Does.Not.Contain("администратор"));
+            Assert.That(elevated.CompactHint, Is.EqualTo("Опрос Docker не выполнен – нажмите «Обновить»"));
+        }
+
+        elevated.IsBusy = true;
+        Assert.That(elevated.CompactHint, Is.EqualTo("Дождитесь завершения текущей операции Docker"));
+
+        elevated.IsBusy = false;
+        elevated.UnavailableReason = "Docker offline";
+        Assert.That(elevated.CompactHint, Is.EqualTo("Docker недоступен"));
+
+        elevated.UnavailableReason = null;
+        elevated.IsAvailable = true;
+        Assert.That(elevated.CanRun, Is.True);
+        Assert.That(elevated.CompactHint, Is.EqualTo("Остановить Docker Desktop и сжать образ VHDX через diskpart"));
+    }
+
     private static DockerViewModel CreateViewModel(
         DockerProcessResult diskpart,
         TimeSpan? stopTimeout = null,

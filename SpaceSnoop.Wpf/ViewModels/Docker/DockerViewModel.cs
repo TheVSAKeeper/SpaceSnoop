@@ -1,5 +1,4 @@
 ﻿using KeepShell.Services;
-using MahApps.Metro.IconPacks;
 using System.Collections.ObjectModel;
 using System.Windows.Input;
 
@@ -24,15 +23,18 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     [NotifyPropertyChangedFor(nameof(CancelCommand))]
     [NotifyPropertyChangedFor(nameof(ShowUnavailable))]
+    [NotifyPropertyChangedFor(nameof(CompactHint))]
     private bool _isBusy;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanRun))]
     [NotifyPropertyChangedFor(nameof(ShowUnavailable))]
+    [NotifyPropertyChangedFor(nameof(CompactHint))]
     private bool _isAvailable;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowUnavailable))]
+    [NotifyPropertyChangedFor(nameof(CompactHint))]
     private string? _unavailableReason;
 
     [ObservableProperty]
@@ -54,8 +56,10 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
 
     public bool IsIdle => !IsBusy;
 
-    public string TotalsText => Buckets.Count == 0
-        ? string.Empty
+    public string CompactHint => GetCompactHint();
+
+    public string? TotalsText => Buckets.Count == 0
+        ? null
         : $"Итого по категориям: {SizeFormatter.Format(Buckets.Sum(bucket => bucket.SizeBytes))} · можно вернуть по оценке Docker: {SizeFormatter.Format(Buckets.Sum(bucket => bucket.ReclaimBytes))}";
 
     public string BuildCacheCaption => ReclaimCaption("Кэш сборки", "Build Cache");
@@ -97,6 +101,34 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         _logger = logger;
 
         Compact = new(this, docker, dialogs, uiDispatcher, logger);
+        Buckets.CollectionChanged += (_, _) =>
+        {
+            OnPropertyChanged(nameof(TotalsText));
+            OnPropertyChanged(nameof(BuildCacheCaption));
+            OnPropertyChanged(nameof(ContainersCaption));
+        };
+    }
+
+    private string GetCompactHint()
+    {
+        if (!Compact.IsElevated)
+        {
+            return "Для сжатия диска Docker требуются права администратора";
+        }
+
+        if (IsBusy)
+        {
+            return "Дождитесь завершения текущей операции Docker";
+        }
+
+        if (!IsAvailable)
+        {
+            return string.IsNullOrWhiteSpace(UnavailableReason)
+                ? "Опрос Docker не выполнен – нажмите «Обновить»"
+                : "Docker недоступен";
+        }
+
+        return "Остановить Docker Desktop и сжать образ VHDX через diskpart";
     }
 
     public Task EnsureLoadedAsync()
@@ -364,134 +396,5 @@ public sealed partial class DockerViewModel : ObservableObject, IPageHeader, IPa
         {
             Buckets.Add(bucket);
         }
-
-        OnPropertyChanged(nameof(TotalsText));
-        OnPropertyChanged(nameof(BuildCacheCaption));
-        OnPropertyChanged(nameof(ContainersCaption));
-    }
-
-    [RelayCommand]
-    private Task PruneBuildCacheAsync()
-    {
-        return ConfirmCleanupAsync(
-            "Кэш сборки",
-            PackIconLucideKind.Hammer,
-            ["Будет удалён весь кэш сборки Docker.", "Следующая сборка займёт больше времени."],
-            "Очистить кэш",
-            () => RunCleanupAsync(DockerCleanupTarget.BuildCache, "Очистить кэш сборки"));
-    }
-
-    [RelayCommand]
-    private Task PruneDanglingImagesAsync()
-    {
-        return ConfirmCleanupAsync(
-            "Висячие образы",
-            PackIconLucideKind.Image,
-            ["Будут удалены образы без тегов (dangling).", "Образы, привязанные к контейнерам, не тронуты."],
-            "Удалить образы",
-            () => RunCleanupAsync(DockerCleanupTarget.DanglingImages, "Удалить «висячие» образы"));
-    }
-
-    [RelayCommand]
-    private Task PruneStoppedContainersAsync()
-    {
-        return ConfirmCleanupAsync(
-            "Остановленные контейнеры",
-            PackIconLucideKind.Box,
-            ["Будут удалены все остановленные контейнеры.", "Данные внутри них пропадут вместе с контейнером."],
-            "Удалить контейнеры",
-            () => RunCleanupAsync(DockerCleanupTarget.StoppedContainers, "Удалить остановленные контейнеры"));
-    }
-
-    [RelayCommand]
-    private Task PruneUnusedImagesAsync()
-    {
-        return ConfirmCleanupAsync(
-            "Неиспользуемые образы",
-            PackIconLucideKind.Trash2,
-            ["Будут удалены все образы, не привязанные к контейнерам.", "Нужные придётся скачивать заново."],
-            "Удалить образы",
-            () => RunCleanupAsync(DockerCleanupTarget.UnusedImages, "Удалить неиспользуемые образы"));
-    }
-
-    [RelayCommand]
-    private Task PruneVolumesAsync()
-    {
-        var allUnused = PruneAllVolumes;
-
-        var scope = allUnused
-            ? "Будут удалены все неиспользуемые тома, включая именованные."
-            : "Будут удалены неиспользуемые анонимные тома.";
-
-        return ConfirmCleanupAsync(
-            "Неиспользуемые тома",
-            PackIconLucideKind.Database,
-            [scope, "В томах лежат данные приложений – базы, кэши, загруженные файлы."],
-            "Удалить тома",
-            () => RunCleanupAsync(DockerCleanupTarget.UnusedVolumes, "Удалить неиспользуемые тома", allUnused));
-    }
-
-    private async Task ConfirmCleanupAsync(
-        string title,
-        PackIconLucideKind iconKind,
-        IReadOnlyList<string> lines,
-        string action,
-        Func<Task> run)
-    {
-        if (!CanRun)
-        {
-            return;
-        }
-
-        var confirm = new ConfirmDialogViewModel(
-            title,
-            iconKind,
-            lines,
-            [
-                new("Отмена", ConfirmChoiceKind.Dismissive),
-                new(action, ConfirmChoiceKind.Destructive),
-            ])
-        {
-            Warning = "Docker удаляет мимо корзины – вернуть удалённое нельзя.",
-        };
-
-        if (!await _dialogs.ShowAsync(confirm))
-        {
-            return;
-        }
-
-        await run();
-    }
-
-    private async Task RunCleanupAsync(DockerCleanupTarget target, string title, bool allUnused = false)
-    {
-        if (!CanRun)
-        {
-            return;
-        }
-
-        IsBusy = true;
-        StatusText = $"{title}…";
-        try
-        {
-            _logger.DockerCleanupStarted(target.ToString());
-            var result = await _docker.PruneAsync(target, allUnused, CancellationToken.None);
-            _logger.DockerCleanupFinished(target.ToString(), Summarize(result));
-            _uiDispatcher.Invoke(() => _dialogs.Info(title, string.IsNullOrWhiteSpace(result) ? "Готово. Освобождать было нечего." : result));
-        }
-        catch (Exception ex)
-        {
-            _logger.DockerCleanupFailed(ex, target.ToString());
-            _uiDispatcher.Invoke(() =>
-            {
-                _dialogs.Error(title, ex.Message);
-                IsBusy = false;
-            });
-
-            return;
-        }
-
-        IsBusy = false;
-        await RefreshAsync();
     }
 }

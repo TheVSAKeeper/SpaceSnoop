@@ -168,7 +168,7 @@
             </Expander>
             <Button Style="{StaticResource Button.Secondary}"
                     Command="{Binding Compact.RunCommand}"
-                    ToolTip="Для сжатия диска Docker требуются права администратора"
+                    ToolTip="{Binding CompactHint}"
                     ToolTipService.ShowOnDisabled="True"
                     IsEnabled="{Binding CanRun}"
                     HorizontalAlignment="Left"

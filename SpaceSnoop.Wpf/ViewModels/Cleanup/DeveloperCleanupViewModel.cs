@@ -162,13 +162,20 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
 
     public Task EnsureLoadedAsync()
     {
-        if (_loaded || IsBusy)
+        if (_loaded || IsBusy || !IsNuGetActive)
         {
             return Task.CompletedTask;
         }
 
-        _loaded = true;
-        return RefreshAsync();
+        return ScanNuGetAsync();
+    }
+
+    partial void OnSelectedAreaIndexChanged(int value)
+    {
+        if (value == 0)
+        {
+            _ = EnsureLoadedAsync();
+        }
     }
 
     partial void OnIsNuGetBusyChanged(bool value)
@@ -211,6 +218,11 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
             return;
         }
 
+        await ScanNuGetAsync();
+    }
+
+    private async Task ScanNuGetAsync()
+    {
         _operation.Begin(value => IsNuGetBusy = value);
         ResultText = null;
         try
@@ -240,6 +252,7 @@ public sealed partial class DeveloperCleanupViewModel : ObservableObject, IPageH
         var plan = await _service.ScanAsync(token);
         _uiDispatcher.Invoke(() =>
         {
+            _loaded = true;
             _plan = plan;
             foreach (var scan in plan.Caches)
             {
