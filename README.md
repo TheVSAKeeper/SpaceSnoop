@@ -13,8 +13,8 @@ SpaceSnoop – шнырь по твоим накопителям. Сканиру
 синхронизация, очистка кэшей и чат со Шнырём, если копаться самому лень.
 
 [![Release](https://github.com/MaxNagibator/SpaceSnoop/actions/workflows/release.yml/badge.svg)](https://github.com/MaxNagibator/SpaceSnoop/actions/workflows/release.yml)
-![Windows](https://img.shields.io/badge/Windows-.NET%2010-7955b8)
-![WPF](https://img.shields.io/badge/WPF-%2B%20Classic-d68c68)
+![Windows](https://img.shields.io/badge/Windows-.NET%2010%20%7C%2011-7955b8)
+![WPF](https://img.shields.io/badge/UI-WPF-d68c68)
 
 **[Скачать для Windows](https://github.com/MaxNagibator/SpaceSnoop/releases)** · [Начать работу](#начать-работу) · [Руководство](GUIDE.md) · [Все скриншоты](assets/screenshots/README.md)
 
