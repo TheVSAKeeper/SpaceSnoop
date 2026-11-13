@@ -160,7 +160,8 @@ jobs:
           Compress-Archive -Path ".\dist\$asset-v$version.exe" -DestinationPath ".\dist\$asset-v$version.zip"
 
           Move-Item ".\publish\portable\$binary" ".\publish\portable\$asset-v$version-portable.exe"
-          Compress-Archive -Path ".\publish\portable\$asset-v$version-portable.exe" -DestinationPath ".\dist\$asset-v$version-portable.zip"
+          New-Item -ItemType File -Path ".\publish\portable\portable.flag" -Force | Out-Null
+          Compress-Archive -Path ".\publish\portable\$asset-v$version-portable.exe", ".\publish\portable\portable.flag" -DestinationPath ".\dist\$asset-v$version-portable.zip"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

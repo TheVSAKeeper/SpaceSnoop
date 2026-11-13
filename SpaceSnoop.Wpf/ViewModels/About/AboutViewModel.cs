@@ -17,7 +17,7 @@ public sealed partial class AboutViewModel(
     private static readonly BuildBadge Badge = BuildBadge.Build(
         BuildStamp.Read(Environment.ProcessPath, AppInfo.InformationalVersion),
         AppInfo.InformationalVersion,
-        AppContext.BaseDirectory,
+        AppStorage.PortableDirectory,
         "отметки сборки рядом нет, поэтому коммит и дата неизвестны");
 
     public string AppName => AppInfo.Name;

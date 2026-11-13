@@ -4,6 +4,7 @@
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Schedule"
              xmlns:sync="clr-namespace:SpaceSnoop.Wpf.ViewModels.Sync"
              xmlns:schedule="clr-namespace:SpaceSnoop.Wpf.Views.Schedule"
+             xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -58,24 +59,23 @@
                 </StackPanel>
             </Border>
 
-            <Grid Margin="0,4,0,8">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
+            <keepshell:StretchWrapPanel Margin="0,4,0,4"
+                                      ItemWidth="160">
+                <TextBlock keepshell:StretchWrapPanel.Stretch="True"
+                           keepshell:StretchWrapPanel.StretchWidth="160"
                            Text="Профили"
                            VerticalAlignment="Center"
+                           Margin="0,2,12,6"
                            FontWeight="{DynamicResource Font.Weight.SemiBold}"
                            FontSize="{DynamicResource Font.Size.L}"
                            Foreground="{DynamicResource Fg.Primary}" />
-                <StackPanel Grid.Column="1"
-                            Orientation="Horizontal">
+                <WrapPanel Orientation="Horizontal"
+                           VerticalAlignment="Center">
                     <Button Style="{StaticResource Button.Ghost}"
                             Command="{Binding Bulk.SelectAllCommand}"
                             MinHeight="{DynamicResource Control.Height.Default}"
                             Padding="14,6"
-                            Margin="0,0,8,0"
+                            Margin="0,0,8,4"
                             Visibility="{Binding HasProfiles, Converter={StaticResource BoolToVisibility}}"
                             ToolTip="Выбрать все профили для пакетного редактирования">
                         <StackPanel Orientation="Horizontal">
@@ -91,7 +91,7 @@
                             Command="{Binding CreateBatchCommand}"
                             MinHeight="{DynamicResource Control.Height.Default}"
                             Padding="14,6"
-                            Margin="0,0,8,0">
+                            Margin="0,0,8,4">
                         <StackPanel Orientation="Horizontal">
                             <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.CopyPlus}"
                                                       Width="14"
@@ -104,7 +104,8 @@
                     <Button Style="{StaticResource Button.Primary}"
                             Command="{Binding AddProfileCommand}"
                             MinHeight="{DynamicResource Control.Height.Default}"
-                            Padding="14,6">
+                            Padding="14,6"
+                            Margin="0,0,0,4">
                         <StackPanel Orientation="Horizontal">
                             <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.Plus}"
                                                       Width="14"
@@ -114,8 +115,8 @@
                             <TextBlock Text="Добавить профиль" />
                         </StackPanel>
                     </Button>
-                </StackPanel>
-            </Grid>
+                </WrapPanel>
+            </keepshell:StretchWrapPanel>
 
             <Border Style="{StaticResource Card.Inset}"
                     Margin="0,0,0,10"

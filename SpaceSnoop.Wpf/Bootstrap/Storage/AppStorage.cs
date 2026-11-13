@@ -12,9 +12,11 @@ public static class AppStorage
 
     private const string OwnSettingsKeyPrefix = "wpf.";
 
-    private static readonly string PortableMarkerPath = Path.Combine(AppContext.BaseDirectory, PortableMarkerFileName);
+    private static readonly string ExecutableDirectory = ResolveExecutableDirectory(Environment.ProcessPath, AppContext.BaseDirectory);
 
-    private static readonly string LegacyAppDataMarkerPath = Path.Combine(AppContext.BaseDirectory, LegacyAppDataMarkerFileName);
+    private static readonly string PortableMarkerPath = Path.Combine(ExecutableDirectory, PortableMarkerFileName);
+
+    private static readonly string LegacyAppDataMarkerPath = Path.Combine(ExecutableDirectory, LegacyAppDataMarkerFileName);
 
     public static string AppDataDirectory { get; } =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), AppInfo.Name);
@@ -22,9 +24,9 @@ public static class AppStorage
     public static bool UseAppData { get; } = Resolve(
         File.Exists(PortableMarkerPath),
         File.Exists(LegacyAppDataMarkerPath),
-        static () => HasPortableSettings(AppContext.BaseDirectory, AppDataDirectory));
+        static () => HasPortableSettings(ExecutableDirectory, AppDataDirectory));
 
-    public static string PortableDirectory => AppContext.BaseDirectory;
+    public static string PortableDirectory => ExecutableDirectory;
 
     public static string DataDirectory { get; } = EnsureExists(DirectoryFor(UseAppData));
 
@@ -107,6 +109,28 @@ public static class AppStorage
         return copied.Count(static file => !TryDelete(file));
     }
 
+    internal static string ResolveExecutableDirectory(string? processPath, string baseDirectory)
+    {
+        if (!string.IsNullOrWhiteSpace(processPath))
+        {
+            var host = Path.GetFileNameWithoutExtension(processPath);
+
+            if (!IsSharedHost(host))
+            {
+                var directory = Path.GetDirectoryName(processPath);
+
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    return Path.EndsInDirectorySeparator(directory)
+                        ? directory
+                        : directory + Path.DirectorySeparatorChar;
+                }
+            }
+        }
+
+        return baseDirectory;
+    }
+
     internal static bool Resolve(bool portableMarker, bool legacyAppDataMarker, Func<bool> hasPortableSettings)
     {
         if (portableMarker)
@@ -175,6 +199,14 @@ public static class AppStorage
         {
             return false;
         }
+    }
+
+    private static bool IsSharedHost(string name)
+    {
+        return string.Equals(name, "dotnet", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("testhost", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("vstest", StringComparison.OrdinalIgnoreCase)
+            || name.StartsWith("ReSharperTestRunner", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string EnsureExists(string directory)

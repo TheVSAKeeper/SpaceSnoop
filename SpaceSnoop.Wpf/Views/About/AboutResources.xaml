@@ -66,7 +66,7 @@
                                     Value="{DynamicResource Accent.Primary}" />
                             <Setter TargetName="CardBorder"
                                     Property="Background"
-                                    Value="{DynamicResource Bg.SurfaceAlt}" />
+                                    Value="{DynamicResource Bg.Surface}" />
                         </Trigger>
                         <Trigger Property="IsKeyboardFocused"
                                  Value="True">

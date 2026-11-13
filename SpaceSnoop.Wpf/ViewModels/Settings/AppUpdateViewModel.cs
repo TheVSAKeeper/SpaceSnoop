@@ -410,7 +410,7 @@ public sealed partial class AppUpdateViewModel : ObservableObject
             return;
         }
 
-        var target = Path.Combine(AppContext.BaseDirectory, _assetName);
+        var target = Path.Combine(AppStorage.PortableDirectory, _assetName);
         var temp = target + ".part";
 
         try

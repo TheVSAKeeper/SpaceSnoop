@@ -135,4 +135,17 @@ public class AppStorageTests
             Directory.Delete(root, true);
         }
     }
+
+    [TestCase(@"D:\Portable\SpaceSnoop-v2.9.0-portable.exe", @"C:\Users\admin\AppData\Local\Temp\.net\SpaceSnoop.Wpf\abc\", @"D:\Portable\", TestName = "Single-file с самораспаковкой выбирает папку реального exe вместо Temp")]
+    [TestCase(@"D:\SpaceSnoop.exe", @"C:\Users\admin\AppData\Local\Temp\.net\SpaceSnoop.Wpf\abc\", @"D:\", TestName = "Исполняемый файл в корне тома не дублирует разделитель")]
+    [TestCase(@"C:\Program Files\SpaceSnoop\SpaceSnoop.Wpf.exe", @"C:\Program Files\SpaceSnoop\", @"C:\Program Files\SpaceSnoop\", TestName = "Обычный apphost сохраняет папку исполняемого файла со слэшем")]
+    [TestCase(@"C:\Program Files\dotnet\dotnet.exe", @"C:\Repo\bin\Debug\net10.0-windows\", @"C:\Repo\bin\Debug\net10.0-windows\", TestName = "Запуск через dotnet оставляет BaseDirectory сборки")]
+    [TestCase(@"C:\NuGet\microsoft.testplatform.testhost\testhost.exe", @"C:\Repo\bin\Debug\net10.0-windows\", @"C:\Repo\bin\Debug\net10.0-windows\", TestName = "Тестовый хост testhost оставляет BaseDirectory тестовой сборки")]
+    [TestCase(@"C:\VS\Common7\IDE\Extensions\TestPlatform\vstest.console.exe", @"C:\Repo\bin\Debug\net10.0-windows\", @"C:\Repo\bin\Debug\net10.0-windows\", TestName = "Консоль vstest оставляет BaseDirectory тестовой сборки")]
+    [TestCase("", @"C:\Repo\bin\Debug\net10.0-windows\", @"C:\Repo\bin\Debug\net10.0-windows\", TestName = "Пустой ProcessPath откатывается к BaseDirectory")]
+    [TestCase(null, @"C:\Repo\bin\Debug\net10.0-windows\", @"C:\Repo\bin\Debug\net10.0-windows\", TestName = "Отсутствующий ProcessPath откатывается к BaseDirectory")]
+    public void Каталог_приложения_определяется_по_реальному_exe_а_не_папке_распаковки_бандла(string? processPath, string baseDirectory, string expected)
+    {
+        Assert.That(AppStorage.ResolveExecutableDirectory(processPath, baseDirectory), Is.EqualTo(expected));
+    }
 }

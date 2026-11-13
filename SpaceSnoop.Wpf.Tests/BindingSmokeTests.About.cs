@@ -106,17 +106,21 @@ public partial class BindingSmokeTests
             Assert.That(backgroundSetter.Value, Is.InstanceOf<DynamicResourceExtension>());
             var resourceKey = ((DynamicResourceExtension)backgroundSetter.Value).ResourceKey;
             var hoverBrush = tile.TryFindResource(resourceKey) as SolidColorBrush;
-            var expectedBrush = tile.TryFindResource("Bg.SurfaceAlt") as SolidColorBrush;
+            var expectedBrush = tile.TryFindResource("Bg.Surface") as SolidColorBrush;
+            var parentCard = Ancestor<Border>(tile) ?? throw new InvalidOperationException("Родительская карточка возможностей не найдена.");
+            var parentBrush = parentCard.Background as SolidColorBrush;
             var restingBrush = tile.Background as SolidColorBrush;
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(resourceKey, Is.EqualTo("Bg.SurfaceAlt"));
+                Assert.That(resourceKey, Is.EqualTo("Bg.Surface"));
                 Assert.That(hoverBrush, Is.Not.Null, "Токен фона наведения отсутствует в активной теме – плитка теряет заливку.");
                 Assert.That(expectedBrush, Is.Not.Null);
+                Assert.That(parentBrush, Is.Not.Null);
                 Assert.That(restingBrush, Is.Not.Null);
                 Assert.That(hoverBrush!.Color, Is.EqualTo(expectedBrush!.Color));
                 Assert.That(hoverBrush.Color, Is.Not.EqualTo(restingBrush!.Color));
+                Assert.That(hoverBrush.Color, Is.Not.EqualTo(parentBrush!.Color), "Фон наведения плитки не должен сливаться с родительской карточкой Card.Inset.");
                 Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
             }
         }

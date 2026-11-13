@@ -74,6 +74,72 @@ public partial class BindingSmokeTests
     }
 
     [Test]
+    public void Расписание_шапка_Профили_при_880x584_и_160_процентах_читается_и_не_обрезает_кнопки()
+    {
+        var preferences = _services.GetRequiredService<ShellPreferences>();
+        var schedule = _services.GetRequiredService<ScheduleViewModel>();
+        var (oldWidth, oldHeight, oldScale) = (_window.Width, _window.Height, preferences.FontScale);
+
+        try
+        {
+            Assume.That(schedule.HasProfiles, Is.True, "В фикстуре расписания должны быть профили для отображения кнопки «Выбрать все».");
+            Assert.That(_shell.TryNavigate(SectionKey.Schedule), Is.True, "Страница «Расписание» не открылась.");
+
+            _window.Width = SmallWindowWidth;
+            _window.Height = SmallWindowHeight;
+            preferences.FontScale = FontScaleManager.MaxScale;
+            Settle();
+
+            var view = Descendant<ScheduleView>(_window) ?? throw new InvalidOperationException("Страница расписания не найдена.");
+            var headerPanel = Descendant<StretchWrapPanel>(view) ?? throw new InvalidOperationException("Адаптивная шапка «Профили» не найдена.");
+            var heading = Descendants<TextBlock>(headerPanel).First(static text => text.Text == "Профили");
+            var actionsPanel = Descendant<WrapPanel>(headerPanel) ?? throw new InvalidOperationException("Группа кнопок шапки «Профили» не найдена.");
+            var narrowButtons = Descendants<Button>(actionsPanel).Where(static button => button.IsVisible).ToArray();
+            var narrowBounds = narrowButtons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToArray();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(narrowButtons, Has.Length.EqualTo(3), "В шапке «Профили» должны быть видны все три кнопки.");
+                Assert.That(heading.ActualWidth, Is.GreaterThanOrEqualTo(80), "Заголовок «Профили» сжался в узком окне.");
+                Assert.That(heading.ActualHeight, Is.LessThan(heading.FontSize * 2.0), "Заголовок «Профили» перенёсся на несколько строк.");
+                Assert.That(
+                    narrowBounds.Where(rect => rect.Left < -0.5 || rect.Right > (view.ActualWidth + 1)),
+                    Is.Empty,
+                    "Кнопка шапки «Профили» выходит за пределы страницы в окне 880x584 при 160 %.");
+            }
+
+            _window.Width = 1280;
+            _window.Height = 800;
+            preferences.FontScale = FontScaleManager.DefaultScale;
+            Settle();
+
+            var headingBounds = heading.TransformToAncestor(view).TransformBounds(new(heading.RenderSize));
+            var wideButtons = Descendants<Button>(actionsPanel).Where(static button => button.IsVisible).ToArray();
+            var wideBounds = wideButtons.Select(button => button.TransformToAncestor(view).TransformBounds(new(button.RenderSize))).ToArray();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(
+                    wideBounds.Select(static rect => Math.Round(rect.Top)).Distinct().Count(),
+                    Is.EqualTo(1),
+                    "На ширине 1280 px кнопки шапки «Профили» не должны переноситься на вторую строку.");
+                Assert.That(
+                    headingBounds.Right,
+                    Is.LessThanOrEqualTo(wideBounds[0].Left + 1),
+                    "На ширине 1280 px заголовок и кнопки шапки «Профили» должны стоять в одной строке.");
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            }
+        }
+        finally
+        {
+            preferences.FontScale = oldScale;
+            _window.Width = oldWidth;
+            _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [Test]
     public void Сегментированные_переключатели_вне_настроек_при_крупном_шрифте_в_узком_окне_не_уходят_за_край()
     {
         var preferences = _services.GetRequiredService<ShellPreferences>();
