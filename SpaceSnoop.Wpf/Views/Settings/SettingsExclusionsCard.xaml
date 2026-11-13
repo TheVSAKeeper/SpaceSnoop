@@ -68,7 +68,7 @@
                            Text="Выключено – перезапись необратима, прежний файл пропадает без следа. Включено – каждая перезапись добавляет файл в корзину, и на больших прогонах она заметно растёт; место освободится после её очистки." />
             </Expander>
 
-            <settings:SettingRowPanel Margin="0,16,0,0"
+            <keepshell:SettingRowPanel Margin="0,16,0,0"
                                       settings:SettingsBlock.Key="exclusions">
                 <StackPanel>
                     <TextBlock Text="Git-папки (.git)"
@@ -96,7 +96,7 @@
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </settings:SettingRowPanel>
+            </keepshell:SettingRowPanel>
 
             <TextBlock Text="Исключения по умолчанию"
                        Style="{StaticResource Form.Label}"

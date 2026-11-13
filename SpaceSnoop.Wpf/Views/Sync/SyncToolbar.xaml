@@ -1,8 +1,8 @@
 ﻿<UserControl x:Class="SpaceSnoop.Wpf.Views.Sync.SyncToolbar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Sync"
-             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:sync="clr-namespace:SpaceSnoop.Wpf.Views.Sync"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -81,7 +81,7 @@
         <StackPanel>
             <sync:SyncEndpointsRow />
 
-            <views:StretchWrapPanel Margin="0,12,0,0"
+            <keepshell:StretchWrapPanel Margin="0,12,0,0"
                                     ItemWidth="240">
                 <Button Style="{StaticResource CompareButton}"
                         Command="{Binding Operations.CompareCommand}"
@@ -152,8 +152,8 @@
                                    VerticalAlignment="Center" />
                     </StackPanel>
                 </ToggleButton>
-                <Grid views:StretchWrapPanel.Stretch="True"
-                      views:StretchWrapPanel.StretchWidth="360"
+                <Grid keepshell:StretchWrapPanel.Stretch="True"
+                      keepshell:StretchWrapPanel.StretchWidth="360"
                       VerticalAlignment="Center"
                       Margin="0,0,0,8">
                     <Grid.ColumnDefinitions>
@@ -246,7 +246,7 @@
                                   ToolTip="Профиль синхронизации" />
                     </Grid>
                 </Grid>
-            </views:StretchWrapPanel>
+            </keepshell:StretchWrapPanel>
 
             <Popup x:Name="MorePopup"
                    PlacementTarget="{Binding ElementName=MoreToggle}"

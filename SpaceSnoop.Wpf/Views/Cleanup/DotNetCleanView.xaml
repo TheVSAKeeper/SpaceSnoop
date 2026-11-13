@@ -7,59 +7,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance vm:DotNetCleanViewModel}">
-    <UserControl.Resources>
-        <!-- TODO: локальный шаблон до поддержки PART_EditableTextBox в KeepShell, после обновления пакета удалить. -->
-        <Style x:Key="EditableConfiguration"
-               TargetType="ComboBox"
-               BasedOn="{StaticResource {x:Type ComboBox}}">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="ComboBox">
-                        <Grid>
-                            <Border Background="{DynamicResource Bg.Surface}"
-                                    BorderBrush="{DynamicResource Border.Subtle}"
-                                    BorderThickness="1"
-                                    CornerRadius="{DynamicResource Radius.S}">
-                                <DockPanel>
-                                    <ToggleButton DockPanel.Dock="Right"
-                                                  Focusable="False"
-                                                  Width="28"
-                                                  Background="Transparent"
-                                                  BorderThickness="0"
-                                                  IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                                        <iconPacks:PackIconLucide
-                                            Kind="{x:Static iconPacks:PackIconLucideKind.ChevronDown}"
-                                            Width="12"
-                                            Height="12" />
-                                    </ToggleButton>
-                                    <TextBox x:Name="PART_EditableTextBox"
-                                             BorderThickness="0"
-                                             Background="Transparent"
-                                             VerticalContentAlignment="Center"
-                                             AutomationProperties.Name="Конфигурация проекта" />
-                                </DockPanel>
-                            </Border>
-                            <Popup x:Name="PART_Popup"
-                                   Placement="Bottom"
-                                   IsOpen="{TemplateBinding IsDropDownOpen}"
-                                   AllowsTransparency="True"
-                                   Focusable="False"
-                                   PopupAnimation="None">
-                                <Border Background="{DynamicResource Bg.Surface}"
-                                        BorderBrush="{DynamicResource Border.Subtle}"
-                                        BorderThickness="1"
-                                        MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}">
-                                    <ScrollViewer MaxHeight="200">
-                                        <ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained" />
-                                    </ScrollViewer>
-                                </Border>
-                            </Popup>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
     <ScrollViewer VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled"
                   Padding="0,0,12,0">
@@ -101,8 +48,7 @@
                             <TextBlock Text="Конфигурация"
                                        TextWrapping="Wrap"
                                        Style="{StaticResource Caption}" />
-                            <ComboBox Style="{StaticResource EditableConfiguration}"
-                                      IsEditable="True"
+                            <ComboBox IsEditable="True"
                                       Text="{Binding Configuration, UpdateSourceTrigger=PropertyChanged}"
                                       IsEnabled="{Binding IsIdle}"
                                       AutomationProperties.Name="Конфигурация проекта">

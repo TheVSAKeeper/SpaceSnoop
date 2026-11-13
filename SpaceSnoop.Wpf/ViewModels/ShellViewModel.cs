@@ -1,6 +1,5 @@
 ﻿using MahApps.Metro.IconPacks;
 using System.ComponentModel;
-using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.ViewModels;
 
@@ -58,8 +57,6 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
     public override IPageHeader? EffectivePageHeader => Preferences.ShowPageHeader ? CurrentPageHeader : null;
 
     public string? CurrentSectionKey => Selected?.Key is { Length: > 0 } key ? key : null;
-
-    public ICommand? PageRefreshCommand => CurrentPageRefresh?.RefreshCommand;
 
     public ShellViewModel(
         ThemeViewModel theme,
@@ -200,7 +197,6 @@ public sealed partial class ShellViewModel : ShellViewModelBase, IAppNavigator
         }
 
         StatusText = "Готов";
-        OnPropertyChanged(nameof(PageRefreshCommand));
 
         if (value?.Key is { Length: > 0 } key && Sections.Contains(value))
         {

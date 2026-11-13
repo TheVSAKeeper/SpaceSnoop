@@ -7,15 +7,13 @@ public readonly record struct DuplicateRequest(
 
 public sealed class DuplicateProgressDialogViewModel : OperationDialogViewModelBase
 {
-    internal const int ProgressPollIntervalMs = 120;
-
-    internal static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(ProgressPollIntervalMs);
+    internal static readonly TimeSpan ProgressPollInterval = UiProgressPoller.DefaultInterval;
 
     private readonly DuplicateRequest _request;
     private readonly DuplicateFinder _finder;
     private readonly ILogger _logger;
     private readonly OperationProgressState _progress = new();
-    private readonly IUiTimer _progressTimer;
+    private readonly UiProgressPoller _progressPoller;
 
     public override string Title => "Поиск дубликатов";
 
@@ -44,7 +42,7 @@ public sealed class DuplicateProgressDialogViewModel : OperationDialogViewModelB
         _request = request;
         _finder = finder;
         _logger = logger;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _progressPoller = new(uiDispatcher, OnProgressTick, ProgressPollInterval);
 
         RootPath = request.Root.AbsolutePath;
         ThresholdText = $"от {SizeFormatter.Format(request.Options.MinSize)}";
@@ -56,16 +54,10 @@ public sealed class DuplicateProgressDialogViewModel : OperationDialogViewModelB
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _request.External);
 
         _progress.Reset();
-        _progressTimer.Start();
 
-        try
+        await using (_progressPoller.StartScope())
         {
             Report = await _finder.FindAsync(_request.Root, _request.Options, _progress, linked.Token);
-        }
-        finally
-        {
-            _progressTimer.Stop();
-            Apply(_progress.CreateSnapshot());
         }
     }
 

@@ -1,4 +1,4 @@
-﻿using SpaceSnoop.Wpf.Views;
+﻿using KeepShell.Views.Controls;
 
 namespace SpaceSnoop.Wpf.Tests;
 

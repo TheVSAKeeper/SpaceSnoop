@@ -20,7 +20,7 @@ public class ProgressChannelMeasurement
     private const int PacedSeconds = 8;
     private const double LateThresholdMs = 100;
 
-    private static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(DuplicateProgressDialogViewModel.ProgressPollIntervalMs);
+    private static readonly TimeSpan PollInterval = DuplicateProgressDialogViewModel.ProgressPollInterval;
     private static readonly TimeSpan SampleInterval = TimeSpan.FromMilliseconds(50);
     private static readonly string[] Paths = [.. Enumerable.Range(0, 64).Select(static index => $@"C:\Sources\проект\узел-{index:D4}\файл-{index:D4}.bin")];
 

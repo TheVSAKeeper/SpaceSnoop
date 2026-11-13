@@ -1,5 +1,4 @@
-﻿using SpaceSnoop.Wpf.Views;
-using SpaceSnoop.Wpf.Views.Settings;
+﻿using KeepShell.Views.Controls;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 

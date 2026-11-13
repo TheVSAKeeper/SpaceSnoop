@@ -45,7 +45,7 @@
             <TextBlock Style="{StaticResource Form.CheckHint}"
                        Text="Параллельный обход каталогов – быстрее, но выше расход памяти." />
 
-            <settings:SettingRowPanel Margin="0,16,0,0"
+            <keepshell:SettingRowPanel Margin="0,16,0,0"
                                       IsEnabled="{Binding Scan.UseMultithreading}">
                 <StackPanel>
                     <TextBlock Text="Число параллельных потоков"
@@ -79,7 +79,7 @@
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </settings:SettingRowPanel>
+            </keepshell:SettingRowPanel>
 
             <Grid Margin="0,16,0,0"
                   IsEnabled="{Binding Scan.UseMultithreading}">
@@ -226,7 +226,7 @@
                            Text="После большого скана приложение проверяет нагрузку памяти. Когда достигнут порог, установленный средой .NET, выполняется уплотняющая сборка: другим программам достанется больше памяти, но окно может ненадолго замереть. При достаточном запасе памяти сборка пропускается, чтобы избежать этой паузы. Результат скана не меняется; небольшие папки настройка не затрагивает." />
             </Expander>
 
-            <settings:SettingRowPanel Margin="0,16,0,0"
+            <keepshell:SettingRowPanel Margin="0,16,0,0"
                                       settings:SettingsBlock.Key="view">
                 <StackPanel>
                     <TextBlock Text="Интенсивность тепловой подсветки"
@@ -254,7 +254,7 @@
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </settings:SettingRowPanel>
+            </keepshell:SettingRowPanel>
 
             <Grid Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>

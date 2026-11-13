@@ -1,8 +1,8 @@
 ﻿<UserControl x:Class="SpaceSnoop.Wpf.Views.Scan.ScanInspectorRail"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Scan"
-             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -54,7 +54,7 @@
             </TextBlock>
         </StackPanel>
 
-        <views:FirstFitPanel Orientation="Vertical"
+        <keepshell:FirstFitPanel Orientation="Vertical"
                              Margin="0,16,0,0"
                              Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
             <StackPanel x:Name="RailActions"
@@ -309,6 +309,6 @@
                     </Button.ContextMenu>
                 </Button>
             </StackPanel>
-        </views:FirstFitPanel>
+        </keepshell:FirstFitPanel>
     </DockPanel>
 </UserControl>

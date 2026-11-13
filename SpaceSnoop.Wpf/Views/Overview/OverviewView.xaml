@@ -2,7 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Overview"
-             xmlns:rootViews="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views.Overview"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
@@ -109,9 +108,9 @@
                     Margin="0,0,0,12"
                     Visibility="{Binding Rows.HasRows, Converter={StaticResource BoolToVisibility}}">
                 <StackPanel>
-                    <rootViews:StretchWrapPanel ItemWidth="280">
-                        <StackPanel rootViews:StretchWrapPanel.Stretch="True"
-                                    rootViews:StretchWrapPanel.StretchWidth="280"
+                    <keepshell:StretchWrapPanel ItemWidth="280">
+                        <StackPanel keepshell:StretchWrapPanel.Stretch="True"
+                                    keepshell:StretchWrapPanel.StretchWidth="280"
                                     VerticalAlignment="Center"
                                     Margin="0,0,12,0">
                             <TextBlock Text="Сравнение всех профилей"
@@ -126,83 +125,86 @@
                                        Margin="0,4,0,0" />
                         </StackPanel>
 
-                        <Button Style="{StaticResource Button.Ghost}"
-                                Command="{Binding Batch.SkipCurrentCommand}"
-                                MinHeight="{DynamicResource Control.Height.Default}"
-                                Padding="14,6"
-                                VerticalAlignment="Center"
-                                Margin="0,2,8,2"
-                                ToolTip="Пропустить текущий профиль и перейти к следующему"
-                                Visibility="{Binding Batch.IsBatchRunning, Converter={StaticResource BoolToVisibility}}">
-                            <StackPanel Orientation="Horizontal">
-                                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.SkipForward}"
-                                                          Width="14"
-                                                          Height="14"
-                                                          VerticalAlignment="Center"
-                                                          Margin="0,0,6,0" />
-                                <TextBlock Text="Пропустить" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource Button.Ghost}"
-                                Command="{Binding CancelCommand}"
-                                Content="Остановить"
-                                ToolTip="Остановить операцию (Esc)"
-                                AutomationProperties.Name="Остановить операцию"
-                                MinHeight="{DynamicResource Control.Height.Default}"
-                                Padding="14,6"
-                                VerticalAlignment="Center"
-                                Margin="0,2,8,2"
-                                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
-                        <Button Style="{StaticResource Button.Ghost}"
-                                Command="{Binding CycleAllDirectionsCommand}"
-                                MinHeight="{DynamicResource Control.Height.Default}"
-                                Padding="14,6"
-                                VerticalAlignment="Center"
-                                Margin="0,2,8,2"
-                                ToolTip="Сменить направление синхронизации у всех профилей"
-                                AutomationProperties.Name="Сменить направление всем">
-                            <StackPanel Orientation="Horizontal">
-                                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ArrowRightLeft}"
-                                                          Width="14"
-                                                          Height="14"
-                                                          VerticalAlignment="Center"
-                                                          Margin="0,0,6,0" />
-                                <TextBlock Text="Направление всем" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource Button.Secondary}"
-                                Command="{Binding Batch.CompareAllCommand}"
-                                MinHeight="{DynamicResource Control.Height.Default}"
-                                Padding="14,6"
-                                VerticalAlignment="Center"
-                                Margin="0,2,8,2">
-                            <StackPanel Orientation="Horizontal">
-                                <iconPacks:PackIconLucide
-                                    Kind="{x:Static iconPacks:PackIconLucideKind.GitCompareArrows}"
-                                    Width="14"
-                                    Height="14"
+                        <WrapPanel Orientation="Horizontal"
+                                   VerticalAlignment="Center">
+                            <Button Style="{StaticResource Button.Ghost}"
+                                    Command="{Binding Batch.SkipCurrentCommand}"
+                                    MinHeight="{DynamicResource Control.Height.Default}"
+                                    Padding="14,6"
                                     VerticalAlignment="Center"
-                                    Margin="0,0,6,0" />
-                                <TextBlock Text="Сравнить все" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource Button.Primary}"
-                                Command="{Binding Batch.SyncAllCommand}"
-                                MinHeight="{DynamicResource Control.Height.Default}"
-                                Padding="14,6"
-                                VerticalAlignment="Center"
-                                Margin="0,2,0,2"
-                                ToolTip="Синхронизировать все профили (удаления – в корзину)">
-                            <StackPanel Orientation="Horizontal">
-                                <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderSync}"
-                                                          Width="14"
-                                                          Height="14"
-                                                          VerticalAlignment="Center"
-                                                          Margin="0,0,6,0" />
-                                <TextBlock Text="Синхронизировать всё" />
-                            </StackPanel>
-                        </Button>
-                    </rootViews:StretchWrapPanel>
+                                    Margin="0,2,8,2"
+                                    ToolTip="Пропустить текущий профиль и перейти к следующему"
+                                    Visibility="{Binding Batch.IsBatchRunning, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.SkipForward}"
+                                                              Width="14"
+                                                              Height="14"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,6,0" />
+                                    <TextBlock Text="Пропустить" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource Button.Ghost}"
+                                    Command="{Binding CancelCommand}"
+                                    Content="Остановить"
+                                    ToolTip="Остановить операцию (Esc)"
+                                    AutomationProperties.Name="Остановить операцию"
+                                    MinHeight="{DynamicResource Control.Height.Default}"
+                                    Padding="14,6"
+                                    VerticalAlignment="Center"
+                                    Margin="0,2,8,2"
+                                    Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}" />
+                            <Button Style="{StaticResource Button.Ghost}"
+                                    Command="{Binding CycleAllDirectionsCommand}"
+                                    MinHeight="{DynamicResource Control.Height.Default}"
+                                    Padding="14,6"
+                                    VerticalAlignment="Center"
+                                    Margin="0,2,8,2"
+                                    ToolTip="Сменить направление синхронизации у всех профилей"
+                                    AutomationProperties.Name="Сменить направление всем">
+                                <StackPanel Orientation="Horizontal">
+                                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.ArrowRightLeft}"
+                                                              Width="14"
+                                                              Height="14"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,6,0" />
+                                    <TextBlock Text="Направление всем" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource Button.Secondary}"
+                                    Command="{Binding Batch.CompareAllCommand}"
+                                    MinHeight="{DynamicResource Control.Height.Default}"
+                                    Padding="14,6"
+                                    VerticalAlignment="Center"
+                                    Margin="0,2,8,2">
+                                <StackPanel Orientation="Horizontal">
+                                    <iconPacks:PackIconLucide
+                                        Kind="{x:Static iconPacks:PackIconLucideKind.GitCompareArrows}"
+                                        Width="14"
+                                        Height="14"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,6,0" />
+                                    <TextBlock Text="Сравнить все" />
+                                </StackPanel>
+                            </Button>
+                            <Button Style="{StaticResource Button.Primary}"
+                                    Command="{Binding Batch.SyncAllCommand}"
+                                    MinHeight="{DynamicResource Control.Height.Default}"
+                                    Padding="14,6"
+                                    VerticalAlignment="Center"
+                                    Margin="0,2,0,2"
+                                    ToolTip="Синхронизировать все профили (удаления – в корзину)">
+                                <StackPanel Orientation="Horizontal">
+                                    <iconPacks:PackIconLucide Kind="{x:Static iconPacks:PackIconLucideKind.FolderSync}"
+                                                              Width="14"
+                                                              Height="14"
+                                                              VerticalAlignment="Center"
+                                                              Margin="0,0,6,0" />
+                                    <TextBlock Text="Синхронизировать всё" />
+                                </StackPanel>
+                            </Button>
+                        </WrapPanel>
+                    </keepshell:StretchWrapPanel>
 
                     <ProgressBar Height="6"
                                  Minimum="0"

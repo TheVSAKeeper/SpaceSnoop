@@ -4,10 +4,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels"
         xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
-        xmlns:conv="clr-namespace:SpaceSnoop.Wpf.Converters"
         xmlns:keepshell="https://schemas.keepshell.dev/wpf"
-        xmlns:keepconv="clr-namespace:KeepShell.Converters;assembly=KeepShell"
-        xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
         xmlns:tarkov="https://schemas.keepshell.dev/wpf/tarkov"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -36,9 +33,6 @@
     </shell:WindowChrome.WindowChrome>
 
     <Window.Resources>
-        <keepconv:SeverityToBrushConverter x:Key="ToastHost.SeverityToBrush" />
-        <conv:ToastUndoCommandConverter x:Key="ToastHost.UndoCommand" />
-
         <Style TargetType="keepshell:NavigationRailView">
             <Style.Triggers>
                 <DataTrigger Binding="{Binding IsNavigationLocked}"
@@ -47,89 +41,6 @@
                             Value="False" />
                 </DataTrigger>
             </Style.Triggers>
-        </Style>
-
-        <Style TargetType="keepshell:ToastHost">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="keepshell:ToastHost">
-                        <Grid>
-                            <ItemsControl ItemsSource="{Binding Toasts}"
-                                          HorizontalAlignment="Right"
-                                          VerticalAlignment="Bottom"
-                                          Margin="20"
-                                          MaxWidth="380">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <StackPanel />
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <Border Margin="0,8,0,0"
-                                                MinHeight="44"
-                                                Background="{Binding Severity, Converter={StaticResource ToastHost.SeverityToBrush}, ConverterParameter=Soft}"
-                                                BorderBrush="{Binding Severity, Converter={StaticResource ToastHost.SeverityToBrush}}"
-                                                BorderThickness="1"
-                                                CornerRadius="{DynamicResource Radius.M}"
-                                                Effect="{DynamicResource Card.Shadow}">
-                                            <Grid>
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                    <ColumnDefinition Width="Auto" />
-                                                </Grid.ColumnDefinitions>
-
-                                                <TextBlock Grid.Column="0"
-                                                           Text="{Binding Message}"
-                                                           TextWrapping="Wrap"
-                                                           VerticalAlignment="Center"
-                                                           Margin="14,10"
-                                                           Foreground="{DynamicResource Fg.Primary}" />
-
-                                                <Button Grid.Column="1"
-                                                        Content="Отменить"
-                                                        VerticalAlignment="Center"
-                                                        Margin="0,4,4,4"
-                                                        Padding="8,4"
-                                                        AutomationProperties.Name="Отменить действие"
-                                                        Command="{Binding Converter={StaticResource ToastHost.UndoCommand}}">
-                                                    <Button.Style>
-                                                        <Style TargetType="Button"
-                                                               BasedOn="{StaticResource Button.Ghost}">
-                                                            <Style.Triggers>
-                                                                <Trigger Property="Command"
-                                                                         Value="{x:Null}">
-                                                                    <Setter Property="Visibility"
-                                                                            Value="Collapsed" />
-                                                                </Trigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </Button.Style>
-                                                </Button>
-
-                                                <Button Grid.Column="2"
-                                                        Style="{DynamicResource Button.Icon}"
-                                                        VerticalAlignment="Top"
-                                                        Margin="0,4,4,0"
-                                                        ToolTip="Закрыть"
-                                                        AutomationProperties.Name="Закрыть уведомление"
-                                                        Command="{Binding DataContext.DismissCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                        CommandParameter="{Binding}">
-                                                    <iconPacks:PackIconLucide
-                                                        Kind="{x:Static iconPacks:PackIconLucideKind.X}"
-                                                        Width="14"
-                                                        Height="14" />
-                                                </Button>
-                                            </Grid>
-                                        </Border>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Grid>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
         </Style>
     </Window.Resources>
 

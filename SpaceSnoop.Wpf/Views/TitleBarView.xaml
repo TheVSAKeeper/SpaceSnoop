@@ -4,7 +4,6 @@
              xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels"
-             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:bs="clr-namespace:SpaceSnoop.Wpf.Bootstrap"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -13,81 +12,6 @@
              d:DataContext="{d:DesignInstance vm:ShellViewModel}"
              d:DesignHeight="36"
              d:DesignWidth="1100">
-
-    <UserControl.Resources>
-        <Style x:Key="Theme.SegmentButton"
-               TargetType="Button">
-            <Setter Property="Background"
-                    Value="Transparent" />
-            <Setter Property="Foreground"
-                    Value="{DynamicResource Fg.Secondary}" />
-            <Setter Property="BorderThickness"
-                    Value="0" />
-            <Setter Property="Padding"
-                    Value="0" />
-            <Setter Property="MinHeight"
-                    Value="32" />
-            <Setter Property="Cursor"
-                    Value="Hand" />
-            <Setter Property="HorizontalContentAlignment"
-                    Value="Center" />
-            <Setter Property="VerticalContentAlignment"
-                    Value="Center" />
-            <Setter Property="FocusVisualStyle"
-                    Value="{x:Null}" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd"
-                                Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="{DynamicResource Radius.S}"
-                                Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center"
-                                              VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver"
-                                     Value="True">
-                                <Setter TargetName="Bd"
-                                        Property="Background"
-                                        Value="{DynamicResource Bg.SurfaceAlt}" />
-                            </Trigger>
-                            <Trigger Property="IsPressed"
-                                     Value="True">
-                                <Setter TargetName="Bd"
-                                        Property="Background"
-                                        Value="{DynamicResource Bg.SurfaceMute}" />
-                            </Trigger>
-                            <Trigger Property="IsKeyboardFocused"
-                                     Value="True">
-                                <Setter TargetName="Bd"
-                                        Property="BorderBrush"
-                                        Value="{DynamicResource Accent.Primary}" />
-                                <Setter TargetName="Bd"
-                                        Property="BorderThickness"
-                                        Value="1" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-            <Style.Triggers>
-                <DataTrigger Binding="{Binding Tag, RelativeSource={RelativeSource Self}}"
-                             Value="True">
-                    <Setter Property="Background"
-                            Value="{DynamicResource Bg.SurfaceMute}" />
-                    <Setter Property="BorderBrush"
-                            Value="{DynamicResource Border.Default}" />
-                    <Setter Property="BorderThickness"
-                            Value="1" />
-                    <Setter Property="Foreground"
-                            Value="{DynamicResource Fg.Primary}" />
-                </DataTrigger>
-            </Style.Triggers>
-        </Style>
-    </UserControl.Resources>
 
     <Border Background="{DynamicResource Bg.Surface}"
             BorderBrush="{DynamicResource Border.Subtle}"
@@ -126,7 +50,7 @@
                     <Run Text="v" /><Run Text="{Binding AppVersion, Mode=OneTime}" />
                 </TextBlock>
 
-                <views:FirstFitPanel x:Name="ElevationSlot"
+                <keepshell:FirstFitPanel x:Name="ElevationSlot"
                                      Grid.Column="3"
                                      Margin="14,0,0,0"
                                      HorizontalAlignment="Left"
@@ -203,7 +127,7 @@
                                                       Foreground="{DynamicResource Fg.Secondary}" />
                         </Border>
                     </Grid>
-                </views:FirstFitPanel>
+                </keepshell:FirstFitPanel>
             </Grid>
 
             <StackPanel Grid.Column="1"
@@ -331,8 +255,7 @@
                         keepshell:ChromeAction.Action="Minimize"
                         ToolTip="Свернуть"
                         AutomationProperties.Name="Свернуть окно">
-                    <Path Data="M 0.5,5.5 L 9.5,5.5"
-                          Style="{StaticResource Chrome.Glyph}" />
+                    <Path Style="{StaticResource Chrome.Glyph.Minimize}" />
                 </Button>
                 <Button Style="{StaticResource Chrome.Button.MaxRestore}"
                         keepshell:ChromeAction.Action="MaxRestore">
@@ -342,8 +265,7 @@
                         keepshell:ChromeAction.Action="Close"
                         ToolTip="Закрыть"
                         AutomationProperties.Name="Закрыть окно">
-                    <Path Data="M 0.75,0.75 L 9.25,9.25 M 9.25,0.75 L 0.75,9.25"
-                          Style="{StaticResource Chrome.Glyph}" />
+                    <Path Style="{StaticResource Chrome.Glyph.Close}" />
                 </Button>
             </StackPanel>
         </Grid>

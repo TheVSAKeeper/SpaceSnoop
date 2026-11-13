@@ -1,16 +1,13 @@
 ﻿using System.Collections.Specialized;
-using System.Runtime.CompilerServices;
-using System.Windows.Input;
 
 namespace SpaceSnoop.Wpf.Bootstrap;
 
 public sealed class ToastNotifier
 {
-    private static readonly ConditionalWeakTable<ToastViewModel, ICommand> UndoCommands = [];
+    private const string UndoCaption = "Отменить";
 
     private readonly ToastHostViewModel _toasts;
     private readonly ShellPreferences _prefs;
-    private Action? _pendingUndo;
     private Action? _lastUndo;
     private ToastViewModel? _lastUndoToast;
 
@@ -21,11 +18,6 @@ public sealed class ToastNotifier
         _toasts = toasts;
         _prefs = prefs;
         _toasts.Toasts.CollectionChanged += OnToastsChanged;
-    }
-
-    public static ICommand? GetUndoCommand(ToastViewModel? toast)
-    {
-        return toast is not null && UndoCommands.TryGetValue(toast, out var command) ? command : null;
     }
 
     public void ClearUndo()
@@ -49,27 +41,37 @@ public sealed class ToastNotifier
             return;
         }
 
-        _pendingUndo = onUndo;
-        try
+        if (onUndo is null)
         {
-            var toast = _toasts.Show(message, severity);
-            AttachUndo(toast, onUndo);
+            _toasts.Show(message, severity);
+            return;
         }
-        finally
+
+        ToastViewModel? toast = null;
+        var undone = false;
+        var undo = new RelayCommand(() =>
         {
-            _pendingUndo = null;
-        }
+            if (undone || !ReferenceEquals(_lastUndo, onUndo))
+            {
+                return;
+            }
+
+            undone = true;
+            ClearUndo();
+            onUndo();
+            _toasts.DismissCommand.Execute(toast);
+        });
+
+        toast = _toasts.Show(message, severity, null, UndoCaption, undo);
+        _lastUndoToast = toast;
     }
 
     public bool UndoLast()
     {
-        for (var i = _toasts.Toasts.Count - 1; i >= 0; i--)
+        if (_lastUndoToast is { ActionCommand: { } command } toast && command.CanExecute(toast))
         {
-            if (GetUndoCommand(_toasts.Toasts[i]) is { } command && command.CanExecute(null))
-            {
-                command.Execute(null);
-                return true;
-            }
+            command.Execute(toast);
+            return true;
         }
 
         if (_lastUndo is not { } undo)
@@ -84,50 +86,9 @@ public sealed class ToastNotifier
 
     private void OnToastsChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
-        if (e.Action == NotifyCollectionChangedAction.Add
-            && _pendingUndo is { } onUndo
-            && e.NewItems is { Count: > 0 } items
-            && items[0] is ToastViewModel toast)
-        {
-            _pendingUndo = null;
-            AttachUndo(toast, onUndo);
-            return;
-        }
-
         if (_lastUndoToast is not null && !_toasts.Toasts.Contains(_lastUndoToast))
         {
             ClearUndo();
         }
-    }
-
-    private void AttachUndo(ToastViewModel toast, Action? onUndo)
-    {
-        if (onUndo is null)
-        {
-            return;
-        }
-
-        _lastUndoToast = toast;
-
-        if (UndoCommands.TryGetValue(toast, out _))
-        {
-            return;
-        }
-
-        var undone = false;
-        UndoCommands.Add(
-            toast,
-            new RelayCommand(() =>
-            {
-                if (undone || !ReferenceEquals(_lastUndo, onUndo))
-                {
-                    return;
-                }
-
-                undone = true;
-                ClearUndo();
-                onUndo();
-                _toasts.DismissCommand.Execute(toast);
-            }));
     }
 }

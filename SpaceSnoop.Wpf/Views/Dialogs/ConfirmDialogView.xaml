@@ -1,8 +1,8 @@
 ﻿<UserControl x:Class="SpaceSnoop.Wpf.Views.Dialogs.ConfirmDialogView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Dialogs"
-             xmlns:views="clr-namespace:SpaceSnoop.Wpf.Views"
              xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -292,7 +292,7 @@
                        Foreground="{DynamicResource State.ErrorText}" />
         </Grid>
 
-        <views:FirstFitPanel Grid.Row="3"
+        <keepshell:FirstFitPanel Grid.Row="3"
                              x:Name="ChoiceSlot"
                              Margin="0,14,0,0">
             <Grid x:Name="ChoiceRow">
@@ -349,6 +349,6 @@
                           Margin="0,0,0,10"
                           Visibility="{Binding HasRememberChoice, Converter={StaticResource BoolToVisibility}}" />
             </DockPanel>
-        </views:FirstFitPanel>
+        </keepshell:FirstFitPanel>
     </Grid>
 </UserControl>

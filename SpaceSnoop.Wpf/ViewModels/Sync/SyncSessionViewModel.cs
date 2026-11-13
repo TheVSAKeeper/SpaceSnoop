@@ -6,9 +6,7 @@ namespace SpaceSnoop.Wpf.ViewModels.Sync;
 
 public sealed partial class SyncSessionViewModel : ObservableObject
 {
-    internal const int ProgressPollIntervalMs = 120;
-
-    internal static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(ProgressPollIntervalMs);
+    internal static readonly TimeSpan ProgressPollInterval = UiProgressPoller.DefaultInterval;
 
     private readonly IDialogService _dialogs;
     private readonly ILogger _logger;
@@ -16,7 +14,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
     private readonly PerformanceOperations _performance;
     private readonly Action<string> _reportSummary;
     private readonly OperationProgressState _progress = new();
-    private readonly IUiTimer _progressTimer;
+    private readonly UiProgressPoller _progressPoller;
 
     private readonly Stopwatch _clock = new();
 
@@ -82,7 +80,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
         _notifier = notifier;
         _performance = performance;
         _reportSummary = reportSummary;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _progressPoller = new(uiDispatcher, OnProgressTick, ProgressPollInterval);
     }
 
     internal static string DescribeRate(string name, SyncReport report, TimeSpan elapsed)
@@ -177,7 +175,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
         }
         else
         {
-            _progressTimer.Start();
+            _progressPoller.Start();
         }
 
         try
@@ -190,12 +188,7 @@ public sealed partial class SyncSessionViewModel : ObservableObject
             }
             finally
             {
-                _progressTimer.Stop();
-
-                if (!selfThrottled)
-                {
-                    Observe(_progress.CreateSnapshot());
-                }
+                await _progressPoller.StopAsync();
             }
 
             LastOperationCancelled = token.IsCancellationRequested;

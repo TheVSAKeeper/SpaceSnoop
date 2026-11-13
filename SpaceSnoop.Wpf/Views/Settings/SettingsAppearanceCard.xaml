@@ -2,7 +2,6 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:SpaceSnoop.Wpf.ViewModels.Settings"
-             xmlns:settings="clr-namespace:SpaceSnoop.Wpf.Views.Settings"
              xmlns:keepshell="https://schemas.keepshell.dev/wpf"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -59,7 +58,7 @@
                          Margin="-8,10,0,-8" />
             </Grid>
 
-            <settings:SettingRowPanel Margin="0,16,0,0">
+            <keepshell:SettingRowPanel Margin="0,16,0,0">
                 <StackPanel>
                     <TextBlock Text="Масштаб шрифта"
                                Style="{StaticResource Form.Label}"
@@ -86,7 +85,7 @@
                         Command="{Binding ResetCommand}"
                         ToolTip="{Binding Hint}"
                         AutomationProperties.Name="{Binding AutomationName}" />
-            </settings:SettingRowPanel>
+            </keepshell:SettingRowPanel>
 
             <Grid Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>

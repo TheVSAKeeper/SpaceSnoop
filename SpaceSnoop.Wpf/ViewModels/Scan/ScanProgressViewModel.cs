@@ -7,8 +7,6 @@ public sealed partial class ScanProgressViewModel : ObservableObject
 {
     internal const string MeasuringText = "считаем…";
 
-    private static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(120);
-
     private readonly PerformanceOperations _operations;
     private readonly IUiTimer _progressTimer;
     private readonly Lock _estimateGate = new();
@@ -84,7 +82,7 @@ public sealed partial class ScanProgressViewModel : ObservableObject
     {
         _operations = operations;
 
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _progressTimer = uiDispatcher.CreateTimer(UiProgressPoller.DefaultInterval, OnProgressTick);
     }
 
     internal static string BytesText(long files, long bytes)

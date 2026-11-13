@@ -4,16 +4,14 @@ namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
 
 public sealed partial class ArchiveProgressDialogViewModel : OperationDialogViewModelBase
 {
-    internal const int ProgressPollIntervalMs = 120;
-
-    internal static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(ProgressPollIntervalMs);
+    internal static readonly TimeSpan ProgressPollInterval = UiProgressPoller.DefaultInterval;
 
     private readonly ArchiveRequest _request;
     private readonly ArchiveService _service;
     private readonly ILogger _logger;
     private readonly OperationProgressState _packProgress = new();
     private readonly OperationProgressState _verifyProgress = new();
-    private readonly IUiTimer _progressTimer;
+    private readonly UiProgressPoller _progressPoller;
 
     private volatile ArchivePhase _phase;
     private bool _packed;
@@ -57,7 +55,7 @@ public sealed partial class ArchiveProgressDialogViewModel : OperationDialogView
         _request = request;
         _service = service;
         _logger = logger;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _progressPoller = new(uiDispatcher, OnProgressTick, ProgressPollInterval);
 
         SourceName = Path.GetFileName(request.SourcePath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
         SourceSize = $"≈ {SizeFormatter.Format(request.TotalBytes)} · ≈ {request.EstimatedFiles:N0} {Plural.Word(request.EstimatedFiles, "файл", "файла", "файлов")}";
@@ -112,16 +110,10 @@ public sealed partial class ArchiveProgressDialogViewModel : OperationDialogView
 
         _packProgress.Reset();
         _verifyProgress.Reset();
-        _progressTimer.Start();
 
-        try
+        await using (_progressPoller.StartScope())
         {
             await Task.Run(() => ExecuteZip(stage, token), token);
-        }
-        finally
-        {
-            _progressTimer.Stop();
-            OnProgressTick();
         }
     }
 

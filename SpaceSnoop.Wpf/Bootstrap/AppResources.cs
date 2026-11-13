@@ -20,7 +20,6 @@ public static class AppResources
         new("pack://application:,,,/KeepShell;component/Resources/Themes/Tokens.xaml"),
         new("pack://application:,,,/KeepShell;component/Resources/Converters.xaml"),
         new("pack://application:,,,/KeepShell;component/Resources/Styles/Controls.xaml"),
-        new("pack://application:,,,/SpaceSnoop.Wpf;component/Resources/Styles/Segments.xaml"),
         new("pack://application:,,,/SpaceSnoop.Wpf;component/Resources/Styles/Trees.xaml"),
         new("pack://application:,,,/SpaceSnoop.Wpf;component/Resources/Styles/Shared.xaml"),
     ];

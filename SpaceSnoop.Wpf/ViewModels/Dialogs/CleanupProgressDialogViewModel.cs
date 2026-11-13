@@ -10,15 +10,13 @@ public readonly record struct CleanupRequest(
 
 public sealed partial class CleanupProgressDialogViewModel : OperationDialogViewModelBase
 {
-    internal const int ProgressPollIntervalMs = 120;
-
-    internal static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(ProgressPollIntervalMs);
+    internal static readonly TimeSpan ProgressPollInterval = UiProgressPoller.DefaultInterval;
 
     private readonly CleanupRequest _request;
     private readonly CleanupService _service;
     private readonly ILogger _logger;
     private readonly OperationProgressState _progress = new();
-    private readonly IUiTimer _progressTimer;
+    private readonly UiProgressPoller _progressPoller;
     private readonly PerformanceOperations _operations;
     private readonly List<string> _reportedErrors = [];
     private PerformanceOperation? _reported;
@@ -106,7 +104,7 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         _operations = operations;
         _service = service;
         _logger = logger;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _progressPoller = new(uiDispatcher, OnProgressTick, ProgressPollInterval);
 
         TargetName = request.Targets.Count == 1
             ? request.Targets[0].Name
@@ -161,7 +159,7 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, _request.External);
 
         _progress.Reset();
-        _progressTimer.Start();
+        _progressPoller.Start();
 
         try
         {
@@ -186,9 +184,8 @@ public sealed partial class CleanupProgressDialogViewModel : OperationDialogView
         }
         finally
         {
-            _progressTimer.Stop();
             IsStepIndivisible = false;
-            Apply(_progress.CreateSnapshot());
+            await _progressPoller.StopAsync();
         }
     }
 

@@ -8,15 +8,13 @@ namespace SpaceSnoop.Wpf.ViewModels.Dialogs;
 
 public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewModelBase
 {
-    internal const int ProgressPollIntervalMs = 120;
-
-    internal static readonly TimeSpan ProgressPollInterval = TimeSpan.FromMilliseconds(ProgressPollIntervalMs);
+    internal static readonly TimeSpan ProgressPollInterval = UiProgressPoller.DefaultInterval;
 
     private readonly bool _permanent;
     private readonly PerformanceMonitor _monitor;
     private readonly PerformanceOperations _operations;
     private readonly ShellPreferences _preferences;
-    private readonly IUiTimer _progressTimer;
+    private readonly UiProgressPoller _progressPoller;
     private readonly ILogger _logger;
     private readonly Action<SpaceBase>? _unmark;
     private readonly string _runId = Guid.NewGuid().ToString("N")[..8];
@@ -95,7 +93,7 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         _monitor = monitor;
         _operations = operations;
         _preferences = preferences;
-        _progressTimer = uiDispatcher.CreateTimer(ProgressPollInterval, OnProgressTick);
+        _progressPoller = new(uiDispatcher, OnProgressTick, ProgressPollInterval);
         _logger = logger;
         _unmark = unmark;
         Items = new(items.Select(static item => new DeleteRowViewModel(item)));
@@ -155,8 +153,7 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         }
         finally
         {
-            _progressTimer.Stop();
-            OnProgressTick();
+            await _progressPoller.StopAsync();
             _progress = null;
             ClearPulse();
         }
@@ -169,14 +166,13 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         SelectNextCommand.NotifyCanExecuteChanged();
         _diagnostics = new(_permanent, Items.Count, _totalBytes, _monitor, _operations, _preferences);
         _diagnostics.Start();
-        _progressTimer.Start();
+        _progressPoller.Start();
         _logger.DeletionStarted(_runId, Items.Count, SizeFormatter.Format(_totalBytes), _permanent);
     }
 
     protected override void OnFinished()
     {
-        _progressTimer.Stop();
-        OnProgressTick();
+        _progressPoller.Stop();
 
         _diagnostics.Finish(_processed, _freedBytes, !Cancelled && Failure is null);
         DiagnosticsText = null;
