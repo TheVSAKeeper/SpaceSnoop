@@ -14,9 +14,17 @@
     <DisableMicrosoftExtensionsLoggingSourceGenerator>true</DisableMicrosoftExtensionsLoggingSourceGenerator>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <KeepShellBuildStamp>true</KeepShellBuildStamp>
+    <PortableBuild Condition="'$(PortableBuild)' == ''">false</PortableBuild>
     <!-- Self-contained single-file WPF requires IncludeAllContentForSelfExtract for C++/CLI DirectWriteForwarder.dll -->
     <NoWarn>$(NoWarn);NETSDK1244</NoWarn>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>PortableBuild</_Parameter1>
+      <_Parameter2>$(PortableBuild)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="icon.ico" />

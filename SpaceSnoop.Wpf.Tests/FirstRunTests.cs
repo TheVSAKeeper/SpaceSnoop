@@ -267,7 +267,7 @@ public class FirstRunTests
         {
             File.WriteAllText(Path.Combine(exe, TomlSettingsFile.LegacyFileName), $"{SettingsKeys.FontScale} 1.25\n");
 
-            var useAppData = AppStorage.Resolve(false, false, () => AppStorage.HasPortableSettings(exe, appData));
+            var useAppData = AppStorage.Resolve(exe, appData, isPortableBuild: false);
             var dataDirectory = useAppData ? appData : exe;
             var freshProfile = !AppStorage.HasSettings(dataDirectory);
 

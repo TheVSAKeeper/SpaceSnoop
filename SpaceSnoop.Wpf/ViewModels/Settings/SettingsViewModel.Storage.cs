@@ -58,9 +58,12 @@ public sealed partial class SettingsViewModel
 
         try
         {
-            if (ReferenceEquals(confirm.Chosen, migrate))
+            _settings.Flush();
+
+            var migrateChosen = ReferenceEquals(confirm.Chosen, migrate);
+
+            if (migrateChosen)
             {
-                _settings.Flush();
                 var left = AppStorage.Migrate(source, destination);
 
                 if (left > 0)
@@ -69,7 +72,7 @@ public sealed partial class SettingsViewModel
                 }
             }
 
-            AppStorage.SetUseAppData(useAppData);
+            AppStorage.SetUseAppData(useAppData, migrateChosen);
             _logger.StorageLocationChanged(destination);
         }
         catch (Exception exception)
@@ -80,9 +83,12 @@ public sealed partial class SettingsViewModel
             return;
         }
 
+        _settings.DiscardPending();
+        _settings.Close();
+
         var executable = Environment.ProcessPath;
 
-        if (!string.IsNullOrEmpty(executable) && !_shell.Start(executable))
+        if (string.IsNullOrEmpty(executable) || !_shell.Start(executable))
         {
             _dialogs.Error("Расположение данных", "Данные перенесены, но перезапустить программу не удалось – закройте и откройте её сами.");
 
