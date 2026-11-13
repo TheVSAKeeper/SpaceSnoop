@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using KeepShell.Bootstrap;
+using Microsoft.Extensions.DependencyInjection;
 using SpaceSnoop.Wpf.Bootstrap;
 using SpaceSnoop.Wpf.Bootstrap.Gallery;
 using SpaceSnoop.Wpf.ViewModels;
@@ -6,8 +7,10 @@ using SpaceSnoop.Wpf.ViewModels.Settings;
 using SpaceSnoop.Wpf.Views;
 using SpaceSnoop.Wpf.Views.About;
 using SpaceSnoop.Wpf.Views.Dialogs;
+using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace SpaceSnoop.Wpf.Tests;
 
@@ -76,6 +79,50 @@ public partial class BindingSmokeTests
             preferences.FontScale = oldScale;
             _window.Width = oldWidth;
             _window.Height = oldHeight;
+            Settle();
+        }
+    }
+
+    [TestCase(AppThemes.LightKey)]
+    [TestCase(AppThemes.DarkKey)]
+    [TestCase(AppThemes.TarkovKey)]
+    public void Плитка_возможностей_О_программе_разрешает_токен_фона_при_наведении(string theme)
+    {
+        try
+        {
+            ThemeManager.Apply(theme);
+            Assert.That(_shell.TryNavigate(SectionKey.About), Is.True);
+            Settle();
+
+            var aboutView = Descendant<AboutView>(_window)!;
+            var tile = Descendants<Button>(Descendant<AboutFeaturesCard>(aboutView)!).First();
+            var hoverTrigger = tile.Template.Triggers
+                .OfType<Trigger>()
+                .Single(static trigger => trigger.Property == UIElement.IsMouseOverProperty && Equals(trigger.Value, true));
+            var backgroundSetter = hoverTrigger.Setters
+                .OfType<Setter>()
+                .Single(static setter => setter.TargetName == "CardBorder" && setter.Property == Border.BackgroundProperty);
+
+            Assert.That(backgroundSetter.Value, Is.InstanceOf<DynamicResourceExtension>());
+            var resourceKey = ((DynamicResourceExtension)backgroundSetter.Value).ResourceKey;
+            var hoverBrush = tile.TryFindResource(resourceKey) as SolidColorBrush;
+            var expectedBrush = tile.TryFindResource("Bg.SurfaceAlt") as SolidColorBrush;
+            var restingBrush = tile.Background as SolidColorBrush;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(resourceKey, Is.EqualTo("Bg.SurfaceAlt"));
+                Assert.That(hoverBrush, Is.Not.Null, "Токен фона наведения отсутствует в активной теме – плитка теряет заливку.");
+                Assert.That(expectedBrush, Is.Not.Null);
+                Assert.That(restingBrush, Is.Not.Null);
+                Assert.That(hoverBrush!.Color, Is.EqualTo(expectedBrush!.Color));
+                Assert.That(hoverBrush.Color, Is.Not.EqualTo(restingBrush!.Color));
+                Assert.That(_sink.Errors, Is.Empty, () => string.Join(Environment.NewLine, _sink.Errors));
+            }
+        }
+        finally
+        {
+            ThemeManager.Apply(AppThemes.LightKey);
             Settle();
         }
     }

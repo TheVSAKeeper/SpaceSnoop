@@ -50,7 +50,7 @@ public sealed partial class DeleteProgressDialogViewModel
         IsRunning = false;
         IsFinished = false;
         DiagnosticsText = null;
-        CancelPending = false;
+        CancelRequested = false;
         ClearPulse();
     }
 }

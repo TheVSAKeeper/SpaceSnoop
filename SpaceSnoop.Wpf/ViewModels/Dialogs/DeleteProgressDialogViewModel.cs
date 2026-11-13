@@ -1,5 +1,6 @@
 ﻿using KeepShell.Diagnostics;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 
@@ -22,7 +23,6 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
     private long _totalBytes;
     private DeleteOperationDiagnostics _diagnostics;
-    private CancellationToken _token;
     private DeleteProgressState? _progress;
     private long _freedBytes;
     private int _deleted;
@@ -53,12 +53,6 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
     [ObservableProperty]
     private int _followIndex = -1;
 
-    // TODO: наблюдаемого CancelRequested в пакете KeepShell ещё нет, поэтому запрошенная отмена
-    // считается по токену на тике опроса – после бампа пакета убрать CancelPending и читать базовое свойство
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(CancelCaption))]
-    private bool _cancelPending;
-
     public ObservableCollection<DeleteRowViewModel> Items { get; }
 
     public string WidestSizeText { get; }
@@ -75,7 +69,7 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         ? "Остановка сработает после текущего объекта – удаление каталога со всем содержимым прервать нельзя."
         : $"Остановка сработает в конце текущей пачки – это {Plural.Format(ChunkSize, "объект", "объекта", "объектов")}, обычно доли секунды.";
 
-    public string CancelCaption => CancelPending ? "Остановка запрошена…" : "Остановить удаление";
+    public string CancelCaption => CancelRequested ? "Остановка запрошена…" : "Остановить удаление";
 
     public bool IsChunkStalled => IsChunkRunning && ChunkElapsedText is not null;
 
@@ -152,7 +146,6 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
     {
         var progress = new DeleteProgressState(Items.Count);
         _progress = progress;
-        _token = token;
         var deletedItems = new List<SpaceBase>(Items.Count);
         DeletedItems = deletedItems;
 
@@ -201,6 +194,16 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
         return base.CanStart() && Items.Count > 0;
     }
 
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+
+        if (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName == nameof(CancelRequested))
+        {
+            OnPropertyChanged(nameof(CancelCaption));
+        }
+    }
+
     protected override string BuildSummary()
     {
         if (Failure is { } failure)
@@ -225,11 +228,6 @@ public sealed partial class DeleteProgressDialogViewModel : OperationDialogViewM
 
     private void OnProgressTick()
     {
-        if (_token.IsCancellationRequested)
-        {
-            CancelPending = true;
-        }
-
         if (_progress is not { } progress)
         {
             return;

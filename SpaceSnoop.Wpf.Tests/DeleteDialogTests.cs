@@ -492,6 +492,55 @@ public class DeleteDialogTests
     }
 
     [Test]
+    public async Task Запрос_остановки_сразу_меняет_подпись_кнопки_отмены_и_уведомляет_привязку()
+    {
+        var dispatcher = new FakeUiDispatcher();
+        DeleteProgressDialogViewModel? started = null;
+        string? captionOnStop = null;
+        var cancelRequestedOnStop = false;
+        var changed = new List<string?>();
+        var items = Items(RunRows, static _ => true).ToList();
+        var trigger = new TriggerOnSizeRead(
+            items[1].Name,
+            items[1].Parent!,
+            () =>
+            {
+                started!.RequestStop();
+                cancelRequestedOnStop = started.CancelRequested;
+                captionOnStop = started.CancelCaption;
+            });
+        items[1] = trigger;
+
+        var dialog = Dialog(dispatcher, items);
+        dialog.PropertyChanged += (_, args) =>
+        {
+            lock (changed)
+            {
+                changed.Add(args.PropertyName);
+            }
+        };
+
+        dialog.RequestStop();
+        var captionBeforeStart = dialog.CancelCaption;
+        var cancelBeforeStart = dialog.CancelRequested;
+
+        started = dialog;
+        trigger.Armed = true;
+
+        await dialog.StartCommand.ExecuteAsync(null);
+
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(cancelBeforeStart, Is.False);
+            Assert.That(captionBeforeStart, Is.EqualTo("Остановить удаление"));
+            Assert.That(cancelRequestedOnStop, Is.True);
+            Assert.That(captionOnStop, Is.EqualTo("Остановка запрошена…"), "Подпись кнопки отмены не обновилась сразу при запросе остановки.");
+            Assert.That(changed, Does.Contain(nameof(DeleteProgressDialogViewModel.CancelRequested)));
+            Assert.That(changed, Does.Contain(nameof(DeleteProgressDialogViewModel.CancelCaption)), "Привязка CancelCaption не получила PropertyChanged при смене CancelRequested.");
+        }
+    }
+
+    [Test]
     public async Task Ошибка_безвозвратного_удаления_сохраняет_каталог_и_предупреждает_о_частичном_результате()
     {
         var items = Items(1, _ => true);

@@ -32,7 +32,6 @@ public sealed record GalleryOptions(
             SizeMin = AppDefaults.GallerySizeMin,
             SizeMax = AppDefaults.GallerySizeMax,
             Scale = AppDefaults.ViewCaptureScaleDefault,
-            ThemeDelayMs = AppDefaults.GalleryThemeDelayMs,
             FrameDelayMs = AppDefaults.GalleryFrameDelayMs,
         };
 
